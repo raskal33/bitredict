@@ -240,7 +240,7 @@ export default function Page() {
     return themes[theme as keyof typeof themes] || themes.cyan;
   };
 
-  const PoolCard = ({ pool }: { pool: { id: string; title: string; category: string; cardTheme: string; trending?: boolean; image: string; confidence: number; odds: number; participants: number; volume24h: number; change24h: number; progress: number; total: number } }) => {
+  const PoolCard = ({ pool }: { pool: { id: number; title: string; category: string; cardTheme: string; trending?: boolean; image: string; confidence: number; odds: number; participants: number; volume24h: number; change24h: number; progress: number; total: number; endDate: string } }) => {
     const theme = getCardTheme(pool.cardTheme);
     const progressPercentage = (pool.progress / pool.total) * 100;
     const isPositiveChange = pool.change24h > 0;
@@ -443,13 +443,19 @@ export default function Page() {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                <Button 
-                  size="lg" 
-                  variant="outline" 
-                  className="sm:w-auto w-full group hover:border-primary/50 transition-all duration-200"
+                <a 
+                  href="https://bitredict.com" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
                 >
-                  Learn More
-                </Button>
+                  <Button 
+                    size="lg" 
+                    variant="outline" 
+                    className="sm:w-auto w-full group hover:border-primary/50 transition-all duration-200"
+                  >
+                    Learn More
+                  </Button>
+                </a>
               </motion.div>
             </motion.div>
 

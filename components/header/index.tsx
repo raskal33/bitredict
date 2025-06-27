@@ -69,9 +69,9 @@ export default function Header() {
         method: 'wallet_switchEthereumChain',
         params: [{ chainId: `0x${somniaNetwork.id.toString(16)}` }],
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       // If network doesn't exist, add it
-      if (error.code === 4902) {
+      if ((error as { code?: number }).code === 4902) {
         try {
           await window.ethereum?.request({
             method: 'wallet_addEthereumChain',
@@ -80,7 +80,7 @@ export default function Header() {
               chainName: somniaNetwork.name,
               nativeCurrency: somniaNetwork.nativeCurrency,
               rpcUrls: somniaNetwork.rpcUrls.default.http,
-              blockExplorerUrls: [somniaNetwork.blockExplorers.default.url],
+              blockExplorerUrls: somniaNetwork.blockExplorers ? [somniaNetwork.blockExplorers.default.url] : [],
             }],
           });
         } catch (addError) {

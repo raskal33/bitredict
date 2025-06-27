@@ -9,12 +9,12 @@ export default function SimpleNav({
   return (
     <nav className={`mb-6 flex w-full items-center justify-between rounded-lg`}>
       <Link href={"/dashboard"} onClick={handleClose}>
-        <Button variant="dark" hover>
+        <Button variant="ghost">
           Dashboard
         </Button>
       </Link>
       <Link href={"/create-prediction"} onClick={handleClose}>
-        <Button variant="dark" hover>
+        <Button variant="ghost">
           Create +
         </Button>
       </Link>

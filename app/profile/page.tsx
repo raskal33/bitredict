@@ -101,7 +101,7 @@ export default function ProfilePage() {
     ]
   };
 
-  const getAchievementBadgeClass = (rarity) => {
+  const getAchievementBadgeClass = (rarity: string) => {
     switch (rarity) {
       case "common":
         return "bg-gray-500/20 text-gray-300";
@@ -118,7 +118,7 @@ export default function ProfilePage() {
     }
   };
 
-  const getActivityIconClass = (type) => {
+  const getActivityIconClass = (type: string) => {
     switch (type) {
       case "bet_won":
         return "bg-green-500/20 text-green-400";
@@ -133,7 +133,7 @@ export default function ProfilePage() {
     }
   };
 
-  const getActivityIcon = (type) => {
+  const getActivityIcon = (type: string) => {
     switch (type) {
       case "bet_won":
         return <BiSolidBadgeCheck />;

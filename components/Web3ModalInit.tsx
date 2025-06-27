@@ -20,13 +20,12 @@ export default function Web3ModalInit() {
             '--w3m-color-mix': '#22C7FF',
             '--w3m-color-mix-strength': 20,
             '--w3m-accent': '#22C7FF',
-            '--w3m-background': '#0A0A23',
             '--w3m-border-radius-master': '12px',
           }
         })
         
         // Store modal reference globally
-        ;(window as any).web3modal = modal
+        ;(window as unknown as { web3modal: unknown }).web3modal = modal
       }).catch(error => {
         console.log('Web3Modal initialization skipped:', error.message)
       })

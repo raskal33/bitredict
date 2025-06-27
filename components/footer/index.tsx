@@ -23,17 +23,17 @@ export default function Footer() {
   ];
 
   const resourceLinks = [
-    { name: "Documentation", href: "#" },
-    { name: "API", href: "#" },
-    { name: "Help Center", href: "#" },
-    { name: "Blog", href: "#" },
+    { name: "Documentation", href: "https://drive.google.com/file/d/1YeC8u3tkSA-VOI96Ut2WEfrQhps1OIjG/view" },
+    { name: "API", href: "https://bitredict.com/api" },
+    { name: "Help Center", href: "/contact" },
+    { name: "Blog", href: "/community" },
   ];
 
   const legalLinks = [
-    { name: "Terms of Service", href: "#" },
-    { name: "Privacy Policy", href: "#" },
-    { name: "Cookie Policy", href: "#" },
-    { name: "Disclaimer", href: "#" },
+    { name: "Terms of Service", href: "/terms-of-service" },
+    { name: "Privacy Policy", href: "https://bitredict.com/privacy-policy" },
+    { name: "Cookie Policy", href: "https://bitredict.com/cookie-policy" },
+    { name: "Disclaimer", href: "/disclaimer" },
   ];
 
   return (
@@ -132,12 +132,23 @@ export default function Footer() {
                   <ul className="space-y-3">
                     {resourceLinks.map((link) => (
                       <li key={link.name}>
-                        <Link 
-                          href={link.href}
-                          className="text-text-secondary hover:text-primary transition-colors duration-200"
-                        >
-                          {link.name}
-                        </Link>
+                        {link.href.startsWith('http') ? (
+                          <a 
+                            href={link.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-text-secondary hover:text-primary transition-colors duration-200"
+                          >
+                            {link.name}
+                          </a>
+                        ) : (
+                          <Link 
+                            href={link.href}
+                            className="text-text-secondary hover:text-primary transition-colors duration-200"
+                          >
+                            {link.name}
+                          </Link>
+                        )}
                       </li>
                     ))}
                   </ul>
@@ -153,12 +164,23 @@ export default function Footer() {
                   <ul className="space-y-3">
                     {legalLinks.map((link) => (
                       <li key={link.name}>
-                        <Link 
-                          href={link.href}
-                          className="text-text-secondary hover:text-primary transition-colors duration-200"
-                        >
-                          {link.name}
-                        </Link>
+                        {link.href.startsWith('http') ? (
+                          <a 
+                            href={link.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-text-secondary hover:text-primary transition-colors duration-200"
+                          >
+                            {link.name}
+                          </a>
+                        ) : (
+                          <Link 
+                            href={link.href}
+                            className="text-text-secondary hover:text-primary transition-colors duration-200"
+                          >
+                            {link.name}
+                          </Link>
+                        )}
                       </li>
                     ))}
                   </ul>

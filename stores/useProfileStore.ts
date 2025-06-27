@@ -109,7 +109,7 @@ export const useProfileStore = create<ProfileState>()(
 
       hasProfile: (address: string) => {
         const profile = get().getProfile(address)
-        return profile && (profile.username !== `user_${address.slice(0, 6)}` || profile.bio !== '')
+        return !!(profile && (profile.username !== `user_${address.slice(0, 6)}` || profile.bio !== ''))
       },
 
       uploadAvatar: async (address: string, file: File): Promise<string> => {

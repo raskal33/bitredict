@@ -169,7 +169,7 @@ export default function Page() {
               </svg>
             </div>
             <h3 className="text-xl font-semibold text-white mb-2">No Notifications</h3>
-            <p className="text-text-secondary">You're all caught up! New notifications will appear here.</p>
+            <p className="text-text-secondary">You&apos;re all caught up! New notifications will appear here.</p>
           </div>
         )}
       </div>

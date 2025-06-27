@@ -12,7 +12,7 @@ export default function NotFound() {
       </div>
 
       <Link href="/" className={``}>
-        <Button variant="dark"> Back Home</Button>
+        <Button variant="primary"> Back Home</Button>
       </Link>
     </div>
   );

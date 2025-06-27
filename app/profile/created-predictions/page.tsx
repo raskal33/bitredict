@@ -8,8 +8,8 @@ import Button from "@/components/button";
 
 export default function CreatedPredictionsPage() {
   const [activeTab, setActiveTab] = useState("all");
-  const [sortBy, setSortBy] = useState("date");
-  const [sortOrder, setSortOrder] = useState("desc");
+  // const [sortBy, setSortBy] = useState("date");
+  // const [sortOrder, setSortOrder] = useState("desc");
   const [searchQuery, setSearchQuery] = useState("");
   
   // Mock data for created predictions
@@ -131,25 +131,10 @@ export default function CreatedPredictionsPage() {
     return matchesTab && matchesSearch;
   });
   
-  // Sort markets based on sort criteria
+  // Sort markets based on sort criteria (currently sorting by date desc)
   const sortedMarkets = [...filteredMarkets].sort((a, b) => {
-    let comparison = 0;
-    
-    switch (sortBy) {
-      case "date":
-        comparison = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        break;
-      case "participants":
-        comparison = b.participants - a.participants;
-        break;
-      case "volume":
-        comparison = b.volume - a.volume;
-        break;
-      default:
-        comparison = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    }
-    
-    return sortOrder === "asc" ? comparison * -1 : comparison;
+    // Sort by date descending (newest first)
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
   
   // Stats for the summary cards
@@ -162,18 +147,18 @@ export default function CreatedPredictionsPage() {
     avgVolumePerMarket: Math.round(createdMarkets.reduce((acc, market) => acc + market.volume, 0) / createdMarkets.length)
   };
   
-  // Function to toggle sort
-  const handleSort = (field) => {
-    if (sortBy === field) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    } else {
-      setSortBy(field);
-      setSortOrder("desc");
-    }
-  };
+  // Function to toggle sort (currently unused but kept for future use)
+  // const handleSort = (field) => {
+  //   if (sortBy === field) {
+  //     setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+  //   } else {
+  //     setSortBy(field);
+  //     setSortOrder("desc");
+  //   }
+  // };
   
   // Function to get category badge color
-  const getCategoryColor = (category) => {
+  const getCategoryColor = (category: string) => {
     switch (category) {
       case "crypto":
         return "bg-primary/20 text-primary";
@@ -191,7 +176,7 @@ export default function CreatedPredictionsPage() {
   };
   
   // Function to get status badge
-  const getStatusBadge = (status, resolution) => {
+  const getStatusBadge = (status: string, resolution?: string) => {
     if (status === "active") {
       return <span className="rounded-full bg-green-500/20 px-2 py-0.5 text-xs text-green-400">Active</span>;
     } else if (status === "resolved") {

@@ -97,7 +97,7 @@ export default function CommunityActivityPage() {
   };
   
   // Function to get activity icon
-  const getActivityIcon = (type) => {
+  const getActivityIcon = (type: string) => {
     switch (type) {
       case "follow":
         return <FaUserFriends className="text-primary" />;

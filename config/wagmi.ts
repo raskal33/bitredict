@@ -1,9 +1,9 @@
 import { createAppKit } from '@reown/appkit/react'
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi'
-import { mainnet, sepolia } from '@reown/appkit/networks'
+import { mainnet, sepolia, type AppKitNetwork } from '@reown/appkit/networks'
 
 // Somnia Network configuration
-export const somniaNetwork = {
+export const somniaNetwork: AppKitNetwork = {
   id: 50312,
   name: 'Somnia Testnet',
   nativeCurrency: {
@@ -20,13 +20,13 @@ export const somniaNetwork = {
     default: { name: 'Somnia Explorer', url: 'https://shannon-explorer.somnia.network' },
   },
   testnet: true,
-} as const
+}
 
 // Get project ID from environment
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '6a0514d82fb621e41aa6cad5473883a3'
 
 // Create the networks array
-const networks = [somniaNetwork, mainnet, sepolia]
+const networks = [somniaNetwork, mainnet, sepolia] as [AppKitNetwork, ...AppKitNetwork[]]
 
 // Create Wagmi Adapter
 export const wagmiAdapter = new WagmiAdapter({
@@ -60,23 +60,6 @@ export const appKit = createAppKit({
     '--w3m-color-mix-strength': 20,
     '--w3m-border-radius-master': '12px',
     '--w3m-z-index': 9999,
-    
-    // Background colors to match Somnia design
-    '--w3m-background-color': '#0A0A1A',
-    '--w3m-foreground-color': 'rgba(22, 24, 48, 0.8)',
-    
-    // Text colors
-    '--w3m-text-primary-color': '#FFFFFF',
-    '--w3m-text-secondary-color': '#C2C2D6',
-    '--w3m-text-tertiary-color': '#8A8AA8',
-    
-    // Button colors
-    '--w3m-button-primary-color': '#22C7FF',
-    '--w3m-button-secondary-color': 'rgba(255, 255, 255, 0.05)',
-    
-    // Border colors
-    '--w3m-border-color': 'rgba(255, 255, 255, 0.1)',
-    '--w3m-overlay-background-color': 'rgba(0, 0, 0, 0.8)',
   }
 })
 

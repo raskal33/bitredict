@@ -6,12 +6,10 @@ import {
   ChartBarIcon,
   TrophyIcon,
   BanknotesIcon,
-  FireIcon,
   ArrowTrendingUpIcon,
   LightBulbIcon,
   HandRaisedIcon,
   AcademicCapIcon,
-  ClockIcon,
   EyeIcon,
   PresentationChartLineIcon,
   ChartPieIcon

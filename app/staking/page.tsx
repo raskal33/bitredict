@@ -34,14 +34,14 @@ export default function StakingPage() {
     percentage: 30, // progress percentage for visual bar
   };
   
-  const handleStakeAmountChange = (e) => {
+  const handleStakeAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/[^0-9.]/g, "");
     setStakeAmount(value);
   };
   
   // Calculate estimated rewards based on selected lock period
   const getEstimatedRewards = () => {
-    const amount = parseFloat(stakeAmount) || 0;
+    const amount = parseFloat(String(stakeAmount)) || 0;
     let apy = 0;
     
     // Determine APY based on amount staked
@@ -365,7 +365,7 @@ export default function StakingPage() {
             )}
             
             {/* Estimated Returns (Only show for staking) */}
-            {activeTab === "stake" && parseFloat(stakeAmount) > 0 && (
+            {activeTab === "stake" && parseFloat(String(stakeAmount)) > 0 && (
               <div className="rounded-md bg-bg-card p-3">
                 <div className="mb-1 text-sm text-text-muted">Estimated Returns:</div>
                 <div className="text-lg font-semibold text-primary">
@@ -381,7 +381,7 @@ export default function StakingPage() {
             <Button 
               variant={activeTab === "stake" ? "primary" : "secondary"} 
               fullWidth
-              disabled={!parseFloat(stakeAmount)}
+              disabled={!parseFloat(String(stakeAmount))}
             >
               {activeTab === "stake" ? "Stake Now" : "Unstake Now"}
             </Button>

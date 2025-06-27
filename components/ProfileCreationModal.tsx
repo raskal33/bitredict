@@ -112,7 +112,7 @@ export default function ProfileCreationModal() {
         <div className="sticky top-0 flex items-center justify-between border-b border-border-primary bg-bg-card p-6">
           <div>
             <h2 className="text-2xl font-bold text-text-secondary">Create Your Profile</h2>
-            <p className="text-text-muted">Welcome to BitRedict! Let's set up your profile.</p>
+            <p className="text-text-muted">Welcome to BitRedict! Let&apos;s set up your profile.</p>
           </div>
           {hasProfile(address) && (
             <button

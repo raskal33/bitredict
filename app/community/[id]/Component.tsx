@@ -40,7 +40,7 @@ export default function Component({ id }: { id: number }) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
         <div className="text-xl font-semibold text-error">{error}</div>
-        <p className="text-text-muted">This discussion may have been removed or doesn't exist.</p>
+        <p className="text-text-muted">This discussion may have been removed or doesn&apos;t exist.</p>
         <Button variant="primary" size="sm" onClick={() => window.history.back()}>
           Go Back
         </Button>
@@ -123,7 +123,7 @@ export default function Component({ id }: { id: number }) {
   const formatDate = (dateString: string) => {
     try {
       return formatDistanceToNow(new Date(dateString), { addSuffix: true });
-    } catch (error) {
+    } catch {
       return "recently";
     }
   };
