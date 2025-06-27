@@ -127,7 +127,7 @@ export default function Header() {
                       alt="BitRedict" 
                       width={200} 
                       height={50}
-                      className="h-auto max-h-12 logo-symbol-color-filter"
+                      className="h-auto max-h-12 animate-color-cycle"
                       priority
                     />
                   </div>

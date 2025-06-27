@@ -83,8 +83,13 @@ export default {
         'float': 'float 6s ease-in-out infinite',
         'pulse-glow': 'pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'shimmer': 'shimmer 2s linear infinite',
+        'color-cycle': 'color-cycle 10s linear infinite',
       },
       keyframes: {
+        'color-cycle': {
+          '0%': { filter: 'hue-rotate(0deg)' },
+          '100%': { filter: 'hue-rotate(360deg)' },
+        },
         'gradient-flow': {
           '0%, 100%': {
             'background-size': '200% 200%',
