@@ -84,10 +84,20 @@ export const useCreateMarket = create<CreateMarketStore>((set, get) => ({
   step: 1,
   isLoading: false,
   
-  setData: (newData) => set((state) => ({
-    data: { ...state.data, ...newData },
-    errors: {} // Clear errors when data changes
-  })),
+  setData: (newData) => {
+    set((state) => {
+      // Create a copy of the errors and remove the keys that are being updated
+      const newErrors = { ...state.errors };
+      for (const key of Object.keys(newData)) {
+        delete (newErrors as any)[key];
+      }
+
+      return {
+        data: { ...state.data, ...newData },
+        errors: newErrors
+      };
+    });
+  },
   
   setErrors: (newErrors) => set((state) => ({
     errors: { ...state.errors, ...newErrors }
