@@ -293,7 +293,7 @@ export default function CreateMarketPage() {
 
         {/* Navigation */}
         <div className="flex justify-between items-center mt-8">
-          <Button variant="outline" onClick={handlePrevious} disabled={step === 1 || isLoading} icon={<ChevronLeftIcon className="w-4 h-4"/>}>
+          <Button variant="outline" onClick={handlePrevious} disabled={step === 1 || isLoading} leftIcon={<ChevronLeftIcon className="w-4 h-4"/>}>
             Previous
           </Button>
           
@@ -301,9 +301,8 @@ export default function CreateMarketPage() {
             <span className="text-sm text-text-muted">{`Step ${step} of ${STEP_TITLES.length}`}</span>
           </div>
 
-          <Button variant="primary" onClick={handleNext} disabled={isLoading || isPending || isConfirming} loading={isLoading || isPending || isConfirming}>
+          <Button variant="primary" onClick={handleNext} disabled={isLoading || isPending || isConfirming} loading={isLoading || isPending || isConfirming} rightIcon={<ChevronRightIcon className="w-4 h-4" />}>
             {step === STEP_TITLES.length ? 'Deploy Market' : 'Next Step'}
-            <ChevronRightIcon className="w-4 h-4" />
           </Button>
         </div>
       </div>
