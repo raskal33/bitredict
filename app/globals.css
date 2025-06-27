@@ -578,4 +578,12 @@ w3m-modal {
   z-index: 9999 !important;
 }
 
+.logo-symbol-color-filter {
+  filter: brightness(0) saturate(100%) invert(85%) sepia(30%) saturate(6000%) hue-rotate(180deg) brightness(100%) contrast(95%);
+}
+
+.nav-glass {
+  background-color: rgba(10, 10, 26, 0.8);
+}
+
 
