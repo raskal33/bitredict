@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useEffect, ChangeEvent } from "react";
+import { useState, useEffect, ChangeEvent, Dispatch, SetStateAction } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { useCreateMarket } from "@/store/useCreatePrediction";
+import { CreateMarketData, ValidationErrors, useCreateMarket } from "@/store/useCreatePrediction";
 import { 
-  InformationCircleIcon,
   CalendarIcon,
   CurrencyDollarIcon,
   UserGroupIcon,
@@ -25,6 +24,50 @@ import Textarea from "@/components/textarea";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { parseEther } from "viem";
 import { toast } from "react-hot-toast";
+
+// Types
+interface StepProps {
+  data: CreateMarketData;
+  errors: ValidationErrors;
+}
+
+interface BasicInfoProps extends StepProps {
+  onInputChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+  onCategoryChange: (category: string) => void;
+}
+
+interface MarketConfigProps extends StepProps {
+  onOddsChange: (value: number) => void;
+  onStakeChange: (value: number) => void;
+  onToggleBitr: () => void;
+}
+
+interface EventTimingProps extends StepProps {
+  onDateChange: (name: 'eventStartTime' | 'eventEndTime', value: string) => void;
+}
+
+interface AdvancedSettingsProps extends StepProps {
+  onInputChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | { target: { name: string; value: any; }; }) => void;
+  onTogglePrivate: () => void;
+}
+
+interface ReviewProps extends StepProps {
+  calculations: {
+    maxBettorStake: number;
+    creationFee: number;
+  };
+  formatters: {
+    formatOdds: (odds: number) => string;
+    formatDateTime: (date?: Date) => string;
+  };
+}
+
+interface DeploymentSuccessProps {
+  data: CreateMarketData;
+  hash: string;
+  onReset: () => void;
+}
+
 
 const CATEGORIES = [
   { value: "sports", label: "Sports", emoji: "⚽" },
@@ -167,16 +210,19 @@ export default function CreateMarketPage() {
     }
   };
   
-  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target;
-    let finalValue: string | number | boolean = value;
-
-    if (type === 'number') {
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | { target: { name: string; value: any; }}) => {
+    const { name, value } = e.target;
+    let finalValue: string | number | boolean | string[] = value;
+  
+    const target = e.target as HTMLInputElement;
+    if (target.type === 'number') {
       finalValue = value === '' ? '' : parseFloat(value);
     }
-    if (name === 'odds' && typeof finalValue === 'number') {
-      finalValue = Math.floor(finalValue * 100);
+
+    if(name === 'whitelistAddresses' && typeof value === 'string') {
+      finalValue = value.split('\n');
     }
+  
     setData({ [name]: finalValue });
   };
   
@@ -187,8 +233,8 @@ export default function CreateMarketPage() {
     }
   };
 
-  const formatOdds = (odds: number) => (odds / 100).toFixed(2) + "x";
-  const formatDateTime = (date: Date) => date.toLocaleString();
+  const formatOdds = (odds = 200) => (odds / 100).toFixed(2) + "x";
+  const formatDateTime = (date?: Date) => date ? date.toLocaleString() : 'Not set';
   const formatDateTimeForInput = (date: Date) => {
     const pad = (n: number) => n.toString().padStart(2, '0');
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
@@ -242,10 +288,10 @@ export default function CreateMarketPage() {
             transition={{ duration: 0.3, ease: "easeInOut" }}
           >
             {step === 1 && <BasicInformation data={data} errors={errors} onInputChange={handleInputChange} onCategoryChange={(c) => setData({ category: c })} />}
-            {step === 2 && <MarketConfiguration data={data} errors={errors} onInputChange={handleInputChange} onOddsChange={(o) => setData({ odds: o})} onStakeChange={(s) => setData({ creatorStake: s })} onToggleBitr={() => setData({ usesBitr: !data.usesBitr })} />}
+            {step === 2 && <MarketConfiguration data={data} errors={errors} onOddsChange={(o) => setData({ odds: o})} onStakeChange={(s) => setData({ creatorStake: s })} onToggleBitr={() => setData({ usesBitr: !data.usesBitr })} />}
             {step === 3 && <EventTiming data={data} errors={errors} onDateChange={handleDateChange} />}
             {step === 4 && <AdvancedSettings data={data} errors={errors} onInputChange={handleInputChange} onTogglePrivate={() => setData({ isPrivate: !data.isPrivate })} />}
-            {step === 5 && <ReviewAndDeploy data={data} calculations={{ maxBettorStake: calculateMaxBettorStake(), creationFee: calculateCreationFee() }} formatters={{ formatOdds, formatDateTime }} />}
+            {step === 5 && <ReviewAndDeploy data={data} errors={errors} calculations={{ maxBettorStake: calculateMaxBettorStake(), creationFee: calculateCreationFee() }} formatters={{ formatOdds, formatDateTime }} />}
           </motion.div>
         </AnimatePresence>
 
@@ -271,7 +317,7 @@ export default function CreateMarketPage() {
 
 // Sub-components for each step, now using Input and Textarea
 
-function BasicInformation({ data, errors, onInputChange, onCategoryChange }: any) {
+function BasicInformation({ data, errors, onInputChange, onCategoryChange }: BasicInfoProps) {
   return (
     <div className="space-y-6">
       <Input
@@ -327,7 +373,7 @@ function BasicInformation({ data, errors, onInputChange, onCategoryChange }: any
   );
 }
 
-function MarketConfiguration({ data, errors, onInputChange, onOddsChange, onStakeChange, onToggleBitr }: any) {
+function MarketConfiguration({ data, errors, onOddsChange, onStakeChange, onToggleBitr }: MarketConfigProps) {
   const maxBettorStake = data.creatorStake && data.odds && data.odds > 100 
     ? ((data.creatorStake * 100) / (data.odds - 100)).toFixed(2)
     : '0.00';
@@ -359,7 +405,7 @@ function MarketConfiguration({ data, errors, onInputChange, onOddsChange, onStak
               className="w-full h-2 bg-bg-overlay rounded-lg appearance-none cursor-pointer accent-primary"
             />
             <span className="font-bold text-lg text-primary w-24 text-center">
-              {(data.odds / 100).toFixed(2)}x
+              {(data.odds ? data.odds / 100 : 2).toFixed(2)}x
             </span>
           </div>
           {errors.odds && <p className="mt-1 text-sm text-red-500">{errors.odds}</p>}
@@ -391,14 +437,18 @@ function MarketConfiguration({ data, errors, onInputChange, onOddsChange, onStak
       <div className="p-4 border-l-4 border-primary bg-primary/10 rounded-r-lg">
         <h4 className="font-semibold text-text-primary">Market Dynamics</h4>
         <p className="text-sm text-text-secondary mt-1">
-          Based on your stake of <span className="font-bold text-primary">{data.creatorStake || 0} {data.usesBitr ? 'BITR' : 'STT'}</span> and odds of <span className="font-bold text-primary">{(data.odds / 100).toFixed(2)}x</span>, the maximum potential stake from bettors is <span className="font-bold text-primary">{maxBettorStake} {data.usesBitr ? 'BITR' : 'STT'}</span>.
+          Based on your stake of <span className="font-bold text-primary">{data.creatorStake || 0} {data.usesBitr ? 'BITR' : 'STT'}</span> and odds of <span className="font-bold text-primary">{(data.odds ? data.odds / 100 : 2).toFixed(2)}x</span>, the maximum potential stake from bettors is <span className="font-bold text-primary">{maxBettorStake} {data.usesBitr ? 'BITR' : 'STT'}</span>.
         </p>
       </div>
     </div>
   );
 }
 
-function EventTiming({ data, errors, onDateChange }: any) {
+function EventTiming({ data, errors, onDateChange }: EventTimingProps) {
+  const formatDateTimeForInput = (date: Date) => {
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  };
   return (
     <div className="grid md:grid-cols-2 gap-6">
       <Input
@@ -423,7 +473,7 @@ function EventTiming({ data, errors, onDateChange }: any) {
   );
 }
 
-function AdvancedSettings({ data, errors, onInputChange, onTogglePrivate }: any) {
+function AdvancedSettings({ data, errors, onInputChange, onTogglePrivate }: AdvancedSettingsProps) {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between p-4 rounded-button bg-bg-overlay">
@@ -467,7 +517,7 @@ function AdvancedSettings({ data, errors, onInputChange, onTogglePrivate }: any)
               name="whitelistAddresses"
               value={data.whitelistAddresses?.join('\n') || ''}
               onChange={(e) => onInputChange({
-                target: { name: 'whitelistAddresses', value: e.target.value.split('\n') }
+                target: { name: 'whitelistAddresses', value: e.target.value }
               })}
               error={errors.whitelistAddresses}
               placeholder="Enter one Ethereum address per line."
@@ -499,7 +549,7 @@ function AdvancedSettings({ data, errors, onInputChange, onTogglePrivate }: any)
   );
 }
 
-function ReviewAndDeploy({ data, calculations, formatters }: any) {
+function ReviewAndDeploy({ data, calculations, formatters }: ReviewProps) {
   return (
     <div className="space-y-6 text-text-secondary">
       <div className="p-6 rounded-2xl bg-bg-card border border-border-card">
@@ -509,15 +559,15 @@ function ReviewAndDeploy({ data, calculations, formatters }: any) {
           <ReviewItem label="Predicted Outcome" value={data.predictedOutcome} />
           <ReviewItem label="Category" value={data.category} isCapitalized={true} />
           <hr className="border-border-card/50" />
-          <ReviewItem label="Your Stake" value={`${data.creatorStake} ${data.usesBitr ? 'BITR' : 'STT'}`} />
-          <ReviewItem label="Odds" value={formatters.formatOdds(data.odds)} />
+          <ReviewItem label="Your Stake" value={`${data.creatorStake || 0} ${data.usesBitr ? 'BITR' : 'STT'}`} />
+          <ReviewItem label="Odds" value={formatters.formatOdds(data.odds || 200)} />
           <ReviewItem label="Potential Bettor Stake" value={`${calculations.maxBettorStake.toFixed(2)} ${data.usesBitr ? 'BITR' : 'STT'}`} />
           <hr className="border-border-card/50" />
           <ReviewItem label="Starts" value={formatters.formatDateTime(data.eventStartTime)} />
           <ReviewItem label="Ends" value={formatters.formatDateTime(data.eventEndTime)} />
           <hr className="border-border-card/50" />
           <ReviewItem label="Privacy" value={data.isPrivate ? 'Private' : 'Public'} />
-          {data.isPrivate && <ReviewItem label="Max Bet Per User" value={data.maxBetPerUser > 0 ? `${data.maxBetPerUser} ${data.usesBitr ? 'BITR' : 'STT'}` : 'Unlimited'} />}
+          {data.isPrivate && <ReviewItem label="Max Bet Per User" value={data.maxBetPerUser && data.maxBetPerUser > 0 ? `${data.maxBetPerUser} ${data.usesBitr ? 'BITR' : 'STT'}` : 'Unlimited'} />}
         </div>
       </div>
       <div className="p-4 border-l-4 border-yellow-500 bg-yellow-500/10 rounded-r-lg">
@@ -535,7 +585,7 @@ function ReviewAndDeploy({ data, calculations, formatters }: any) {
   );
 }
 
-function ReviewItem({ label, value, isCapitalized = false }: any) {
+function ReviewItem({ label, value, isCapitalized = false }: { label: string, value?: string | number, isCapitalized?: boolean }) {
   return (
     <div className="flex justify-between items-center">
       <span className="font-medium text-text-muted">{label}:</span>
@@ -544,7 +594,7 @@ function ReviewItem({ label, value, isCapitalized = false }: any) {
   );
 }
 
-function DeploymentSuccess({ data, hash, onReset }: { data: any, hash: string, onReset: () => void }) {
+function DeploymentSuccess({ data, hash, onReset }: DeploymentSuccessProps) {
   return (
     <div className="max-w-2xl mx-auto">
       <motion.div
