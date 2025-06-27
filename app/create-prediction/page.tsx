@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, ChangeEvent, Dispatch, SetStateAction } from "react";
+import { useState, useEffect, ChangeEvent } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { CreateMarketData, ValidationErrors, useCreateMarket } from "@/store/useCreatePrediction";
 import { 
@@ -47,7 +47,7 @@ interface EventTimingProps extends StepProps {
 }
 
 interface AdvancedSettingsProps extends StepProps {
-  onInputChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | { target: { name: string; value: any; }; }) => void;
+  onInputChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | { target: { name: string; value: string; }; }) => void;
   onTogglePrivate: () => void;
 }
 
@@ -210,7 +210,7 @@ export default function CreateMarketPage() {
     }
   };
   
-  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | { target: { name: string; value: any; }}) => {
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | { target: { name: string; value: string; }}) => {
     const { name, value } = e.target;
     let finalValue: string | number | boolean | string[] = value;
   
@@ -235,10 +235,6 @@ export default function CreateMarketPage() {
 
   const formatOdds = (odds = 200) => (odds / 100).toFixed(2) + "x";
   const formatDateTime = (date?: Date) => date ? date.toLocaleString() : 'Not set';
-  const formatDateTimeForInput = (date: Date) => {
-    const pad = (n: number) => n.toString().padStart(2, '0');
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-  };
 
   if (!isConnected) {
     return (
