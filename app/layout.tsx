@@ -22,11 +22,11 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
-  metadataBase: new URL('http://localhost:8080'),
+  metadataBase: new URL('https://bitredict.vercel.app'),
   openGraph: {
     title: "BitRedict - Decentralized Prediction Markets",
     description: "Trade on real-world outcomes with transparent, blockchain-powered markets on Somnia Network",
-    url: "https://bitredict.com",
+    url: "https://bitredict.vercel.app",
     siteName: "BitRedict",
     images: [
       {

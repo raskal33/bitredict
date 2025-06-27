@@ -43,8 +43,8 @@ export const appKit = createAppKit({
   metadata: {
     name: 'BitRedict',
     description: 'Decentralized Prediction Markets on Somnia Network',
-    url: 'https://bitredict.com',
-    icons: ['https://bitredict.com/logo.png']
+    url: 'https://bitredict.vercel.app',
+    icons: ['https://bitredict.vercel.app/logo.png']
   },
   features: {
     analytics: true,
