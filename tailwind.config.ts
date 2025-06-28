@@ -85,6 +85,7 @@ export default {
         'shimmer': 'shimmer 2s linear infinite',
         'color-cycle': 'color-cycle 10s linear infinite',
         'logo-cycle': 'logo-cycle 6s ease-in-out infinite',
+        'somnia-color-cycle': 'somnia-color-cycle 8s linear infinite',
       },
               keyframes: {
           'logo-cycle': {
@@ -138,7 +139,15 @@ export default {
           '100%': {
             backgroundPosition: '1000px 0'
           }
-        }
+        },
+        'somnia-color-cycle': {
+          '0%': { filter: 'hue-rotate(0deg)' },
+          '20%': { filter: 'hue-rotate(72deg)' }, // To Violet
+          '40%': { filter: 'hue-rotate(144deg)' }, // To Magenta
+          '60%': { filter: 'hue-rotate(216deg)' }, // To Cyan
+          '80%': { filter: 'hue-rotate(288deg)' }, // To Blue
+          '100%': { filter: 'hue-rotate(360deg)' },
+        },
       },
       borderRadius: {
         'card': '16px',
