@@ -83,6 +83,7 @@ export default function CreateMarketPage() {
     description: ''
   });
 
+  const [useBitr, setUseBitr] = useState<boolean>(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState(1);
@@ -286,7 +287,7 @@ export default function CreateMarketPage() {
           'Global',
           false, // Not private for guided markets
           BigInt(0), // No max bet limit
-          false // Use STT by default
+          useBitr
         ]
       });
     } catch (error) {
@@ -491,15 +492,25 @@ export default function CreateMarketPage() {
               
               {/* Search */}
               <div className="relative mb-6">
-                <MagnifyingGlassIcon className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-      <Input
+                <AnimatePresence>
+                  {!footballSearchQuery && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                    >
+                      <MagnifyingGlassIcon className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <Input
                   type="text"
                   placeholder="Search teams, competitions, or venues..."
                   value={footballSearchQuery}
                   onChange={(e) => setFootballSearchQuery(e.target.value)}
                   className="pl-10"
-      />
-    </div>
+                />
+              </div>
 
               {/* Matches */}
               <div className="space-y-3 max-h-64 overflow-y-auto">
@@ -577,7 +588,17 @@ export default function CreateMarketPage() {
               <div className="mb-6">
                 <label className="mb-2 block text-sm font-medium text-white">Select Cryptocurrency</label>
                 <div className="relative">
-                  <MagnifyingGlassIcon className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                  <AnimatePresence>
+                    {!cryptoSearchQuery && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                      >
+                        <MagnifyingGlassIcon className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                   <Input
                     type="text"
                     placeholder="Search cryptocurrencies..."
@@ -585,7 +606,7 @@ export default function CreateMarketPage() {
                     onChange={(e) => setCryptoSearchQuery(e.target.value)}
                     className="pl-10"
                   />
-      </div>
+                </div>
 
                 <div className="mt-3 space-y-2 max-h-40 overflow-y-auto">
                   {filteredCryptos.map((crypto) => (
@@ -733,7 +754,7 @@ export default function CreateMarketPage() {
                   max="1000"
                   step="1"
                   value={data.odds}
-                  onChange={(e) => handleInputChange('odds', parseInt(e.target.value))}
+                  onChange={(e) => handleInputChange('odds', parseFloat(e.target.value))}
                 />
                 <div className="mt-1 flex justify-between text-xs text-text-muted">
                   <span>Min: 1.01x</span>
@@ -747,19 +768,35 @@ export default function CreateMarketPage() {
 
               {/* Creator Stake */}
               <div className="mb-6">
-                <label className="mb-2 block text-sm font-medium text-white">
-                  Your Stake (STT)
-                </label>
-        <Input
+                <div className="flex justify-between items-end mb-2">
+                  <label className="block text-sm font-medium text-white">
+                    Your Stake ({useBitr ? 'BITR' : 'STT'})
+                  </label>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => setUseBitr(false)}
+                      className={`px-2 py-1 text-xs rounded-md ${!useBitr ? 'bg-primary text-white' : 'bg-gray-700 text-gray-300'}`}
+                    >
+                      STT
+                    </button>
+                    <button 
+                      onClick={() => setUseBitr(true)}
+                      className={`px-2 py-1 text-xs rounded-md ${useBitr ? 'bg-primary text-white' : 'bg-gray-700 text-gray-300'}`}
+                    >
+                      BITR
+                    </button>
+                  </div>
+                </div>
+                <Input
                   type="number"
                   min="10"
                   max="10000"
                   step="1"
                   value={data.creatorStake}
-                  onChange={(e) => handleInputChange('creatorStake', parseInt(e.target.value))}
+                  onChange={(e) => handleInputChange('creatorStake', parseFloat(e.target.value))}
                 />
                 <div className="mt-1 text-xs text-text-muted">
-                  Minimum: 10 STT for guided markets
+                  Minimum: 10 {useBitr ? 'BITR' : 'STT'} for guided markets
                 </div>
                 {errors.creatorStake && (
                   <p className="mt-1 text-sm text-red-400">{errors.creatorStake}</p>
@@ -802,8 +839,8 @@ export default function CreateMarketPage() {
                   <div className="text-sm text-yellow-300">
                     <div className="font-medium mb-2">How you win/lose:</div>
                     <div className="space-y-1">
-                      <div><strong>If you&apos;re RIGHT:</strong> You win up to {((data.creatorStake * 100) / (data.odds - 100)).toFixed(1)} STT from bettors</div>
-                      <div><strong>If you&apos;re WRONG:</strong> You lose your {data.creatorStake} STT stake to bettors</div>
+                      <div><strong>If you&apos;re RIGHT:</strong> You win up to {((data.creatorStake * 100) / (data.odds - 100)).toFixed(1)} {useBitr ? 'BITR' : 'STT'} from bettors</div>
+                      <div><strong>If you&apos;re WRONG:</strong> You lose your {data.creatorStake} {useBitr ? 'BITR' : 'STT'} stake to bettors</div>
                       <div><strong>Oracle Resolution:</strong> Results verified automatically by external APIs</div>
           </div>
         </div>
@@ -840,11 +877,11 @@ export default function CreateMarketPage() {
             </div>
             <div className="flex justify-between">
               <span className="text-text-muted">Your Stake:</span>
-                      <span className="text-white">{data.creatorStake} STT</span>
+                      <span className="text-white">{data.creatorStake} {useBitr ? 'BITR' : 'STT'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-text-muted">Max Payout:</span>
-                      <span className="text-white">{((data.creatorStake * 100) / (data.odds - 100)).toFixed(1)} STT</span>
+                      <span className="text-white">{((data.creatorStake * 100) / (data.odds - 100)).toFixed(1)} {useBitr ? 'BITR' : 'STT'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-text-muted">Betting Closes:</span>
@@ -863,7 +900,7 @@ export default function CreateMarketPage() {
                   <div className="space-y-3">
                     <div className="flex justify-between">
                       <span className="text-text-muted">Platform Fee:</span>
-                      <span className="text-white">1 STT</span>
+                      <span className="text-white">1 {useBitr ? 'BITR' : 'STT'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-text-muted">Gas Fee:</span>

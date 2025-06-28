@@ -124,12 +124,11 @@ export default function Header() {
                   <Image 
                     src="/logo.png" 
                     alt="BitRedict Logo" 
-                    width={40} 
-                    height={40} 
+                    width={36} 
+                    height={36} 
                     className="transition-all duration-300 ease-in-out group-hover:[filter:hue-rotate(180deg)]"
                     priority 
                   />
-                  <div className="text-2xl font-bold gradient-text">BitRedict</div>
                 </Link>
 
                 {/* Bitredictor Dropdown */}
@@ -334,7 +333,6 @@ export default function Header() {
                                             className="transition-all duration-300 ease-in-out group-hover:[filter:hue-rotate(180deg)]"
                                             priority 
                                           />
-                                          <div className="text-lg font-bold gradient-text">BitRedict</div>
                                         </Link>
                                       </div>
 
