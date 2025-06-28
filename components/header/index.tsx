@@ -120,13 +120,13 @@ export default function Header() {
             <div className="flex items-center justify-between py-4">
               {/* Left Side - Logo */}
               <div className="flex items-center gap-8">
-                <Link href="/" className="flex items-center gap-3 group">
+                <Link href="/" className="flex items-center gap-3">
                   <Image 
                     src="/logo.png" 
                     alt="BitRedict Logo" 
                     width={140} 
                     height={140} 
-                    className="transition-all duration-500 ease-in-out group-hover:animate-somnia-color-cycle"
+                    className="logo-color-shift"
                     priority 
                   />
                 </Link>
@@ -324,13 +324,13 @@ export default function Header() {
                 <div className="flex flex-col h-full">
                   {/* Header */}
                                       <div className="flex items-center justify-between p-6 border-b border-border-card">
-                                        <Link href="/" className="flex items-center gap-3 group">
+                                        <Link href="/" className="flex items-center gap-3">
                                           <Image 
                                             src="/logo.png" 
                                             alt="BitRedict Logo" 
                                             width={120} 
                                             height={120} 
-                                            className="transition-all duration-500 ease-in-out group-hover:animate-somnia-color-cycle"
+                                            className="logo-color-shift"
                                             priority 
                                           />
                                         </Link>

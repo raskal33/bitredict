@@ -17,6 +17,11 @@ export const metadata: Metadata = {
   authors: [{ name: "BitRedict Team" }],
   creator: "BitRedict",
   publisher: "BitRedict",
+  icons: {
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+    apple: "/favicon.svg",
+  },
   formatDetection: {
     email: false,
     address: false,

@@ -582,6 +582,11 @@ w3m-modal {
   background-color: rgba(10, 10, 26, 0.8);
 }
 
+/* Logo color shifting animation */
+.logo-color-shift {
+  animation: somnia-color-cycle 8s linear infinite;
+}
+
 @keyframes somnia-color-cycle {
   0% {
     filter: hue-rotate(0deg);
