@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { useReputationStore } from './useReputationStore'
 
 export interface UserProfile {
   address: string
@@ -67,6 +68,10 @@ export const useProfileStore = create<ProfileState>()(
           address: address.toLowerCase(),
         }
         
+        // Initialize reputation for new users
+        const reputationStore = useReputationStore.getState()
+        reputationStore.initializeUser(address.toLowerCase())
+        
         set((state) => ({
           profiles: {
             ...state.profiles,
@@ -109,7 +114,15 @@ export const useProfileStore = create<ProfileState>()(
 
       hasProfile: (address: string) => {
         const profile = get().getProfile(address)
-        return !!(profile && (profile.username !== `user_${address.slice(0, 6)}` || profile.bio !== ''))
+        if (!profile) return false
+        
+        const defaultUsername = `user_${address.slice(0, 6)}`
+        const hasCustomUsername = profile.username !== defaultUsername
+        const hasCustomDisplay = profile.displayName !== `User ${address.slice(0, 6)}`
+        const hasBio = !!(profile.bio && profile.bio.trim() !== '')
+        
+        // Consider profile complete if user has customized username, display name, or added bio
+        return hasCustomUsername || hasCustomDisplay || hasBio
       },
 
       uploadAvatar: async (address: string, file: File): Promise<string> => {

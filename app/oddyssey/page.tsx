@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import Button from "@/components/button";
+import AnimatedTitle from "@/components/AnimatedTitle";
 import {
   CurrencyDollarIcon,
   UsersIcon,
@@ -14,7 +15,6 @@ import {
   CheckCircleIcon,
   ChartBarIcon,
   TrophyIcon,
-  FireIcon
 } from "@heroicons/react/24/outline";
 
 interface Pick {
@@ -250,27 +250,11 @@ export default function OddysseyPage() {
           </div>
 
           <div className="relative z-10 mb-8">
-            <div className="flex items-center justify-center gap-6 mb-6">
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-              >
-                <FireIcon className="h-12 w-12 text-primary" />
-              </motion.div>
-              <h1 className="text-5xl md:text-6xl font-bold gradient-text">
-                ODDYSSEY
-              </h1>
-              <motion.div
-                animate={{ rotate: -360 }}
-                transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-              >
-                <SparklesIcon className="h-12 w-12 text-secondary" />
-              </motion.div>
-            </div>
+            <AnimatedTitle size="xl">
+              ODDYSSEY
+            </AnimatedTitle>
             
-            <div className="mx-auto mb-6 h-1 w-64 bg-gradient-somnia rounded-full opacity-60"></div>
-            
-            <p className="text-xl text-text-secondary max-w-2xl mx-auto">
+            <p className="text-xl text-text-secondary max-w-2xl mx-auto text-center">
               The ultimate prediction challenge. Select outcomes for 10 matches, compete with the highest odds, and claim your share of the prize pool.
             </p>
           </div>
@@ -442,9 +426,10 @@ export default function OddysseyPage() {
                       </div>
                     </div>
 
-                    {/* Compact Table Layout */}
+                    {/* Responsive Table Layout */}
                     <div className="overflow-x-auto">
-                      <div className="min-w-full space-y-2">
+                      {/* Desktop Table */}
+                      <div className="hidden md:block min-w-full space-y-2">
                         {/* Table Header */}
                         <div className="grid grid-cols-9 gap-3 text-xs font-bold text-text-muted uppercase tracking-wider px-4">
                           <div className="col-span-1">Time</div>
@@ -485,6 +470,72 @@ export default function OddysseyPage() {
                             </div>
                           ))}
                         </div>
+                      </div>
+
+                      {/* Mobile Card Layout */}
+                      <div className="md:hidden space-y-4">
+                        {matches.map((match) => (
+                          <div key={match.id} className="glass-card p-4 space-y-4">
+                            {/* Match Header */}
+                            <div className="flex items-center justify-between border-b border-border-card pb-3">
+                              <div>
+                                <div className="text-xs text-primary font-semibold">{match.time}</div>
+                                <div className="text-sm font-bold text-text-primary">{match.team1}</div>
+                                <div className="text-xs text-text-muted">vs</div>
+                                <div className="text-sm font-bold text-text-primary">{match.team2}</div>
+                              </div>
+                            </div>
+                            
+                            {/* Match Result Betting */}
+                            <div>
+                              <div className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">Match Result</div>
+                              <div className="grid grid-cols-3 gap-2">
+                                <button 
+                                  onClick={() => handlePickSelection(match.id, "odds1")} 
+                                  className={`p-3 rounded-lg font-bold text-sm transition-all duration-200 border-2 ${picks.find(p => p.id === match.id && p.pick === 'odds1') ? 'bg-primary text-black border-primary scale-105 shadow-lg' : 'bg-[#1A2035] text-primary border-primary/50 hover:bg-primary/20'}`}
+                                >
+                                  <div className="text-xs opacity-80">1</div>
+                                  <div>{match.odds1}</div>
+                                </button>
+                                <button 
+                                  onClick={() => handlePickSelection(match.id, "oddsX")} 
+                                  className={`p-3 rounded-lg font-bold text-sm transition-all duration-200 border-2 ${picks.find(p => p.id === match.id && p.pick === 'oddsX') ? 'bg-secondary text-black border-secondary scale-105 shadow-lg' : 'bg-[#1A2035] text-secondary border-secondary/50 hover:bg-secondary/20'}`}
+                                >
+                                  <div className="text-xs opacity-80">X</div>
+                                  <div>{match.oddsX}</div>
+                                </button>
+                                <button 
+                                  onClick={() => handlePickSelection(match.id, "odds2")} 
+                                  className={`p-3 rounded-lg font-bold text-sm transition-all duration-200 border-2 ${picks.find(p => p.id === match.id && p.pick === 'odds2') ? 'bg-accent text-black border-accent scale-105 shadow-lg' : 'bg-[#1A2035] text-accent border-accent/50 hover:bg-accent/20'}`}
+                                >
+                                  <div className="text-xs opacity-80">2</div>
+                                  <div>{match.odds2}</div>
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Over/Under Betting */}
+                            <div>
+                              <div className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">Total Goals</div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <button 
+                                  onClick={() => handlePickSelection(match.id, "over")} 
+                                  className={`p-3 rounded-lg font-bold text-sm transition-all duration-200 border-2 ${picks.find(p => p.id === match.id && p.pick === 'over') ? 'bg-blue-400 text-black border-blue-400 scale-105 shadow-lg' : 'bg-[#1A2035] text-blue-400 border-blue-400/50 hover:bg-blue-400/20'}`}
+                                >
+                                  <div className="text-xs opacity-80">Over 2.5</div>
+                                  <div>{match.over}</div>
+                                </button>
+                                <button 
+                                  onClick={() => handlePickSelection(match.id, "under")} 
+                                  className={`p-3 rounded-lg font-bold text-sm transition-all duration-200 border-2 ${picks.find(p => p.id === match.id && p.pick === 'under') ? 'bg-purple-400 text-black border-purple-400 scale-105 shadow-lg' : 'bg-[#1A2035] text-purple-400 border-purple-400/50 hover:bg-purple-400/20'}`}
+                                >
+                                  <div className="text-xs opacity-80">Under 2.5</div>
+                                  <div>{match.under}</div>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </div>

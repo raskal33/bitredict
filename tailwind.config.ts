@@ -84,12 +84,31 @@ export default {
         'pulse-glow': 'pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'shimmer': 'shimmer 2s linear infinite',
         'color-cycle': 'color-cycle 10s linear infinite',
+        'logo-cycle': 'logo-cycle 6s ease-in-out infinite',
       },
-      keyframes: {
-        'color-cycle': {
-          '0%': { filter: 'hue-rotate(0deg)' },
-          '100%': { filter: 'hue-rotate(360deg)' },
-        },
+              keyframes: {
+          'logo-cycle': {
+            '0%': { 
+              filter: 'hue-rotate(0deg) brightness(1) saturate(1.2)',
+              transform: 'scale(1)'
+            },
+            '33%': { 
+              filter: 'hue-rotate(120deg) brightness(1.1) saturate(1.4)',
+              transform: 'scale(1.05)'
+            },
+            '66%': { 
+              filter: 'hue-rotate(240deg) brightness(1.2) saturate(1.3)',
+              transform: 'scale(1.02)'
+            },
+            '100%': { 
+              filter: 'hue-rotate(360deg) brightness(1) saturate(1.2)',
+              transform: 'scale(1)'
+            },
+          },
+          'color-cycle': {
+            '0%': { filter: 'hue-rotate(0deg)' },
+            '100%': { filter: 'hue-rotate(360deg)' },
+          },
         'gradient-flow': {
           '0%, 100%': {
             'background-size': '200% 200%',

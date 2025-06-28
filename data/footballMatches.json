@@ -1,0 +1,116 @@
+{
+  "matches": [
+    {
+      "id": "match_001",
+      "homeTeam": "Manchester United",
+      "awayTeam": "Liverpool",
+      "competition": "Premier League",
+      "date": "2024-12-15T15:00:00.000Z",
+      "venue": "Old Trafford",
+      "status": "scheduled",
+      "round": "Matchday 16"
+    },
+    {
+      "id": "match_002",
+      "homeTeam": "Barcelona",
+      "awayTeam": "Real Madrid",
+      "competition": "La Liga",
+      "date": "2024-12-18T20:00:00.000Z",
+      "venue": "Camp Nou",
+      "status": "scheduled",
+      "round": "Matchday 17"
+    },
+    {
+      "id": "match_003",
+      "homeTeam": "Bayern Munich",
+      "awayTeam": "Borussia Dortmund",
+      "competition": "Bundesliga",
+      "date": "2024-12-14T18:30:00.000Z",
+      "venue": "Allianz Arena",
+      "status": "scheduled",
+      "round": "Matchday 14"
+    },
+    {
+      "id": "match_004",
+      "homeTeam": "PSG",
+      "awayTeam": "Marseille",
+      "competition": "Ligue 1",
+      "date": "2024-12-16T21:00:00.000Z",
+      "venue": "Parc des Princes",
+      "status": "scheduled",
+      "round": "Matchday 15"
+    },
+    {
+      "id": "match_005",
+      "homeTeam": "AC Milan",
+      "awayTeam": "Inter Milan",
+      "competition": "Serie A",
+      "date": "2024-12-20T18:00:00.000Z",
+      "venue": "San Siro",
+      "status": "scheduled",
+      "round": "Matchday 16"
+    },
+    {
+      "id": "match_006",
+      "homeTeam": "Arsenal",
+      "awayTeam": "Chelsea",
+      "competition": "Premier League",
+      "date": "2024-12-22T16:30:00.000Z",
+      "venue": "Emirates Stadium",
+      "status": "scheduled",
+      "round": "Matchday 17"
+    },
+    {
+      "id": "match_007",
+      "homeTeam": "Atletico Madrid",
+      "awayTeam": "Sevilla",
+      "competition": "La Liga",
+      "date": "2024-12-19T19:00:00.000Z",
+      "venue": "Wanda Metropolitano",
+      "status": "scheduled",
+      "round": "Matchday 18"
+    },
+    {
+      "id": "match_008",
+      "homeTeam": "Juventus",
+      "awayTeam": "Napoli",
+      "competition": "Serie A",
+      "date": "2024-12-21T20:45:00.000Z",
+      "venue": "Allianz Stadium",
+      "status": "scheduled",
+      "round": "Matchday 17"
+    }
+  ],
+  "competitions": [
+    {
+      "id": "premier_league",
+      "name": "Premier League",
+      "country": "England",
+      "logo": "🏴󠁧󠁢󠁥󠁮󠁧󠁿"
+    },
+    {
+      "id": "la_liga",
+      "name": "La Liga",
+      "country": "Spain",
+      "logo": "🇪🇸"
+    },
+    {
+      "id": "bundesliga",
+      "name": "Bundesliga",
+      "country": "Germany",
+      "logo": "🇩🇪"
+    },
+    {
+      "id": "ligue_1",
+      "name": "Ligue 1",
+      "country": "France",
+      "logo": "🇫🇷"
+    },
+    {
+      "id": "serie_a",
+      "name": "Serie A",
+      "country": "Italy",
+      "logo": "🇮🇹"
+    }
+  ]
+} 

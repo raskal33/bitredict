@@ -34,11 +34,15 @@ export default function ProfileCreationModal() {
   // Check if user needs profile creation when wallet connects
   useEffect(() => {
     if (address && !hasProfile(address)) {
+      console.log('Profile creation modal should open for address:', address)
       // Small delay to ensure wallet connection is complete
       const timer = setTimeout(() => {
+        console.log('Opening profile modal for new user')
         openProfileModal()
       }, 1000)
       return () => clearTimeout(timer)
+    } else if (address) {
+      console.log('User already has profile, modal not needed')
     }
   }, [address, hasProfile, openProfileModal])
 
@@ -109,7 +113,7 @@ export default function ProfileCreationModal() {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
       <div className="glass-card w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 flex items-center justify-between border-b border-border-primary bg-bg-card p-6">
+        <div className="flex items-center justify-between border-b border-border-primary bg-bg-card p-6">
           <div>
             <h2 className="text-2xl font-bold text-text-secondary">Create Your Profile</h2>
             <p className="text-text-muted">Welcome to BitRedict! Let&apos;s set up your profile.</p>

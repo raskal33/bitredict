@@ -2,7 +2,6 @@
 
 import { useWindowScroll } from "@uidotdev/usehooks";
 import { motion, AnimatePresence } from "motion/react";
-import Image from "next/image";
 import Link from "next/link";
 import { useSelectedLayoutSegment } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -20,6 +19,7 @@ import {
   WalletIcon
 } from "@heroicons/react/24/outline";
 import Button from "@/components/button";
+import LogoAnimated from "@/components/LogoAnimated";
 import { useAccount, useDisconnect, useChainId } from 'wagmi';
 import { useAppKit } from '@reown/appkit/react';
 import { useProfileStore } from '@/stores/useProfileStore';
@@ -121,15 +121,9 @@ export default function Header() {
               {/* Left Side - Logo */}
               <div className="flex items-center gap-8">
                 <Link href="/" className="flex items-center gap-3">
-                  <div className="relative">
-                    <Image 
-                      src="/logo.png" 
-                      alt="BitRedict" 
-                      width={200} 
-                      height={50}
-                      className="h-auto max-h-12 animate-color-cycle"
-                      priority
-                    />
+                  <div className="relative flex items-center gap-3">
+                    <LogoAnimated size="lg" priority />
+                    <div className="text-2xl font-bold gradient-text">BitRedict</div>
                   </div>
                 </Link>
 
@@ -325,17 +319,12 @@ export default function Header() {
               >
                 <div className="flex flex-col h-full">
                   {/* Header */}
-                  <div className="flex items-center justify-between p-6 border-b border-border-card">
-                    <div className="flex items-center gap-3">
-                      <Image 
-                        src="/logo.png" 
-                        alt="BitRedict" 
-                        width={120} 
-                        height={30}
-                        className="h-auto"
-                      />
+                                      <div className="flex items-center justify-between p-6 border-b border-border-card">
+                      <div className="flex items-center gap-3">
+                        <LogoAnimated size="md" priority />
+                        <div className="text-lg font-bold gradient-text">BitRedict</div>
+                      </div>
                     </div>
-                  </div>
 
                   {/* Navigation Links */}
                   <nav className="flex-1 p-6">

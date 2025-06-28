@@ -5,8 +5,18 @@ import { FaTrophy, FaFire, FaChartLine, FaBolt } from "react-icons/fa";
 import { IoStatsChart } from "react-icons/io5";
 import { MdOutlineCategory } from "react-icons/md";
 import { BiSolidBadgeCheck } from "react-icons/bi";
+import { useAccount } from "wagmi";
+import { useReputationStore } from "@/stores/useReputationStore";
+import ReputationBadge from "@/components/ReputationBadge";
 
 export default function ProfilePage() {
+  const { address } = useAccount();
+  const { getUserReputation, getAccessCapabilities } = useReputationStore();
+  
+  // Get user reputation data
+  const userReputation = address ? getUserReputation(address) : null;
+  const accessCapabilities = address ? getAccessCapabilities(address) : [];
+
   // Mock user data - in a real app this would come from an API
   const userData = {
     stats: {
@@ -195,6 +205,77 @@ export default function ProfilePage() {
             </div>
           </div>
         </div>
+
+        {/* Reputation Section */}
+        {userReputation && (
+          <div className="glass-card p-6">
+            <h3 className="mb-4 flex items-center gap-2 text-xl font-semibold text-white">
+              <BiSolidBadgeCheck className="text-primary" />
+              Reputation
+            </h3>
+            
+            <div className="space-y-4">
+              <div className="flex justify-center">
+                <ReputationBadge reputation={userReputation} size="lg" />
+              </div>
+              
+              <div className="rounded-lg bg-bg-card p-4">
+                <div className="mb-3 text-center text-sm font-medium text-white">Access Capabilities</div>
+                <div className="space-y-2">
+                  {accessCapabilities.map((capability, index) => (
+                    <div key={index} className="flex items-center gap-2 text-sm text-text-secondary">
+                      <span className="text-green-400">✓</span>
+                      {capability}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-3 rounded-lg bg-bg-card p-4">
+                <div className="flex justify-between">
+                  <span className="text-text-muted">Reputation Score</span>
+                  <span className="font-medium text-text-secondary">{userReputation.score}/150</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-text-muted">Markets Created</span>
+                  <span className="font-medium text-text-secondary">{userReputation.marketsCreated}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-text-muted">Outcome Proposals</span>
+                  <span className="font-medium text-text-secondary">{userReputation.totalOutcomeProposals}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-text-muted">Correct Outcomes</span>
+                  <span className="font-medium text-text-secondary">{userReputation.correctOutcomeProposals}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-text-muted">Challenges Made</span>
+                  <span className="font-medium text-text-secondary">{userReputation.totalChallenges}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-text-muted">Successful Challenges</span>
+                  <span className="font-medium text-text-secondary">{userReputation.successfulChallenges}</span>
+                </div>
+              </div>
+
+              {userReputation.actions.length > 0 && (
+                <div className="rounded-lg bg-bg-card p-4">
+                  <div className="mb-3 text-sm font-medium text-white">Recent Reputation Actions</div>
+                  <div className="space-y-2 max-h-32 overflow-y-auto">
+                    {userReputation.actions.slice(-3).map((action) => (
+                      <div key={action.id} className="flex items-center justify-between text-xs">
+                        <span className="text-text-muted">{action.description}</span>
+                        <span className={`font-medium ${action.points > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {action.points > 0 ? '+' : ''}{action.points}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
         
         {/* Achievements */}
         <div className="glass-card p-6">

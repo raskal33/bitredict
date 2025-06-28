@@ -1,92 +1,26 @@
 "use client";
 
-import { useState, useEffect, ChangeEvent } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { CreateMarketData, ValidationErrors, useCreateMarket } from "@/store/useCreatePrediction";
+import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { parseEther } from "viem";
+import { toast } from "react-hot-toast";
 import { 
-  CalendarIcon,
   CurrencyDollarIcon,
   UserGroupIcon,
-  ChevronRightIcon,
-  ChevronLeftIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
-  ClockIcon,
-  ScaleIcon,
-  ArrowTopRightOnSquareIcon,
-  ClipboardDocumentIcon,
-  PencilIcon,
-  TagIcon
+  MagnifyingGlassIcon,
+  ShieldCheckIcon,
+  InformationCircleIcon
 } from "@heroicons/react/24/outline";
 import Button from "@/components/button";
 import Input from "@/components/input";
 import Textarea from "@/components/textarea";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
-import { parseEther } from "viem";
-import { toast } from "react-hot-toast";
-
-// Types
-interface StepProps {
-  data: CreateMarketData;
-  errors: ValidationErrors;
-}
-
-interface BasicInfoProps extends StepProps {
-  onInputChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
-  onCategoryChange: (category: string) => void;
-}
-
-interface MarketConfigProps extends StepProps {
-  onOddsChange: (value: number) => void;
-  onStakeChange: (value: number) => void;
-  onToggleBitr: () => void;
-}
-
-interface EventTimingProps extends StepProps {
-  onDateChange: (name: 'eventStartTime' | 'eventEndTime', value: string) => void;
-}
-
-interface AdvancedSettingsProps extends StepProps {
-  onInputChange: (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | { target: { name: string; value: string; }; }) => void;
-  onTogglePrivate: () => void;
-}
-
-interface ReviewProps extends StepProps {
-  calculations: {
-    maxBettorStake: number;
-    creationFee: number;
-  };
-  formatters: {
-    formatOdds: (odds: number) => string;
-    formatDateTime: (date?: Date) => string;
-  };
-}
-
-interface DeploymentSuccessProps {
-  data: CreateMarketData;
-  hash: string;
-  onReset: () => void;
-}
-
-
-const CATEGORIES = [
-  { value: "sports", label: "Sports", emoji: "⚽" },
-  { value: "crypto", label: "Cryptocurrency", emoji: "₿" },
-  { value: "politics", label: "Politics", emoji: "🏛️" },
-  { value: "entertainment", label: "Entertainment", emoji: "🎬" },
-  { value: "technology", label: "Technology", emoji: "💻" },
-  { value: "finance", label: "Finance", emoji: "📈" },
-  { value: "weather", label: "Weather", emoji: "🌤️" },
-  { value: "other", label: "Other", emoji: "📊" }
-];
-
-const STEP_TITLES = [
-  "Basic Information",
-  "Market Configuration", 
-  "Event Timing",
-  "Advanced Settings",
-  "Review & Deploy"
-];
+import AnimatedTitle from "@/components/AnimatedTitle";
+import { useReputationStore } from "@/stores/useReputationStore";
+import ReputationBadge from "@/components/ReputationBadge";
+import { GuidedMarketService, FootballMatch, Cryptocurrency } from "@/services/guidedMarketService";
 
 // Contract ABI for createPool function
 const BITREDICT_POOL_ABI = [
@@ -111,55 +45,209 @@ const BITREDICT_POOL_ABI = [
   }
 ] as const;
 
-const CONTRACT_ADDRESS = "0x742d35Cc6635C0532925a3b8D84e4123a4b37A12"; // Replace with actual contract address
+const CONTRACT_ADDRESS = "0x742d35Cc6635C0532925a3b8D84e4123a4b37A12";
+
+interface GuidedMarketData {
+  // Common fields
+  category: 'football' | 'cryptocurrency' | '';
+  odds: number;
+  creatorStake: number;
+  description: string;
+  
+  // Football specific
+  selectedMatch?: FootballMatch;
+  outcome?: 'home' | 'away' | 'draw';
+  
+  // Cryptocurrency specific
+  selectedCrypto?: Cryptocurrency;
+  targetPrice?: number;
+  timeframe?: string;
+  direction?: 'above' | 'below';
+  
+  // Generated fields
+  title?: string;
+  eventStartTime?: Date;
+  eventEndTime?: Date;
+}
 
 export default function CreateMarketPage() {
-  const { isConnected } = useAccount();
-  const {
-    data,
-    errors,
-    step,
-    setData,
-    setStep,
-    validateStep,
-    calculateMaxBettorStake,
-    calculateCreationFee,
-    reset,
-    setLoading,
-    isLoading
-  } = useCreateMarket();
-
+  const { address, isConnected } = useAccount();
+  const { getUserReputation, canCreateMarket, addReputationAction } = useReputationStore();
   const { writeContract, data: hash, error: writeError, isPending } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
-    hash,
+  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+
+  const [data, setData] = useState<GuidedMarketData>({
+    category: '',
+    odds: 200, // 2.0x default
+    creatorStake: 10, // Minimum for guided markets
+    description: ''
   });
 
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [step, setStep] = useState(1);
   const [deploymentHash, setDeploymentHash] = useState<string>('');
 
-  useEffect(() => {
-    if (!isConnected) {
-      reset();
-    }
-  }, [isConnected, reset]);
+  // Search states
+  const [footballSearchQuery, setFootballSearchQuery] = useState('');
+  const [cryptoSearchQuery, setCryptoSearchQuery] = useState('');
+  const [filteredMatches, setFilteredMatches] = useState<FootballMatch[]>([]);
+  const [filteredCryptos, setFilteredCryptos] = useState<Cryptocurrency[]>([]);
 
+  const userReputation = address ? getUserReputation(address) : null;
+  const canCreate = address ? canCreateMarket(address) : false;
+
+  // Initialize data
+  useEffect(() => {
+    setFilteredMatches(GuidedMarketService.getFootballMatches());
+    setFilteredCryptos(GuidedMarketService.getCryptocurrencies());
+  }, []);
+
+  // Search functionality
+  useEffect(() => {
+    if (footballSearchQuery) {
+      setFilteredMatches(GuidedMarketService.searchFootballMatches(footballSearchQuery));
+    } else {
+      setFilteredMatches(GuidedMarketService.getFootballMatches());
+    }
+  }, [footballSearchQuery]);
+
+  useEffect(() => {
+    if (cryptoSearchQuery) {
+      setFilteredCryptos(GuidedMarketService.searchCryptocurrencies(cryptoSearchQuery));
+    } else {
+      setFilteredCryptos(GuidedMarketService.getCryptocurrencies());
+    }
+  }, [cryptoSearchQuery]);
+
+  // Handle transaction results
   useEffect(() => {
     if (writeError) {
       toast.error(writeError.message || 'Transaction failed');
-      setLoading(false);
+      setIsLoading(false);
     }
-  }, [writeError, setLoading]);
+  }, [writeError]);
 
   useEffect(() => {
     if (isSuccess && hash) {
       toast.success('Market created successfully!');
       setDeploymentHash(hash);
-      setLoading(false);
+      setIsLoading(false);
+      
+      // Add reputation points for market creation
+      if (address) {
+        addReputationAction(address, {
+          type: 'market_created',
+          points: 8,
+          description: 'Created a guided market',
+          marketId: hash
+        });
+      }
     }
-  }, [isSuccess, hash, setLoading]);
+  }, [isSuccess, hash, address, addReputationAction]);
+
+  const handleInputChange = <K extends keyof GuidedMarketData>(field: K, value: GuidedMarketData[K]) => {
+    const newData = { ...data, [field]: value };
+    setData(newData);
+    
+    // Clear related errors
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+
+    // Auto-generate title when key fields change
+    if (field === 'outcome' && newData.selectedMatch && newData.outcome) {
+      const title = GuidedMarketService.generateFootballMarketTitle(newData.selectedMatch, newData.outcome);
+      setData(prev => ({ ...prev, title }));
+    }
+    
+    if ((field === 'direction' || field === 'targetPrice' || field === 'timeframe') && newData.selectedCrypto && newData.targetPrice && newData.timeframe && newData.direction) {
+      const title = GuidedMarketService.generateCryptoMarketTitle(
+        newData.selectedCrypto, 
+        newData.targetPrice,
+        newData.timeframe, 
+        newData.direction
+      );
+      setData(prev => ({ ...prev, title }));
+    }
+  };
+
+  const handleMatchSelect = (match: FootballMatch) => {
+    setData(prev => ({ ...prev, selectedMatch: match }));
+    const matchDate = new Date(match.date);
+    const startTime = new Date(matchDate.getTime() - 60 * 60 * 1000); // 1 hour before match
+    const endTime = new Date(matchDate.getTime() + 2 * 60 * 60 * 1000); // 2 hours after match start
+    setData(prev => ({ ...prev, eventStartTime: startTime, eventEndTime: endTime }));
+  };
+
+  const handleCryptoSelect = (crypto: Cryptocurrency) => {
+    setData(prev => ({ ...prev, selectedCrypto: crypto }));
+  };
+
+  const handleTimeframeSelect = (timeframe: string) => {
+    const timeOption = GuidedMarketService.getTimeOptions().find(opt => opt.value === timeframe);
+    if (timeOption) {
+      const { startTime, endTime } = GuidedMarketService.calculateEventTimes(timeOption);
+      setData(prev => ({ 
+        ...prev, 
+        timeframe,
+        eventStartTime: startTime,
+        eventEndTime: endTime
+      }));
+    }
+  };
+
+  const validateStep = (currentStep: number): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    if (currentStep >= 1) {
+      if (!data.category) {
+        newErrors.category = 'Please select a category';
+      }
+    }
+
+    if (currentStep >= 2) {
+      if (data.category === 'football') {
+        if (!data.selectedMatch) {
+          newErrors.selectedMatch = 'Please select a football match';
+        }
+        if (!data.outcome) {
+          newErrors.outcome = 'Please select an outcome';
+        }
+      }
+
+      if (data.category === 'cryptocurrency') {
+        if (!data.selectedCrypto) {
+          newErrors.selectedCrypto = 'Please select a cryptocurrency';
+        }
+        if (!data.targetPrice || data.targetPrice <= 0) {
+          newErrors.targetPrice = 'Please enter a valid target price';
+        }
+        if (!data.timeframe) {
+          newErrors.timeframe = 'Please select a timeframe';
+        }
+        if (!data.direction) {
+          newErrors.direction = 'Please select price direction';
+        }
+      }
+    }
+
+    if (currentStep >= 3) {
+      if (!data.odds || data.odds < 101 || data.odds > 1000) {
+        newErrors.odds = 'Odds must be between 1.01x and 10x for guided markets';
+      }
+      if (!data.creatorStake || data.creatorStake < 10) {
+        newErrors.creatorStake = 'Minimum creator stake is 10 tokens';
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleNext = () => {
     if (validateStep(step)) {
-      if (step < 5) {
+      if (step < 4) {
         setStep(step + 1);
       } else {
         handleDeploy();
@@ -174,15 +262,14 @@ export default function CreateMarketPage() {
   };
 
   const handleDeploy = async () => {
-    if (!validateStep(5) || !isConnected) return;
+    if (!validateStep(4) || !isConnected || !data.title) return;
 
     try {
-      setLoading(true);
-      const predictedOutcomeBytes32 = `0x${Buffer.from(data.predictedOutcome || '', 'utf8').toString('hex').padEnd(64, '0')}`;
+      setIsLoading(true);
+      const predictedOutcomeBytes32 = `0x${Buffer.from(data.title, 'utf8').toString('hex').padEnd(64, '0')}`;
       const eventStartTime = Math.floor((data.eventStartTime?.getTime() || 0) / 1000);
       const eventEndTime = Math.floor((data.eventEndTime?.getTime() || 0) / 1000);
-      const creatorStakeWei = parseEther((data.creatorStake || 0).toString());
-      const maxBetPerUserWei = data.maxBetPerUser ? parseEther(data.maxBetPerUser.toString()) : BigInt(0);
+      const creatorStakeWei = parseEther(data.creatorStake.toString());
 
       writeContract({
         address: CONTRACT_ADDRESS as `0x${string}`,
@@ -190,449 +277,635 @@ export default function CreateMarketPage() {
         functionName: "createPool",
         args: [
           predictedOutcomeBytes32 as `0x${string}`,
-          BigInt(data.odds || 200),
+          BigInt(data.odds),
           creatorStakeWei,
           BigInt(eventStartTime),
           BigInt(eventEndTime),
-          data.league || "",
-          data.category || "",
-          data.region || "",
-          data.isPrivate || false,
-          maxBetPerUserWei,
-          data.usesBitr || false
+          data.category === 'football' ? data.selectedMatch?.competition || '' : 'Crypto',
+          data.category,
+          'Global',
+          false, // Not private for guided markets
+          BigInt(0), // No max bet limit
+          false // Use STT by default
         ]
       });
-
     } catch (error) {
-      console.error('Error deploying market:', error);
-      toast.error('Failed to deploy market');
-      setLoading(false);
-    }
-  };
-  
-  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | { target: { name: string; value: string; }}) => {
-    const { name, value } = e.target;
-    let finalValue: string | number | boolean | string[] = value;
-  
-    const target = e.target as HTMLInputElement;
-    if (target.type === 'number') {
-      finalValue = value === '' ? '' : parseFloat(value);
-    }
-
-    if(name === 'whitelistAddresses' && typeof value === 'string') {
-      finalValue = value.split('\n');
-    }
-  
-    setData({ [name]: finalValue });
-  };
-  
-  const handleDateChange = (name: 'eventStartTime' | 'eventEndTime', value: string) => {
-    const date = new Date(value);
-    if (!isNaN(date.getTime())) {
-      setData({ [name]: date });
+      console.error('Deployment error:', error);
+      toast.error('Failed to create market');
+      setIsLoading(false);
     }
   };
 
-  const formatOdds = (odds = 200) => (odds / 100).toFixed(2) + "x";
-  const formatDateTime = (date?: Date) => date ? date.toLocaleString() : 'Not set';
+  const resetForm = () => {
+    setData({
+      category: '',
+      odds: 200,
+      creatorStake: 10,
+      description: ''
+    });
+    setErrors({});
+    setStep(1);
+    setDeploymentHash('');
+    setFootballSearchQuery('');
+    setCryptoSearchQuery('');
+  };
 
+  // If user can't create markets
   if (!isConnected) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] p-8">
-        <div className="text-center space-y-4">
-          <div className="w-16 h-16 mx-auto bg-bg-card rounded-full flex items-center justify-center">
-            <CurrencyDollarIcon className="w-8 h-8 text-primary" />
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="text-center">
+          <ExclamationTriangleIcon className="mx-auto h-16 w-16 text-yellow-500" />
+          <h2 className="mt-4 text-xl font-semibold text-white">Connect Your Wallet</h2>
+          <p className="mt-2 text-text-muted">Please connect your wallet to create prediction markets.</p>
+        </div>
           </div>
-          <h3 className="text-xl font-semibold text-text-primary">Connect Your Wallet</h3>
-          <p className="text-text-secondary max-w-md">
-            You need to connect your wallet to create prediction markets. 
-            Make sure you&apos;re on the Somnia network.
+    );
+  }
+
+  if (!canCreate) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="text-center max-w-md">
+          <ShieldCheckIcon className="mx-auto h-16 w-16 text-red-500" />
+          <h2 className="mt-4 text-xl font-semibold text-white">Insufficient Reputation</h2>
+          <p className="mt-2 text-text-muted">
+            You need at least 40 reputation points to create markets. 
+            Participate in betting and community activities to build your reputation.
           </p>
+          {userReputation && (
+            <div className="mt-4">
+              <ReputationBadge reputation={userReputation} />
+            </div>
+          )}
         </div>
       </div>
     );
   }
 
-  if (isSuccess && deploymentHash) {
-    return <DeploymentSuccess data={data} hash={deploymentHash} onReset={() => { reset(); setDeploymentHash(''); }} />;
-  }
-
-  return (
-    <div className="max-w-4xl mx-auto p-4 md:p-8">
-      <div className="glass-card p-6 md:p-8 rounded-2xl">
-        {/* Header and Progress Bar */}
-        <div className="mb-8">
-          <h1 className="text-2xl md:text-3xl font-bold text-text-primary mb-2">{STEP_TITLES[step - 1]}</h1>
-          <p className="text-text-secondary">Follow the steps to create your prediction market.</p>
-          <div className="mt-4 w-full bg-bg-overlay rounded-full h-2">
-            <motion.div 
-              className="bg-gradient-primary h-2 rounded-full"
-              initial={{ width: 0 }}
-              animate={{ width: `${((step -1) / (STEP_TITLES.length -1)) * 100}%` }}
-              transition={{ duration: 0.5, ease: "easeInOut" }}
-            />
-          </div>
-        </div>
-
-        {/* Form Content */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={step}
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -50 }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
-          >
-            {step === 1 && <BasicInformation data={data} errors={errors} onInputChange={handleInputChange} onCategoryChange={(c) => setData({ category: c })} />}
-            {step === 2 && <MarketConfiguration data={data} errors={errors} onOddsChange={(o) => setData({ odds: o})} onStakeChange={(s) => setData({ creatorStake: s })} onToggleBitr={() => setData({ usesBitr: !data.usesBitr })} />}
-            {step === 3 && <EventTiming data={data} errors={errors} onDateChange={handleDateChange} />}
-            {step === 4 && <AdvancedSettings data={data} errors={errors} onInputChange={handleInputChange} onTogglePrivate={() => setData({ isPrivate: !data.isPrivate })} />}
-            {step === 5 && <ReviewAndDeploy data={data} errors={errors} calculations={{ maxBettorStake: calculateMaxBettorStake(), creationFee: calculateCreationFee() }} formatters={{ formatOdds, formatDateTime }} />}
-          </motion.div>
-        </AnimatePresence>
-
-        {/* Navigation */}
-        <div className="flex justify-between items-center mt-8">
-          <Button variant="outline" onClick={handlePrevious} disabled={step === 1 || isLoading} leftIcon={<ChevronLeftIcon className="w-4 h-4"/>}>
-            Previous
-          </Button>
+  // Success screen
+  if (deploymentHash) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <div className="text-center max-w-lg">
+          <CheckCircleIcon className="mx-auto h-16 w-16 text-green-500" />
+          <h2 className="mt-4 text-2xl font-semibold text-white">Market Created Successfully!</h2>
+          <p className="mt-2 text-text-muted">Your guided prediction market has been deployed to the blockchain.</p>
           
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-text-muted">{`Step ${step} of ${STEP_TITLES.length}`}</span>
+          <div className="mt-6 rounded-lg bg-bg-card p-4">
+            <div className="text-sm text-text-muted">Transaction Hash:</div>
+            <div className="break-all text-xs text-primary">{deploymentHash}</div>
           </div>
-
-          <Button variant="primary" onClick={handleNext} disabled={isLoading || isPending || isConfirming} loading={isLoading || isPending || isConfirming} rightIcon={<ChevronRightIcon className="w-4 h-4" />}>
-            {step === STEP_TITLES.length ? 'Deploy Market' : 'Next Step'}
-          </Button>
+          
+          <div className="mt-6 flex justify-center gap-4">
+            <Button onClick={resetForm} variant="outline">
+              Create Another Market
+            </Button>
+            <Button onClick={() => window.location.href = '/dashboard'}>
+              View Dashboard
+            </Button>
         </div>
       </div>
     </div>
   );
 }
 
-// Sub-components for each step, now using Input and Textarea
-
-function BasicInformation({ data, errors, onInputChange, onCategoryChange }: BasicInfoProps) {
   return (
-    <div className="space-y-6">
-      <Input
-        label="Market Title"
-        name="title"
-        value={data.title || ''}
-        onChange={onInputChange}
-        placeholder="e.g., Bitcoin to hit $100k by March 2025"
-        error={errors.title}
-        maxLength={100}
-        icon={<PencilIcon className="w-4 h-4 text-text-muted" />}
-      />
-      <Textarea
-        label="Description (Optional)"
-        name="description"
-        value={data.description || ''}
-        onChange={onInputChange}
-        placeholder="Provide details about the market, resolution sources, etc."
-        rows={4}
-      />
-      <Input
-        label="Predicted Outcome"
-        name="predictedOutcome"
-        value={data.predictedOutcome || ''}
-        onChange={onInputChange}
-        placeholder="The specific outcome you are predicting"
-        error={errors.predictedOutcome}
-        maxLength={64}
-        icon={<ClipboardDocumentIcon className="w-4 h-4 text-text-muted" />}
-      />
-      <div>
-        <label className="block text-sm font-medium text-text-secondary mb-2">Category</label>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat.value}
-              type="button"
-              onClick={() => onCategoryChange(cat.value)}
-              className={`flex items-center justify-center gap-2 p-3 rounded-button border-2 transition-all ${
-                data.category === cat.value
-                  ? 'bg-primary border-primary text-black shadow-lg'
-                  : 'bg-bg-card border-border-card hover:border-primary/50'
-              }`}
+    <div className="mx-auto max-w-4xl">
+      {/* Header */}
+      <div className="mb-8">
+        <AnimatedTitle 
+          size="lg" 
+          leftIcon={CurrencyDollarIcon}
+          rightIcon={UserGroupIcon}
+          className="mb-4"
+        >
+          Create Guided Market
+        </AnimatedTitle>
+        <p className="text-text-muted text-center max-w-2xl mx-auto">
+          Create secure, oracle-backed prediction markets for football matches and cryptocurrency prices.
+        </p>
+        
+        {userReputation && (
+          <div className="mt-6 flex items-center justify-between">
+            <ReputationBadge reputation={userReputation} showDetails />
+            <div className="text-sm text-text-muted">
+              Guided Markets Only (40-99 Rep)
+            </div>
+        </div>
+        )}
+      </div>
+
+      {/* Progress Steps */}
+      <div className="mb-8 flex items-center justify-between">
+        {[1, 2, 3, 4].map((stepNum) => (
+          <div key={stepNum} className="flex items-center">
+            <div className={`flex h-8 w-8 items-center justify-center rounded-full border-2 text-sm font-medium ${
+              step >= stepNum 
+                ? 'border-primary bg-primary text-white' 
+                : 'border-gray-500 text-gray-500'
+            }`}>
+              {stepNum}
+    </div>
+            {stepNum < 4 && (
+              <div className={`h-0.5 w-16 ${step > stepNum ? 'bg-primary' : 'bg-gray-500'}`} />
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Step Content */}
+      <div className="glass-card p-8">
+        <AnimatePresence mode="wait">
+          {step === 1 && (
+            <motion.div
+              key="step1"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
             >
-              <span className="text-lg">{cat.emoji}</span>
-              <span className="text-sm font-semibold">{cat.label}</span>
-            </button>
-          ))}
+              <h2 className="mb-6 text-xl font-semibold text-white">Select Category</h2>
+              
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div
+                  className={`cursor-pointer rounded-lg border-2 p-6 transition-all ${
+                    data.category === 'football'
+                      ? 'border-primary bg-primary/10'
+                      : 'border-gray-600 hover:border-gray-500'
+                  }`}
+                  onClick={() => handleInputChange('category', 'football')}
+                >
+                  <div className="text-center">
+                    <div className="text-4xl mb-4">⚽</div>
+                    <h3 className="text-lg font-semibold text-white">Football</h3>
+                    <p className="mt-2 text-sm text-text-muted">
+                      Predict outcomes of football matches from major leagues. 
+                      Results verified by Sportmonks API.
+                    </p>
         </div>
-        {errors.category && <p className="mt-1 text-sm text-red-500">{errors.category}</p>}
-      </div>
-    </div>
-  );
-}
-
-function MarketConfiguration({ data, errors, onOddsChange, onStakeChange, onToggleBitr }: MarketConfigProps) {
-  const maxBettorStake = data.creatorStake && data.odds && data.odds > 100 
-    ? ((data.creatorStake * 100) / (data.odds - 100)).toFixed(2)
-    : '0.00';
-    
-  return (
-    <div className="space-y-6">
-      <div className="grid md:grid-cols-2 gap-6">
-        <Input
-          label="Creator's Stake"
-          name="creatorStake"
-          type="number"
-          value={data.creatorStake || ''}
-          onChange={(e) => onStakeChange(parseFloat(e.target.value) || 0)}
-          error={errors.creatorStake}
-          min="20"
-          max="1000000"
-          icon={<CurrencyDollarIcon className="w-4 h-4 text-text-muted" />}
-        />
-        <div>
-          <label className="block text-sm font-medium text-text-secondary mb-1">Odds</label>
-          <div className="flex items-center gap-2">
-            <input
-              type="range"
-              min="101"
-              max="10000"
-              step="1"
-              value={data.odds || 200}
-              onChange={(e) => onOddsChange(parseInt(e.target.value))}
-              className="w-full h-2 bg-bg-overlay rounded-lg appearance-none cursor-pointer accent-primary"
-            />
-            <span className="font-bold text-lg text-primary w-24 text-center">
-              {(data.odds ? data.odds / 100 : 2).toFixed(2)}x
-            </span>
-          </div>
-          {errors.odds && <p className="mt-1 text-sm text-red-500">{errors.odds}</p>}
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between p-4 rounded-button bg-bg-overlay">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={onToggleBitr}
-            className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-              data.usesBitr ? 'bg-primary' : 'bg-gray-600'
-            }`}
-          >
-            <span
-              className={`inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                data.usesBitr ? 'translate-x-5' : 'translate-x-0'
-              }`}
-            />
-          </button>
-          <span className="font-medium">Use BITR for stake and bets</span>
-        </div>
-        <span className="font-mono text-sm px-2 py-1 rounded-md bg-bg-card text-primary">
-          {data.usesBitr ? 'BITR' : 'STT'}
-        </span>
       </div>
       
-      <div className="p-4 border-l-4 border-primary bg-primary/10 rounded-r-lg">
-        <h4 className="font-semibold text-text-primary">Market Dynamics</h4>
-        <p className="text-sm text-text-secondary mt-1">
-          Based on your stake of <span className="font-bold text-primary">{data.creatorStake || 0} {data.usesBitr ? 'BITR' : 'STT'}</span> and odds of <span className="font-bold text-primary">{(data.odds ? data.odds / 100 : 2).toFixed(2)}x</span>, the maximum potential stake from bettors is <span className="font-bold text-primary">{maxBettorStake} {data.usesBitr ? 'BITR' : 'STT'}</span>.
+                <div
+                  className={`cursor-pointer rounded-lg border-2 p-6 transition-all ${
+                    data.category === 'cryptocurrency'
+                      ? 'border-primary bg-primary/10'
+                      : 'border-gray-600 hover:border-gray-500'
+                  }`}
+                  onClick={() => handleInputChange('category', 'cryptocurrency')}
+                >
+                  <div className="text-center">
+                    <div className="text-4xl mb-4">₿</div>
+                    <h3 className="text-lg font-semibold text-white">Cryptocurrency</h3>
+                    <p className="mt-2 text-sm text-text-muted">
+                      Predict cryptocurrency price movements. 
+                      Results verified by CoinGecko API.
         </p>
       </div>
     </div>
-  );
-}
+              </div>
 
-function EventTiming({ data, errors, onDateChange }: EventTimingProps) {
-  const formatDateTimeForInput = (date: Date) => {
-    const pad = (n: number) => n.toString().padStart(2, '0');
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-  };
-  return (
-    <div className="grid md:grid-cols-2 gap-6">
+              {errors.category && (
+                <p className="mt-2 text-sm text-red-400">{errors.category}</p>
+              )}
+
+              <div className="mt-6 bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <InformationCircleIcon className="h-5 w-5 text-blue-400 mt-0.5" />
+                  <div className="text-sm text-blue-300">
+                    <strong>Guided Markets:</strong> As an Elementary user (40-99 reputation), you can only create 
+                    oracle-backed markets. These are safer and help you build reputation through accurate predictions.
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {step === 2 && data.category === 'football' && (
+            <motion.div
+              key="step2-football"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+            >
+              <h2 className="mb-6 text-xl font-semibold text-white">Select Football Match</h2>
+              
+              {/* Search */}
+              <div className="relative mb-6">
+                <MagnifyingGlassIcon className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
       <Input
-        label="Event Start Time"
-        type="datetime-local"
-        name="eventStartTime"
-        value={data.eventStartTime ? formatDateTimeForInput(data.eventStartTime) : ''}
-        onChange={(e) => onDateChange('eventStartTime', e.target.value)}
-        error={errors.eventStartTime}
-        icon={<CalendarIcon className="w-4 h-4 text-text-muted" />}
-      />
-      <Input
-        label="Event End Time"
-        type="datetime-local"
-        name="eventEndTime"
-        value={data.eventEndTime ? formatDateTimeForInput(data.eventEndTime) : ''}
-        onChange={(e) => onDateChange('eventEndTime', e.target.value)}
-        error={errors.eventEndTime}
-        icon={<ClockIcon className="w-4 h-4 text-text-muted" />}
+                  type="text"
+                  placeholder="Search teams, competitions, or venues..."
+                  value={footballSearchQuery}
+                  onChange={(e) => setFootballSearchQuery(e.target.value)}
+                  className="pl-10"
       />
     </div>
-  );
-}
 
-function AdvancedSettings({ data, errors, onInputChange, onTogglePrivate }: AdvancedSettingsProps) {
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between p-4 rounded-button bg-bg-overlay">
-        <label htmlFor="isPrivate" className="font-medium text-text-primary">Make this a private market</label>
-        <button
-          id="isPrivate"
-          type="button"
-          onClick={onTogglePrivate}
-          className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-            data.isPrivate ? 'bg-primary' : 'bg-gray-600'
-          }`}
-        >
-          <span
-            className={`inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-              data.isPrivate ? 'translate-x-5' : 'translate-x-0'
-            }`}
-          />
-        </button>
+              {/* Matches */}
+              <div className="space-y-3 max-h-64 overflow-y-auto">
+                {filteredMatches.map((match) => (
+                  <div
+                    key={match.id}
+                    className={`cursor-pointer rounded-lg border p-4 transition-all ${
+                      data.selectedMatch?.id === match.id
+                        ? 'border-primary bg-primary/10'
+                        : 'border-gray-600 hover:border-gray-500'
+                    }`}
+                    onClick={() => handleMatchSelect(match)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="font-medium text-white">
+                          {match.homeTeam} vs {match.awayTeam}
+                        </div>
+                        <div className="text-sm text-text-muted">
+                          {match.competition} • {new Date(match.date).toLocaleDateString()} {new Date(match.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                        <div className="text-xs text-text-muted">{match.venue}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {errors.selectedMatch && (
+                <p className="mt-2 text-sm text-red-400">{errors.selectedMatch}</p>
+              )}
+
+              {/* Outcome Selection */}
+              {data.selectedMatch && (
+                <div className="mt-6">
+                  <h3 className="mb-4 text-lg font-medium text-white">Select Outcome</h3>
+                  <div className="grid grid-cols-3 gap-4">
+                    {[
+                      { value: 'home', label: `${data.selectedMatch.homeTeam} Win` },
+                      { value: 'draw', label: 'Draw' },
+                      { value: 'away', label: `${data.selectedMatch.awayTeam} Win` }
+                    ].map((outcome) => (
+                      <div
+                        key={outcome.value}
+                        className={`cursor-pointer rounded-lg border-2 p-4 text-center transition-all ${
+                          data.outcome === outcome.value
+                            ? 'border-primary bg-primary/10'
+                            : 'border-gray-600 hover:border-gray-500'
+                        }`}
+                        onClick={() => handleInputChange('outcome', outcome.value as 'home' | 'draw' | 'away')}
+                      >
+                        <div className="font-medium text-white">{outcome.label}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {errors.outcome && (
+                    <p className="mt-2 text-sm text-red-400">{errors.outcome}</p>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {step === 2 && data.category === 'cryptocurrency' && (
+            <motion.div
+              key="step2-crypto"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+            >
+              <h2 className="mb-6 text-xl font-semibold text-white">Configure Cryptocurrency Prediction</h2>
+              
+              {/* Crypto Search */}
+              <div className="mb-6">
+                <label className="mb-2 block text-sm font-medium text-white">Select Cryptocurrency</label>
+                <div className="relative">
+                  <MagnifyingGlassIcon className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                  <Input
+                    type="text"
+                    placeholder="Search cryptocurrencies..."
+                    value={cryptoSearchQuery}
+                    onChange={(e) => setCryptoSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
       </div>
 
-      <AnimatePresence>
-        {data.isPrivate && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="space-y-6 overflow-hidden"
-          >
+                <div className="mt-3 space-y-2 max-h-40 overflow-y-auto">
+                  {filteredCryptos.map((crypto) => (
+                    <div
+                      key={crypto.id}
+                      className={`cursor-pointer rounded-lg border p-3 transition-all ${
+                        data.selectedCrypto?.id === crypto.id
+                          ? 'border-primary bg-primary/10'
+                          : 'border-gray-600 hover:border-gray-500'
+                      }`}
+                      onClick={() => handleCryptoSelect(crypto)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className="text-lg">{crypto.logo}</span>
+                          <div>
+                            <div className="font-medium text-white">{crypto.name}</div>
+                            <div className="text-sm text-text-muted">{crypto.symbol}</div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-medium text-white">${crypto.currentPrice.toLocaleString()}</div>
+                          <div className="text-xs text-text-muted">Current Price</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {errors.selectedCrypto && (
+                  <p className="mt-2 text-sm text-red-400">{errors.selectedCrypto}</p>
+                )}
+              </div>
+
+              {data.selectedCrypto && (
+                <>
+                  {/* Target Price */}
+                  <div className="mb-6">
+                    <label className="mb-2 block text-sm font-medium text-white">Target Price (USD)</label>
             <Input
-              label="Max Bet Per User (Optional)"
-              name="maxBetPerUser"
               type="number"
-              value={data.maxBetPerUser || ''}
-              onChange={onInputChange}
-              error={errors.maxBetPerUser}
-              placeholder="0 for no limit"
-              icon={<ScaleIcon className="w-4 h-4 text-text-muted" />}
-            />
-            <Textarea
-              label="Whitelist Addresses (Optional)"
-              name="whitelistAddresses"
-              value={data.whitelistAddresses?.join('\n') || ''}
-              onChange={(e) => onInputChange({
-                target: { name: 'whitelistAddresses', value: e.target.value }
-              })}
-              error={errors.whitelistAddresses}
-              placeholder="Enter one Ethereum address per line."
-              rows={5}
-            />
+                      min="0"
+                      step="0.0001"
+                      placeholder="Enter target price"
+                      value={data.targetPrice || ''}
+                      onChange={(e) => handleInputChange('targetPrice', parseFloat(e.target.value))}
+                    />
+                    {data.selectedCrypto && (
+                      <p className="mt-1 text-xs text-text-muted">
+                        Current price: ${data.selectedCrypto.currentPrice.toLocaleString()}
+                      </p>
+                    )}
+                    {errors.targetPrice && (
+                      <p className="mt-1 text-sm text-red-400">{errors.targetPrice}</p>
+                    )}
+                  </div>
+
+                  {/* Timeframe */}
+                  <div className="mb-6">
+                    <label className="mb-2 block text-sm font-medium text-white">Timeframe</label>
+                    <div className="grid grid-cols-4 gap-2 md:grid-cols-7">
+                      {GuidedMarketService.getTimeOptions().map((option) => (
+                        <div
+                          key={option.value}
+                          className={`cursor-pointer rounded-lg border-2 p-3 text-center transition-all ${
+                            data.timeframe === option.value
+                              ? 'border-primary bg-primary/10'
+                              : 'border-gray-600 hover:border-gray-500'
+                          }`}
+                          onClick={() => handleTimeframeSelect(option.value)}
+                        >
+                          <div className="text-sm font-medium text-white">{option.value}</div>
+                          <div className="text-xs text-text-muted">{option.label}</div>
+                        </div>
+                      ))}
+                    </div>
+                    {errors.timeframe && (
+                      <p className="mt-2 text-sm text-red-400">{errors.timeframe}</p>
+                    )}
+                  </div>
+
+                  {/* Direction */}
+                  <div className="mb-6">
+                    <label className="mb-2 block text-sm font-medium text-white">Price Direction</label>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div
+                        className={`cursor-pointer rounded-lg border-2 p-4 text-center transition-all ${
+                          data.direction === 'above'
+                            ? 'border-green-500 bg-green-500/10'
+                            : 'border-gray-600 hover:border-gray-500'
+                        }`}
+                        onClick={() => handleInputChange('direction', 'above')}
+                      >
+                        <div className="text-2xl mb-2">📈</div>
+                        <div className="font-medium text-white">Above Target</div>
+                        <div className="text-sm text-text-muted">Price will be higher</div>
+                      </div>
+                      <div
+                        className={`cursor-pointer rounded-lg border-2 p-4 text-center transition-all ${
+                          data.direction === 'below'
+                            ? 'border-red-500 bg-red-500/10'
+                            : 'border-gray-600 hover:border-gray-500'
+                        }`}
+                        onClick={() => handleInputChange('direction', 'below')}
+                      >
+                        <div className="text-2xl mb-2">📉</div>
+                        <div className="font-medium text-white">Below Target</div>
+                        <div className="text-sm text-text-muted">Price will be lower</div>
+                      </div>
+                    </div>
+                    {errors.direction && (
+                      <p className="mt-2 text-sm text-red-400">{errors.direction}</p>
+                    )}
+                  </div>
+                </>
+              )}
           </motion.div>
         )}
-      </AnimatePresence>
-      
-      <div className="grid md:grid-cols-2 gap-6">
+
+          {step === 3 && (
+            <motion.div
+              key="step3"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+            >
+              <h2 className="mb-6 text-xl font-semibold text-white">Market Configuration</h2>
+              
+              {/* Generated Title */}
+              {data.title && (
+                <div className="mb-6 rounded-lg bg-blue-500/10 border border-blue-500/20 p-4">
+                  <div className="text-sm text-blue-300 mb-2">Generated Market Title:</div>
+                  <div className="font-medium text-white">{data.title}</div>
+                </div>
+              )}
+
+              {/* Odds */}
+              <div className="mb-6">
+                <label className="mb-2 block text-sm font-medium text-white">
+                  Odds (Your Multiplier)
+                </label>
         <Input
-          label="League (Optional)"
-          name="league"
-          value={data.league || ''}
-          onChange={onInputChange}
-          placeholder="e.g., Premier League, NBA"
-          icon={<TagIcon className="w-4 h-4 text-text-muted" />}
-        />
+                  type="number"
+                  min="101"
+                  max="1000"
+                  step="1"
+                  value={data.odds}
+                  onChange={(e) => handleInputChange('odds', parseInt(e.target.value))}
+                />
+                <div className="mt-1 flex justify-between text-xs text-text-muted">
+                  <span>Min: 1.01x</span>
+                  <span>Current: {(data.odds / 100).toFixed(2)}x</span>
+                  <span>Max: 10x</span>
+                </div>
+                {errors.odds && (
+                  <p className="mt-1 text-sm text-red-400">{errors.odds}</p>
+                )}
+              </div>
+
+              {/* Creator Stake */}
+              <div className="mb-6">
+                <label className="mb-2 block text-sm font-medium text-white">
+                  Your Stake (STT)
+                </label>
         <Input
-          label="Region (Optional)"
-          name="region"
-          value={data.region || ''}
-          onChange={onInputChange}
-          placeholder="e.g., USA, Europe"
-          icon={<UserGroupIcon className="w-4 h-4 text-text-muted" />}
+                  type="number"
+                  min="10"
+                  max="10000"
+                  step="1"
+                  value={data.creatorStake}
+                  onChange={(e) => handleInputChange('creatorStake', parseInt(e.target.value))}
+                />
+                <div className="mt-1 text-xs text-text-muted">
+                  Minimum: 10 STT for guided markets
+                </div>
+                {errors.creatorStake && (
+                  <p className="mt-1 text-sm text-red-400">{errors.creatorStake}</p>
+                )}
+              </div>
+
+              {/* Description */}
+              <div className="mb-6">
+                <label className="mb-2 block text-sm font-medium text-white">
+                  Description (Optional)
+                </label>
+                <Textarea
+                  rows={3}
+                  placeholder="Add your analysis, reasoning, or additional information..."
+                  value={data.description}
+                  onChange={(e) => handleInputChange('description', e.target.value)}
         />
       </div>
-    </div>
-  );
-}
 
-function ReviewAndDeploy({ data, calculations, formatters }: ReviewProps) {
-  return (
-    <div className="space-y-6 text-text-secondary">
-      <div className="p-6 rounded-2xl bg-bg-card border border-border-card">
-        <h3 className="text-lg font-bold text-text-primary mb-4">Final Review</h3>
-        <div className="space-y-3">
-          <ReviewItem label="Title" value={data.title} />
-          <ReviewItem label="Predicted Outcome" value={data.predictedOutcome} />
-          <ReviewItem label="Category" value={data.category} isCapitalized={true} />
-          <hr className="border-border-card/50" />
-          <ReviewItem label="Your Stake" value={`${data.creatorStake || 0} ${data.usesBitr ? 'BITR' : 'STT'}`} />
-          <ReviewItem label="Odds" value={formatters.formatOdds(data.odds || 200)} />
-          <ReviewItem label="Potential Bettor Stake" value={`${calculations.maxBettorStake.toFixed(2)} ${data.usesBitr ? 'BITR' : 'STT'}`} />
-          <hr className="border-border-card/50" />
-          <ReviewItem label="Starts" value={formatters.formatDateTime(data.eventStartTime)} />
-          <ReviewItem label="Ends" value={formatters.formatDateTime(data.eventEndTime)} />
-          <hr className="border-border-card/50" />
-          <ReviewItem label="Privacy" value={data.isPrivate ? 'Private' : 'Public'} />
-          {data.isPrivate && <ReviewItem label="Max Bet Per User" value={data.maxBetPerUser && data.maxBetPerUser > 0 ? `${data.maxBetPerUser} ${data.usesBitr ? 'BITR' : 'STT'}` : 'Unlimited'} />}
+              {/* Market Info */}
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="rounded-lg bg-bg-card p-4">
+                  <div className="text-sm text-text-muted mb-2">Betting Closes</div>
+                  <div className="font-medium text-white">
+                    {data.eventStartTime ? data.eventStartTime.toLocaleString() : 'Not set'}
+                  </div>
+                </div>
+                <div className="rounded-lg bg-bg-card p-4">
+                  <div className="text-sm text-text-muted mb-2">Market Resolves</div>
+                  <div className="font-medium text-white">
+                    {data.eventEndTime ? data.eventEndTime.toLocaleString() : 'Not set'}
+    </div>
         </div>
       </div>
-      <div className="p-4 border-l-4 border-yellow-500 bg-yellow-500/10 rounded-r-lg">
-        <div className="flex items-start">
-          <ExclamationTriangleIcon className="w-5 h-5 text-yellow-500 mr-3 mt-0.5" />
-          <div>
-            <h4 className="font-semibold text-text-primary">Important</h4>
-            <p className="text-sm text-yellow-200/80 mt-1">
-              Once deployed, market parameters are immutable. You will pay a creation fee of <span className="font-bold">{calculations.creationFee} {data.usesBitr ? 'BITR' : 'STT'}</span> plus gas fees. Your initial stake will be locked until the market is resolved.
-            </p>
+
+              {/* Win/Loss Info */}
+              <div className="mt-6 rounded-lg bg-yellow-500/10 border border-yellow-500/20 p-4">
+                <div className="flex items-start gap-3">
+                  <InformationCircleIcon className="h-5 w-5 text-yellow-400 mt-0.5" />
+                  <div className="text-sm text-yellow-300">
+                    <div className="font-medium mb-2">How you win/lose:</div>
+                    <div className="space-y-1">
+                      <div><strong>If you&apos;re RIGHT:</strong> You win up to {((data.creatorStake * 100) / (data.odds - 100)).toFixed(1)} STT from bettors</div>
+                      <div><strong>If you&apos;re WRONG:</strong> You lose your {data.creatorStake} STT stake to bettors</div>
+                      <div><strong>Oracle Resolution:</strong> Results verified automatically by external APIs</div>
           </div>
         </div>
       </div>
     </div>
-  );
-}
+            </motion.div>
+          )}
 
-function ReviewItem({ label, value, isCapitalized = false }: { label: string, value?: string | number, isCapitalized?: boolean }) {
-  return (
-    <div className="flex justify-between items-center">
-      <span className="font-medium text-text-muted">{label}:</span>
-      <span className={`font-semibold text-text-primary text-right ${isCapitalized ? 'capitalize' : ''}`}>{value || 'Not set'}</span>
-    </div>
-  );
-}
-
-function DeploymentSuccess({ data, hash, onReset }: DeploymentSuccessProps) {
-  return (
-    <div className="max-w-2xl mx-auto">
+          {step === 4 && (
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="glass-card p-8 text-center"
-      >
-        <div className="w-16 h-16 mx-auto mb-4 bg-green-500 rounded-full flex items-center justify-center">
-          <CheckCircleIcon className="w-8 h-8 text-white" />
+              key="step4"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+            >
+              <h2 className="mb-6 text-xl font-semibold text-white">Review & Deploy</h2>
+              
+              <div className="space-y-6">
+                {/* Market Summary */}
+                <div className="rounded-lg bg-bg-card p-6">
+                  <h3 className="text-lg font-medium text-white mb-4">Market Summary</h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-text-muted">Category:</span>
+                      <span className="text-white capitalize">{data.category}</span>
         </div>
-        <h2 className="text-2xl font-bold text-text-primary mb-2">Market Created Successfully!</h2>
-        <p className="text-text-secondary mb-6">Your prediction market has been deployed to the blockchain.</p>
-
-        <div className="bg-bg-card rounded-button p-4 mb-6 text-left">
-          <div className="space-y-2">
             <div className="flex justify-between">
-              <span className="text-text-muted">Transaction Hash:</span>
-              <a 
-                href={`https://explorer.somnia.network/tx/${hash}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:text-secondary flex items-center gap-1"
-              >
-                {hash.slice(0, 10)}...{hash.slice(-8)}
-                <ArrowTopRightOnSquareIcon className="w-4 h-4" />
-              </a>
+                      <span className="text-text-muted">Title:</span>
+                      <span className="text-white text-right flex-1 ml-4">{data.title}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-text-muted">Market Title:</span>
-              <span className="font-medium">{data.title}</span>
+                      <span className="text-text-muted">Your Odds:</span>
+                      <span className="text-white">{(data.odds / 100).toFixed(2)}x</span>
             </div>
             <div className="flex justify-between">
               <span className="text-text-muted">Your Stake:</span>
-              <span className="font-medium">{data.creatorStake} {data.usesBitr ? 'BITR' : 'STT'}</span>
+                      <span className="text-white">{data.creatorStake} STT</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-text-muted">Max Payout:</span>
+                      <span className="text-white">{((data.creatorStake * 100) / (data.odds - 100)).toFixed(1)} STT</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-text-muted">Betting Closes:</span>
+                      <span className="text-white">{data.eventStartTime?.toLocaleDateString()}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-text-muted">Resolves:</span>
+                      <span className="text-white">{data.eventEndTime?.toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Fees */}
+                <div className="rounded-lg bg-bg-card p-6">
+                  <h3 className="text-lg font-medium text-white mb-4">Transaction Fees</h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between">
+                      <span className="text-text-muted">Platform Fee:</span>
+                      <span className="text-white">1 STT</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-text-muted">Gas Fee:</span>
+                      <span className="text-white">~0.001 ETH</span>
             </div>
           </div>
         </div>
 
-        <div className="flex gap-4 justify-center">
-          <Button onClick={() => window.location.href = '/'}>View Markets</Button>
-          <Button variant="outline" onClick={onReset}>Create Another</Button>
+                {/* Reputation Bonus */}
+                <div className="rounded-lg bg-green-500/10 border border-green-500/20 p-4">
+                  <div className="flex items-start gap-3">
+                    <CheckCircleIcon className="h-5 w-5 text-green-400 mt-0.5" />
+                    <div className="text-sm text-green-300">
+                      <strong>Reputation Bonus:</strong> You&apos;ll earn +8 reputation points for creating this guided market, 
+                      helping you unlock more features as you build your track record.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Navigation */}
+        <div className="mt-8 flex justify-between">
+          <Button
+            variant="outline"
+            onClick={handlePrevious}
+            disabled={step === 1}
+          >
+            Previous
+          </Button>
+          
+          <Button
+            onClick={handleNext}
+            disabled={isPending || isConfirming || isLoading}
+            loading={isPending || isConfirming || isLoading}
+          >
+            {step === 4 ? 'Deploy Market' : 'Next'}
+          </Button>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }
