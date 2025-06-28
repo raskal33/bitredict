@@ -124,8 +124,8 @@ export default function Header() {
                   <Image 
                     src="/logo.png" 
                     alt="BitRedict Logo" 
-                    width={36} 
-                    height={36} 
+                    width={48} 
+                    height={48} 
                     className="transition-all duration-300 ease-in-out group-hover:[filter:hue-rotate(180deg)]"
                     priority 
                   />
@@ -328,8 +328,8 @@ export default function Header() {
                                           <Image 
                                             src="/logo.png" 
                                             alt="BitRedict Logo" 
-                                            width={32} 
-                                            height={32} 
+                                            width={40} 
+                                            height={40} 
                                             className="transition-all duration-300 ease-in-out group-hover:[filter:hue-rotate(180deg)]"
                                             priority 
                                           />
