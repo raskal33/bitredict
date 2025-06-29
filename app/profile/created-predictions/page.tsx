@@ -72,7 +72,7 @@ export default function CreatedPredictionsPage() {
     },
     {
       id: 5,
-      title: "Solana will outperform Ethereum in Q4 2024",
+      title: "STT will outperform Ethereum in Q4 2024",
       category: "crypto",
       createdAt: "2024-09-28",
       timeAgo: "2 months ago",
@@ -81,7 +81,7 @@ export default function CreatedPredictionsPage() {
       volume: 540,
       resolveDate: "2024-12-31",
       resolutionSource: "CoinGecko price data",
-      description: "Will Solana's price performance exceed Ethereum's in Q4 2024?",
+              description: "Will STT's price performance exceed Ethereum's in Q4 2024?",
       creatorFee: "2%"
     },
     {
@@ -227,7 +227,7 @@ export default function CreatedPredictionsPage() {
             </div>
             <div>
               <div className="text-sm text-text-muted">Total Volume</div>
-              <div className="text-xl font-bold text-white">{stats.totalVolume} SOL</div>
+                              <div className="text-xl font-bold text-white">{stats.totalVolume} STT</div>
             </div>
           </div>
         </div>
@@ -300,7 +300,7 @@ export default function CreatedPredictionsPage() {
                     </div>
                     <div className="flex items-center gap-1">
                       <FaCoins className="text-text-muted" />
-                      <span className="text-text-secondary">{market.volume} SOL</span>
+                      <span className="text-text-secondary">{market.volume} STT</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <BiSolidBadgeCheck className="text-text-muted" />

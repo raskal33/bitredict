@@ -14,7 +14,7 @@ export default function CommunityActivityPage() {
     followers: [
       { id: 1, username: "crypto_king", displayName: "Crypto King", avatar: "👑", followDate: "2 days ago", isFollowing: true },
       { id: 2, username: "prediction_master", displayName: "Prediction Master", avatar: "🔮", followDate: "1 week ago", isFollowing: false },
-      { id: 3, username: "solana_fan", displayName: "Solana Fan", avatar: "💎", followDate: "2 weeks ago", isFollowing: true },
+      { id: 3, username: "stt_fan", displayName: "STT Fan", avatar: "💎", followDate: "2 weeks ago", isFollowing: true },
       { id: 4, username: "btc_maximalist", displayName: "BTC Maximalist", avatar: "₿", followDate: "1 month ago", isFollowing: false },
       { id: 5, username: "eth_lover", displayName: "ETH Lover", avatar: "Ξ", followDate: "1 month ago", isFollowing: true }
     ],
@@ -22,7 +22,7 @@ export default function CommunityActivityPage() {
       { id: 6, username: "crypto_oracle", displayName: "Crypto Oracle", avatar: "🧙", followDate: "3 days ago", isFollowing: true },
       { id: 7, username: "sports_predictor", displayName: "Sports Predictor", avatar: "⚽", followDate: "5 days ago", isFollowing: true },
       { id: 8, username: "market_maker", displayName: "Market Maker", avatar: "📊", followDate: "2 weeks ago", isFollowing: true },
-      { id: 9, username: "sol_trader", displayName: "SOL Trader", avatar: "💰", followDate: "3 weeks ago", isFollowing: true },
+      { id: 9, username: "stt_trader", displayName: "STT Trader", avatar: "💰", followDate: "3 weeks ago", isFollowing: true },
       { id: 10, username: "prediction_pro", displayName: "Prediction Pro", avatar: "🏆", followDate: "1 month ago", isFollowing: true }
     ],
     activity: [
@@ -44,10 +44,10 @@ export default function CommunityActivityPage() {
       { 
         id: 3, 
         type: "bet", 
-        user: { username: "solana_fan", displayName: "Solana Fan", avatar: "💎" },
-        timestamp: "5 days ago",
-        content: "placed a bet on your prediction \"SOL will outperform ETH in Q4\"",
-        betAmount: "25 SOL on Yes"
+            user: { username: "stt_fan", displayName: "STT Fan", avatar: "💎" },
+    timestamp: "5 days ago",
+    content: "placed a bet on your prediction \"STT will outperform ETH in Q4\"",
+    betAmount: "25 STT on Yes"
       },
       { 
         id: 4, 

@@ -29,7 +29,7 @@ export default function BettingHistoryPage() {
     {
       id: 2,
       date: "2024-11-12",
-      prediction: "SOL will outperform ETH in Q4",
+      prediction: "STT will outperform ETH in Q4",
       amount: 25,
       odds: "2.2x",
       result: "pending",
@@ -175,11 +175,11 @@ export default function BettingHistoryPage() {
         </div>
         <div className="glass-card p-4 text-center">
           <div className="text-sm text-text-muted">Total Profit</div>
-          <div className="text-2xl font-bold text-secondary">+{stats.totalProfit} SOL</div>
+          <div className="text-2xl font-bold text-secondary">+{stats.totalProfit} STT</div>
         </div>
         <div className="glass-card p-4 text-center">
           <div className="text-sm text-text-muted">Biggest Win</div>
-          <div className="text-2xl font-bold text-accent">{stats.biggestWin} SOL</div>
+          <div className="text-2xl font-bold text-accent">{stats.biggestWin} STT</div>
         </div>
       </div>
       
@@ -267,9 +267,9 @@ export default function BettingHistoryPage() {
               <label className="mb-1 block text-sm text-text-muted">Amount</label>
               <select className="w-full rounded-md border border-border-input bg-bg-card px-3 py-1.5 text-sm focus:border-primary focus:outline-none">
                 <option value="all">Any Amount</option>
-                <option value="small">Small (&lt; 20 SOL)</option>
-                <option value="medium">Medium (20-50 SOL)</option>
-                <option value="large">Large (&gt; 50 SOL)</option>
+                            <option value="small">Small (&lt; 20 STT)</option>
+            <option value="medium">Medium (20-50 STT)</option>
+            <option value="large">Large (&gt; 50 STT)</option>
               </select>
             </div>
           </div>
@@ -332,7 +332,7 @@ export default function BettingHistoryPage() {
                       <div className="font-medium text-white">{bet.prediction}</div>
                       <div className="text-xs text-text-muted capitalize">{bet.category}</div>
                     </td>
-                    <td className="p-4 font-medium">{bet.amount} SOL</td>
+                    <td className="p-4 font-medium">{bet.amount} STT</td>
                     <td className="p-4 font-medium">{bet.odds}</td>
                     <td className="p-4">{getResultBadge(bet.result)}</td>
                     <td className={`p-4 font-medium ${

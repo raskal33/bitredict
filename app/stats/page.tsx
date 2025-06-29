@@ -34,6 +34,7 @@ import {
   FireIcon as FireSolid,
 } from "@heroicons/react/24/solid";
 import { useContractStats } from "@/hooks/useContractStats";
+import AnimatedTitle from "@/components/AnimatedTitle";
 
 ChartJS.register(
   CategoryScale,
@@ -151,26 +152,71 @@ export default function StatsPage() {
     >
       {/* Header */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6"
+        className="text-center relative mb-8"
       >
-        <div>
-          <h1 className="text-4xl font-bold text-text-primary mb-2 flex items-center gap-3">
-            <TrophySolid className="h-10 w-10 text-yellow-400" />
-            Platform Statistics
-            <span className="text-sm bg-green-500/20 text-green-400 px-2 py-1 rounded-full font-normal">
-              LIVE
-            </span>
-          </h1>
-          <p className="text-text-secondary">
-            Real-time insights from the BitRedict prediction ecosystem
-          </p>
+        {/* Animated background elements */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <motion.div 
+            className="absolute top-[20%] left-[15%] w-6 h-6 bg-primary/20 rounded-full blur-sm"
+            animate={{ y: [-10, 10, -10], x: [-5, 5, -5], scale: [1, 1.2, 1] }}
+            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+          />
+          <motion.div 
+            className="absolute top-[60%] right-[20%] w-4 h-4 bg-secondary/30 rounded-full blur-sm"
+            animate={{ y: [10, -10, 10], x: [5, -5, 5], scale: [1, 1.3, 1] }}
+            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+          />
+          <motion.div 
+            className="absolute bottom-[30%] left-[70%] w-5 h-5 bg-accent/25 rounded-full blur-sm"
+            animate={{ y: [-8, 8, -8], x: [-3, 3, -3], scale: [1, 1.1, 1] }}
+            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+          />
         </div>
 
-        {/* Time Filter */}
+        <div className="relative z-10 mb-8">
+          <AnimatedTitle 
+            size="lg"
+            leftIcon={TrophySolid}
+            rightIcon={StarSolid}
+          >
+            Platform Statistics
+          </AnimatedTitle>
+          
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+            className="flex items-center justify-center gap-2 mb-4"
+          >
+            <span className="text-sm bg-green-500/20 text-green-400 px-3 py-1 rounded-full font-medium flex items-center gap-1">
+              <SparklesIcon className="h-4 w-4" />
+              LIVE DATA
+            </span>
+          </motion.div>
+          
+          <motion.p 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6 }}
+            className="text-xl text-text-secondary max-w-2xl mx-auto text-center"
+          >
+            Real-time insights from the BitRedict prediction ecosystem
+          </motion.p>
+        </div>
+      </motion.div>
+
+      {/* Time Filter */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="flex justify-center mb-8"
+      >
         <div className="flex items-center gap-2 glass-card p-2 rounded-button">
+
           {["24h", "7d", "30d", "all"].map((period) => (
             <button
               key={period}
@@ -194,35 +240,33 @@ export default function StatsPage() {
         transition={{ delay: 0.2 }}
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
       >
-        {trendingStats.map((stat, index) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 * index }}
-            className="glass-card p-6 hover:glow-cyan transition-all duration-300"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-3 bg-gradient-primary rounded-button">
-                <stat.icon className="h-6 w-6 text-black" />
-              </div>
-              <div className={`flex items-center gap-1 text-sm font-medium ${
-                stat.change > 0 ? "text-green-400" : "text-red-400"
-              }`}>
+        {trendingStats.map((stat, index) => {
+          const IconComponent = stat.icon;
+          return (
+            <motion.div
+              key={stat.label}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.1 * index }}
+              whileHover={{ scale: 1.02, y: -2 }}
+              className="glass-card text-center bg-gradient-to-br from-primary/10 to-blue-500/10 border-2 border-transparent hover:border-white/10 hover:glow-cyan transition-all duration-300"
+            >
+              <IconComponent className="h-12 w-12 mx-auto mb-4 text-primary" />
+              <h3 className="text-2xl font-bold text-text-primary mb-1">{stat.value}</h3>
+              <p className="text-lg font-semibold text-text-secondary mb-1">{stat.label}</p>
+              <div className="flex items-center justify-center gap-1">
                 {stat.change > 0 ? (
-                  <ArrowTrendingUpIcon className="h-4 w-4" />
+                  <ArrowTrendingUpIcon className="h-4 w-4 text-green-400" />
                 ) : (
-                  <ArrowTrendingDownIcon className="h-4 w-4" />
+                  <ArrowTrendingDownIcon className="h-4 w-4 text-red-400" />
                 )}
-                {Math.abs(stat.change)}%
+                <span className={`text-sm ${stat.change > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {stat.change > 0 ? '+' : ''}{stat.change}%
+                </span>
               </div>
-            </div>
-            <div className="space-y-1">
-              <p className="text-2xl font-bold text-text-primary">{stat.value}</p>
-              <p className="text-text-muted text-sm">{stat.label}</p>
-            </div>
-          </motion.div>
-        ))}
+            </motion.div>
+          );
+        })}
       </motion.div>
 
       {/* Tab Navigation */}

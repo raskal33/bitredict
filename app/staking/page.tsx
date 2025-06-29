@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { motion } from "motion/react";
 import Button from "@/components/button";
+import AnimatedTitle from "@/components/AnimatedTitle";
 import { PriceTrendChart } from "./charts";
 import { useStore } from "zustand";
 import { usePreferences } from "@/store/usePreferences";
@@ -9,6 +11,10 @@ import { IoMdLock } from "react-icons/io";
 import { FaTrophy, FaChartLine, FaCoins } from "react-icons/fa";
 import { MdStars } from "react-icons/md";
 import { HiOutlineChevronRight } from "react-icons/hi";
+import {
+  BoltIcon as BoltSolid,
+  CurrencyDollarIcon as CurrencySolid,
+} from "@heroicons/react/24/solid";
 
 export default function StakingPage() {
   const { preferences } = useStore(usePreferences);
@@ -59,17 +65,80 @@ export default function StakingPage() {
   };
 
   return (
-    <section className="container mx-auto px-4">
-      <h2 className="mb-6 text-center text-3xl font-semibold text-primary">
-        BITR Staking
-      </h2>
+    <motion.section 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="container mx-auto px-4 space-y-8"
+    >
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="text-center relative"
+      >
+        {/* Animated background elements */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <motion.div 
+            className="absolute top-[20%] left-[15%] w-6 h-6 bg-primary/20 rounded-full blur-sm"
+            animate={{ y: [-10, 10, -10], x: [-5, 5, -5], scale: [1, 1.2, 1] }}
+            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+          />
+          <motion.div 
+            className="absolute top-[60%] right-[20%] w-4 h-4 bg-secondary/30 rounded-full blur-sm"
+            animate={{ y: [10, -10, 10], x: [5, -5, 5], scale: [1, 1.3, 1] }}
+            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+          />
+          <motion.div 
+            className="absolute bottom-[30%] left-[70%] w-5 h-5 bg-accent/25 rounded-full blur-sm"
+            animate={{ y: [-8, 8, -8], x: [-3, 3, -3], scale: [1, 1.1, 1] }}
+            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+          />
+        </div>
+
+        <div className="relative z-10 mb-8">
+          <AnimatedTitle 
+            size="lg"
+            leftIcon={BoltSolid}
+            rightIcon={CurrencySolid}
+          >
+            BITR Staking
+          </AnimatedTitle>
+          
+          <motion.p 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+            className="text-xl text-text-secondary max-w-2xl mx-auto text-center"
+          >
+            Stake your BITR tokens to earn rewards and gain access to exclusive platform benefits.
+          </motion.p>
+        </div>
+      </motion.div>
       
       {/* Staking Tiers Section */}
-      <div className="mb-10">
-        <h3 className="mb-4 text-xl font-medium text-secondary">Staking Tiers</h3>
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="mb-10"
+      >
+        <motion.h3 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className="mb-4 text-xl font-medium text-secondary gradient-text text-center"
+        >
+          Staking Tiers
+        </motion.h3>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {/* Basic Tier */}
-          <div className={`glass-card relative overflow-hidden ${userStats.tier === "Basic" ? "border-2 border-primary" : ""}`}>
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.4 }}
+            whileHover={{ scale: 1.02, y: -2 }}
+            className={`glass-card relative overflow-hidden bg-gradient-to-br from-somnia-cyan/10 to-blue-500/10 border-2 hover:border-white/10 hover:glow-cyan transition-all duration-300 ${userStats.tier === "Basic" ? "border-primary" : "border-transparent"}`}
+          >
             {userStats.tier === "Basic" && (
               <div className="absolute -right-8 top-4 rotate-45 bg-primary px-10 py-1 text-xs font-bold text-black">
                 CURRENT
@@ -112,10 +181,16 @@ export default function StakingPage() {
                 Current Tier
               </Button>
             )}
-          </div>
+          </motion.div>
           
           {/* Advanced Tier */}
-          <div className={`glass-card relative overflow-hidden ${userStats.tier === "Advanced" ? "border-2 border-primary" : ""}`}>
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.5 }}
+            whileHover={{ scale: 1.02, y: -2 }}
+            className={`glass-card relative overflow-hidden bg-gradient-to-br from-somnia-blue/10 to-purple-500/10 border-2 hover:border-white/10 hover:glow-magenta transition-all duration-300 ${userStats.tier === "Advanced" ? "border-primary" : "border-transparent"}`}
+          >
             {userStats.tier === "Advanced" && (
               <div className="absolute -right-8 top-4 rotate-45 bg-primary px-10 py-1 text-xs font-bold text-black">
                 CURRENT
@@ -158,10 +233,16 @@ export default function StakingPage() {
                 Current Tier
               </Button>
             )}
-          </div>
+          </motion.div>
           
           {/* Elite Tier */}
-          <div className={`glass-card relative overflow-hidden ${userStats.tier === "Elite" ? "border-2 border-primary" : ""}`}>
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.6 }}
+            whileHover={{ scale: 1.02, y: -2 }}
+            className={`glass-card relative overflow-hidden bg-gradient-to-br from-somnia-violet/10 to-purple-500/10 border-2 hover:border-white/10 hover:glow-violet transition-all duration-300 ${userStats.tier === "Elite" ? "border-primary" : "border-transparent"}`}
+          >
             {userStats.tier === "Elite" && (
               <div className="absolute -right-8 top-4 rotate-45 bg-primary px-10 py-1 text-xs font-bold text-black">
                 CURRENT
@@ -200,12 +281,17 @@ export default function StakingPage() {
                 Maximum Tier
               </Button>
             )}
-          </div>
+          </motion.div>
         </div>
         
         {/* Tier Progress Bar (if not at max tier) */}
         {userStats.tier !== "Elite" && (
-          <div className="mt-6 rounded-lg bg-bg-card p-4">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7 }}
+            className="mt-6 glass-card bg-gradient-to-br from-primary/5 to-secondary/5"
+          >
             <div className="mb-2 flex justify-between">
               <span className="text-sm text-text-muted">Current Tier: {userStats.tier}</span>
               <span className="text-sm text-text-muted">
@@ -221,12 +307,17 @@ export default function StakingPage() {
             <div className="mt-2 text-right text-xs text-text-muted">
               {userStats.nextTierProgress}% to next tier
             </div>
-          </div>
+          </motion.div>
         )}
-      </div>
+      </motion.div>
       
       {/* Main Dashboard Grid */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.8 }}
+        className="grid grid-cols-1 gap-6 lg:grid-cols-3"
+      >
         {/* Left Column - Rewards Dashboard */}
         <div className="glass-card lg:col-span-1">
           <h3 className="mb-4 flex items-center gap-2 text-xl font-medium text-secondary">
@@ -453,10 +544,15 @@ export default function StakingPage() {
             </div>
           </div>
         </div>
-      </div>
+      </motion.div>
       
       {/* Global Stats */}
-      <div className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-4">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.9 }}
+        className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-4"
+      >
         {[
           { value: "$9,574,208.84", label: "Total Value Locked" },
           { value: "$26,569,025", label: "Market Cap" },
@@ -471,10 +567,15 @@ export default function StakingPage() {
             <p className="text-sm text-text-muted">{stat.label}</p>
           </div>
         ))}
-      </div>
+      </motion.div>
       
       {/* Token Rates */}
-      <div className="mt-10">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 1.0 }}
+        className="mt-10"
+      >
         <h3 className="mb-4 text-xl font-medium text-secondary">Token Rate</h3>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
           <div className="glass-card flex flex-col items-center justify-center gap-2 p-4">
@@ -483,8 +584,8 @@ export default function StakingPage() {
           </div>
           
           <div className="glass-card flex flex-col items-center justify-center gap-2 p-4">
-            <p className="text-text-muted">BITR/SOL</p>
-            <p className="text-2xl font-semibold text-secondary">0.00288 SOL</p>
+            <p className="text-text-muted">BITR/STT</p>
+            <p className="text-2xl font-semibold text-secondary">0.00288 STT</p>
           </div>
           
           <div className="glass-card flex flex-col items-center justify-center gap-2 p-4">
@@ -492,15 +593,20 @@ export default function StakingPage() {
             <p className="text-2xl font-semibold text-success">+2.4%</p>
           </div>
         </div>
-      </div>
+      </motion.div>
       
       {/* Price Chart */}
-      <div className="mt-10 glass-card">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 1.1 }}
+        className="mt-10 glass-card"
+      >
         <h3 className="mb-4 text-xl font-medium text-secondary">Price Trend</h3>
         <div className="h-64">
           <PriceTrendChart />
         </div>
-      </div>
-    </section>
+      </motion.div>
+    </motion.section>
   );
 }

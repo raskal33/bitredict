@@ -23,12 +23,12 @@ export default function ProfilePage() {
       totalBets: 120,
       wonBets: 80,
       winRate: "75%",
-      profitLoss: "+50 SOL",
-      averageBetSize: "15 SOL",
-      biggestWin: "100 SOL",
-      totalVolume: "450 SOL",
-      creatorVolume: "300 SOL",
-      bettorVolume: "150 SOL",
+          profitLoss: "+50 STT",
+    averageBetSize: "15 STT",
+    biggestWin: "100 STT",
+    totalVolume: "450 STT",
+    creatorVolume: "300 STT",
+    bettorVolume: "150 STT",
       lastBetDate: "2024-11-15"
     },
     achievements: [
@@ -67,7 +67,7 @@ export default function ProfilePage() {
       { 
         id: 5, 
         name: "High Roller", 
-        description: "Placed a bet of 100+ SOL", 
+        description: "Placed a bet of 100+ STT", 
         icon: <FaTrophy className="text-secondary" />, 
         date: "Nov 2024",
         rarity: "legendary"
@@ -78,7 +78,7 @@ export default function ProfilePage() {
         id: 1,
         type: "bet_won",
         description: "Won bet on \"BTC will break $70,000\"",
-        amount: "+45 SOL",
+        amount: "+45 STT",
         date: "2 hours ago"
       },
       {
@@ -91,15 +91,15 @@ export default function ProfilePage() {
       {
         id: 3,
         type: "bet_placed",
-        description: "Placed bet on \"SOL will outperform ETH in Q4\"",
-        amount: "25 SOL",
+              description: "Placed bet on \"STT will outperform ETH in Q4\"",
+      amount: "25 STT",
         date: "3 days ago"
       },
       {
         id: 4,
         type: "bet_lost",
         description: "Lost bet on \"DOGE will reach $1\"",
-        amount: "-15 SOL",
+        amount: "-15 STT",
         date: "1 week ago"
       }
     ],
@@ -347,7 +347,7 @@ export default function ProfilePage() {
                 <div className="mb-2 flex items-center justify-between">
                   <div>
                     <span className="font-medium text-white">{category.category}</span>
-                    <span className="ml-2 text-sm text-text-muted">({category.volume} SOL)</span>
+                    <span className="ml-2 text-sm text-text-muted">({category.volume} STT)</span>
                   </div>
                   <span className="font-medium text-primary">{category.winRate}%</span>
                 </div>
