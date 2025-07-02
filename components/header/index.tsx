@@ -17,7 +17,8 @@ import {
   TrophyIcon,
   ChevronDownIcon,
   CubeTransparentIcon,
-  WalletIcon
+  WalletIcon,
+  BeakerIcon
 } from "@heroicons/react/24/outline";
 import Button from "@/components/button";
 import { useAccount, useDisconnect, useChainId } from 'wagmi';
@@ -492,5 +493,11 @@ const links = [
     href: "/staking",
     segment: "staking",
     icon: CurrencyDollarIcon,
+  },
+  {
+    label: "Faucet",
+    href: "/faucet",
+    segment: "faucet",
+    icon: BeakerIcon,
   },
 ];

@@ -1,66 +1,127 @@
-# Wallet Setup Guide
 
-## Environment Variables
+## 🧠 **Bitredict Reputation-Gated Prediction Market System (v1)**
 
-Create a `.env.local` file in your project root with the following variables:
+### 🔍 **Core Idea**
 
-```bash
-# WalletConnect Project ID
-# Get your project ID from https://cloud.walletconnect.com
-NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your-project-id-here
+Bitredict starts with a **guided and secure prediction market** limited to **football matches** and **cryptocurrency prices**, backed by **external oracle APIs**.
+Over time, as users build **reputation**, they unlock access to **more flexible, open-ended markets** (e.g. politics, sports awards, custom events).
 
-# Somnia Network RPC (optional - uses default if not provided)
-NEXT_PUBLIC_SOMNIA_RPC_URL=https://rpc.somnia.network
-```
+---
 
-## Getting WalletConnect Project ID
+## 🧱 **System Architecture**
 
-1. Go to [WalletConnect Cloud](https://cloud.walletconnect.com)
-2. Sign up/Sign in
-3. Create a new project
-4. Copy the Project ID
-5. Add it to your `.env.local` file
+### 1. **Market Types**
 
-## Supported Wallets
+| Type                      | Description                                                  | Data Source                                    | Access           |
+| ------------------------- | ------------------------------------------------------------ | ---------------------------------------------- | ---------------- |
+| 🟢 **Guided Markets** | Oracle-backed football & coin predictions                    | Sportmonks (football), Coingecko (crypto)      | Open to all      |
+| 🔓 **Open Markets**       | Custom events (e.g. “Will ETH hit \$5k?”, “Will Trump win?”) | No oracle (resolved by proposals & challenges) | Reputation-gated |
 
-The app supports:
-- MetaMask
-- WalletConnect (300+ wallets)
-- Coinbase Wallet
-- Any injected wallet
+--5
 
-## Network Configuration
+### 2. **User Reputation System**
 
-The app is configured for:
-- **Somnia Testnet** (Primary) - Chain ID: 50312
-- **Ethereum Mainnet** (Fallback) - Chain ID: 1
-- **Sepolia Testnet** (Development) - Chain ID: 11155111
+All users have a **single reputation score (0–150)**, tracking their reliability and contribution across the platform.
 
-### Somnia Testnet Details:
-- **Network Name**: Somnia Testnet
-- **Chain ID**: 50312
-- **RPC URL**: https://dream-rpc.somnia.network
-- **Block Explorer**: https://shannon-explorer.somnia.network
-- **Symbol**: STT
+#### 🧾 Reputation Actions & Points
 
-## Features
+| Action                                      | Points     |
+| ------------------------------------------- | ---------- |
+| ✅ Proposed correct outcome (matched oracle) | +10        |
+| ❌ Proposed incorrect outcome                | -15        |
+| ✅ Successfully challenged incorrect outcome | +10        |
+| ❌ Failed challenge                          | -8         |
+| ✅ Created a  market   filled more than 60%                  | +8         |
+| ❌ Created a faulty/spam market              | -12        |
+| ✅ Placed and won  bet with +10 STT / +2000 BITR            | +5  |
 
-- **Auto Profile Creation**: First-time users get a profile creation modal
-- **Local Storage**: Profiles are stored locally (no backend needed)
-- **Wallet Integration**: Full EVM wallet connectivity
-- **Network Switching**: Automatic network detection and switching
+> All users start with a **default score of 40**.
+> The score is stored off-chain and updated after every key action.
 
-## No Backend Required
+---
 
-This is a fully decentralized app:
-- Smart contracts handle all business logic
-- User profiles stored in browser localStorage
-- No traditional database needed
-- No user authentication API required
+### 3. **Access Levels Based on Reputation**
 
-## Testing
+| Reputation Score | Role     | Capabilities                          |
+| ---------------- | -------- | ------------------------------------- |
+| 🔴 0–39          | Limited  | Can only place bets                   |
+| 🟡 40–99         | Elementary     | Can bet and create guided markets |
+| 🟢 100–149         | Trusted  | Can propose outcomes in open markets  |
+| 🟣 150+           | Verified | Can create & resolve open markets     |
 
-1. Install dependencies: `npm install`
-2. Set up environment variables
-3. Run development server: `npm run dev`
-4. Connect a wallet to test profile creation 
+---
+
+### 4. **How Outcome Resolution Works**
+
+#### 🔹 In Guided Markets:
+
+* Outcome is resolved **automatically** using trusted oracle APIs (e.g. Coingecko, Sportmonks).
+* Users can propose outcomes, but if there's a conflict, the oracle result is final.
+
+#### 🔸 In Open Markets:
+
+* Outcome is **proposed** by a trusted user (rep ≥ 100).
+* Others can **challenge** within a set time window (e.g. 12–24 hours).
+* If challenged, final resolution is decided either by:
+
+  * Multiple high-reputation users agreeing,
+  * or a decentralized voting system (DAO) in future.
+
+---
+
+### 5. **Market Creation Flow**
+
+#### 🟢 Guided Market (e.g. Football):
+
+* User picks from pre-fetched API data (match ID, teams, date).
+* No need to manually input match data.
+* Outcome is linked to an external ID (e.g. `match_id` from Sportmonks).
+
+#### 🔓 Open Market:
+
+* High-reputation users create a custom event (e.g., “Will Solana hit \$200 by July 15?”).
+* They define:
+
+  * Asset or condition
+  * Comparison logic (gt/lt/eq)
+  * Expiry timestamp
+* Outcome to be proposed and possibly challenged after expiry.
+
+---
+
+### 6. **Security Features**
+
+* **No outcome proposals from low-rep users.**
+* **Only whitelisted coins/matches can be used in controlled markets.**
+* **Timestamp locking** prevents creating markets too close to the event.
+* Oracle fallback always available for football and coins.
+* System is designed for **progressive decentralization**:
+
+  * Centralized oracle → partial user trust → full community trust.
+
+---
+
+### 🧩 Optional Enhancements
+
+* **User badges**: display role/status based on reputation.
+
+* **Reputation decay**: inactive or abusive users lose points over time.
+
+---
+
+## ✅ Summary
+
+Bitredict starts with **trust-minimized, API-secured markets**, gradually allowing more **flexibility and decentralization** based on user behavior. Reputation is the backbone for:
+
+* Access control
+* Outcome reliability
+* Platform governance (eventually)
+
+It’s a **scalable, tamper-resistant, and user-aligned system** that balances openness with protection.
+
+---
+
+
+
+
+
