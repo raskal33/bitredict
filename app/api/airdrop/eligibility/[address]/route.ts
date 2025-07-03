@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { Request, NextResponse } from 'next/server';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3000';
 
 export async function GET(
-  request: NextRequest,
+  request: Request,
   { params }: { params: { address: string } }
 ) {
   try {
