@@ -10,7 +10,7 @@ interface BetQueryResult {
 
 export async function GET(
   request: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: { [key: string]: string | string[] } }
 ): Promise<NextResponse> {
   try {
     const { searchParams } = new URL(request.url);
@@ -23,7 +23,7 @@ export async function GET(
       );
     }
 
-    const poolId = context.params.id;
+    const poolId = Array.isArray(params.id) ? params.id[0] : params.id;
 
     // Check if user has bet on this pool
     const bets = (await query(`
