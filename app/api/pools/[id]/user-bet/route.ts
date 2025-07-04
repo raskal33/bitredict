@@ -8,15 +8,11 @@ interface BetQueryResult {
   bet_side: 'yes' | 'no';
 }
 
-interface Context {
-  params: {
-    id: string;
-  };
-}
+type Params = { id: string };
 
 export async function GET(
   request: NextRequest,
-  context: Context
+  { params }: { params: Params }
 ): Promise<NextResponse> {
   try {
     const { searchParams } = new URL(request.url);
@@ -29,7 +25,7 @@ export async function GET(
       );
     }
 
-    const poolId = context.params.id;
+    const poolId = params.id;
 
     // Check if user has bet on this pool
     const bets = (await query(`
