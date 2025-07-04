@@ -216,6 +216,23 @@ export default function OddysseyPage() {
     });
   };
 
+  const handleTrollMode = () => {
+    const possiblePicks: ("odds1" | "oddsX" | "odds2" | "over" | "under")[] = ["odds1", "oddsX", "odds2", "over", "under"];
+    
+    const trollPicks = matches.map((match) => {
+      const randomPick = possiblePicks[Math.floor(Math.random() * possiblePicks.length)];
+      return {
+        id: match.id,
+        time: match.time,
+        match: `${match.team1} - ${match.team2}`,
+        pick: randomPick,
+        odd: match[randomPick],
+      };
+    });
+    
+    setPicks(trollPicks);
+  };
+
   const totalOdd = picks.reduce((acc, reducer) => acc * reducer.odd, 1).toFixed(2);
   const calculatePotentialPayout = (userOdds: number) => {
     return (entryFee * userOdds * 0.8).toFixed(2); // 80% of potential winnings
@@ -420,9 +437,20 @@ export default function OddysseyPage() {
                   <div className="glass-card">
                     <div className="flex items-center justify-between mb-6">
                       <h2 className="text-2xl font-bold gradient-text">Live Matches</h2>
-                      <div className="flex items-center gap-2 text-sm text-text-muted">
-                        <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-                        <span>Live Odds</span>
+                      <div className="flex items-center gap-3">
+                        <motion.button
+                          onClick={handleTrollMode}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg font-semibold text-sm shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2"
+                        >
+                          <SparklesIcon className="w-4 h-4" />
+                          Troll Mode
+                        </motion.button>
+                        <div className="flex items-center gap-2 text-sm text-text-muted">
+                          <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                          <span>Live Odds</span>
+                        </div>
                       </div>
                     </div>
 

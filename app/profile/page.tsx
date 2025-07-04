@@ -1,13 +1,14 @@
 "use client";
 
 import React from "react";
-import { FaTrophy, FaFire, FaChartLine, FaBolt } from "react-icons/fa";
+import { FaFire, FaChartLine, FaBolt } from "react-icons/fa";
 import { IoStatsChart } from "react-icons/io5";
 import { MdOutlineCategory } from "react-icons/md";
 import { BiSolidBadgeCheck } from "react-icons/bi";
 import { useAccount } from "wagmi";
 import { useReputationStore } from "@/stores/useReputationStore";
 import ReputationBadge from "@/components/ReputationBadge";
+import TrophyWall, { Trophy } from './TrophyWall';
 
 export default function ProfilePage() {
   const { address } = useAccount();
@@ -23,12 +24,12 @@ export default function ProfilePage() {
       totalBets: 120,
       wonBets: 80,
       winRate: "75%",
-          profitLoss: "+50 STT",
-    averageBetSize: "15 STT",
-    biggestWin: "100 STT",
-    totalVolume: "450 STT",
-    creatorVolume: "300 STT",
-    bettorVolume: "150 STT",
+      profitLoss: "+50 STT",
+      averageBetSize: "15 STT",
+      biggestWin: "100 STT",
+      totalVolume: "450 STT",
+      creatorVolume: "300 STT",
+      bettorVolume: "150 STT",
       lastBetDate: "2024-11-15"
     },
     achievements: [
@@ -36,41 +37,46 @@ export default function ProfilePage() {
         id: 1, 
         name: "First Blood", 
         description: "Won first prediction", 
-        icon: <FaBolt className="text-warning" />, 
+        icon: "FaBolt", 
         date: "Jul 2024",
-        rarity: "common"
+        rarity: "common",
+        category: "General"
       },
       { 
         id: 2, 
         name: "Winning Streak", 
         description: "Won 5 predictions in a row", 
-        icon: <FaFire className="text-error" />, 
+        icon: "FaFire", 
         date: "Aug 2024",
-        rarity: "uncommon"
+        rarity: "uncommon",
+        category: "General"
       },
       { 
         id: 3, 
         name: "Market Maker", 
         description: "Created a prediction market with over 100 participants", 
-        icon: <FaChartLine className="text-primary" />, 
+        icon: "FaChartLine", 
         date: "Sep 2024",
-        rarity: "rare"
+        rarity: "rare",
+        category: "General"
       },
       { 
         id: 4, 
         name: "Crypto Oracle", 
         description: "90% win rate in crypto predictions", 
-        icon: <BiSolidBadgeCheck className="text-accent" />, 
+        icon: "BiSolidBadgeCheck", 
         date: "Oct 2024",
-        rarity: "epic"
+        rarity: "epic",
+        category: "Crypto"
       },
       { 
         id: 5, 
         name: "High Roller", 
         description: "Placed a bet of 100+ STT", 
-        icon: <FaTrophy className="text-secondary" />, 
+        icon: "FaBolt", 
         date: "Nov 2024",
-        rarity: "legendary"
+        rarity: "legendary",
+        category: "General"
       }
     ],
     recentActivity: [
@@ -91,8 +97,8 @@ export default function ProfilePage() {
       {
         id: 3,
         type: "bet_placed",
-              description: "Placed bet on \"STT will outperform ETH in Q4\"",
-      amount: "25 STT",
+        description: "Placed bet on \"STT will outperform ETH in Q4\"",
+        amount: "25 STT",
         date: "3 days ago"
       },
       {
@@ -111,20 +117,26 @@ export default function ProfilePage() {
     ]
   };
 
-  const getAchievementBadgeClass = (rarity: string) => {
+  // Transform achievements into trophies format
+  const trophies: Trophy[] = userData.achievements.map(achievement => ({
+    id: achievement.id.toString(),
+    name: achievement.name,
+    description: achievement.description,
+    rarity: achievement.rarity as Trophy['rarity'],
+    icon: achievement.icon,
+    earnedAt: achievement.date,
+    category: achievement.category,
+    score: getRarityScore(achievement.rarity)
+  }));
+
+  const getRarityScore = (rarity: string): number => {
     switch (rarity) {
-      case "common":
-        return "bg-gray-500/20 text-gray-300";
-      case "uncommon":
-        return "bg-green-500/20 text-green-400";
-      case "rare":
-        return "bg-blue-500/20 text-blue-400";
-      case "epic":
-        return "bg-purple-500/20 text-purple-400";
-      case "legendary":
-        return "bg-orange-500/20 text-orange-400";
-      default:
-        return "bg-gray-500/20 text-gray-300";
+      case 'legendary': return 100;
+      case 'epic': return 50;
+      case 'rare': return 25;
+      case 'uncommon': return 10;
+      case 'common': return 5;
+      default: return 0;
     }
   };
 
@@ -160,8 +172,36 @@ export default function ProfilePage() {
 
   return (
     <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
-      {/* Left Column: Stats & Achievements */}
+      {/* Left Column: Stats & Activity */}
       <div className="lg:col-span-1 space-y-8">
+        {/* Reputation Badge */}
+        {userReputation && (
+          <div className="glass-card p-6">
+            <h3 className="mb-4 flex items-center gap-2 text-xl font-semibold text-white">
+              <BiSolidBadgeCheck className="text-primary" />
+              Reputation
+            </h3>
+            <ReputationBadge 
+              reputation={userReputation}
+            />
+            {accessCapabilities.length > 0 && (
+              <div className="mt-4">
+                <h4 className="text-sm font-medium text-text-muted mb-2">Access Capabilities</h4>
+                <div className="flex flex-wrap gap-2">
+                  {accessCapabilities.map((capability, index) => (
+                    <span 
+                      key={index}
+                      className="px-2 py-1 rounded-full text-xs bg-primary/20 text-primary"
+                    >
+                      {capability}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Stats Cards */}
         <div className="glass-card p-6">
           <h3 className="mb-4 flex items-center gap-2 text-xl font-semibold text-white">
@@ -198,214 +238,85 @@ export default function ProfilePage() {
                 <span className="text-text-muted">Biggest Win</span>
                 <span className="font-medium text-text-secondary">{userData.stats.biggestWin}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-text-muted">Total Volume</span>
-                <span className="font-medium text-text-secondary">{userData.stats.totalVolume}</span>
-              </div>
             </div>
           </div>
         </div>
 
-        {/* Reputation Section */}
-        {userReputation && (
-          <div className="glass-card p-6">
-            <h3 className="mb-4 flex items-center gap-2 text-xl font-semibold text-white">
-              <BiSolidBadgeCheck className="text-primary" />
-              Reputation
-            </h3>
-            
-            <div className="space-y-4">
-              <div className="flex justify-center">
-                <ReputationBadge reputation={userReputation} size="lg" />
-              </div>
-              
-              <div className="rounded-lg bg-bg-card p-4">
-                <div className="mb-3 text-center text-sm font-medium text-white">Access Capabilities</div>
-                <div className="space-y-2">
-                  {accessCapabilities.map((capability, index) => (
-                    <div key={index} className="flex items-center gap-2 text-sm text-text-secondary">
-                      <span className="text-green-400">✓</span>
-                      {capability}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-3 rounded-lg bg-bg-card p-4">
-                <div className="flex justify-between">
-                  <span className="text-text-muted">Reputation Score</span>
-                  <span className="font-medium text-text-secondary">{userReputation.score}/150</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-text-muted">Markets Created</span>
-                  <span className="font-medium text-text-secondary">{userReputation.marketsCreated}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-text-muted">Outcome Proposals</span>
-                  <span className="font-medium text-text-secondary">{userReputation.totalOutcomeProposals}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-text-muted">Correct Outcomes</span>
-                  <span className="font-medium text-text-secondary">{userReputation.correctOutcomeProposals}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-text-muted">Challenges Made</span>
-                  <span className="font-medium text-text-secondary">{userReputation.totalChallenges}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-text-muted">Successful Challenges</span>
-                  <span className="font-medium text-text-secondary">{userReputation.successfulChallenges}</span>
-                </div>
-              </div>
-
-              {userReputation.actions.length > 0 && (
-                <div className="rounded-lg bg-bg-card p-4">
-                  <div className="mb-3 text-sm font-medium text-white">Recent Reputation Actions</div>
-                  <div className="space-y-2 max-h-32 overflow-y-auto">
-                    {userReputation.actions.slice(-3).map((action) => (
-                      <div key={action.id} className="flex items-center justify-between text-xs">
-                        <span className="text-text-muted">{action.description}</span>
-                        <span className={`font-medium ${action.points > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          {action.points > 0 ? '+' : ''}{action.points}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-        
-        {/* Achievements */}
+        {/* Recent Activity */}
         <div className="glass-card p-6">
-          <h3 className="mb-4 flex items-center gap-2 text-xl font-semibold text-white">
-            <FaTrophy className="text-secondary" />
-            Achievements
+          <h3 className="mb-4 text-xl font-semibold text-white flex items-center gap-2">
+            <FaBolt className="text-primary" />
+            Recent Activity
           </h3>
-          
-          <div className="space-y-3">
-            {userData.achievements.map((achievement) => (
-              <div key={achievement.id} className="flex items-center gap-3 rounded-lg bg-bg-card p-3">
-                <div className={`flex h-10 w-10 items-center justify-center rounded-full ${getAchievementBadgeClass(achievement.rarity)}`}>
-                  {achievement.icon}
+          <div className="space-y-4">
+            {userData.recentActivity.map((activity) => (
+              <div 
+                key={activity.id}
+                className="flex items-start gap-3 p-3 rounded-lg bg-bg-card hover:bg-bg-card-hover transition-colors"
+              >
+                <div className={`p-2 rounded-lg ${getActivityIconClass(activity.type)}`}>
+                  {getActivityIcon(activity.type)}
                 </div>
                 <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <div className="font-medium text-white">{achievement.name}</div>
-                    <div className="text-xs text-text-muted">{achievement.date}</div>
+                  <p className="text-sm text-text-secondary">{activity.description}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs text-text-muted">{activity.date}</span>
+                    {activity.amount && (
+                      <span className={`text-xs font-medium ${
+                        activity.type === 'bet_won' ? 'text-green-400' : 
+                        activity.type === 'bet_lost' ? 'text-red-400' : 
+                        'text-text-secondary'
+                      }`}>
+                        {activity.amount}
+                      </span>
+                    )}
                   </div>
-                  <div className="text-sm text-text-muted">{achievement.description}</div>
                 </div>
               </div>
             ))}
           </div>
         </div>
       </div>
-      
-      {/* Middle & Right Columns */}
+
+      {/* Right Column: Trophy Wall & Category Performance */}
       <div className="lg:col-span-2 space-y-8">
-        {/* Recent Activity */}
+        {/* Trophy Wall */}
         <div className="glass-card p-6">
-          <h3 className="mb-4 flex items-center gap-2 text-xl font-semibold text-white">
-            <FaFire className="text-primary" />
-            Recent Activity
-          </h3>
-          
-          <div className="space-y-4">
-            {userData.recentActivity.map((activity) => (
-              <div key={activity.id} className="flex items-center gap-3 rounded-lg bg-bg-card p-4">
-                <div className={`flex h-10 w-10 items-center justify-center rounded-full ${getActivityIconClass(activity.type)}`}>
-                  {getActivityIcon(activity.type)}
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between">
-                    <div className="font-medium text-white">{activity.description}</div>
-                    <div className="text-xs text-text-muted">{activity.date}</div>
-                  </div>
-                  {activity.amount && (
-                    <div className={`text-sm ${activity.type === 'bet_won' ? 'text-green-400' : activity.type === 'bet_lost' ? 'text-red-400' : 'text-text-secondary'}`}>
-                      {activity.amount}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+          <TrophyWall 
+            trophies={trophies} 
+            isOwnProfile={true} 
+          />
         </div>
-        
+
         {/* Category Performance */}
         <div className="glass-card p-6">
-          <h3 className="mb-4 flex items-center gap-2 text-xl font-semibold text-white">
-            <MdOutlineCategory className="text-secondary" />
+          <h3 className="mb-4 text-xl font-semibold text-white flex items-center gap-2">
+            <MdOutlineCategory className="text-primary" />
             Category Performance
           </h3>
-          
-          <div className="space-y-6">
-            {userData.categoryPerformance.map((category, index) => (
-              <div key={index}>
-                <div className="mb-2 flex items-center justify-between">
-                  <div>
-                    <span className="font-medium text-white">{category.category}</span>
-                    <span className="ml-2 text-sm text-text-muted">({category.volume} STT)</span>
-                  </div>
-                  <span className="font-medium text-primary">{category.winRate}%</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {userData.categoryPerformance.map((category) => (
+              <div 
+                key={category.category}
+                className="p-4 rounded-lg bg-bg-card"
+              >
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-text-secondary">{category.category}</span>
+                  <span className="text-sm font-medium text-primary">
+                    {category.winRate}% Win Rate
+                  </span>
                 </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-bg-card">
-                  <div
-                    className={`h-full rounded-full ${
-                      category.winRate > 75
-                        ? "bg-gradient-to-r from-somnia-cyan to-somnia-blue"
-                        : category.winRate > 60
-                        ? "bg-gradient-to-r from-somnia-blue to-somnia-violet"
-                        : "bg-gradient-to-r from-somnia-violet to-somnia-magenta"
-                    }`}
+                <div className="w-full h-2 rounded-full bg-bg-card-hover overflow-hidden">
+                  <div 
+                    className="h-full rounded-full bg-primary"
                     style={{ width: `${category.winRate}%` }}
-                  ></div>
+                  />
+                </div>
+                <div className="mt-2 text-sm text-text-muted">
+                  Volume: {category.volume} STT
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-        
-        {/* Last Bets */}
-        <div className="glass-card p-6">
-          <h3 className="mb-4 flex items-center gap-2 text-xl font-semibold text-white">
-            <FaChartLine className="text-primary" />
-            Betting Volume
-          </h3>
-          
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="rounded-lg bg-bg-card p-4">
-                <div className="mb-2 text-sm text-text-muted">As Bettor</div>
-                <div className="flex items-end justify-between">
-                  <div className="text-2xl font-bold text-white">{userData.stats.bettorVolume}</div>
-                  <div className="text-xs text-text-muted">33% of total</div>
-                </div>
-                <div className="mt-2 h-1 w-full rounded-full bg-bg-card">
-                  <div className="h-full w-1/3 rounded-full bg-primary"></div>
-                </div>
-              </div>
-              
-              <div className="rounded-lg bg-bg-card p-4">
-                <div className="mb-2 text-sm text-text-muted">As Creator</div>
-                <div className="flex items-end justify-between">
-                  <div className="text-2xl font-bold text-white">{userData.stats.creatorVolume}</div>
-                  <div className="text-xs text-text-muted">67% of total</div>
-                </div>
-                <div className="mt-2 h-1 w-full rounded-full bg-bg-card">
-                  <div className="h-full w-2/3 rounded-full bg-secondary"></div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="rounded-lg bg-bg-card p-4">
-              <div className="mb-2 text-center text-sm text-text-muted">Last Bet Placed</div>
-              <div className="text-center text-lg font-medium text-white">
-                {userData.stats.lastBetDate} on &quot;BTC will break $70,000&quot;
-              </div>
-            </div>
           </div>
         </div>
       </div>
