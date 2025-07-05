@@ -10,10 +10,11 @@ interface BetQueryResult {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { [key: string]: string | string[] } }
+  { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   try {
-    const { searchParams } = new URL(request.url);
+    const { id: poolId } = await params;
+    const searchParams = request.nextUrl.searchParams;
     const userAddress = searchParams.get('address');
 
     if (!userAddress) {
@@ -22,8 +23,6 @@ export async function GET(
         { status: 400 }
       );
     }
-
-    const poolId = Array.isArray(params.id) ? params.id[0] : params.id;
 
     // Check if user has bet on this pool
     const bets = (await query(`

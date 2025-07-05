@@ -18,6 +18,18 @@ export default function ProfilePage() {
   const userReputation = address ? getUserReputation(address) : null;
   const accessCapabilities = address ? getAccessCapabilities(address) : [];
 
+  // Define getRarityScore function before it's used
+  const getRarityScore = (rarity: 'legendary' | 'epic' | 'rare' | 'uncommon' | 'common'): number => {
+    switch (rarity) {
+      case 'legendary': return 100;
+      case 'epic': return 50;
+      case 'rare': return 25;
+      case 'uncommon': return 10;
+      case 'common': return 5;
+      default: return 0;
+    }
+  };
+
   // Mock user data - in a real app this would come from an API
   const userData = {
     stats: {
@@ -126,19 +138,8 @@ export default function ProfilePage() {
     icon: achievement.icon,
     earnedAt: achievement.date,
     category: achievement.category,
-    score: getRarityScore(achievement.rarity)
+    score: getRarityScore(achievement.rarity as 'legendary' | 'epic' | 'rare' | 'uncommon' | 'common')
   }));
-
-  const getRarityScore = (rarity: string): number => {
-    switch (rarity) {
-      case 'legendary': return 100;
-      case 'epic': return 50;
-      case 'rare': return 25;
-      case 'uncommon': return 10;
-      case 'common': return 5;
-      default: return 0;
-    }
-  };
 
   const getActivityIconClass = (type: string) => {
     switch (type) {
