@@ -39,7 +39,7 @@ export default function BetPage() {
     console.log(address, poolId, betSide, betAmount);
    };
 
-  const renderComment = (comment: Comment): JSX.Element => {
+  const renderComment = (comment: Comment): React.JSX.Element => {
     return (
       <div key={comment.id}>
         <p>{comment.author.username}: {comment.content}</p>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, Variants } from 'framer-motion';
 import { FireIcon, SparklesIcon } from '@heroicons/react/24/outline';
 
 interface AnimatedTitleProps {
@@ -37,7 +37,7 @@ const AnimatedTitle: React.FC<AnimatedTitleProps> = ({
     xl: 'h-12 w-12'
   };
 
-  const titleVariants = {
+  const titleVariants: Variants = {
     initial: { 
       opacity: 0, 
       y: 20,
@@ -49,12 +49,13 @@ const AnimatedTitle: React.FC<AnimatedTitleProps> = ({
       scale: 1,
       transition: {
         duration: 0.8,
-        ease: "easeOut"
+        ease: [0.6, -0.05, 0.01, 0.99]
       }
     }
   };
 
-  const iconLeftVariants = {
+  const iconLeftVariants: Variants = {
+    initial: { rotate: 0, scale: 1 },
     animate: { 
       rotate: 360,
       scale: [1, 1.1, 1],
@@ -67,13 +68,14 @@ const AnimatedTitle: React.FC<AnimatedTitleProps> = ({
         scale: {
           duration: 4,
           repeat: Infinity,
-          ease: "easeInOut"
+          ease: [0.4, 0, 0.6, 1]
         }
       }
     }
   };
 
-  const iconRightVariants = {
+  const iconRightVariants: Variants = {
+    initial: { rotate: 0, scale: 1 },
     animate: { 
       rotate: -360,
       scale: [1, 1.1, 1],
@@ -86,14 +88,14 @@ const AnimatedTitle: React.FC<AnimatedTitleProps> = ({
         scale: {
           duration: 4,
           repeat: Infinity,
-          ease: "easeInOut",
+          ease: [0.4, 0, 0.6, 1],
           delay: 2
         }
       }
     }
   };
 
-  const separatorVariants = {
+  const separatorVariants: Variants = {
     initial: { width: 0, opacity: 0 },
     animate: { 
       width: '100%', 
@@ -101,12 +103,12 @@ const AnimatedTitle: React.FC<AnimatedTitleProps> = ({
       transition: {
         delay: 0.5,
         duration: 1,
-        ease: "easeOut"
+        ease: [0.6, -0.05, 0.01, 0.99]
       }
     }
   };
 
-  const textVariants = {
+  const textVariants: Variants = {
     initial: { opacity: 0 },
     animate: { 
       opacity: 1,
@@ -126,7 +128,11 @@ const AnimatedTitle: React.FC<AnimatedTitleProps> = ({
     >
       <div className="flex items-center justify-center gap-6 mb-6">
         {showIcons && (
-          <motion.div variants={iconLeftVariants} animate="animate">
+          <motion.div 
+            variants={iconLeftVariants}
+            initial="initial"
+            animate="animate"
+          >
             <LeftIcon className={`${iconSizes[size]} ${iconColor || 'text-primary'}`} />
           </motion.div>
         )}
@@ -134,13 +140,18 @@ const AnimatedTitle: React.FC<AnimatedTitleProps> = ({
         <motion.h1 
           className={`${sizeClasses[size]} font-bold ${textColor}`}
           variants={textVariants}
+          initial="initial"
           animate="animate"
         >
           {children}
         </motion.h1>
         
         {showIcons && (
-          <motion.div variants={iconRightVariants} animate="animate">
+          <motion.div 
+            variants={iconRightVariants}
+            initial="initial"
+            animate="animate"
+          >
             <RightIcon className={`${iconSizes[size]} ${iconColor || 'text-secondary'}`} />
           </motion.div>
         )}
