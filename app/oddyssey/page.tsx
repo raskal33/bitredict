@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence } from "framer-motion";
 import Button from "@/components/button";
 import AnimatedTitle from "@/components/AnimatedTitle";
 import {

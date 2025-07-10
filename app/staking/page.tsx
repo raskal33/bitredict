@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "motion/react";
+import { motion } from "framer-motion";
 import Button from "@/components/button";
 import AnimatedTitle from "@/components/AnimatedTitle";
 import { PriceTrendChart } from "./charts";

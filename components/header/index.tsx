@@ -1,7 +1,7 @@
 "use client";
 
 import { useWindowScroll } from "@uidotdev/usehooks";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import { useSelectedLayoutSegment } from "next/navigation";

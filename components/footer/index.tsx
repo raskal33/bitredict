@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { motion } from "motion/react";
+import { motion } from "framer-motion";
 import { SocialIcons } from "@/components/icons/SocialIcons";
 
 export default function Footer() {

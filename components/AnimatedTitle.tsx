@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 import { FireIcon, SparklesIcon } from '@heroicons/react/24/outline';
 
 interface AnimatedTitleProps {
