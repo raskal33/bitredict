@@ -30,37 +30,7 @@ import {
 } from "@heroicons/react/24/solid";
 import { Pool } from "@/lib/types";
 
-// Re-defining PoolData here as it seems to be out of sync with the shared type
-interface PoolData {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  creator: {
-    username: string;
-    successRate: number;
-  };
-  challengeScore: number;
-  difficultyTier: 'easy' | 'medium' | 'hard' | 'very_hard' | 'legendary';
-  odds: number;
-  participants: number;
-  volume: number;
-  currency: 'STT' | 'BITR';
-  endDate: string;
-  trending: boolean;
-  boosted: boolean;
-  boostTier?: number;
-  poolType: 'single' | 'combo' | 'parlay';
-  comboCount?: number;
-  image: string;
-  cardTheme: string;
-  socialStats: {
-    comments: number;
-    likes: number;
-    views: number;
-  };
-  defeated: number;
-}
+// Remove the PoolData interface since we'll use Pool from lib/types.ts
 
 export default function MarketsPage() {
   const [pools, setPools] = useState<Pool[]>([]);
@@ -94,11 +64,197 @@ export default function MarketsPage() {
   }, [pools, searchTerm]);
 
   useEffect(() => {
-    // Mock fetch
-    setPools([
-      // ... mock data
-    ]);
-  }, [pools]);
+    // Mock fetch - simulate loading markets data
+    const mockPools: Pool[] = [
+      {
+        id: '1',
+        title: 'Bitcoin will reach $100,000 by end of 2024',
+        description: 'Predict if Bitcoin will break the $100K barrier before January 1, 2025',
+        category: 'crypto',
+        creator: {
+          address: '0x1234567890123456789012345678901234567890',
+          username: 'CryptoOracle',
+          reputation: 850,
+          totalPools: 25,
+          successRate: 85.2,
+          challengeScore: 850,
+          totalVolume: 125000,
+          badges: [],
+          createdAt: '2024-01-01'
+        },
+        challengeScore: 850,
+        difficultyTier: 'hard',
+        odds: 2.5,
+        participants: 1247,
+        volume: 125000,
+        currency: 'STT',
+        endDate: '2024-12-31',
+        trending: true,
+        boosted: true,
+        boostTier: 3,
+        poolType: 'single',
+        image: '₿',
+        cardTheme: 'cyan',
+        socialStats: {
+          comments: 89,
+          likes: 234,
+          views: 1523
+        },
+        comments: [],
+        defeated: 12
+      },
+      {
+        id: '2',
+        title: 'Ethereum will outperform Bitcoin in Q4 2024',
+        description: 'ETH/BTC ratio will be higher at end of Q4 than at the start',
+        category: 'crypto',
+        creator: {
+          address: '0x2345678901234567890123456789012345678901',
+          username: 'EthMaxi',
+          reputation: 720,
+          totalPools: 18,
+          successRate: 78.9,
+          challengeScore: 720,
+          totalVolume: 89000,
+          badges: [],
+          createdAt: '2024-01-15'
+        },
+        challengeScore: 720,
+        difficultyTier: 'medium',
+        odds: 1.8,
+        participants: 892,
+        volume: 89000,
+        currency: 'STT',
+        endDate: '2024-12-31',
+        trending: false,
+        boosted: true,
+        boostTier: 2,
+        poolType: 'single',
+        image: 'Ξ',
+        cardTheme: 'magenta',
+        socialStats: {
+          comments: 45,
+          likes: 156,
+          views: 934
+        },
+        comments: [],
+        defeated: 8
+      },
+      {
+        id: '3',
+        title: 'Solana will reach $300 before 2025',
+        description: 'SOL token will hit $300 USD before January 1, 2025',
+        category: 'crypto',
+        creator: {
+          address: '0x3456789012345678901234567890123456789012',
+          username: 'SolanaFan',
+          reputation: 950,
+          totalPools: 12,
+          successRate: 92.1,
+          challengeScore: 950,
+          totalVolume: 67000,
+          badges: [],
+          createdAt: '2024-02-01'
+        },
+        challengeScore: 950,
+        difficultyTier: 'very_hard',
+        odds: 3.2,
+        participants: 567,
+        volume: 67000,
+        currency: 'STT',
+        endDate: '2024-12-31',
+        trending: true,
+        boosted: false,
+        poolType: 'single',
+        image: '◎',
+        cardTheme: 'violet',
+        socialStats: {
+          comments: 23,
+          likes: 89,
+          views: 456
+        },
+        comments: [],
+        defeated: 15
+      },
+      {
+        id: '4',
+        title: 'Crypto Market Cap will exceed $4 Trillion',
+        description: 'Total cryptocurrency market cap will surpass $4T in 2024',
+        category: 'crypto',
+        creator: {
+          address: '0x4567890123456789012345678901234567890123',
+          username: 'MarketAnalyst',
+          reputation: 800,
+          totalPools: 22,
+          successRate: 83.7,
+          challengeScore: 800,
+          totalVolume: 103000,
+          badges: [],
+          createdAt: '2024-01-20'
+        },
+        challengeScore: 800,
+        difficultyTier: 'hard',
+        odds: 2.1,
+        participants: 1034,
+        volume: 103000,
+        currency: 'STT',
+        endDate: '2024-12-31',
+        trending: false,
+        boosted: true,
+        boostTier: 1,
+        poolType: 'single',
+        image: '📈',
+        cardTheme: 'blue',
+        socialStats: {
+          comments: 67,
+          likes: 198,
+          views: 1245
+        },
+        comments: [],
+        defeated: 9
+      },
+      {
+        id: '5',
+        title: 'Altcoin Season Combo Challenge',
+        description: 'Predict the top 3 performing altcoins in December 2024',
+        category: 'crypto',
+        creator: {
+          address: '0x5678901234567890123456789012345678901234',
+          username: 'AltcoinHunter',
+          reputation: 680,
+          totalPools: 8,
+          successRate: 76.4,
+          challengeScore: 680,
+          totalVolume: 45000,
+          badges: [],
+          createdAt: '2024-03-01'
+        },
+        challengeScore: 680,
+        difficultyTier: 'legendary',
+        odds: 5.0,
+        participants: 234,
+        volume: 45000,
+        currency: 'STT',
+        endDate: '2024-12-31',
+        trending: true,
+        boosted: true,
+        boostTier: 3,
+        poolType: 'combo',
+        comboCount: 3,
+        image: '🚀',
+        cardTheme: 'indigo',
+        socialStats: {
+          comments: 34,
+          likes: 112,
+          views: 678
+        },
+        comments: [],
+        defeated: 25
+      }
+    ];
+
+    setPools(mockPools);
+  }, []);
 
   const getDifficultyColor = (tier: string) => {
     switch (tier) {
@@ -163,7 +319,7 @@ export default function MarketsPage() {
     return themes[theme as keyof typeof themes] || themes.cyan;
   };
 
-  const PoolCard = ({ pool, isListView = false }: { pool: PoolData, isListView?: boolean }) => {
+  const PoolCard = ({ pool, isListView = false }: { pool: Pool, isListView?: boolean }) => {
     const theme = getCardTheme(pool.cardTheme);
     
     if (isListView) {
@@ -554,7 +710,7 @@ export default function MarketsPage() {
         </div>
 
         {/* Pools */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className={`${viewMode === 'list' ? 'space-y-4' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'}`}>
           {filteredPools.map(pool => (
             <PoolCard key={pool.id} pool={pool} isListView={viewMode === 'list'} />
           ))}
