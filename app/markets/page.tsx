@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MagnifyingGlassIcon,
   AdjustmentsHorizontalIcon,
   XMarkIcon,
-  ArrowsUpDownIcon,
   Squares2X2Icon,
   Bars3Icon,
   ClockIcon,
@@ -27,8 +26,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { 
   BoltIcon as BoltSolid,
-  FireIcon as FireSolid,
-  TrophyIcon as TrophySolid
+  FireIcon as FireSolid
 } from "@heroicons/react/24/solid";
 import { Pool } from "@/lib/types";
 
@@ -78,11 +76,7 @@ export default function MarketsPage() {
     { id: 'legendary', name: 'Legendary', color: 'text-purple-400' }
   ];
 
-  useEffect(() => {
-    fetchPools();
-  }, []);
-
-  const fetchPools = async () => {
+  const fetchPools = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch('/api/pools/featured?limit=50&include_social=true');
@@ -99,7 +93,11 @@ export default function MarketsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchPools();
+  }, [fetchPools]);
 
   const getDemoPoolData = (): Pool[] => [
     {
@@ -319,7 +317,6 @@ export default function MarketsPage() {
 
   const PoolCard = ({ pool, isListView = false }: { pool: Pool, isListView?: boolean }) => {
     const theme = getCardTheme(pool.cardTheme);
-    const progress = pool.progress ? (pool.progress / (pool.total || 100000)) * 100 : 0;
     
     return (
       <motion.div

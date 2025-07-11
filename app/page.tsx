@@ -9,7 +9,6 @@ import {
   TrophyIcon,
   ChatBubbleLeftRightIcon,
   ChartBarIcon,
-  FireIcon,
   UsersIcon,
   CurrencyDollarIcon,
   StarIcon,
@@ -20,7 +19,6 @@ import {
   SparklesIcon
 } from "@heroicons/react/24/outline";
 import {
-  FireIcon as FireSolid,
   BoltIcon as BoltSolid,
   StarIcon as StarSolid
 } from "@heroicons/react/24/solid";
@@ -308,7 +306,7 @@ export default function HomePage() {
         {pool.trending && (
           <div className="absolute top-3 left-3 z-10">
             <div className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
-              <FireSolid className="w-3 h-3" />
+              <BoltIcon className="w-3 h-3" />
               HOT
             </div>
           </div>

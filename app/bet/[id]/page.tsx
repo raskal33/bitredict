@@ -3,44 +3,25 @@
 import { useAccount } from "wagmi";
 import { useParams } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
-import { motion } from "framer-motion";
 import { 
-  ClockIcon, 
-  UsersIcon,
-  StarIcon,
   ArrowTrendingUpIcon,
-  EyeIcon,
-  ShareIcon,
-  HeartIcon,
   ChatBubbleLeftRightIcon,
-  InformationCircleIcon,
-  CheckCircleIcon,
-  CalendarIcon,
   UserIcon,
   BanknotesIcon,
   ScaleIcon,
   TrophyIcon,
-  BoltIcon,
-  ShieldCheckIcon,
-  FireIcon,
-  SparklesIcon,
   PaperAirplaneIcon,
-  HandThumbUpIcon,
-  HandThumbDownIcon,
   ChatBubbleOvalLeftIcon,
   CurrencyDollarIcon,
   ChartBarIcon
 } from "@heroicons/react/24/outline";
 import { 
-  HeartIcon as HeartSolid,
   StarIcon as StarSolid,
-  FireIcon as FireSolid,
-  TrophyIcon as TrophySolid,
   BoltIcon as BoltSolid,
   HandThumbUpIcon as ThumbUpSolid,
   HandThumbDownIcon as ThumbDownSolid
 } from "@heroicons/react/24/solid";
-import { Pool, Comment, UserBetData } from "@/lib/types";
+import { Pool, Comment } from "@/lib/types";
 
 export default function BetPage() {
   const { address } = useAccount();
@@ -50,7 +31,6 @@ export default function BetPage() {
   const [activeTab, setActiveTab] = useState<"bet" | "liquidity" | "analysis">("bet");
   const [betAmount, setBetAmount] = useState<string>("10");
   const [betSide, setBetSide] = useState<"yes" | "no" | null>(null);
-  const [isLiked, setIsLiked] = useState(false);
   const [hasUserBet, setHasUserBet] = useState(false);
   const [userBetAmount, setUserBetAmount] = useState(0);
   const [showCommentBox, setShowCommentBox] = useState(false);
@@ -64,6 +44,63 @@ export default function BetPage() {
   const [comments, setComments] = useState<Comment[]>([]);
 
   const fetchPoolData = useCallback(async () => {
+    const getDemoPoolData = (): Pool => ({
+      id: poolId,
+      title: "Bitcoin will reach $100,000 by March 2025",
+      description: "Prediction market on Bitcoin reaching six-figure milestone before March 31, 2025. This challenge tests your ability to predict the macro crypto market trends and timing.",
+      category: "crypto",
+      creator: {
+        address: "0x1234...5678",
+        username: "CryptoSage",
+        avatar: "/logo.png",
+        reputation: 4.8,
+        totalPools: 23,
+        successRate: 78.3,
+        challengeScore: 89,
+        totalVolume: 450000,
+        badges: ["legendary", "crypto_expert", "whale"],
+        createdAt: "2024-01-15T10:30:00Z",
+        bio: "Macro crypto analyst with 8 years of experience. Specialized in Bitcoin cycle analysis and institutional adoption trends."
+      },
+      challengeScore: 89,
+      qualityScore: 94,
+      difficultyTier: "very_hard",
+      predictedOutcome: "Yes",
+      eventDetails: {
+        startTime: new Date("2024-12-01T00:00:00Z"),
+        endTime: new Date("2025-03-31T23:59:59Z"),
+        venue: "Global Markets",
+        league: "Cryptocurrency",
+        region: "Global"
+      },
+      odds: 1.75,
+      participants: 247,
+      volume: 125000,
+      currency: "BITR",
+      endDate: "2025-03-31",
+      trending: true,
+      boosted: true,
+      boostTier: 3,
+      poolType: "single",
+      image: "🪙",
+      cardTheme: "cyan",
+      socialStats: {
+        comments: 89,
+        likes: 156,
+        views: 2340,
+        shares: 23
+      },
+      comments: [],
+      defeated: 34,
+      conditions: [
+        "Bitcoin (BTC) must reach or exceed $100,000 USD on any major exchange",
+        "Price must be sustained for at least 1 hour on the target date",
+        "Data will be sourced from CoinGecko API and verified by multiple oracles",
+        "Settlement occurs within 24 hours of the event end date"
+      ],
+      tags: ["macro", "btc", "institutional", "halving"]
+    });
+
     try {
       setLoading(true);
       const response = await fetch(`/api/pools/${poolId}?include_social=true`);
@@ -71,15 +108,16 @@ export default function BetPage() {
       
       if (data.success) {
         setPool(data.data);
-        setIsLiked(data.data.hasUserLiked);
         setComments(data.data.comments || []);
       } else {
         // Fallback to demo data
-        setPool(getDemoPoolData());
+        const demoData = getDemoPoolData();
+        setPool(demoData);
       }
     } catch (error) {
       console.error('Error fetching pool data:', error);
-      setPool(getDemoPoolData());
+      const demoData = getDemoPoolData();
+      setPool(demoData);
     } finally {
       setLoading(false);
     }
@@ -127,63 +165,6 @@ export default function BetPage() {
     }
   }, [pool]);
 
-  const getDemoPoolData = (): Pool => ({
-    id: poolId,
-    title: "Bitcoin will reach $100,000 by March 2025",
-    description: "Prediction market on Bitcoin reaching six-figure milestone before March 31, 2025. This challenge tests your ability to predict the macro crypto market trends and timing.",
-    category: "crypto",
-    creator: {
-      address: "0x1234...5678",
-      username: "CryptoSage",
-      avatar: "/logo.png",
-      reputation: 4.8,
-      totalPools: 23,
-      successRate: 78.3,
-      challengeScore: 89,
-      totalVolume: 450000,
-      badges: ["legendary", "crypto_expert", "whale"],
-      createdAt: "2024-01-15T10:30:00Z",
-      bio: "Macro crypto analyst with 8 years of experience. Specialized in Bitcoin cycle analysis and institutional adoption trends."
-    },
-    challengeScore: 89,
-    qualityScore: 94,
-    difficultyTier: "very_hard",
-    predictedOutcome: "Yes",
-    eventDetails: {
-      startTime: new Date("2024-12-01T00:00:00Z"),
-      endTime: new Date("2025-03-31T23:59:59Z"),
-      venue: "Global Markets",
-      league: "Cryptocurrency",
-      region: "Global"
-    },
-    odds: 1.75,
-    participants: 247,
-    volume: 125000,
-    currency: "BITR",
-    endDate: "2025-03-31",
-    trending: true,
-    boosted: true,
-    boostTier: 3,
-    poolType: "single",
-    image: "🪙",
-    cardTheme: "cyan",
-    socialStats: {
-      comments: 89,
-      likes: 156,
-      views: 2340,
-      shares: 23
-    },
-    comments: [],
-    defeated: 34,
-    conditions: [
-      "Bitcoin (BTC) must reach or exceed $100,000 USD on any major exchange",
-      "Price must be sustained for at least 1 hour on the target date",
-      "Data will be sourced from CoinGecko API and verified by multiple oracles",
-      "Settlement occurs within 24 hours of the event end date"
-    ],
-    tags: ["macro", "btc", "institutional", "halving"]
-  });
-
   const handleAddComment = async () => {
     if (!comment.trim() || !hasUserBet || submittingComment) return;
     
@@ -212,7 +193,7 @@ export default function BetPage() {
         setShowCommentBox(false);
         fetchPoolData(); // Refresh comments
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error adding comment:', error);
     } finally {
       setSubmittingComment(false);
@@ -234,7 +215,7 @@ export default function BetPage() {
       if (response.ok) {
         fetchPoolData(); // Refresh comments
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error liking comment:', error);
     }
   };
@@ -246,7 +227,7 @@ export default function BetPage() {
       console.log('Placing bet:', { address, poolId, betSide, betAmount });
       // Add actual bet placement logic here
       // For now, just log the action
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error placing bet:', error);
     }
   };
@@ -548,7 +529,7 @@ export default function BetPage() {
           ].map(tab => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id as "bet" | "liquidity" | "analysis")}
               className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all ${
                 activeTab === tab.id
                   ? 'bg-cyan-500 text-black shadow-lg'
@@ -809,7 +790,7 @@ export default function BetPage() {
                       <span className="text-sm text-gray-400">Sentiment:</span>
                       <select
                         value={commentSentiment}
-                        onChange={(e) => setCommentSentiment(e.target.value as any)}
+                        onChange={(e) => setCommentSentiment(e.target.value as 'bullish' | 'bearish' | 'neutral')}
                         className="px-3 py-1 bg-gray-600/50 border border-gray-500/50 rounded text-white text-sm"
                       >
                         <option value="bullish">Bullish</option>
