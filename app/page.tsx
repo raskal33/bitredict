@@ -44,6 +44,33 @@ export default function HomePage() {
   const [activeCategory, setActiveCategory] = useState<string>("");
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
 
+  const testimonials = [
+    {
+      name: "CryptoSage",
+      role: "Legendary Predictor",
+      avatar: "🧙‍♂️",
+      content: "Bitredict transformed my prediction skills. The challenge system keeps me sharp and the rewards are incredible!",
+      rating: 5,
+      earnings: "$45,000"
+    },
+    {
+      name: "FootballOracle",
+      role: "Sports Expert",
+      avatar: "⚽",
+      content: "The social features and reputation system make this the best prediction platform I&apos;ve ever used.",
+      rating: 5,
+      earnings: "$28,000"
+    },
+    {
+      name: "StockWizard",
+      role: "Finance Analyst",
+      avatar: "📊",
+      content: "Amazing platform for testing market predictions. The boost system really helps get visibility for quality pools.",
+      rating: 5,
+      earnings: "$32,000"
+    }
+  ];
+
   const fetchPlatformStats = useCallback(async () => {
     try {
       const response = await fetch('/api/analytics/platform-stats');
@@ -244,33 +271,6 @@ export default function HomePage() {
   const handleSetCategory = (category: string) => {
     setActiveCategory(category === "All" ? "" : category);
   };
-
-  const testimonials = [
-    {
-      name: "CryptoSage",
-      role: "Legendary Predictor",
-      avatar: "🧙‍♂️",
-      content: "Bitredict transformed my prediction skills. The challenge system keeps me sharp and the rewards are incredible!",
-      rating: 5,
-      earnings: "$45,000"
-    },
-    {
-      name: "FootballOracle",
-      role: "Sports Expert",
-      avatar: "⚽",
-      content: "The social features and reputation system make this the best prediction platform I&apos;ve ever used.",
-      rating: 5,
-      earnings: "$28,000"
-    },
-    {
-      name: "StockWizard",
-      role: "Finance Analyst",
-      avatar: "📊",
-      content: "Amazing platform for testing market predictions. The boost system really helps get visibility for quality pools.",
-      rating: 5,
-      earnings: "$32,000"
-    }
-  ];
 
   const features = [
     {
@@ -801,7 +801,7 @@ export default function HomePage() {
                 </span>
               </h2>
               <p className="text-xl text-gray-400 max-w-3xl mx-auto">
-                Hear from our top predictors who've built legendary reputations
+                Hear from our top predictors who&apos;ve built legendary reputations
               </p>
             </motion.div>
             
