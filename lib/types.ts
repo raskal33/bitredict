@@ -1,30 +1,22 @@
-export interface User {
+export interface Creator {
   address: string;
   username: string;
-  avatar?: string;
   reputation: number;
   totalPools: number;
   successRate: number;
   challengeScore: number;
   totalVolume: number;
-  badges: Badge[];
+  badges: string[];
   createdAt: string;
   bio?: string;
+  avatar?: string;
 }
 
-export interface Badge {
-  type: string;
-  rarity: 'common' | 'rare' | 'epic' | 'legendary';
-}
-
-export interface Comment {
-  id: string;
-  content: string;
-  author: User;
-  sentiment: 'bullish' | 'bearish' | 'neutral';
-  createdAt: string;
+export interface SocialStats {
+  comments: number;
   likes: number;
-  dislikes: number;
+  views: number;
+  shares: number;
 }
 
 export interface Pool {
@@ -32,8 +24,9 @@ export interface Pool {
   title: string;
   description: string;
   category: string;
-  creator: User;
+  creator: Creator;
   challengeScore: number;
+  qualityScore?: number;
   difficultyTier: 'easy' | 'medium' | 'hard' | 'very_hard' | 'legendary';
   odds: number;
   participants: number;
@@ -47,11 +40,100 @@ export interface Pool {
   comboCount?: number;
   image: string;
   cardTheme: string;
-  socialStats: {
-    comments: number;
-    likes: number;
-    views: number;
-  };
+  socialStats: SocialStats;
   comments: Comment[];
   defeated: number;
+  progress?: number;
+  total?: number;
+  outcome?: string;
+  predictedOutcome?: string;
+  eventDetails?: {
+    startTime: Date;
+    endTime: Date;
+    venue: string;
+    league: string;
+    region: string;
+  };
+  market?: {
+    currentPrice: number;
+    targetPrice: number;
+    progress: number;
+    high24h: number;
+    low24h: number;
+    volume24h: number;
+  };
+  conditions?: string[];
+  tags?: string[];
+  createdAt?: string;
+  volume24h?: number;
+  change24h?: number;
+  confidence?: number;
+  successRate?: number;
+  totalValue?: number;
+}
+
+export interface CommentAuthor {
+  address: string;
+  username: string;
+  badges: string[];
+  avatar?: string;
+}
+
+export interface Comment {
+  id: string;
+  author: CommentAuthor;
+  content: string;
+  sentiment?: 'bullish' | 'bearish' | 'neutral';
+  confidence?: number;
+  betAmount?: number;
+  betSide?: 'yes' | 'no';
+  likes: number;
+  dislikes: number;
+  replies: Comment[];
+  createdAt: string;
+  hasUserLiked: boolean;
+  hasUserDisliked: boolean;
+  isVerifiedBetter: boolean;
+}
+
+export interface User {
+  address: string;
+  username: string;
+  reputation: number;
+  totalPools: number;
+  successRate: number;
+  challengeScore: number;
+  totalVolume: number;
+  badges: string[];
+  createdAt: string;
+  bio?: string;
+  avatar?: string;
+}
+
+export interface BetSide {
+  side: 'yes' | 'no';
+  amount: number;
+}
+
+export interface UserBetData {
+  hasBet: boolean;
+  betAmount: number;
+  betCount: number;
+  lastBetDate: string | null;
+  betSides: BetSide[];
+}
+
+export interface PlatformStats {
+  totalVolume: number;
+  activePools: number;
+  totalBets: number;
+  successRate: number;
+  totalCreators: number;
+  avgChallengeScore: number;
+}
+
+export interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  error?: string;
 } 

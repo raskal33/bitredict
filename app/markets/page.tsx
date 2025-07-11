@@ -21,7 +21,9 @@ import {
   CpuChipIcon,
   RocketLaunchIcon,
   BeakerIcon,
-  CurrencyDollarIcon
+  CurrencyDollarIcon,
+  UsersIcon,
+  ArrowTrendingUpIcon
 } from "@heroicons/react/24/outline";
 import { 
   BoltIcon as BoltSolid,
@@ -30,231 +32,220 @@ import {
 } from "@heroicons/react/24/solid";
 import { Pool } from "@/lib/types";
 
-// Remove the PoolData interface since we'll use Pool from lib/types.ts
-
 export default function MarketsPage() {
   const [pools, setPools] = useState<Pool[]>([]);
+  const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedDifficulty, setSelectedDifficulty] = useState("all");
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string[]>([]);
 
   const categories = [
-    { id: 'all', name: 'All', icon: Squares2X2Icon },
-    { id: 'crypto', name: 'Crypto', icon: CurrencyDollarIcon }
+    { id: 'all', name: 'All Markets', icon: Squares2X2Icon },
+    { id: 'crypto', name: 'Crypto', icon: CurrencyDollarIcon },
+    { id: 'sports', name: 'Sports', icon: TrophyIcon },
+    { id: 'finance', name: 'Finance', icon: CurrencyDollarIcon },
+    { id: 'politics', name: 'Politics', icon: UsersIcon },
+    { id: 'entertainment', name: 'Entertainment', icon: SparklesIcon },
+    { id: 'technology', name: 'Technology', icon: CpuChipIcon }
   ];
+
   const filters = [
-    { id: 'all', name: 'All', icon: Squares2X2Icon },
-    { id: 'boosted', name: 'Boosted', icon: BoltSolid }
+    { id: 'all', name: 'All Pools', icon: Squares2X2Icon },
+    { id: 'boosted', name: 'Boosted', icon: BoltSolid },
+    { id: 'combo', name: 'Combo/Parlay', icon: SparklesIcon },
+    { id: 'single', name: 'Single Bets', icon: ShieldCheckIcon },
+    { id: 'trending', name: 'Trending', icon: FireSolid }
   ];
+
   const sortOptions = [
-    { id: 'newest', name: 'Newest' },
-    { id: 'ending_soon', name: 'Ending Soon' }
+    { id: 'newest', name: 'Newest First' },
+    { id: 'oldest', name: 'Oldest First' },
+    { id: 'volume', name: 'Highest Volume' },
+    { id: 'ending_soon', name: 'Ending Soon' },
+    { id: 'most_liked', name: 'Most Liked' },
+    { id: 'challenge_score', name: 'Challenge Score' }
   ];
+
   const difficultyOptions = [
-    { id: 'all', name: 'All', color: 'text-gray-400' },
-    { id: 'easy', name: 'Easy', color: 'text-green-400' }
+    { id: 'easy', name: 'Easy', color: 'text-green-400' },
+    { id: 'medium', name: 'Medium', color: 'text-yellow-400' },
+    { id: 'hard', name: 'Hard', color: 'text-orange-400' },
+    { id: 'very_hard', name: 'Very Hard', color: 'text-red-400' },
+    { id: 'legendary', name: 'Legendary', color: 'text-purple-400' }
+  ];
+
+  useEffect(() => {
+    fetchPools();
+  }, []);
+
+  const fetchPools = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/pools/featured?limit=50&include_social=true');
+      const data = await response.json();
+      if (data.success) {
+        setPools(data.data);
+      } else {
+        // Fallback to demo data
+        setPools(getDemoPoolData());
+      }
+    } catch (error) {
+      console.error('Error fetching pools:', error);
+      setPools(getDemoPoolData());
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getDemoPoolData = (): Pool[] => [
+    {
+      id: "1",
+      title: "Bitcoin will reach $100,000 by March 2025",
+      description: "Prediction market on Bitcoin reaching six-figure milestone",
+      category: "crypto",
+      creator: {
+        address: "0x1234...5678",
+        username: "CryptoSage",
+        reputation: 4.8,
+        totalPools: 23,
+        successRate: 78.3,
+        challengeScore: 89,
+        totalVolume: 450000,
+        badges: ["legendary", "crypto_expert", "whale"],
+        createdAt: "2024-01-15T10:30:00Z",
+        bio: "Macro crypto analyst with 8 years of experience."
+      },
+      challengeScore: 89,
+      qualityScore: 94,
+      difficultyTier: "very_hard",
+      odds: 1.75,
+      participants: 247,
+      volume: 125000,
+      currency: "BITR",
+      endDate: "2025-03-31",
+      trending: true,
+      boosted: true,
+      boostTier: 3,
+      poolType: "single",
+      image: "🪙",
+      cardTheme: "cyan",
+      socialStats: {
+        comments: 89,
+        likes: 156,
+        views: 2340,
+        shares: 23
+      },
+      comments: [],
+      defeated: 34
+    },
+    {
+      id: "2",
+      title: "Manchester City wins Premier League 2024/25",
+      description: "Premier League championship prediction market",
+      category: "sports",
+      creator: {
+        address: "0x5678...9012",
+        username: "FootballOracle",
+        reputation: 4.5,
+        totalPools: 15,
+        successRate: 73.2,
+        challengeScore: 76,
+        totalVolume: 280000,
+        badges: ["sports_expert", "predictor"],
+        createdAt: "2024-02-01T14:20:00Z"
+      },
+      challengeScore: 76,
+      qualityScore: 82,
+      difficultyTier: "hard",
+      odds: 2.1,
+      participants: 189,
+      volume: 89000,
+      currency: "STT",
+      endDate: "2025-05-25",
+      trending: false,
+      boosted: false,
+      poolType: "single",
+      image: "⚽",
+      cardTheme: "magenta",
+      socialStats: {
+        comments: 34,
+        likes: 67,
+        views: 890,
+        shares: 12
+      },
+      comments: [],
+      defeated: 18
+    }
   ];
 
   const filteredPools = useMemo(() => {
-    return pools.filter(p => p.title.toLowerCase().includes(searchTerm.toLowerCase()));
-  }, [pools, searchTerm]);
+    let filtered = [...pools];
 
-  useEffect(() => {
-    // Mock fetch - simulate loading markets data
-    const mockPools: Pool[] = [
-      {
-        id: '1',
-        title: 'Bitcoin will reach $100,000 by end of 2024',
-        description: 'Predict if Bitcoin will break the $100K barrier before January 1, 2025',
-        category: 'crypto',
-        creator: {
-          address: '0x1234567890123456789012345678901234567890',
-          username: 'CryptoOracle',
-          reputation: 850,
-          totalPools: 25,
-          successRate: 85.2,
-          challengeScore: 850,
-          totalVolume: 125000,
-          badges: [],
-          createdAt: '2024-01-01'
-        },
-        challengeScore: 850,
-        difficultyTier: 'hard',
-        odds: 2.5,
-        participants: 1247,
-        volume: 125000,
-        currency: 'STT',
-        endDate: '2024-12-31',
-        trending: true,
-        boosted: true,
-        boostTier: 3,
-        poolType: 'single',
-        image: '₿',
-        cardTheme: 'cyan',
-        socialStats: {
-          comments: 89,
-          likes: 234,
-          views: 1523
-        },
-        comments: [],
-        defeated: 12
-      },
-      {
-        id: '2',
-        title: 'Ethereum will outperform Bitcoin in Q4 2024',
-        description: 'ETH/BTC ratio will be higher at end of Q4 than at the start',
-        category: 'crypto',
-        creator: {
-          address: '0x2345678901234567890123456789012345678901',
-          username: 'EthMaxi',
-          reputation: 720,
-          totalPools: 18,
-          successRate: 78.9,
-          challengeScore: 720,
-          totalVolume: 89000,
-          badges: [],
-          createdAt: '2024-01-15'
-        },
-        challengeScore: 720,
-        difficultyTier: 'medium',
-        odds: 1.8,
-        participants: 892,
-        volume: 89000,
-        currency: 'STT',
-        endDate: '2024-12-31',
-        trending: false,
-        boosted: true,
-        boostTier: 2,
-        poolType: 'single',
-        image: 'Ξ',
-        cardTheme: 'magenta',
-        socialStats: {
-          comments: 45,
-          likes: 156,
-          views: 934
-        },
-        comments: [],
-        defeated: 8
-      },
-      {
-        id: '3',
-        title: 'Solana will reach $300 before 2025',
-        description: 'SOL token will hit $300 USD before January 1, 2025',
-        category: 'crypto',
-        creator: {
-          address: '0x3456789012345678901234567890123456789012',
-          username: 'SolanaFan',
-          reputation: 950,
-          totalPools: 12,
-          successRate: 92.1,
-          challengeScore: 950,
-          totalVolume: 67000,
-          badges: [],
-          createdAt: '2024-02-01'
-        },
-        challengeScore: 950,
-        difficultyTier: 'very_hard',
-        odds: 3.2,
-        participants: 567,
-        volume: 67000,
-        currency: 'STT',
-        endDate: '2024-12-31',
-        trending: true,
-        boosted: false,
-        poolType: 'single',
-        image: '◎',
-        cardTheme: 'violet',
-        socialStats: {
-          comments: 23,
-          likes: 89,
-          views: 456
-        },
-        comments: [],
-        defeated: 15
-      },
-      {
-        id: '4',
-        title: 'Crypto Market Cap will exceed $4 Trillion',
-        description: 'Total cryptocurrency market cap will surpass $4T in 2024',
-        category: 'crypto',
-        creator: {
-          address: '0x4567890123456789012345678901234567890123',
-          username: 'MarketAnalyst',
-          reputation: 800,
-          totalPools: 22,
-          successRate: 83.7,
-          challengeScore: 800,
-          totalVolume: 103000,
-          badges: [],
-          createdAt: '2024-01-20'
-        },
-        challengeScore: 800,
-        difficultyTier: 'hard',
-        odds: 2.1,
-        participants: 1034,
-        volume: 103000,
-        currency: 'STT',
-        endDate: '2024-12-31',
-        trending: false,
-        boosted: true,
-        boostTier: 1,
-        poolType: 'single',
-        image: '📈',
-        cardTheme: 'blue',
-        socialStats: {
-          comments: 67,
-          likes: 198,
-          views: 1245
-        },
-        comments: [],
-        defeated: 9
-      },
-      {
-        id: '5',
-        title: 'Altcoin Season Combo Challenge',
-        description: 'Predict the top 3 performing altcoins in December 2024',
-        category: 'crypto',
-        creator: {
-          address: '0x5678901234567890123456789012345678901234',
-          username: 'AltcoinHunter',
-          reputation: 680,
-          totalPools: 8,
-          successRate: 76.4,
-          challengeScore: 680,
-          totalVolume: 45000,
-          badges: [],
-          createdAt: '2024-03-01'
-        },
-        challengeScore: 680,
-        difficultyTier: 'legendary',
-        odds: 5.0,
-        participants: 234,
-        volume: 45000,
-        currency: 'STT',
-        endDate: '2024-12-31',
-        trending: true,
-        boosted: true,
-        boostTier: 3,
-        poolType: 'combo',
-        comboCount: 3,
-        image: '🚀',
-        cardTheme: 'indigo',
-        socialStats: {
-          comments: 34,
-          likes: 112,
-          views: 678
-        },
-        comments: [],
-        defeated: 25
+    // Search filter
+    if (searchTerm) {
+      filtered = filtered.filter(pool => 
+        pool.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        pool.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        pool.creator.username.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Category filter
+    if (selectedCategory !== 'all') {
+      filtered = filtered.filter(pool => pool.category === selectedCategory);
+    }
+
+    // Type filter
+    if (selectedFilter !== 'all') {
+      switch (selectedFilter) {
+        case 'boosted':
+          filtered = filtered.filter(pool => pool.boosted);
+          break;
+        case 'combo':
+          filtered = filtered.filter(pool => pool.poolType === 'combo' || pool.poolType === 'parlay');
+          break;
+        case 'single':
+          filtered = filtered.filter(pool => pool.poolType === 'single');
+          break;
+        case 'trending':
+          filtered = filtered.filter(pool => pool.trending);
+          break;
       }
-    ];
+    }
 
-    setPools(mockPools);
-  }, []);
+    // Difficulty filter
+    if (selectedDifficulty.length > 0) {
+      filtered = filtered.filter(pool => selectedDifficulty.includes(pool.difficultyTier));
+    }
+
+    // Sort
+    switch (sortBy) {
+      case 'newest':
+        filtered.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+        break;
+      case 'oldest':
+        filtered.sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
+        break;
+      case 'volume':
+        filtered.sort((a, b) => b.volume - a.volume);
+        break;
+      case 'ending_soon':
+        filtered.sort((a, b) => new Date(a.endDate).getTime() - new Date(b.endDate).getTime());
+        break;
+      case 'most_liked':
+        filtered.sort((a, b) => b.socialStats.likes - a.socialStats.likes);
+        break;
+      case 'challenge_score':
+        filtered.sort((a, b) => b.challengeScore - a.challengeScore);
+        break;
+    }
+
+    return filtered;
+  }, [pools, searchTerm, selectedCategory, selectedFilter, selectedDifficulty, sortBy]);
 
   const getDifficultyColor = (tier: string) => {
     switch (tier) {
@@ -278,146 +269,74 @@ export default function MarketsPage() {
     }
   };
 
-  const getBoostGlow = (tier?: number) => {
-    if (!tier) return '';
-    switch (tier) {
-      case 1: return 'shadow-[0_0_20px_rgba(255,165,0,0.4)]'; // Bronze
-      case 2: return 'shadow-[0_0_25px_rgba(192,192,192,0.5)]'; // Silver
-      case 3: return 'shadow-[0_0_30px_rgba(255,215,0,0.6)]'; // Gold
-      default: return '';
-    }
-  };
-
   const getCardTheme = (theme: string) => {
     const themes = {
       cyan: {
         background: "bg-gradient-to-br from-cyan-500/10 via-blue-500/5 to-transparent",
         border: "border-cyan-500/20",
-        accent: "text-cyan-400"
+        glow: "shadow-[0_0_30px_rgba(34,199,255,0.1)]",
+        hoverGlow: "hover:shadow-[0_0_40px_rgba(34,199,255,0.2)]",
+        accent: "text-cyan-400",
+        progressBg: "bg-gradient-to-r from-cyan-500 to-blue-500",
       },
       magenta: {
         background: "bg-gradient-to-br from-pink-500/10 via-purple-500/5 to-transparent",
         border: "border-pink-500/20",
-        accent: "text-pink-400"
+        glow: "shadow-[0_0_30px_rgba(236,72,153,0.1)]",
+        hoverGlow: "hover:shadow-[0_0_40px_rgba(236,72,153,0.2)]",
+        accent: "text-pink-400",
+        progressBg: "bg-gradient-to-r from-pink-500 to-purple-500",
       },
       violet: {
         background: "bg-gradient-to-br from-violet-500/10 via-purple-500/5 to-transparent",
         border: "border-violet-500/20",
-        accent: "text-violet-400"
+        glow: "shadow-[0_0_30px_rgba(139,92,246,0.1)]",
+        hoverGlow: "hover:shadow-[0_0_40px_rgba(139,92,246,0.2)]",
+        accent: "text-violet-400",
+        progressBg: "bg-gradient-to-r from-violet-500 to-purple-500",
       },
       blue: {
         background: "bg-gradient-to-br from-blue-500/10 via-indigo-500/5 to-transparent",
         border: "border-blue-500/20",
-        accent: "text-blue-400"
-      },
-      indigo: {
-        background: "bg-gradient-to-br from-indigo-500/10 via-blue-500/5 to-transparent",
-        border: "border-indigo-500/20",
-        accent: "text-indigo-400"
+        glow: "shadow-[0_0_30px_rgba(59,130,246,0.1)]",
+        hoverGlow: "hover:shadow-[0_0_40px_rgba(59,130,246,0.2)]",
+        accent: "text-blue-400",
+        progressBg: "bg-gradient-to-r from-blue-500 to-indigo-500",
       }
     };
     return themes[theme as keyof typeof themes] || themes.cyan;
   };
 
+  const getBoostGlow = (tier?: number) => {
+    if (!tier) return '';
+    switch (tier) {
+      case 1: return 'shadow-[0_0_20px_rgba(255,215,0,0.3)]';
+      case 2: return 'shadow-[0_0_25px_rgba(192,192,192,0.4)]';
+      case 3: return 'shadow-[0_0_30px_rgba(255,215,0,0.5)]';
+      default: return '';
+    }
+  };
+
   const PoolCard = ({ pool, isListView = false }: { pool: Pool, isListView?: boolean }) => {
     const theme = getCardTheme(pool.cardTheme);
+    const progress = pool.progress ? (pool.progress / (pool.total || 100000)) * 100 : 0;
     
-    if (isListView) {
-      return (
-        <motion.div
-          layout
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          whileHover={{ scale: 1.01 }}
-          className={`
-            glass-card p-4 hover:bg-bg-card/80 transition-all duration-300
-            ${pool.boosted ? getBoostGlow(pool.boostTier) : ''}
-          `}
-        >
-          <Link href={`/bet/${pool.id}`} className="block">
-            <div className="flex items-center gap-4">
-              {/* Pool Icon & Basic Info */}
-              <div className="flex items-center gap-3 flex-shrink-0">
-                <div className="text-2xl">{pool.image}</div>
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="font-bold text-text-primary text-lg">{pool.title}</h3>
-                    {pool.boosted && (
-                      <div className={`
-                        px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1
-                        ${pool.boostTier === 3 ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black' :
-                          pool.boostTier === 2 ? 'bg-gradient-to-r from-gray-400 to-gray-500 text-black' :
-                          'bg-gradient-to-r from-orange-600 to-orange-700 text-white'}
-                      `}>
-                        <BoltSolid className="w-3 h-3" />
-                        {pool.boostTier === 3 ? 'GOLD' : pool.boostTier === 2 ? 'SILVER' : 'BRONZE'}
-                      </div>
-                    )}
-                    {pool.trending && (
-                      <div className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
-                        <FireSolid className="w-3 h-3" />
-                        HOT
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-text-muted">
-                    <span className="capitalize">{pool.category}</span>
-                    <span>•</span>
-                    <span>{pool.creator.username}</span>
-                    <span>•</span>
-                    <div className={`flex items-center gap-1 ${getDifficultyColor(pool.difficultyTier)}`}>
-                      {getDifficultyIcon(pool.difficultyTier)}
-                      <span className="capitalize">{pool.difficultyTier.replace('_', ' ')}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Stats */}
-              <div className="flex items-center gap-6 ml-auto">
-                <div className="text-center">
-                  <div className="text-lg font-bold text-text-primary">{pool.challengeScore}</div>
-                  <div className="text-xs text-text-muted">Score</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-yellow-400">{pool.odds}x</div>
-                  <div className="text-xs text-text-muted">Odds</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-text-primary">{pool.participants}</div>
-                  <div className="text-xs text-text-muted">Players</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-primary">{(pool.volume / 1000).toFixed(0)}k</div>
-                  <div className="text-xs text-text-muted">{pool.currency}</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-lg font-bold text-text-primary">{pool.socialStats.likes}</div>
-                  <div className="text-xs text-text-muted">Likes</div>
-                </div>
-              </div>
-            </div>
-          </Link>
-        </motion.div>
-      );
-    }
-
     return (
       <motion.div
-        layout
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         whileHover={{ y: -4, scale: 1.02 }}
         className={`
-          pool-card relative overflow-hidden group cursor-pointer
-          ${theme.background} ${theme.border}
+          relative overflow-hidden group cursor-pointer
+          ${theme.background} ${theme.border} ${theme.glow} ${theme.hoverGlow}
           ${pool.boosted ? getBoostGlow(pool.boostTier) : ''}
-          transition-all duration-500 hover:shadow-xl
+          transition-all duration-500
+          ${isListView ? 'flex items-center p-6 space-x-6' : 'p-6 rounded-2xl border'}
         `}
       >
-        {/* Boost & Trending Indicators */}
-        <div className="absolute top-3 right-3 z-10 flex gap-2">
-          {pool.boosted && (
+        {/* Boost indicator */}
+        {pool.boosted && (
+          <div className="absolute top-3 right-3 z-10">
             <div className={`
               px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1
               ${pool.boostTier === 3 ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black' :
@@ -427,108 +346,121 @@ export default function MarketsPage() {
               <BoltSolid className="w-3 h-3" />
               {pool.boostTier === 3 ? 'GOLD' : pool.boostTier === 2 ? 'SILVER' : 'BRONZE'}
             </div>
-          )}
-          {pool.trending && (
+          </div>
+        )}
+
+        {/* Trending indicator */}
+        {pool.trending && (
+          <div className="absolute top-3 left-3 z-10">
             <div className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
               <FireSolid className="w-3 h-3" />
               HOT
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* Pool Type Indicator */}
-        <div className="absolute top-3 left-3 z-10">
-          {pool.poolType === 'combo' && (
-            <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
-              <SparklesIcon className="w-3 h-3" />
-              COMBO {pool.comboCount}
-            </div>
-          )}
-          {pool.poolType === 'parlay' && (
-            <div className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
-              <TrophySolid className="w-3 h-3" />
-              PARLAY {pool.comboCount}
-            </div>
-          )}
-        </div>
-
-        <Link href={`/bet/${pool.id}`} className="block p-6">
-          {/* Header */}
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="text-3xl">{pool.image}</div>
-              <div>
-                <div className="text-xs text-text-muted mb-1">Created by</div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-text-primary">{pool.creator.username}</span>
-                  <div className="text-xs text-text-muted">{pool.creator.successRate.toFixed(1)}%</div>
+        <Link href={`/bet/${pool.id}`} className="block">
+          <div className={isListView ? 'flex-1' : ''}>
+            {/* Header */}
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="text-3xl">{pool.image}</div>
+                <div>
+                  <div className="text-xs text-gray-400 mb-1">Created by</div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-white">
+                      {pool.creator.username}
+                    </span>
+                    <div className="text-xs text-gray-400">
+                      {pool.creator.successRate.toFixed(1)}% win rate
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-xs text-gray-400">Challenge Score</div>
+                <div className={`text-lg font-bold ${getDifficultyColor(pool.difficultyTier)}`}>
+                  {pool.challengeScore}
                 </div>
               </div>
             </div>
-            <div className="text-right">
-              <div className="text-xs text-text-muted">Challenge Score</div>
-              <div className={`text-lg font-bold ${getDifficultyColor(pool.difficultyTier)}`}>
-                {pool.challengeScore}
-              </div>
-            </div>
-          </div>
-
-          {/* Title */}
-          <div className="mb-4">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs px-2 py-1 bg-primary/20 text-primary rounded-full capitalize">
-                {pool.category}
-              </span>
-              <div className={`flex items-center gap-1 text-xs ${getDifficultyColor(pool.difficultyTier)}`}>
-                {getDifficultyIcon(pool.difficultyTier)}
-                {pool.difficultyTier.replace('_', ' ').toUpperCase()}
-              </div>
-            </div>
-            <h3 className="text-lg font-bold text-text-primary line-clamp-2 mb-2 group-hover:text-primary transition-colors">
-              {pool.title}
-            </h3>
-            <p className="text-sm text-text-muted line-clamp-2">{pool.description}</p>
-          </div>
-
-          {/* Challenge Info */}
-          <div className="mb-4 p-3 bg-bg-card/30 rounded-lg border border-border/30">
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2">
-                <TrophyIcon className="w-4 h-4 text-yellow-400" />
-                <span className="text-text-secondary">
-                  {pool.defeated} defeated • {pool.odds}x odds
+            
+            {/* Title and category */}
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className={`text-xs px-2 py-1 rounded-full ${theme.accent} bg-current/10`}>
+                  {pool.category}
                 </span>
+                <div className={`flex items-center gap-1 text-xs ${getDifficultyColor(pool.difficultyTier)}`}>
+                  {getDifficultyIcon(pool.difficultyTier)}
+                  {pool.difficultyTier.replace('_', ' ').toUpperCase()}
+                </div>
               </div>
-              <div className="text-right">
-                <div className="font-bold text-primary">{(pool.volume / 1000).toFixed(0)}k {pool.currency}</div>
+              <h3 className="text-lg font-bold text-white line-clamp-2 mb-2 group-hover:text-cyan-400 transition-colors">
+                {pool.title}
+              </h3>
+              <p className="text-sm text-gray-400 line-clamp-2">
+                {pool.description}
+              </p>
+            </div>
+
+            {/* Challenge info */}
+            <div className="mb-4 p-3 bg-gray-800/30 rounded-lg border border-gray-700/30">
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2">
+                  <TrophyIcon className="w-4 h-4 text-yellow-400" />
+                  <span className="text-gray-300">
+                    {pool.defeated} defeated • {pool.odds}x odds
+                  </span>
+                </div>
+                <div className={`font-bold ${theme.accent}`}>
+                  {pool.volume.toLocaleString()} {pool.currency}
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Social Stats */}
-          <div className="grid grid-cols-3 gap-3 mb-4 text-center">
-            <div>
-              <ChatBubbleLeftRightIcon className="w-4 h-4 text-text-muted mx-auto mb-1" />
-              <div className="text-xs font-semibold text-text-primary">{pool.socialStats.comments}</div>
+            {/* Social stats */}
+            <div className="grid grid-cols-4 gap-3 mb-4 text-center">
+              <div>
+                <ChatBubbleLeftRightIcon className="w-4 h-4 text-gray-400 mx-auto mb-1" />
+                <div className="text-xs font-semibold text-white">{pool.socialStats.comments}</div>
+              </div>
+              <div>
+                <HeartIcon className="w-4 h-4 text-gray-400 mx-auto mb-1" />
+                <div className="text-xs font-semibold text-white">{pool.socialStats.likes}</div>
+              </div>
+              <div>
+                <EyeIcon className="w-4 h-4 text-gray-400 mx-auto mb-1" />
+                <div className="text-xs font-semibold text-white">{pool.socialStats.views}</div>
+              </div>
+              <div>
+                <UsersIcon className="w-4 h-4 text-gray-400 mx-auto mb-1" />
+                <div className="text-xs font-semibold text-white">{pool.participants}</div>
+              </div>
             </div>
-            <div>
-              <HeartIcon className="w-4 h-4 text-text-muted mx-auto mb-1" />
-              <div className="text-xs font-semibold text-text-primary">{pool.socialStats.likes}</div>
-            </div>
-            <div>
-              <EyeIcon className="w-4 h-4 text-text-muted mx-auto mb-1" />
-              <div className="text-xs font-semibold text-text-primary">{pool.socialStats.views}</div>
-            </div>
-          </div>
 
-          {/* Footer */}
-          <div className="flex items-center justify-between pt-4 border-t border-border/20">
-            <div className="flex items-center gap-2 text-xs text-text-muted">
-              <ClockIcon className="w-3 h-3" />
-              {new Date(pool.endDate).toLocaleDateString()}
-            </div>
-            <div className="text-xs text-text-muted">
-              {pool.participants} players
+            {/* Footer stats */}
+            <div className="flex items-center justify-between pt-4 border-t border-gray-700/20">
+              <div className="flex items-center gap-4 text-xs text-gray-400">
+                <div className="flex items-center gap-1">
+                  <ClockIcon className="w-3 h-3" />
+                  {new Date(pool.endDate).toLocaleDateString()}
+                </div>
+                <div className="flex items-center gap-1">
+                  <CurrencyDollarIcon className="w-3 h-3" />
+                  {(pool.volume24h || 0).toLocaleString()} {pool.currency}
+                </div>
+              </div>
+              <div className={`flex items-center gap-1 text-xs font-semibold ${
+                (pool.change24h || 0) >= 0 ? 'text-green-400' : 'text-red-400'
+              }`}>
+                {(pool.change24h || 0) >= 0 ? (
+                  <ArrowTrendingUpIcon className="w-3 h-3" />
+                ) : (
+                  <ArrowTrendingUpIcon className="w-3 h-3 rotate-180" />
+                )}
+                {Math.abs(pool.change24h || 0).toFixed(1)}%
+              </div>
             </div>
           </div>
         </Link>
@@ -537,114 +469,67 @@ export default function MarketsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-main">
-      <div className="container-nav py-8 space-y-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+      <div className="container mx-auto px-4 py-8 space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold text-text-primary mb-2">Prediction Markets</h1>
-            <p className="text-text-secondary">
-              Discover and join prediction battles across all categories
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1 bg-bg-card/30 rounded-lg p-1">
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`p-2 rounded-lg transition-all ${
-                  viewMode === 'grid' ? 'bg-primary text-black' : 'text-text-muted hover:text-text-primary'
-                }`}
-              >
-                <Squares2X2Icon className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`p-2 rounded-lg transition-all ${
-                  viewMode === 'list' ? 'bg-primary text-black' : 'text-text-muted hover:text-text-primary'
-                }`}
-              >
-                <Bars3Icon className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
+        <div className="text-center space-y-4">
+          <h1 className="text-4xl font-bold text-white">
+            <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+              Prediction Markets
+            </span>
+          </h1>
+          <p className="text-gray-400 max-w-2xl mx-auto">
+            Challenge creators, earn from accuracy, and build your reputation in our vibrant prediction community.
+          </p>
         </div>
 
-        {/* Search and Filters */}
-        <div className="glass-card p-6 space-y-6">
+        {/* Search and Controls */}
+        <div className="space-y-4">
           {/* Search Bar */}
-          <div className="relative">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-text-muted" />
+          <div className="relative max-w-lg mx-auto">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Search markets by title, description, or tags..."
+              placeholder="Search markets, creators, or categories..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-bg-card/50 border border-border/30 rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:border-primary/50"
+              className="w-full pl-10 pr-4 py-3 bg-gray-800/50 border border-gray-700/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-cyan-500/50"
             />
           </div>
 
-          {/* Category Tabs */}
-          <div className="flex flex-wrap gap-2">
-            {categories.map(category => {
-              const Icon = category.icon;
-              return (
-                <button
-                  key={category.id}
-                  onClick={() => setSelectedCategory(category.id)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
-                    selectedCategory === category.id
-                      ? 'bg-primary text-black shadow-lg'
-                      : 'bg-bg-card/50 text-text-secondary hover:text-text-primary hover:bg-bg-card/80'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  {category.name}
-                </button>
-              );
-            })}
+          {/* Category Filter */}
+          <div className="flex flex-wrap justify-center gap-2">
+            {categories.map((category) => (
+              <button
+                key={category.id}
+                onClick={() => setSelectedCategory(category.id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+                  selectedCategory === category.id
+                    ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white"
+                    : "bg-gray-800/50 text-gray-400 hover:text-white hover:bg-gray-700/50"
+                }`}
+              >
+                <category.icon className="w-4 h-4" />
+                {category.name}
+              </button>
+            ))}
           </div>
 
-          {/* Filter Controls */}
+          {/* Controls */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              {/* Pool Type Filters */}
-              <div className="flex gap-2">
-                {filters.map(filter => {
-                  const Icon = filter.icon;
-                  return (
-                    <button
-                      key={filter.id}
-                      onClick={() => setSelectedFilter(filter.id)}
-                      className={`flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                        selectedFilter === filter.id
-                          ? 'bg-secondary text-black'
-                          : 'bg-bg-card/30 text-text-secondary hover:text-text-primary hover:bg-bg-card/50'
-                      }`}
-                    >
-                      <Icon className="w-4 h-4" />
-                      {filter.name}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Advanced Filters Toggle */}
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center gap-2 px-3 py-2 bg-bg-card/30 text-text-secondary hover:text-text-primary hover:bg-bg-card/50 rounded-lg text-sm transition-all"
+                className="flex items-center gap-2 px-4 py-2 bg-gray-800/50 text-gray-400 rounded-lg hover:text-white transition-colors"
               >
                 <AdjustmentsHorizontalIcon className="w-4 h-4" />
                 Filters
               </button>
-            </div>
 
-            {/* Sort */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-text-muted">Sort by:</span>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="bg-bg-card/30 border border-border/30 rounded-lg px-3 py-2 text-text-primary text-sm focus:outline-none focus:border-primary/50"
+                className="bg-gray-800/50 border border-gray-700/50 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-cyan-500/50"
               >
                 {sortOptions.map(option => (
                   <option key={option.id} value={option.id}>
@@ -652,70 +537,141 @@ export default function MarketsPage() {
                   </option>
                 ))}
               </select>
-              <ArrowsUpDownIcon className="w-4 h-4 text-text-muted" />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`p-2 rounded-lg transition-colors ${
+                  viewMode === 'grid' ? 'bg-cyan-500 text-white' : 'bg-gray-800/50 text-gray-400 hover:text-white'
+                }`}
+              >
+                <Squares2X2Icon className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-2 rounded-lg transition-colors ${
+                  viewMode === 'list' ? 'bg-cyan-500 text-white' : 'bg-gray-800/50 text-gray-400 hover:text-white'
+                }`}
+              >
+                <Bars3Icon className="w-4 h-4" />
+              </button>
             </div>
           </div>
 
           {/* Advanced Filters */}
-          <AnimatePresence>
-            {showFilters && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="p-4 bg-bg-card/30 rounded-lg border border-border/30 space-y-4"
-              >
-                <div className="flex items-center justify-between">
-                  <h4 className="font-semibold text-text-primary">Advanced Filters</h4>
-                  <button
-                    onClick={() => setShowFilters(false)}
-                    className="text-text-muted hover:text-text-primary"
-                  >
-                    <XMarkIcon className="w-5 h-5" />
-                  </button>
-                </div>
+          {showFilters && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="bg-gray-800/30 border border-gray-700/30 rounded-lg p-4 space-y-4"
+            >
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-white">Advanced Filters</h3>
+                <button
+                  onClick={() => setShowFilters(false)}
+                  className="p-1 text-gray-400 hover:text-white transition-colors"
+                >
+                  <XMarkIcon className="w-4 h-4" />
+                </button>
+              </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Difficulty Filter */}
-                  <div>
-                    <label className="block text-sm font-medium text-text-secondary mb-2">
-                      Difficulty Level
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      {difficultyOptions.map(option => (
-                        <button
-                          key={option.id}
-                          onClick={() => {
-                            if (selectedDifficulty === option.id) {
-                              setSelectedDifficulty('all');
-                            } else {
-                              setSelectedDifficulty(option.id);
-                            }
-                          }}
-                          className={`px-3 py-1 rounded-full text-sm font-medium transition-all ${
-                            selectedDifficulty === option.id
-                              ? `bg-current/20 ${option.color}`
-                              : 'bg-bg-hover text-text-secondary hover:text-text-primary'
-                          }`}
-                        >
-                          {option.name}
-                        </button>
-                      ))}
-                    </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Pool Type Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Pool Type</label>
+                  <div className="flex flex-wrap gap-2">
+                    {filters.map((filter) => (
+                      <button
+                        key={filter.id}
+                        onClick={() => setSelectedFilter(filter.id)}
+                        className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium transition-all ${
+                          selectedFilter === filter.id
+                            ? 'bg-cyan-500 text-white'
+                            : 'bg-gray-700/50 text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        <filter.icon className="w-3 h-3" />
+                        {filter.name}
+                      </button>
+                    ))}
                   </div>
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+
+                {/* Difficulty Filter */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Difficulty</label>
+                  <div className="flex flex-wrap gap-2">
+                    {difficultyOptions.map((option) => (
+                      <button
+                        key={option.id}
+                        onClick={() => {
+                          if (selectedDifficulty.includes(option.id)) {
+                            setSelectedDifficulty(selectedDifficulty.filter(d => d !== option.id));
+                          } else {
+                            setSelectedDifficulty([...selectedDifficulty, option.id]);
+                          }
+                        }}
+                        className={`px-3 py-1 rounded-full text-sm font-medium transition-all ${
+                          selectedDifficulty.includes(option.id)
+                            ? `bg-current/20 ${option.color}`
+                            : 'bg-gray-700/50 text-gray-400 hover:text-white'
+                        }`}
+                      >
+                        {option.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
         </div>
 
-        {/* Pools */}
-        <div className={`${viewMode === 'list' ? 'space-y-4' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'}`}>
-          {filteredPools.map(pool => (
-            <PoolCard key={pool.id} pool={pool} isListView={viewMode === 'list'} />
-          ))}
+        {/* Results */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="text-gray-400">
+              {loading ? 'Loading...' : `${filteredPools.length} markets found`}
+            </div>
+            {filteredPools.length > 0 && (
+              <div className="text-sm text-gray-500">
+                Total Volume: {filteredPools.reduce((sum, pool) => sum + pool.volume, 0).toLocaleString()} tokens
+              </div>
+            )}
+          </div>
+
+          {loading ? (
+            <div className={`grid ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'} gap-6`}>
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="bg-gray-800/30 rounded-2xl p-6 animate-pulse">
+                  <div className="h-64 bg-gray-700 rounded-lg"></div>
+                </div>
+              ))}
+            </div>
+          ) : filteredPools.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="text-6xl mb-4">🔍</div>
+              <h3 className="text-xl font-bold text-white mb-2">No markets found</h3>
+              <p className="text-gray-400">
+                Try adjusting your filters or search terms
+              </p>
+            </div>
+          ) : (
+            <div className={`${viewMode === 'grid' 
+              ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' 
+              : 'space-y-4'
+            }`}>
+              <AnimatePresence>
+                {filteredPools.map((pool) => (
+                  <PoolCard key={pool.id} pool={pool} isListView={viewMode === 'list'} />
+                ))}
+              </AnimatePresence>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
-}
+} 
