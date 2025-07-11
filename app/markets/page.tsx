@@ -29,9 +29,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { 
   BoltIcon as BoltSolid,
-  FireIcon as FireSolid,
-  StarIcon as StarSolid,
-  TrophyIcon as TrophySolid
+  FireIcon as FireSolid
 } from "@heroicons/react/24/solid";
 import { Pool } from "@/lib/types";
 

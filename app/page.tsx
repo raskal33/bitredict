@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useCallback, useState } from "react";
-import { useAccount } from "wagmi";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -13,25 +12,18 @@ import {
   CurrencyDollarIcon,
   StarIcon,
   BoltIcon,
-  ClockIcon,
   EyeIcon,
   HeartIcon,
-  SparklesIcon,
   RocketLaunchIcon,
   ShieldCheckIcon,
-  LightBulbIcon,
-  BeakerIcon,
-  FireIcon,
   GlobeAltIcon,
   AcademicCapIcon,
-  CpuChipIcon,
   ArrowRightIcon,
   PlayIcon
 } from "@heroicons/react/24/outline";
 import {
   BoltIcon as BoltSolid,
   StarIcon as StarSolid,
-  FireIcon as FireSolid,
   TrophyIcon as TrophySolid,
   ShieldCheckIcon as ShieldSolid,
   SparklesIcon as SparklesSolid
@@ -39,7 +31,6 @@ import {
 import { Pool, PlatformStats } from "@/lib/types";
 
 export default function HomePage() {
-  const { isConnected } = useAccount();
   const [pools, setPools] = useState<Pool[]>([]);
   const [stats, setStats] = useState<PlatformStats>({
     totalVolume: 0,
@@ -242,7 +233,7 @@ export default function HomePage() {
       setCurrentTestimonial((prev) => (prev + 1) % testimonials.length);
     }, 5000);
     return () => clearInterval(interval);
-  }, []);
+  }, [testimonials.length]);
 
   const categories = ["All", "Crypto", "Sports", "Finance", "Politics", "Entertainment", "Technology"];
 
@@ -267,7 +258,7 @@ export default function HomePage() {
       name: "FootballOracle",
       role: "Sports Expert",
       avatar: "⚽",
-      content: "The social features and reputation system make this the best prediction platform I've ever used.",
+      content: "The social features and reputation system make this the best prediction platform I&apos;ve ever used.",
       rating: 5,
       earnings: "$28,000"
     },
@@ -831,7 +822,7 @@ export default function HomePage() {
                     ))}
                   </div>
                   <p className="text-xl text-gray-300 mb-6 italic leading-relaxed">
-                    "{testimonials[currentTestimonial].content}"
+                    &ldquo;{testimonials[currentTestimonial].content}&rdquo;
                   </p>
                   <div className="text-white font-bold text-lg">
                     {testimonials[currentTestimonial].name}
