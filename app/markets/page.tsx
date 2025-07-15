@@ -32,7 +32,8 @@ import {
   FireIcon as FireSolid
 } from "@heroicons/react/24/solid";
 import { Pool } from "@/lib/types";
-import PageTitle from "@/components/PageTitle";
+import AnimatedTitle from "@/components/AnimatedTitle";
+import { TrophyIcon as TrophySolid, StarIcon as StarSolid } from "@heroicons/react/24/solid";
 
 export default function MarketsPage() {
   const [pools, setPools] = useState<Pool[]>([]);
@@ -371,45 +372,45 @@ export default function MarketsPage() {
     const theme = getCardTheme(pool.cardTheme);
     
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        whileHover={{ y: -4, scale: 1.02 }}
-        className={`
-          relative overflow-hidden group cursor-pointer
-          ${theme.background} ${theme.border} ${theme.glow} ${theme.hoverGlow}
-          ${pool.boosted ? getBoostGlow(pool.boostTier) : ''}
-          transition-all duration-500
-          ${isListView ? 'flex items-center p-6 space-x-6' : 'p-6 rounded-2xl border h-[450px] flex flex-col'}
-        `}
-      >
-        {/* Badge Container - Fixed positioning */}
-        {!isListView && (
-          <div className="absolute top-3 left-3 right-3 z-10 flex justify-between items-start pointer-events-none">
-            {/* Trending indicator */}
-            {pool.trending && (
-              <div className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
-                <FireSolid className="w-3 h-3" />
-                HOT
-              </div>
-            )}
+      <Link href={`/bet/${pool.id}`} className="block">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          whileHover={{ y: -4, scale: 1.02 }}
+          className={`
+            relative overflow-hidden group cursor-pointer
+            ${theme.background} ${theme.border} ${theme.glow} ${theme.hoverGlow}
+            ${pool.boosted ? getBoostGlow(pool.boostTier) : ''}
+            transition-all duration-500
+            ${isListView ? 'flex items-center p-6 space-x-6' : 'p-6 rounded-2xl border h-[450px] flex flex-col'}
+          `}
+        >
+          {/* Badge Container - Fixed positioning */}
+          {!isListView && (
+            <div className="absolute top-3 left-3 right-3 z-10 flex justify-between items-start pointer-events-none">
+              {/* Trending Badge */}
+              {pool.trending && (
+                <div className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+                  <BoltIcon className="w-3 h-3" />
+                  HOT
+                </div>
+              )}
 
-            {/* Boost indicator */}
-            {pool.boosted && (
-              <div className={`
-                px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1
-                ${pool.boostTier === 3 ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black' :
-                  pool.boostTier === 2 ? 'bg-gradient-to-r from-gray-400 to-gray-500 text-black' :
-                  'bg-gradient-to-r from-orange-600 to-orange-700 text-white'}
-              `}>
-                <BoltSolid className="w-3 h-3" />
-                {pool.boostTier === 3 ? 'GOLD' : pool.boostTier === 2 ? 'SILVER' : 'BRONZE'}
-              </div>
-            )}
-          </div>
-        )}
+              {/* Boost Badge */}
+              {pool.boosted && (
+                <div className={`
+                  px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1
+                  ${pool.boostTier === 3 ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black' :
+                    pool.boostTier === 2 ? 'bg-gradient-to-r from-gray-400 to-gray-500 text-black' :
+                    'bg-gradient-to-r from-orange-600 to-orange-700 text-white'}
+                `}>
+                  <BoltSolid className="w-3 h-3" />
+                  {pool.boostTier === 3 ? 'GOLD' : pool.boostTier === 2 ? 'SILVER' : 'BRONZE'}
+                </div>
+              )}
+            </div>
+          )}
 
-        <Link href={`/bet/${pool.id}`} className={`block ${isListView ? 'flex-1' : 'h-full flex flex-col'}`}>
           <div className={isListView ? 'flex-1' : 'flex flex-col h-full'}>
             {/* Header */}
             <div className={`flex items-start justify-between mb-4 ${isListView ? '' : 'mt-6'}`}>
@@ -443,26 +444,36 @@ export default function MarketsPage() {
                   {pool.title}
                 </div>
                 <div className="text-xs text-gray-400 mt-1">
-                  But offering odds to attract bettors who think it WILL happen
+                  Challenging users who think it WILL happen. Dare to challenge?
                 </div>
               </div>
               
               {/* Pool Economics */}
               <div className="mb-3 p-2 bg-gray-700/40 rounded border border-gray-600/20">
-                <div className="grid grid-cols-3 gap-2 text-xs">
-                  <div className="text-center">
-                    <div className="text-gray-400">Creator Stake</div>
-                    <div className="font-semibold text-white">{(pool.volume * 0.33).toFixed(0)} {pool.currency}</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-gray-400">Max Bets</div>
-                    <div className="font-semibold text-white">{(pool.volume * 0.67).toFixed(0)} {pool.currency}</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-gray-400">Total Pool</div>
-                    <div className="font-semibold text-cyan-400">{pool.volume.toLocaleString()} {pool.currency}</div>
-                  </div>
-                </div>
+                {(() => {
+                  const creatorStake = Math.round(pool.volume * (pool.odds - 1) / pool.odds);
+                  const maxBets = pool.volume - creatorStake;
+                  return (
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                      <div className="text-center">
+                        <div className="text-gray-400">Creator Stake</div>
+                        <div className="font-semibold text-white">
+                          {creatorStake.toLocaleString()} {pool.currency}
+                        </div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-gray-400">Max Bets</div>
+                        <div className="font-semibold text-white">
+                          {maxBets.toLocaleString()} {pool.currency}
+                        </div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-gray-400">Total Pool</div>
+                        <div className="font-semibold text-cyan-400">{pool.volume.toLocaleString()} {pool.currency}</div>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
               
               {/* Betting Options */}
@@ -564,8 +575,8 @@ export default function MarketsPage() {
               </div>
             </div>
           </div>
-        </Link>
-      </motion.div>
+        </motion.div>
+      </Link>
     );
   };
 
@@ -573,9 +584,22 @@ export default function MarketsPage() {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       <div className="container mx-auto px-4 py-6 space-y-6">
         {/* Animated Hero Header */}
-        <PageTitle subtitle="Where intellect meets opportunity. Challenge the brightest minds, earn from precision, and build your legendary reputation.">
+        <AnimatedTitle 
+          size="md"
+          leftIcon={TrophySolid}
+          rightIcon={StarSolid}
+        >
           Prediction Markets
-        </PageTitle>
+        </AnimatedTitle>
+        
+        <motion.p 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.4 }}
+          className="text-base text-gray-300 max-w-2xl mx-auto text-center leading-relaxed mb-6"
+        >
+          Where intellect meets opportunity. Challenge the brightest minds, earn from precision, and build your legendary reputation.
+        </motion.p>
 
         {/* Search and Controls */}
         <motion.div 

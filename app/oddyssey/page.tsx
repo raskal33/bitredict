@@ -267,7 +267,7 @@ export default function OddysseyPage() {
           </div>
 
           <div className="relative z-10 mb-8">
-            <AnimatedTitle size="xl">
+            <AnimatedTitle size="md">
               ODDYSSEY
             </AnimatedTitle>
             

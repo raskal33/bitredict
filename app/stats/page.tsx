@@ -34,7 +34,8 @@ import {
   FireIcon as FireSolid,
 } from "@heroicons/react/24/solid";
 import { useContractStats } from "@/hooks/useContractStats";
-import PageTitle from "@/components/PageTitle";
+import AnimatedTitle from "@/components/AnimatedTitle";
+import { ChartBarIcon as ChartBarSolid, CurrencyDollarIcon as CurrencySolid } from "@heroicons/react/24/solid";
 
 ChartJS.register(
   CategoryScale,
@@ -151,9 +152,22 @@ export default function StatsPage() {
       className="space-y-8"
     >
       {/* Header */}
-      <PageTitle subtitle="Real-time insights into platform activity, performance metrics, and market trends.">
+      <AnimatedTitle 
+        size="md"
+        leftIcon={ChartBarSolid}
+        rightIcon={CurrencySolid}
+      >
         Platform Statistics
-      </PageTitle>
+      </AnimatedTitle>
+      
+      <motion.p 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.5 }}
+        className="text-base text-text-secondary max-w-2xl mx-auto text-center mb-6"
+      >
+        Real-time insights into platform activity, performance metrics, and market trends.
+      </motion.p>
 
       {/* Time Filter */}
       <motion.div

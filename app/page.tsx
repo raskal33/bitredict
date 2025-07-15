@@ -4,22 +4,14 @@ import { useEffect, useCallback, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ArrowTrendingUpIcon,
   TrophyIcon,
-  ChatBubbleLeftRightIcon,
-  ChartBarIcon,
-  UsersIcon,
   CurrencyDollarIcon,
-  StarIcon,
+  ChartBarIcon,
   BoltIcon,
-  EyeIcon,
-  HeartIcon,
-  RocketLaunchIcon,
-  ShieldCheckIcon,
-  GlobeAltIcon,
+  StarIcon,
+  UsersIcon,
   AcademicCapIcon,
-  ArrowRightIcon,
-  PlayIcon
+  RocketLaunchIcon
 } from "@heroicons/react/24/outline";
 import {
   BoltIcon as BoltSolid,
@@ -29,6 +21,7 @@ import {
   SparklesIcon as SparklesSolid
 } from "@heroicons/react/24/solid";
 import { Pool, PlatformStats } from "@/lib/types";
+import PageTitle from "@/components/PageTitle";
 
 export default function HomePage() {
   const [pools, setPools] = useState<Pool[]>([]);
@@ -416,43 +409,43 @@ export default function HomePage() {
     const progressPercentage = pool.progress && pool.total ? (pool.progress / pool.total) * 100 : 0;
     
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 30, scale: 0.9 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.6, delay: index * 0.1 }}
-        whileHover={{ y: -8, scale: 1.02 }}
-        className={`
-          relative overflow-hidden group cursor-pointer h-[420px] flex flex-col
-          ${theme.background} ${theme.border} ${theme.glow} ${theme.hoverGlow}
-          ${pool.boosted ? getBoostGlow(pool.boostTier) : ''}
-          transition-all duration-500 p-6 rounded-2xl border backdrop-blur-sm
-        `}
-      >
-        {/* Badge Container - Fixed positioning to avoid overlaps */}
-        <div className="absolute top-3 left-3 right-3 z-10 flex justify-between items-start pointer-events-none">
-          {/* Trending Badge */}
-          {pool.trending && (
-            <div className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
-              <BoltIcon className="w-3 h-3" />
-              HOT
-            </div>
-          )}
+      <Link href={`/bet/${pool.id}`} className="block">
+        <motion.div
+          initial={{ opacity: 0, y: 30, scale: 0.9 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.6, delay: index * 0.1 }}
+          whileHover={{ y: -8, scale: 1.02 }}
+          className={`
+            relative overflow-hidden group cursor-pointer h-[420px] flex flex-col
+            ${theme.background} ${theme.border} ${theme.glow} ${theme.hoverGlow}
+            ${pool.boosted ? getBoostGlow(pool.boostTier) : ''}
+            transition-all duration-500 p-6 rounded-2xl border backdrop-blur-sm
+          `}
+        >
+          {/* Badge Container - Fixed positioning to avoid overlaps */}
+          <div className="absolute top-3 left-3 right-3 z-10 flex justify-between items-start pointer-events-none">
+            {/* Trending Badge */}
+            {pool.trending && (
+              <div className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+                <BoltIcon className="w-3 h-3" />
+                HOT
+              </div>
+            )}
 
-          {/* Boost Badge */}
-          {pool.boosted && (
-            <div className={`
-              px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1
-              ${pool.boostTier === 3 ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black' :
-                pool.boostTier === 2 ? 'bg-gradient-to-r from-gray-400 to-gray-500 text-black' :
-                'bg-gradient-to-r from-orange-600 to-orange-700 text-white'}
-            `}>
-              <BoltSolid className="w-3 h-3" />
-              {pool.boostTier === 3 ? 'GOLD' : pool.boostTier === 2 ? 'SILVER' : 'BRONZE'}
-            </div>
-          )}
-        </div>
+            {/* Boost Badge */}
+            {pool.boosted && (
+              <div className={`
+                px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1
+                ${pool.boostTier === 3 ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black' :
+                  pool.boostTier === 2 ? 'bg-gradient-to-r from-gray-400 to-gray-500 text-black' :
+                  'bg-gradient-to-r from-orange-600 to-orange-700 text-white'}
+              `}>
+                <BoltSolid className="w-3 h-3" />
+                {pool.boostTier === 3 ? 'GOLD' : pool.boostTier === 2 ? 'SILVER' : 'BRONZE'}
+              </div>
+            )}
+          </div>
 
-        <Link href={`/bet/${pool.id}`} className="block h-full flex flex-col">
           {/* Header */}
           <div className="flex items-center gap-3 mb-4 mt-6">
             <div className="text-3xl">{pool.image}</div>
@@ -486,26 +479,36 @@ export default function HomePage() {
                 {pool.title}
               </div>
               <div className="text-xs text-gray-400 mt-1">
-                But offering odds to attract bettors who think it WILL happen
+                Challenging users who think it WILL happen. Dare to challenge?
               </div>
             </div>
             
             {/* Pool Economics */}
             <div className="mb-3 p-2 bg-gray-700/40 rounded border border-gray-600/20">
-              <div className="grid grid-cols-3 gap-2 text-xs">
-                <div className="text-center">
-                  <div className="text-gray-400">Creator Stake</div>
-                  <div className="font-semibold text-white">{(pool.volume * 0.33).toFixed(0)} {pool.currency}</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-gray-400">Max Bets</div>
-                  <div className="font-semibold text-white">{(pool.volume * 0.67).toFixed(0)} {pool.currency}</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-gray-400">Total Pool</div>
-                  <div className="font-semibold text-cyan-400">{pool.volume.toLocaleString()} {pool.currency}</div>
-                </div>
-              </div>
+              {(() => {
+                const creatorStake = Math.round(pool.volume * (pool.odds - 1) / pool.odds);
+                const maxBets = pool.volume - creatorStake;
+                return (
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    <div className="text-center">
+                      <div className="text-gray-400">Creator Stake</div>
+                      <div className="font-semibold text-white">
+                        {creatorStake.toLocaleString()} {pool.currency}
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-gray-400">Max Bets</div>
+                      <div className="font-semibold text-white">
+                        {maxBets.toLocaleString()} {pool.currency}
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-gray-400">Total Pool</div>
+                      <div className="font-semibold text-cyan-400">{pool.volume.toLocaleString()} {pool.currency}</div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
             
             {/* Betting Options */}
@@ -570,125 +573,37 @@ export default function HomePage() {
           <div className="flex items-center justify-between pt-4 border-t border-gray-700/20 mt-auto">
             <div className="flex items-center gap-4 text-xs text-gray-400">
               <div className="flex items-center gap-1">
-                <HeartIcon className="w-3 h-3" />
+                <BoltIcon className="w-3 h-3" />
                 {pool.socialStats.likes}
               </div>
               <div className="flex items-center gap-1">
-                <ChatBubbleLeftRightIcon className="w-3 h-3" />
+                <BoltIcon className="w-3 h-3" />
                 {pool.socialStats.comments}
               </div>
               <div className="flex items-center gap-1">
-                <EyeIcon className="w-3 h-3" />
+                <BoltIcon className="w-3 h-3" />
                 {pool.socialStats.views}
               </div>
             </div>
             <div className={`flex items-center gap-1 text-xs font-semibold ${
               (pool.change24h || 0) >= 0 ? 'text-green-400' : 'text-red-400'
             }`}>
-              <ArrowTrendingUpIcon className={`w-3 h-3 ${(pool.change24h || 0) < 0 ? 'rotate-180' : ''}`} />
+              <BoltIcon className={`w-3 h-3 ${(pool.change24h || 0) < 0 ? 'rotate-180' : ''}`} />
               {Math.abs(pool.change24h || 0).toFixed(1)}%
             </div>
           </div>
-        </Link>
-      </motion.div>
+        </motion.div>
+      </Link>
     );
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-      <div className="container mx-auto px-4 py-6 space-y-6">
-        {/* Hero Section */}
-        <section className="relative flex items-center justify-center px-4 py-8">
-          <div className="container mx-auto text-center relative z-10">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 1 }}
-              className="max-w-4xl mx-auto"
-            >
-              {/* Main Title */}
-              <motion.h1 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 1, delay: 0.2 }}
-                className="text-3xl md:text-4xl font-bold mb-3 leading-tight"
-              >
-                <span className="bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">
-                  Challenge The Future
-                </span>
-              </motion.h1>
-              
-              {/* Subtitle */}
-              <motion.p 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.4 }}
-                className="text-lg text-gray-300 mb-4 max-w-2xl mx-auto"
-              >
-                Where brilliant minds converge to predict tomorrow.
-              </motion.p>
-              
-              {/* Description */}
-              <motion.p 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.6 }}
-                className="text-base text-gray-400 mb-6 max-w-3xl mx-auto"
-              >
-                Challenge the Creators, earn legendary rewards, and shape the future of prediction markets.
-              </motion.p>
-              
-              {/* CTA Buttons */}
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 1, delay: 0.6 }}
-                className="flex flex-col sm:flex-row gap-3 justify-center items-center mb-8"
-              >
-                <Link href="/markets">
-                  <motion.button
-                    whileHover={{ scale: 1.05, y: -2 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-6 py-3 rounded-xl font-bold text-base shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all duration-300 flex items-center gap-2"
-                  >
-                    <RocketLaunchIcon className="w-5 h-5" />
-                    Explore Markets
-                  </motion.button>
-                </Link>
-                
-                <motion.button
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-xl font-bold text-base shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all duration-300 flex items-center gap-2"
-                >
-                  <PlayIcon className="w-5 h-5" />
-                  Watch Demo
-                </motion.button>
-              </motion.div>
-              
-              {/* Trust Indicators */}
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 1, delay: 0.8 }}
-                className="flex flex-wrap justify-center items-center gap-6 text-sm text-gray-400"
-              >
-                <div className="flex items-center gap-2">
-                  <ShieldCheckIcon className="w-4 h-4 text-green-400" />
-                  <span>Audited Smart Contracts</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <GlobeAltIcon className="w-4 h-4 text-blue-400" />
-                  <span>Decentralized Oracles</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <UsersIcon className="w-4 h-4 text-purple-400" />
-                  <span>1,247+ Active Predictors</span>
-                </div>
-              </motion.div>
-            </motion.div>
-          </div>
-        </section>
+      <div className="container mx-auto px-4 py-6 space-y-8">
+        {/* Header */}
+        <PageTitle subtitle="Where brilliant minds converge to predict tomorrow. Challenge the Creators, earn legendary rewards, and shape the future of prediction markets.">
+          Challenge The Future
+        </PageTitle>
 
         {/* Platform Stats */}
         <section className="py-12 px-4 relative">
@@ -842,7 +757,7 @@ export default function HomePage() {
                   className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-4 rounded-2xl font-bold text-lg shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all duration-300 flex items-center gap-2 mx-auto"
                 >
                   View All Markets
-                  <ArrowRightIcon className="w-5 h-5" />
+                  <BoltIcon className="w-5 h-5" />
                 </motion.button>
               </Link>
             </motion.div>

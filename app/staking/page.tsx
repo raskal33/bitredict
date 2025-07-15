@@ -10,7 +10,8 @@ import { IoMdLock } from "react-icons/io";
 import { FaTrophy, FaChartLine, FaCoins } from "react-icons/fa";
 import { MdStars } from "react-icons/md";
 import { HiOutlineChevronRight } from "react-icons/hi";
-import PageTitle from "@/components/PageTitle";
+import AnimatedTitle from "@/components/AnimatedTitle";
+import { CurrencyDollarIcon as CurrencySolid, BoltIcon as BoltSolid } from "@heroicons/react/24/solid";
 
 export default function StakingPage() {
   const { preferences } = useStore(usePreferences);
@@ -67,9 +68,22 @@ export default function StakingPage() {
       className="container mx-auto px-4 space-y-8"
     >
       {/* Header */}
-      <PageTitle subtitle="Stake BITR tokens to earn platform fees and unlock exclusive benefits.">
+      <AnimatedTitle 
+        size="md"
+        leftIcon={CurrencySolid}
+        rightIcon={BoltSolid}
+      >
         BITR Staking
-      </PageTitle>
+      </AnimatedTitle>
+      
+      <motion.p 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.5 }}
+        className="text-base text-text-secondary max-w-2xl mx-auto text-center mb-6"
+      >
+        Stake BITR tokens to earn platform fees and unlock exclusive benefits.
+      </motion.p>
       
       {/* Staking Tiers Section */}
       <motion.div 

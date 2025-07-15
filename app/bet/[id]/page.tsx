@@ -234,7 +234,22 @@ export default function BetPage() {
 
   const calculatePayout = () => {
     const amount = parseFloat(betAmount) || 0;
-    return (amount * (pool?.odds || 1)).toFixed(2);
+    if (!pool || amount <= 0) return "0.00";
+    
+    if (betSide === 'yes') {
+      // Bettor: challenging creator, wins odds * stake if correct
+      return (amount * pool.odds).toFixed(2);
+    } else if (betSide === 'no') {
+      // LP: agreeing with creator, shares betting pool proportionally if correct
+      const creatorStake = Math.round(pool.volume * (pool.odds - 1) / pool.odds);
+      const maxBets = pool.volume - creatorStake;
+      const totalLPStake = creatorStake + amount; // Creator stake + user LP stake
+      const userLPShare = amount / totalLPStake; // User's share of LP pool
+      const potentialWinnings = amount + (maxBets * userLPShare); // User stake + share of betting pool
+      return potentialWinnings.toFixed(2);
+    }
+    
+    return "0.00";
   };
 
   const getSentimentColor = (sentiment: string) => {
@@ -388,23 +403,23 @@ export default function BetPage() {
       <div className="container mx-auto px-4 py-8 space-y-8">
         {/* Header Section */}
         <div className="relative">
-          {/* Boost indicator */}
-          {pool.boosted && (
-            <div className="absolute -top-2 -right-2 z-10">
-              <div className={`
-                px-3 py-1 rounded-full text-sm font-bold flex items-center gap-1
-                ${pool.boostTier === 3 ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black' :
-                  pool.boostTier === 2 ? 'bg-gradient-to-r from-gray-400 to-gray-500 text-black' :
-                  'bg-gradient-to-r from-orange-600 to-orange-700 text-white'}
-                ${getBoostGlow(pool.boostTier)}
-              `}>
-                <BoltSolid className="w-4 h-4" />
-                {pool.boostTier === 3 ? 'GOLD BOOST' : pool.boostTier === 2 ? 'SILVER BOOST' : 'BRONZE BOOST'}
+          <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/30 rounded-2xl p-8 space-y-6 relative overflow-hidden">
+            {/* Boost indicator - Fixed positioning inside container */}
+            {pool.boosted && (
+              <div className="absolute top-4 right-4 z-10">
+                <div className={`
+                  px-3 py-1 rounded-full text-sm font-bold flex items-center gap-1
+                  ${pool.boostTier === 3 ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black' :
+                    pool.boostTier === 2 ? 'bg-gradient-to-r from-gray-400 to-gray-500 text-black' :
+                    'bg-gradient-to-r from-orange-600 to-orange-700 text-white'}
+                  ${getBoostGlow(pool.boostTier)}
+                `}>
+                  <BoltSolid className="w-4 h-4" />
+                  {pool.boostTier === 3 ? 'GOLD BOOST' : pool.boostTier === 2 ? 'SILVER BOOST' : 'BRONZE BOOST'}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/30 rounded-2xl p-8 space-y-6">
             {/* Creator Info */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
@@ -479,26 +494,34 @@ export default function BetPage() {
                   Creator believes <span className="text-red-400">&quot;{pool.title}&quot; WON&apos;T happen</span>
                 </div>
                 <div className="text-sm text-gray-400 mb-3">
-                  But offering {pool.odds}x odds to attract bettors who think it WILL happen
+                  Challenging users who think it WILL happen. Dare to challenge?
                 </div>
                 
                 {/* Pool Economics */}
                 <div className="grid grid-cols-3 gap-4 p-3 bg-gray-800/30 rounded border border-gray-700/30">
-                  <div className="text-center">
-                    <div className="text-xs text-gray-400">Creator Stake</div>
-                    <div className="text-lg font-bold text-white">{(pool.volume * 0.33).toFixed(0)} {pool.currency}</div>
-                    <div className="text-xs text-gray-400">Risked by creator</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-xs text-gray-400">Max Betting Pool</div>
-                    <div className="text-lg font-bold text-cyan-400">{(pool.volume * 0.67).toFixed(0)} {pool.currency}</div>
-                    <div className="text-xs text-gray-400">Available for bets</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-xs text-gray-400">Total Pool Size</div>
-                    <div className="text-lg font-bold text-yellow-400">{pool.volume.toLocaleString()} {pool.currency}</div>
-                    <div className="text-xs text-gray-400">When fully filled</div>
-                  </div>
+                  {(() => {
+                    const creatorStake = Math.round(pool.volume * (pool.odds - 1) / pool.odds);
+                    const maxBets = pool.volume - creatorStake;
+                    return (
+                      <>
+                        <div className="text-center">
+                          <div className="text-xs text-gray-400">Creator Stake</div>
+                          <div className="text-lg font-bold text-white">{creatorStake.toLocaleString()} {pool.currency}</div>
+                          <div className="text-xs text-gray-400">Risked by creator</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-xs text-gray-400">Max Betting Pool</div>
+                          <div className="text-lg font-bold text-cyan-400">{maxBets.toLocaleString()} {pool.currency}</div>
+                          <div className="text-xs text-gray-400">Available for bets</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-xs text-gray-400">Total Pool Size</div>
+                          <div className="text-lg font-bold text-yellow-400">{pool.volume.toLocaleString()} {pool.currency}</div>
+                          <div className="text-xs text-gray-400">When fully filled</div>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
               
@@ -645,12 +668,25 @@ export default function BetPage() {
 
                 {/* Payout Calculation */}
                 <div className="p-4 bg-gray-700/30 rounded-lg">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-300">Potential Payout:</span>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-gray-300">
+                      {betSide === 'yes' ? 'Potential Winnings:' : 
+                       betSide === 'no' ? 'Potential LP Return:' : 'Potential Payout:'}
+                    </span>
                     <span className="text-xl font-bold text-cyan-400">
                       {calculatePayout()} {pool.currency}
                     </span>
                   </div>
+                  {betSide && (
+                    <div className="text-xs text-gray-400">
+                      {betSide === 'yes' && 
+                        `If you win: ${betAmount} × ${pool.odds} = ${calculatePayout()} ${pool.currency}`
+                      }
+                      {betSide === 'no' && 
+                        `Your stake + proportional share of betting pool if you're right`
+                      }
+                    </div>
+                  )}
                 </div>
 
                 {/* Place Bet Button */}

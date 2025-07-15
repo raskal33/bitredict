@@ -187,7 +187,7 @@ export default function FaucetPage() {
 
         <div className="relative z-10 mb-8">
           <AnimatedTitle 
-            size="lg"
+            size="md"
             leftIcon={BeakerSolid}
             rightIcon={GiftSolid}
           >
