@@ -376,44 +376,45 @@ export default function MarketsPage() {
           ${theme.background} ${theme.border} ${theme.glow} ${theme.hoverGlow}
           ${pool.boosted ? getBoostGlow(pool.boostTier) : ''}
           transition-all duration-500
-          ${isListView ? 'flex items-center p-6 space-x-6' : 'p-6 rounded-2xl border'}
+          ${isListView ? 'flex items-center p-6 space-x-6' : 'p-6 rounded-2xl border h-[450px] flex flex-col'}
         `}
       >
-        {/* Boost indicator */}
-        {pool.boosted && (
-          <div className="absolute top-3 right-3 z-10">
-            <div className={`
-              px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1
-              ${pool.boostTier === 3 ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black' :
-                pool.boostTier === 2 ? 'bg-gradient-to-r from-gray-400 to-gray-500 text-black' :
-                'bg-gradient-to-r from-orange-600 to-orange-700 text-white'}
-            `}>
-              <BoltSolid className="w-3 h-3" />
-              {pool.boostTier === 3 ? 'GOLD' : pool.boostTier === 2 ? 'SILVER' : 'BRONZE'}
-            </div>
+        {/* Badge Container - Fixed positioning */}
+        {!isListView && (
+          <div className="absolute top-3 left-3 right-3 z-10 flex justify-between items-start pointer-events-none">
+            {/* Trending indicator */}
+            {pool.trending && (
+              <div className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+                <FireSolid className="w-3 h-3" />
+                HOT
+              </div>
+            )}
+
+            {/* Boost indicator */}
+            {pool.boosted && (
+              <div className={`
+                px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1
+                ${pool.boostTier === 3 ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black' :
+                  pool.boostTier === 2 ? 'bg-gradient-to-r from-gray-400 to-gray-500 text-black' :
+                  'bg-gradient-to-r from-orange-600 to-orange-700 text-white'}
+              `}>
+                <BoltSolid className="w-3 h-3" />
+                {pool.boostTier === 3 ? 'GOLD' : pool.boostTier === 2 ? 'SILVER' : 'BRONZE'}
+              </div>
+            )}
           </div>
         )}
 
-        {/* Trending indicator */}
-        {pool.trending && (
-          <div className="absolute top-3 left-3 z-10">
-            <div className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
-              <FireSolid className="w-3 h-3" />
-              HOT
-            </div>
-          </div>
-        )}
-
-        <Link href={`/bet/${pool.id}`} className="block">
-          <div className={isListView ? 'flex-1' : ''}>
+        <Link href={`/bet/${pool.id}`} className={`block ${isListView ? 'flex-1' : 'h-full flex flex-col'}`}>
+          <div className={isListView ? 'flex-1' : 'flex flex-col h-full'}>
             {/* Header */}
-            <div className="flex items-start justify-between mb-4">
+            <div className={`flex items-start justify-between mb-4 ${isListView ? '' : 'mt-6'}`}>
               <div className="flex items-center gap-3">
                 <div className="text-3xl">{pool.image}</div>
-                <div>
+                <div className="min-w-0 flex-1">
                   <div className="text-xs text-gray-400 mb-1">Created by</div>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-white">
+                    <span className="text-sm font-semibold text-white truncate">
                       {pool.creator.username}
                     </span>
                     <div className="text-xs text-gray-400">
@@ -422,7 +423,7 @@ export default function MarketsPage() {
                   </div>
                 </div>
               </div>
-              <div className="text-right">
+              <div className="text-right flex-shrink-0">
                 <div className="text-xs text-gray-400">Challenge Score</div>
                 <div className={`text-lg font-bold ${getDifficultyColor(pool.difficultyTier)}`}>
                   {pool.challengeScore}
@@ -431,26 +432,26 @@ export default function MarketsPage() {
             </div>
             
             {/* Title and category */}
-            <div className="mb-4">
+            <div className="mb-4 flex-shrink-0">
               <div className="flex items-center gap-2 mb-2">
-                <span className={`text-xs px-2 py-1 rounded-full ${theme.accent} bg-current/10`}>
+                <span className={`text-xs px-2 py-1 rounded-full ${theme.accent} bg-current/10 truncate`}>
                   {pool.category}
                 </span>
                 <div className={`flex items-center gap-1 text-xs ${getDifficultyColor(pool.difficultyTier)}`}>
                   {getDifficultyIcon(pool.difficultyTier)}
-                  {pool.difficultyTier.replace('_', ' ').toUpperCase()}
+                  <span className="truncate">{pool.difficultyTier.replace('_', ' ').toUpperCase()}</span>
                 </div>
               </div>
-              <h3 className="text-lg font-bold text-white line-clamp-2 mb-2 group-hover:text-cyan-400 transition-colors">
+              <h3 className="text-lg font-bold text-white line-clamp-2 mb-2 group-hover:text-cyan-400 transition-colors" style={{ minHeight: '3.5rem' }}>
                 {pool.title}
               </h3>
-              <p className="text-sm text-gray-400 line-clamp-2">
+              <p className="text-sm text-gray-400 line-clamp-2" style={{ minHeight: '2.5rem' }}>
                 {pool.description}
               </p>
             </div>
 
             {/* Challenge info */}
-            <div className="mb-4 p-3 bg-gray-800/30 rounded-lg border border-gray-700/30">
+            <div className="mb-4 p-3 bg-gray-800/30 rounded-lg border border-gray-700/30 flex-shrink-0">
               <div className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2">
                   <TrophyIcon className="w-4 h-4 text-yellow-400" />
@@ -465,7 +466,7 @@ export default function MarketsPage() {
             </div>
 
             {/* Social stats */}
-            <div className="grid grid-cols-4 gap-3 mb-4 text-center">
+            <div className="grid grid-cols-4 gap-3 mb-4 text-center flex-shrink-0">
               <div>
                 <ChatBubbleLeftRightIcon className="w-4 h-4 text-gray-400 mx-auto mb-1" />
                 <div className="text-xs font-semibold text-white">{pool.socialStats.comments}</div>
@@ -484,8 +485,8 @@ export default function MarketsPage() {
               </div>
             </div>
 
-            {/* Footer stats */}
-            <div className="flex items-center justify-between pt-4 border-t border-gray-700/20">
+            {/* Footer stats - pushed to bottom */}
+            <div className={`flex items-center justify-between pt-4 border-t border-gray-700/20 ${isListView ? '' : 'mt-auto'}`}>
               <div className="flex items-center gap-4 text-xs text-gray-400">
                 <div className="flex items-center gap-1">
                   <ClockIcon className="w-3 h-3" />

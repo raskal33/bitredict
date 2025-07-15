@@ -400,25 +400,24 @@ export default function HomePage() {
         transition={{ duration: 0.6, delay: index * 0.1 }}
         whileHover={{ y: -8, scale: 1.02 }}
         className={`
-          relative overflow-hidden group cursor-pointer
+          relative overflow-hidden group cursor-pointer h-[420px] flex flex-col
           ${theme.background} ${theme.border} ${theme.glow} ${theme.hoverGlow}
           ${pool.boosted ? getBoostGlow(pool.boostTier) : ''}
           transition-all duration-500 p-6 rounded-2xl border backdrop-blur-sm
         `}
       >
-        {/* Trending Badge */}
-        {pool.trending && (
-          <div className="absolute top-3 left-3 z-10">
+        {/* Badge Container - Fixed positioning to avoid overlaps */}
+        <div className="absolute top-3 left-3 right-3 z-10 flex justify-between items-start pointer-events-none">
+          {/* Trending Badge */}
+          {pool.trending && (
             <div className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
               <BoltIcon className="w-3 h-3" />
               HOT
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Boost Badge */}
-        {pool.boosted && (
-          <div className="absolute top-3 right-3 z-10">
+          {/* Boost Badge */}
+          {pool.boosted && (
             <div className={`
               px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1
               ${pool.boostTier === 3 ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black' :
@@ -428,28 +427,28 @@ export default function HomePage() {
               <BoltSolid className="w-3 h-3" />
               {pool.boostTier === 3 ? 'GOLD' : pool.boostTier === 2 ? 'SILVER' : 'BRONZE'}
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
-        <Link href={`/bet/${pool.id}`} className="block">
+        <Link href={`/bet/${pool.id}`} className="block h-full flex flex-col">
           {/* Header */}
-          <div className="flex items-center gap-3 mb-4">
+          <div className="flex items-center gap-3 mb-4 mt-6">
             <div className="text-3xl">{pool.image}</div>
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <span className={`text-xs px-2 py-1 rounded-full ${theme.accent} bg-current/10`}>
+                <span className={`text-xs px-2 py-1 rounded-full ${theme.accent} bg-current/10 truncate`}>
                   {pool.category}
                 </span>
                 <div className={`flex items-center gap-1 text-xs ${getDifficultyColor(pool.difficultyTier)}`}>
-                  <StarIcon className="w-3 h-3" />
-                  {pool.difficultyTier.replace('_', ' ').toUpperCase()}
+                  <StarIcon className="w-3 h-3 flex-shrink-0" />
+                  <span className="truncate">{pool.difficultyTier.replace('_', ' ').toUpperCase()}</span>
                 </div>
               </div>
-              <div className="text-xs text-gray-400">
+              <div className="text-xs text-gray-400 truncate">
                 by {pool.creator.username} • {pool.creator.successRate.toFixed(1)}% win rate
               </div>
             </div>
-            <div className="text-right">
+            <div className="text-right flex-shrink-0">
               <div className="text-xs text-gray-400">Score</div>
               <div className={`text-lg font-bold ${theme.accent}`}>
                 {pool.challengeScore}
@@ -458,12 +457,12 @@ export default function HomePage() {
           </div>
           
           {/* Title */}
-          <h3 className="text-lg font-bold text-white line-clamp-2 mb-3 group-hover:text-cyan-400 transition-colors">
+          <h3 className="text-lg font-bold text-white line-clamp-2 mb-3 group-hover:text-cyan-400 transition-colors flex-shrink-0" style={{ minHeight: '3.5rem' }}>
             {pool.title}
           </h3>
           
           {/* Progress Bar */}
-          <div className="mb-4">
+          <div className="mb-4 flex-shrink-0">
             <div className="flex justify-between text-xs text-gray-400 mb-2">
               <span>Progress</span>
               <span>{progressPercentage.toFixed(1)}%</span>
@@ -479,7 +478,7 @@ export default function HomePage() {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-3 gap-4 mb-4 text-center">
+          <div className="grid grid-cols-3 gap-4 mb-4 text-center flex-shrink-0">
             <div>
               <div className="text-xs text-gray-400">Volume</div>
               <div className="text-sm font-bold text-white">{pool.volume.toLocaleString()}</div>
@@ -494,8 +493,8 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Social Stats */}
-          <div className="flex items-center justify-between pt-4 border-t border-gray-700/20">
+          {/* Social Stats - pushed to bottom */}
+          <div className="flex items-center justify-between pt-4 border-t border-gray-700/20 mt-auto">
             <div className="flex items-center gap-4 text-xs text-gray-400">
               <div className="flex items-center gap-1">
                 <HeartIcon className="w-3 h-3" />
@@ -530,25 +529,20 @@ export default function HomePage() {
       
       <div className="relative z-10">
         {/* Hero Section */}
-        <section className="relative min-h-screen flex items-center justify-center px-4 py-20">
-          {/* Animated Background Grid */}
-          <div className="absolute inset-0 opacity-20">
-            <div className="absolute inset-0 bg-[linear-gradient(rgba(34,199,255,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(34,199,255,0.1)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
-          </div>
-          
+        <section className="relative min-h-screen flex items-center justify-center px-4 py-12">
           <div className="container mx-auto text-center relative z-10">
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 1 }}
-              className="max-w-6xl mx-auto"
+              className="max-w-4xl mx-auto"
             >
               {/* Main Title */}
               <motion.h1 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 1, delay: 0.2 }}
-                className="text-6xl md:text-8xl font-bold mb-6 leading-tight"
+                className="text-4xl md:text-5xl font-bold mb-4 leading-tight"
               >
                 <span className="bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">
                   Challenge
@@ -564,7 +558,7 @@ export default function HomePage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 1, delay: 0.4 }}
-                className="text-xl md:text-2xl text-gray-300 mb-8 max-w-4xl mx-auto leading-relaxed"
+                className="text-base md:text-lg text-gray-300 mb-6 max-w-3xl mx-auto leading-relaxed"
               >
                 Where brilliant minds converge to predict tomorrow. 
                 <br className="hidden md:block" />
@@ -579,15 +573,15 @@ export default function HomePage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 1, delay: 0.6 }}
-                className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12"
+                className="flex flex-col sm:flex-row gap-3 justify-center items-center mb-8"
               >
                 <Link href="/markets">
                   <motion.button
                     whileHover={{ scale: 1.05, y: -2 }}
                     whileTap={{ scale: 0.95 }}
-                    className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-8 py-4 rounded-2xl font-bold text-lg shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all duration-300 flex items-center gap-2"
+                    className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-6 py-3 rounded-xl font-bold text-base shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all duration-300 flex items-center gap-2"
                   >
-                    <RocketLaunchIcon className="w-6 h-6" />
+                    <RocketLaunchIcon className="w-5 h-5" />
                     Explore Markets
                   </motion.button>
                 </Link>
@@ -595,9 +589,9 @@ export default function HomePage() {
                 <motion.button
                   whileHover={{ scale: 1.05, y: -2 }}
                   whileTap={{ scale: 0.95 }}
-                  className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-4 rounded-2xl font-bold text-lg shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all duration-300 flex items-center gap-2"
+                  className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-xl font-bold text-base shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all duration-300 flex items-center gap-2"
                 >
-                  <PlayIcon className="w-6 h-6" />
+                  <PlayIcon className="w-5 h-5" />
                   Watch Demo
                 </motion.button>
               </motion.div>
@@ -607,18 +601,18 @@ export default function HomePage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 1, delay: 0.8 }}
-                className="flex flex-wrap justify-center items-center gap-8 text-sm text-gray-400"
+                className="flex flex-wrap justify-center items-center gap-6 text-sm text-gray-400"
               >
                 <div className="flex items-center gap-2">
-                  <ShieldCheckIcon className="w-5 h-5 text-green-400" />
+                  <ShieldCheckIcon className="w-4 h-4 text-green-400" />
                   <span>Audited Smart Contracts</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <GlobeAltIcon className="w-5 h-5 text-blue-400" />
+                  <GlobeAltIcon className="w-4 h-4 text-blue-400" />
                   <span>Decentralized Oracles</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <UsersIcon className="w-5 h-5 text-purple-400" />
+                  <UsersIcon className="w-4 h-4 text-purple-400" />
                   <span>1,247+ Active Predictors</span>
                 </div>
               </motion.div>
@@ -627,21 +621,21 @@ export default function HomePage() {
         </section>
 
         {/* Platform Stats */}
-        <section className="py-20 px-4 relative">
+        <section className="py-12 px-4 relative">
           <div className="container mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
               viewport={{ once: true }}
-              className="text-center mb-16"
+              className="text-center mb-12"
             >
-              <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
                 <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
                   Platform Statistics
                 </span>
               </h2>
-              <p className="text-xl text-gray-400 max-w-2xl mx-auto">
+              <p className="text-lg text-gray-400 max-w-2xl mx-auto">
                 Join thousands of predictors in the most advanced prediction ecosystem
               </p>
             </motion.div>
@@ -658,21 +652,21 @@ export default function HomePage() {
         </section>
 
         {/* Features Section */}
-        <section className="py-20 px-4 relative">
+        <section className="py-12 px-4 relative">
           <div className="container mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
               viewport={{ once: true }}
-              className="text-center mb-16"
+              className="text-center mb-12"
             >
-              <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
                 <span className="bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
                   Why Choose Bitredict?
                 </span>
               </h2>
-              <p className="text-xl text-gray-400 max-w-3xl mx-auto">
+              <p className="text-lg text-gray-400 max-w-3xl mx-auto">
                 Experience the next generation of prediction markets with cutting-edge features
               </p>
             </motion.div>
@@ -702,21 +696,21 @@ export default function HomePage() {
         </section>
 
         {/* Featured Pools */}
-        <section className="py-20 px-4 relative">
+        <section className="py-12 px-4 relative">
           <div className="container mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
               viewport={{ once: true }}
-              className="text-center mb-16"
+              className="text-center mb-12"
             >
-              <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
                 <span className="bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
                   Featured Predictions
                 </span>
               </h2>
-              <p className="text-xl text-gray-400 max-w-3xl mx-auto mb-8">
+              <p className="text-lg text-gray-400 max-w-3xl mx-auto mb-6">
                 Discover the most exciting prediction markets and challenge the best creators
               </p>
               
@@ -786,21 +780,21 @@ export default function HomePage() {
         </section>
 
         {/* Testimonials */}
-        <section className="py-20 px-4 relative">
+        <section className="py-12 px-4 relative">
           <div className="container mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
               viewport={{ once: true }}
-              className="text-center mb-16"
+              className="text-center mb-12"
             >
-              <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
                 <span className="bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">
                   Success Stories
                 </span>
               </h2>
-              <p className="text-xl text-gray-400 max-w-3xl mx-auto">
+              <p className="text-lg text-gray-400 max-w-3xl mx-auto">
                 Hear from our top predictors who&apos;ve built legendary reputations
               </p>
             </motion.div>
@@ -852,7 +846,7 @@ export default function HomePage() {
         </section>
 
         {/* CTA Section */}
-        <section className="py-20 px-4 relative">
+        <section className="py-12 px-4 relative">
           <div className="container mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -861,7 +855,7 @@ export default function HomePage() {
               viewport={{ once: true }}
               className="text-center max-w-4xl mx-auto"
             >
-              <h2 className="text-4xl md:text-6xl font-bold text-white mb-6">
+              <h2 className="text-3xl md:text-5xl font-bold text-white mb-4">
                 <span className="bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">
                   Ready to Challenge
                 </span>
@@ -870,20 +864,20 @@ export default function HomePage() {
                   The Future?
                 </span>
               </h2>
-              <p className="text-xl text-gray-300 mb-12 leading-relaxed">
+              <p className="text-lg text-gray-300 mb-8 leading-relaxed">
                 Join the elite community of predictors and start earning from your insights today.
                 <br />
                 Your legendary journey begins with a single prediction.
               </p>
               
-              <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
+              <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
                 <Link href="/markets">
                   <motion.button
                     whileHover={{ scale: 1.05, y: -2 }}
                     whileTap={{ scale: 0.95 }}
-                    className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-10 py-5 rounded-2xl font-bold text-xl shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all duration-300 flex items-center gap-3"
+                    className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all duration-300 flex items-center gap-3"
                   >
-                    <RocketLaunchIcon className="w-7 h-7" />
+                    <RocketLaunchIcon className="w-6 h-6" />
                     Start Predicting
                   </motion.button>
                 </Link>
@@ -891,9 +885,9 @@ export default function HomePage() {
                 <motion.button
                   whileHover={{ scale: 1.05, y: -2 }}
                   whileTap={{ scale: 0.95 }}
-                  className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-10 py-5 rounded-2xl font-bold text-xl shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all duration-300 flex items-center gap-3"
+                  className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all duration-300 flex items-center gap-3"
                 >
-                  <TrophySolid className="w-7 h-7" />
+                  <TrophySolid className="w-6 h-6" />
                   Create Pool
                 </motion.button>
               </div>
