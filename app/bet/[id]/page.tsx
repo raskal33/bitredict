@@ -70,6 +70,7 @@ export default function BetPage() {
           qualityScore: 94,
           difficultyTier: "very_hard",
           predictedOutcome: "Bitcoin will reach $100,000 by March 2025",
+          creatorPrediction: "no", // Creator thinks it WON'T happen
           odds: 1.75,
           participants: 247,
           volume: 125000,
@@ -108,6 +109,7 @@ export default function BetPage() {
           qualityScore: 91,
           difficultyTier: "hard",
           predictedOutcome: "Ethereum will complete The Merge by September 2024",
+          creatorPrediction: "yes", // Creator thinks it WILL happen
           odds: 2.1,
           participants: 189,
           volume: 89000,
@@ -146,6 +148,7 @@ export default function BetPage() {
           qualityScore: 88,
           difficultyTier: "medium",
           predictedOutcome: "Tesla stock will hit $300 by end of 2024",
+          creatorPrediction: "no", // Creator thinks it WON'T happen
           odds: 1.45,
           participants: 156,
           volume: 67000,
@@ -184,6 +187,7 @@ export default function BetPage() {
           qualityScore: 96,
           difficultyTier: "very_hard",
           predictedOutcome: "US Federal Reserve will cut rates 3 times in 2024",
+          creatorPrediction: "yes", // Creator thinks it WILL happen
           odds: 1.25,
           participants: 312,
           volume: 189000,
@@ -222,6 +226,7 @@ export default function BetPage() {
           qualityScore: 85,
           difficultyTier: "medium",
           predictedOutcome: "OpenAI will release GPT-5 by Q3 2024",
+          creatorPrediction: "no", // Creator thinks it WON'T happen
           odds: 1.8,
           participants: 98,
           volume: 45000,
@@ -260,6 +265,7 @@ export default function BetPage() {
           qualityScore: 79,
           difficultyTier: "hard",
           predictedOutcome: "SpaceX will successfully land on Mars by 2026",
+          creatorPrediction: "yes", // Creator thinks it WILL happen
           odds: 2.5,
           participants: 67,
           volume: 32000,
@@ -297,6 +303,7 @@ export default function BetPage() {
         qualityScore: variant.qualityScore,
         difficultyTier: variant.difficultyTier as "legendary" | "very_hard" | "easy" | "medium" | "hard",
         predictedOutcome: variant.predictedOutcome,
+        creatorPrediction: variant.creatorPrediction as 'yes' | 'no',
         eventDetails: {
           startTime: new Date("2024-12-01T00:00:00Z"),
           endTime: new Date("2025-03-31T23:59:59Z"),

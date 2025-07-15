@@ -126,6 +126,7 @@ export default function HomePage() {
       qualityScore: 94,
       difficultyTier: "very_hard",
       predictedOutcome: "Bitcoin will reach $100,000 by March 2025",
+      creatorPrediction: "no", // Creator thinks it WON'T happen
       odds: 1.75,
       participants: 247,
       volume: 125000,
@@ -175,6 +176,7 @@ export default function HomePage() {
       qualityScore: 91,
       difficultyTier: "hard",
       predictedOutcome: "Ethereum will complete The Merge by September 2024",
+      creatorPrediction: "yes", // Creator thinks it WILL happen
       odds: 2.1,
       participants: 189,
       volume: 89000,
@@ -224,6 +226,7 @@ export default function HomePage() {
       qualityScore: 88,
       difficultyTier: "medium",
       predictedOutcome: "Tesla stock will hit $300 by end of 2024",
+      creatorPrediction: "no", // Creator thinks it WON'T happen
       odds: 1.45,
       participants: 156,
       volume: 67000,
@@ -273,6 +276,7 @@ export default function HomePage() {
       qualityScore: 96,
       difficultyTier: "very_hard",
       predictedOutcome: "US Federal Reserve will cut rates 3 times in 2024",
+      creatorPrediction: "yes", // Creator thinks it WILL happen
       odds: 1.25,
       participants: 312,
       volume: 189000,
@@ -322,6 +326,7 @@ export default function HomePage() {
       qualityScore: 85,
       difficultyTier: "medium",
       predictedOutcome: "OpenAI will release GPT-5 by Q3 2024",
+      creatorPrediction: "no", // Creator thinks it WON'T happen
       odds: 1.8,
       participants: 98,
       volume: 45000,
@@ -371,6 +376,7 @@ export default function HomePage() {
       qualityScore: 79,
       difficultyTier: "hard",
       predictedOutcome: "SpaceX will successfully land on Mars by 2026",
+      creatorPrediction: "yes", // Creator thinks it WILL happen
       odds: 2.5,
       participants: 67,
       volume: 32000,
@@ -568,7 +574,7 @@ export default function HomePage() {
           transition={{ duration: 0.6, delay: index * 0.1 }}
           whileHover={{ y: -8, scale: 1.02 }}
           className={`
-            relative overflow-hidden group cursor-pointer h-[520px] flex flex-col
+            relative overflow-hidden group cursor-pointer h-[580px] flex flex-col
             ${theme.background} ${theme.border} ${theme.glow} ${theme.hoverGlow}
             ${pool.boosted ? getBoostGlow(pool.boostTier) : ''}
             transition-all duration-500 p-6 rounded-2xl border backdrop-blur-sm
@@ -674,11 +680,15 @@ export default function HomePage() {
                 </div>
               </div>
               
-              {/* Creator's Prediction Only */}
+              {/* Creator's Selected Prediction */}
               <div className="text-center">
                 <div className="text-xs text-gray-400">Creator Predicts</div>
-                <div className="px-3 py-1 bg-orange-500/20 border border-orange-500/30 rounded text-xs text-orange-400 font-medium">
-                  WON&apos;T HAPPEN
+                <div className={`px-3 py-1 rounded text-xs font-medium ${
+                  pool.creatorPrediction === 'yes' 
+                    ? 'bg-green-500/20 border border-green-500/30 text-green-400'
+                    : 'bg-red-500/20 border border-red-500/30 text-red-400'
+                }`}>
+                  {pool.creatorPrediction === 'yes' ? 'YES' : 'NO'}
                 </div>
               </div>
             </div>

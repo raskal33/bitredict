@@ -47,6 +47,7 @@ export interface Pool {
   total?: number;
   outcome?: string;
   predictedOutcome?: string;
+  creatorPrediction?: 'yes' | 'no';
   eventDetails?: {
     startTime: Date;
     endTime: Date;

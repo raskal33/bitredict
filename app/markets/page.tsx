@@ -146,7 +146,8 @@ export default function MarketsPage() {
       defeated: 34,
       volume24h: 12500,
       change24h: 8.5,
-      predictedOutcome: "Bitcoin will not reach $100,000 by March 2025"
+      predictedOutcome: "Bitcoin will not reach $100,000 by March 2025",
+      creatorPrediction: "no" // Added for demo
     },
     {
       id: "2",
@@ -187,7 +188,8 @@ export default function MarketsPage() {
       defeated: 18,
       volume24h: 8900,
       change24h: -2.1,
-      predictedOutcome: "Manchester City will not win the Premier League 2024/25"
+      predictedOutcome: "Manchester City will not win the Premier League 2024/25",
+      creatorPrediction: "yes" // Added for demo
     },
     {
       id: "3",
@@ -229,7 +231,8 @@ export default function MarketsPage() {
       defeated: 22,
       volume24h: 5600,
       change24h: 3.2,
-      predictedOutcome: "Tesla stock will not hit $300 by end of 2024"
+      predictedOutcome: "Tesla stock will not hit $300 by end of 2024",
+      creatorPrediction: "no" // Added for demo
     }
   ];
 
@@ -382,7 +385,7 @@ export default function MarketsPage() {
             ${theme.background} ${theme.border} ${theme.glow} ${theme.hoverGlow}
             ${pool.boosted ? getBoostGlow(pool.boostTier) : ''}
             transition-all duration-500
-            ${isListView ? 'flex items-center p-6 space-x-6' : 'p-6 rounded-2xl border h-[450px] flex flex-col'}
+            ${isListView ? 'flex items-center p-6 space-x-6' : 'p-6 rounded-2xl border h-[580px] flex flex-col'}
           `}
         >
           {/* Badge Container - Fixed positioning */}
@@ -487,13 +490,15 @@ export default function MarketsPage() {
                   </div>
                 </div>
                 
-                {/* Yes/No Betting Options */}
-                <div className="flex gap-1">
-                  <div className="px-2 py-1 bg-green-500/20 border border-green-500/30 rounded text-xs text-green-400 font-medium">
-                    YES
-                  </div>
-                  <div className="px-2 py-1 bg-red-500/20 border border-red-500/30 rounded text-xs text-red-400 font-medium">
-                    NO
+                {/* Creator's Selected Prediction */}
+                <div className="text-center">
+                  <div className="text-xs text-gray-400">Creator Predicts</div>
+                  <div className={`px-3 py-1 rounded text-xs font-medium ${
+                    pool.creatorPrediction === 'yes' 
+                      ? 'bg-green-500/20 border border-green-500/30 text-green-400'
+                      : 'bg-red-500/20 border border-red-500/30 text-red-400'
+                  }`}>
+                    {pool.creatorPrediction === 'yes' ? 'YES' : 'NO'}
                   </div>
                 </div>
               </div>
