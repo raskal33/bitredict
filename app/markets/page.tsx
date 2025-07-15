@@ -583,34 +583,36 @@ export default function MarketsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-      {/* Remove container background, use only main background */}
-      <div className="container mx-auto px-4 py-8 space-y-12">
-        {/* Animated Hero Header */}
-        <AnimatedTitle 
-          size="md"
-          leftIcon={TrophySolid}
-          rightIcon={StarSolid}
-        >
-          Prediction Markets
-        </AnimatedTitle>
-        
-        <motion.p 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.4 }}
-          className="text-base text-gray-300 max-w-2xl mx-auto text-center leading-relaxed mb-12"
-        >
-          Where intellect meets opportunity. Challenge the brightest minds, earn from precision, and build your legendary reputation.
-        </motion.p>
+    <motion.section 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="container mx-auto px-4 space-y-12"
+    >
+      {/* Animated Hero Header */}
+      <AnimatedTitle 
+        size="md"
+        leftIcon={TrophySolid}
+        rightIcon={StarSolid}
+      >
+        Prediction Markets
+      </AnimatedTitle>
+      
+      <motion.p 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, delay: 0.4 }}
+        className="text-base text-gray-300 max-w-2xl mx-auto text-center leading-relaxed mb-12"
+      >
+        Where intellect meets opportunity. Challenge the brightest minds, earn from precision, and build your legendary reputation.
+      </motion.p>
 
-        {/* Search and Controls */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.8 }}
-          className="space-y-8"
-        >
+      {/* Search and Controls */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, delay: 0.8 }}
+        className="space-y-8"
+      >
           {/* Search Bar */}
           <div className="relative max-w-2xl mx-auto">
             <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
@@ -840,7 +842,6 @@ export default function MarketsPage() {
             </div>
           )}
         </motion.div>
-      </div>
-    </div>
-  );
+      </motion.section>
+    );
 } 
