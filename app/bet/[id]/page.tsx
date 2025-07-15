@@ -13,7 +13,9 @@ import {
   PaperAirplaneIcon,
   ChatBubbleOvalLeftIcon,
   CurrencyDollarIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  HandRaisedIcon,
+  CheckIcon
 } from "@heroicons/react/24/outline";
 import { 
   StarIcon as StarSolid,
@@ -29,8 +31,7 @@ export default function BetPage() {
   const poolId = params.id as string;
   
   const [activeTab, setActiveTab] = useState<"bet" | "liquidity" | "analysis">("bet");
-  const [betAmount, setBetAmount] = useState<string>("10");
-  const [betSide, setBetSide] = useState<"yes" | "no" | null>(null);
+  const [betAmount, setBetAmount] = useState<number>(0);
   const [hasUserBet, setHasUserBet] = useState(false);
   const [userBetAmount, setUserBetAmount] = useState(0);
   const [showCommentBox, setShowCommentBox] = useState(false);
@@ -42,6 +43,7 @@ export default function BetPage() {
   const [submittingComment, setSubmittingComment] = useState(false);
   const [pool, setPool] = useState<Pool | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
+  const [betType, setBetType] = useState<'yes' | 'no' | null>(null);
 
   const fetchPoolData = useCallback(async () => {
     const getDemoPoolData = (): Pool => ({
@@ -220,36 +222,16 @@ export default function BetPage() {
     }
   };
 
-  const handleBet = async () => { 
-    if(!betSide || !betAmount) return;
+  const handlePlaceBet = async () => { 
+    if(!betType || betAmount <= 0) return;
     
     try {
-      console.log('Placing bet:', { address, poolId, betSide, betAmount });
+      console.log('Placing bet:', { address, poolId, betType, betAmount });
       // Add actual bet placement logic here
       // For now, just log the action
     } catch (error: unknown) {
       console.error('Error placing bet:', error);
     }
-  };
-
-  const calculatePayout = () => {
-    const amount = parseFloat(betAmount) || 0;
-    if (!pool || amount <= 0) return "0.00";
-    
-    if (betSide === 'yes') {
-      // Bettor: challenging creator, wins odds * stake if correct
-      return (amount * pool.odds).toFixed(2);
-    } else if (betSide === 'no') {
-      // LP: agreeing with creator, shares betting pool proportionally if correct
-      const creatorStake = Math.round(pool.volume * (pool.odds - 1) / pool.odds);
-      const maxBets = pool.volume - creatorStake;
-      const totalLPStake = creatorStake + amount; // Creator stake + user LP stake
-      const userLPShare = amount / totalLPStake; // User's share of LP pool
-      const potentialWinnings = amount + (maxBets * userLPShare); // User stake + share of betting pool
-      return potentialWinnings.toFixed(2);
-    }
-    
-    return "0.00";
   };
 
   const getSentimentColor = (sentiment: string) => {
@@ -400,70 +382,76 @@ export default function BetPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-      <div className="container mx-auto px-4 py-8 space-y-8">
+      <div className="container mx-auto px-4 py-4 sm:py-8 space-y-4 sm:space-y-8">
         {/* Header Section */}
         <div className="relative">
-          <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/30 rounded-2xl p-8 space-y-6 relative overflow-hidden">
+          <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/30 rounded-2xl p-4 sm:p-8 space-y-4 sm:space-y-6 relative overflow-hidden">
             {/* Boost indicator - Fixed positioning inside container */}
             {pool.boosted && (
-              <div className="absolute top-4 right-4 z-10">
+              <div className="absolute top-2 right-2 sm:top-4 sm:right-4 z-10">
                 <div className={`
-                  px-3 py-1 rounded-full text-sm font-bold flex items-center gap-1
+                  px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-bold flex items-center gap-1
                   ${pool.boostTier === 3 ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black' :
                     pool.boostTier === 2 ? 'bg-gradient-to-r from-gray-400 to-gray-500 text-black' :
                     'bg-gradient-to-r from-orange-600 to-orange-700 text-white'}
                   ${getBoostGlow(pool.boostTier)}
                 `}>
-                  <BoltSolid className="w-4 h-4" />
-                  {pool.boostTier === 3 ? 'GOLD BOOST' : pool.boostTier === 2 ? 'SILVER BOOST' : 'BRONZE BOOST'}
+                  <BoltSolid className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">
+                    {pool.boostTier === 3 ? 'GOLD BOOST' : pool.boostTier === 2 ? 'SILVER BOOST' : 'BRONZE BOOST'}
+                  </span>
+                  <span className="sm:hidden">
+                    {pool.boostTier === 3 ? 'GOLD' : pool.boostTier === 2 ? 'SILVER' : 'BRONZE'}
+                  </span>
                 </div>
               </div>
             )}
 
             {/* Creator Info */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-center gap-3 sm:gap-4">
                 <div className="relative">
-                  <div className="w-16 h-16 bg-gradient-to-br from-cyan-500/20 to-blue-500/20 rounded-full flex items-center justify-center border-2 border-cyan-500/30">
-                    <UserIcon className="w-8 h-8 text-cyan-400" />
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-cyan-500/20 to-blue-500/20 rounded-full flex items-center justify-center border-2 border-cyan-500/30">
+                    <UserIcon className="w-6 h-6 sm:w-8 sm:h-8 text-cyan-400" />
                   </div>
                   {pool.creator.badges.includes('legendary') && (
-                    <div className="absolute -top-1 -right-1 w-6 h-6 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center">
-                      <StarSolid className="w-3 h-3 text-black" />
+                    <div className="absolute -top-1 -right-1 w-5 h-5 sm:w-6 sm:h-6 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center">
+                      <StarSolid className="w-2 h-2 sm:w-3 sm:h-3 text-black" />
                     </div>
                   )}
                 </div>
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="text-xl font-bold text-white">{pool.creator.username}</h3>
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                    <h3 className="text-lg sm:text-xl font-bold text-white">{pool.creator.username}</h3>
                     <div className="flex gap-1">
                       {pool.creator.badges.slice(0, 2).map((badge, index) => (
-                        <div key={index} className={`px-2 py-1 rounded-full text-xs font-bold text-black ${getBadgeColor(badge)}`}>
-                          {badge.replace('_', ' ').toUpperCase()}
+                        <div key={index} className={`px-1 sm:px-2 py-1 rounded-full text-xs font-bold text-black ${getBadgeColor(badge)}`}>
+                          <span className="hidden sm:inline">{badge.replace('_', ' ').toUpperCase()}</span>
+                          <span className="sm:hidden">{badge.charAt(0).toUpperCase()}</span>
                         </div>
                       ))}
                     </div>
                   </div>
-                  <div className="text-sm text-gray-400">{pool.creator.bio}</div>
-                  <div className="flex items-center gap-4 mt-2 text-sm text-gray-300">
+                  <div className="text-xs sm:text-sm text-gray-400 line-clamp-2">{pool.creator.bio}</div>
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-2 text-xs sm:text-sm text-gray-300">
                     <div className="flex items-center gap-1">
-                      <TrophyIcon className="w-4 h-4" />
+                      <TrophyIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                       {pool.creator.successRate.toFixed(1)}% win rate
                     </div>
                     <div className="flex items-center gap-1">
-                      <ChartBarIcon className="w-4 h-4" />
+                      <ChartBarIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                       {pool.creator.totalPools} pools
                     </div>
                     <div className="flex items-center gap-1">
-                      <CurrencyDollarIcon className="w-4 h-4" />
+                      <CurrencyDollarIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                       {(pool.creator.totalVolume / 1000).toFixed(0)}k volume
                     </div>
                   </div>
                 </div>
               </div>
-              <div className="text-right">
-                <div className="text-sm text-gray-400 mb-1">Challenge Score</div>
-                <div className={`text-3xl font-bold ${getDifficultyColor(pool.difficultyTier)}`}>
+              <div className="text-center sm:text-right">
+                <div className="text-xs sm:text-sm text-gray-400 mb-1">Challenge Score</div>
+                <div className={`text-2xl sm:text-3xl font-bold ${getDifficultyColor(pool.difficultyTier)}`}>
                   {pool.challengeScore}
                 </div>
                 <div className="text-xs text-gray-400 uppercase">
@@ -474,13 +462,13 @@ export default function BetPage() {
 
             {/* Pool Title & Description */}
             <div>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-sm px-3 py-1 bg-cyan-500/20 text-cyan-400 rounded-full">
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                <span className="text-xs sm:text-sm px-2 sm:px-3 py-1 bg-cyan-500/20 text-cyan-400 rounded-full">
                   {pool.category}
                 </span>
                 <div className="flex gap-1">
                   {pool.tags?.map((tag, index) => (
-                    <span key={index} className="text-xs px-2 py-1 bg-gray-700/50 text-gray-400 rounded-full">
+                    <span key={index} className="text-xs px-1 sm:px-2 py-1 bg-gray-700/50 text-gray-400 rounded-full">
                       #{tag}
                     </span>
                   ))}
@@ -488,35 +476,37 @@ export default function BetPage() {
               </div>
               
               {/* Creator Prediction - Core Mechanic */}
-              <div className="mb-4 p-4 bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/20 rounded-lg">
-                <div className="text-sm text-red-400 font-medium mb-2">🎯 Creator&apos;s Position:</div>
-                <div className="text-lg font-bold text-white mb-2">
+              <div className="mb-4 p-3 sm:p-4 bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/20 rounded-lg">
+                <div className="text-xs sm:text-sm text-red-400 font-medium mb-2">🎯 Creator&apos;s Position:</div>
+                <div className="text-base sm:text-lg font-bold text-white mb-2">
                   Creator believes <span className="text-red-400">&quot;{pool.title}&quot; WON&apos;T happen</span>
                 </div>
-                <div className="text-sm text-gray-400 mb-3">
+                <div className="text-xs sm:text-sm text-gray-400 mb-3">
                   Challenging users who think it WILL happen. Dare to challenge?
                 </div>
                 
                 {/* Pool Economics */}
-                <div className="grid grid-cols-3 gap-4 p-3 bg-gray-800/30 rounded border border-gray-700/30">
+                <div className="grid grid-cols-3 gap-2 sm:gap-4 p-2 sm:p-3 bg-gray-800/30 rounded border border-gray-700/30">
                   {(() => {
-                    const creatorStake = Math.round(pool.volume * (pool.odds - 1) / pool.odds);
-                    const maxBets = pool.volume - creatorStake;
+                    // Working from creator stake and odds to calculate total pool
+                    const creatorStake = Math.round(pool.volume * 0.4); // Assume 40% is creator stake for demo
+                    const maxBettorStake = Math.round(creatorStake / (pool.odds - 1));
+                    const totalPool = creatorStake + maxBettorStake;
                     return (
                       <>
                         <div className="text-center">
                           <div className="text-xs text-gray-400">Creator Stake</div>
-                          <div className="text-lg font-bold text-white">{creatorStake.toLocaleString()} {pool.currency}</div>
+                          <div className="text-sm sm:text-lg font-bold text-white">{creatorStake.toLocaleString()} {pool.currency}</div>
                           <div className="text-xs text-gray-400">Risked by creator</div>
                         </div>
                         <div className="text-center">
                           <div className="text-xs text-gray-400">Max Betting Pool</div>
-                          <div className="text-lg font-bold text-cyan-400">{maxBets.toLocaleString()} {pool.currency}</div>
+                          <div className="text-sm sm:text-lg font-bold text-cyan-400">{maxBettorStake.toLocaleString()} {pool.currency}</div>
                           <div className="text-xs text-gray-400">Available for bets</div>
                         </div>
                         <div className="text-center">
                           <div className="text-xs text-gray-400">Total Pool Size</div>
-                          <div className="text-lg font-bold text-yellow-400">{pool.volume.toLocaleString()} {pool.currency}</div>
+                          <div className="text-sm sm:text-lg font-bold text-yellow-400">{totalPool.toLocaleString()} {pool.currency}</div>
                           <div className="text-xs text-gray-400">When fully filled</div>
                         </div>
                       </>
@@ -525,35 +515,35 @@ export default function BetPage() {
                 </div>
               </div>
               
-              <h1 className="text-3xl font-bold text-white mb-3">{pool.title}</h1>
-              <p className="text-gray-300 leading-relaxed">{pool.description}</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-white mb-3">{pool.title}</h1>
+              <p className="text-sm sm:text-base text-gray-300 leading-relaxed">{pool.description}</p>
             </div>
 
             {/* Challenge Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-gray-700/30 rounded-lg border border-gray-600/30">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-700/30 rounded-lg border border-gray-600/30">
               <div className="text-center">
-                <div className="text-2xl font-bold text-white">{pool.defeated}</div>
+                <div className="text-lg sm:text-2xl font-bold text-white">{pool.defeated}</div>
                 <div className="text-xs text-gray-400">Defeated</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-green-400">{pool.creator.successRate.toFixed(1)}%</div>
+                <div className="text-lg sm:text-2xl font-bold text-green-400">{pool.creator.successRate.toFixed(1)}%</div>
                 <div className="text-xs text-gray-400">Creator Success</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-yellow-400">{pool.odds}x</div>
+                <div className="text-lg sm:text-2xl font-bold text-yellow-400">{pool.odds}x</div>
                 <div className="text-xs text-gray-400">Odds</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-cyan-400">{pool.participants}</div>
+                <div className="text-lg sm:text-2xl font-bold text-cyan-400">{pool.participants}</div>
                 <div className="text-xs text-gray-400">Challengers</div>
               </div>
             </div>
 
             {/* Time Remaining */}
             {pool.eventDetails && (
-              <div className="text-center p-4 bg-gradient-to-r from-cyan-500/5 to-blue-500/5 rounded-lg border border-cyan-500/20">
-                <div className="text-sm text-gray-400 mb-2">Time Remaining</div>
-                <div className="flex items-center justify-center gap-4 text-2xl font-bold text-cyan-400">
+              <div className="text-center p-3 sm:p-4 bg-gradient-to-r from-cyan-500/5 to-blue-500/5 rounded-lg border border-cyan-500/20">
+                <div className="text-xs sm:text-sm text-gray-400 mb-2">Time Remaining</div>
+                <div className="flex items-center justify-center gap-2 sm:gap-4 text-lg sm:text-2xl font-bold text-cyan-400">
                   <div className="text-center">
                     <div>{timeLeft.days}</div>
                     <div className="text-xs text-gray-400">Days</div>
@@ -584,192 +574,290 @@ export default function BetPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as "bet" | "liquidity" | "analysis")}
-              className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all ${
+              className={`flex-1 flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 sm:py-3 rounded-lg font-medium transition-all text-xs sm:text-sm ${
                 activeTab === tab.id
                   ? 'bg-cyan-500 text-black shadow-lg'
                   : 'text-gray-400 hover:text-white hover:bg-gray-700/50'
               }`}
             >
-              <tab.icon className="w-4 h-4" />
-              {tab.label}
+              <tab.icon className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">{tab.label}</span>
+              <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
             </button>
           ))}
         </div>
 
         {/* Tab Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            {activeTab === 'bet' && (
-              <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/30 rounded-2xl p-6 space-y-6">
-                <h3 className="text-xl font-bold text-white">Challenge the Creator</h3>
-                
-                {/* Bet Amount */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Bet Amount ({pool.currency})
-                  </label>
-                  <input
-                    type="number"
-                    value={betAmount}
-                    onChange={(e) => setBetAmount(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white focus:outline-none focus:border-cyan-500/50"
-                    placeholder="Enter amount"
-                  />
-                </div>
-
-                {/* Bet Side Selection */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Your Position
-                  </label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      onClick={() => setBetSide('yes')}
-                      className={`p-4 rounded-lg border-2 transition-all ${
-                        betSide === 'yes'
-                          ? 'border-green-500 bg-green-500/10 text-green-400'
-                          : 'border-gray-600/50 hover:border-green-500/50 text-gray-300'
-                      }`}
-                    >
-                      <div className="text-lg font-bold">YES - CHALLENGE</div>
-                      <div className="text-sm">It WILL happen</div>
-                      <div className="text-xs text-gray-400 mt-1">Bet against creator</div>
-                    </button>
-                    <button
-                      onClick={() => setBetSide('no')}
-                      className={`p-4 rounded-lg border-2 transition-all ${
-                        betSide === 'no'
-                          ? 'border-red-500 bg-red-500/10 text-red-400'
-                          : 'border-gray-600/50 hover:border-red-500/50 text-gray-300'
-                      }`}
-                    >
-                      <div className="text-lg font-bold">NO - AGREE</div>
-                      <div className="text-sm">It WON&apos;T happen</div>
-                      <div className="text-xs text-gray-400 mt-1">Join as LP with creator</div>
-                    </button>
+        <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/30 rounded-2xl p-4 sm:p-8">
+          {activeTab === 'bet' && (
+            <div className="space-y-6">
+              {/* Betting Interface */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Left Column - Betting Options */}
+                <div className="space-y-4">
+                  <div className="text-center">
+                    <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">Choose Your Position</h3>
+                    <p className="text-sm sm:text-base text-gray-400">
+                      Challenge the creator or agree with their prediction
+                    </p>
                   </div>
-                  
-                  {/* Explanation */}
-                  <div className="mt-3 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                    <div className="text-sm text-blue-400">
-                      {betSide === 'yes' && 
-                        `⚔️ You challenge the creator - betting it WILL happen. Win ${pool.odds}x your stake if you&apos;re right.`
+
+                  {/* Betting Options */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* YES - Challenge Creator */}
+                    <div className={`
+                      p-4 sm:p-6 rounded-xl border-2 transition-all cursor-pointer
+                      ${betType === 'yes' 
+                        ? 'bg-green-500/20 border-green-500/50 shadow-lg shadow-green-500/20' 
+                        : 'bg-gray-700/30 border-gray-600/50 hover:border-green-500/30 hover:bg-green-500/10'
                       }
-                      {betSide === 'no' && 
-                        `🤝 You agree with creator - betting it WON&apos;T happen. Share the betting pool with creator + other LPs if you&apos;re right.`
+                    `} onClick={() => setBetType('yes')}>
+                      <div className="text-center space-y-3">
+                        <div className="w-12 h-12 sm:w-16 sm:h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto">
+                          <HandRaisedIcon className="w-6 h-6 sm:w-8 sm:h-8 text-green-400" />
+                        </div>
+                        <div>
+                          <div className="text-lg sm:text-xl font-bold text-green-400 mb-1">YES</div>
+                          <div className="text-xs sm:text-sm text-gray-400">Challenge Creator</div>
+                          <div className="text-xs text-green-400/80 mt-1">
+                            You think &quot;{pool.title}&quot; WILL happen
+                          </div>
+                        </div>
+                        <div className="text-sm sm:text-base font-bold text-white">
+                          Win {pool.odds}x your stake
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* NO - Agree with Creator */}
+                    <div className={`
+                      p-4 sm:p-6 rounded-xl border-2 transition-all cursor-pointer
+                      ${betType === 'no' 
+                        ? 'bg-red-500/20 border-red-500/50 shadow-lg shadow-red-500/20' 
+                        : 'bg-gray-700/30 border-gray-600/50 hover:border-red-500/30 hover:bg-red-500/10'
                       }
-                      {!betSide && 
-                        "Choose: Challenge creator (Bettor) or Agree with creator (LP)"
-                      }
+                    `} onClick={() => setBetType('no')}>
+                      <div className="text-center space-y-3">
+                        <div className="w-12 h-12 sm:w-16 sm:h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto">
+                          <CheckIcon className="w-6 h-6 sm:w-8 sm:h-8 text-red-400" />
+                        </div>
+                        <div>
+                          <div className="text-lg sm:text-xl font-bold text-red-400 mb-1">NO</div>
+                          <div className="text-xs sm:text-sm text-gray-400">Agree with Creator</div>
+                          <div className="text-xs text-red-400/80 mt-1">
+                            You think &quot;{pool.title}&quot; WON&apos;T happen
+                          </div>
+                        </div>
+                        <div className="text-sm sm:text-base font-bold text-white">
+                          Win {(1 / (pool.odds - 1)).toFixed(2)}x your stake
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Payout Calculation */}
-                <div className="p-4 bg-gray-700/30 rounded-lg">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-gray-300">
-                      {betSide === 'yes' ? 'Potential Winnings:' : 
-                       betSide === 'no' ? 'Potential LP Return:' : 'Potential Payout:'}
-                    </span>
-                    <span className="text-xl font-bold text-cyan-400">
-                      {calculatePayout()} {pool.currency}
-                    </span>
+                {/* Right Column - Bet Amount & Preview */}
+                <div className="space-y-4">
+                  <div className="text-center">
+                    <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">Bet Amount</h3>
+                    <p className="text-sm sm:text-base text-gray-400">
+                      Enter your stake amount
+                    </p>
                   </div>
-                  {betSide && (
-                    <div className="text-xs text-gray-400">
-                      {betSide === 'yes' && 
-                        `If you win: ${betAmount} × ${pool.odds} = ${calculatePayout()} ${pool.currency}`
-                      }
-                      {betSide === 'no' && 
-                        `Your stake + proportional share of betting pool if you're right`
-                      }
-                    </div>
-                  )}
-                </div>
 
-                {/* Place Bet Button */}
+                  {/* Bet Amount Input */}
+                  <div className="space-y-4">
+                    <div className="relative">
+                      <input
+                        type="number"
+                        value={betAmount}
+                        onChange={(e) => setBetAmount(Number(e.target.value))}
+                        placeholder="0.00"
+                        className="w-full px-4 py-3 sm:py-4 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 text-lg sm:text-xl"
+                      />
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm sm:text-base">
+                        {pool.currency}
+                      </div>
+                    </div>
+
+                    {/* Quick Amount Buttons */}
+                    <div className="grid grid-cols-4 gap-2">
+                      {[10, 50, 100, 500].map(amount => (
+                        <button
+                          key={amount}
+                          onClick={() => setBetAmount(amount)}
+                          className="px-2 sm:px-3 py-2 bg-gray-700/50 hover:bg-gray-600/50 text-white rounded-lg text-xs sm:text-sm transition-colors"
+                        >
+                          {amount}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Bet Preview */}
+                    {betAmount > 0 && betType && (
+                      <div className="p-4 bg-gray-700/30 rounded-lg border border-gray-600/30">
+                        <div className="text-sm sm:text-base font-medium text-white mb-3">Bet Preview</div>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Your Stake:</span>
+                            <span className="text-white">{betAmount.toLocaleString()} {pool.currency}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Potential Win:</span>
+                            <span className="text-green-400">
+                              {betType === 'yes' 
+                                ? (betAmount * pool.odds).toLocaleString()
+                                : (betAmount * (1 / (pool.odds - 1))).toLocaleString()
+                              } {pool.currency}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Profit:</span>
+                            <span className="text-cyan-400">
+                              {betType === 'yes' 
+                                ? (betAmount * (pool.odds - 1)).toLocaleString()
+                                : (betAmount * ((1 / (pool.odds - 1)) - 1)).toLocaleString()
+                              } {pool.currency}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Place Bet Button */}
+              <div className="text-center">
                 <button
-                  onClick={handleBet}
-                  disabled={!betSide || !betAmount || parseFloat(betAmount) <= 0}
-                  className="w-full px-6 py-4 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-lg font-semibold hover:shadow-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  onClick={handlePlaceBet}
+                  disabled={!betType || betAmount <= 0}
+                  className={`
+                    px-8 py-3 sm:py-4 rounded-xl font-bold text-lg sm:text-xl transition-all
+                    ${betType && betAmount > 0
+                      ? 'bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-black shadow-lg'
+                      : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                    }
+                  `}
                 >
-                  <TrophyIcon className="w-5 h-5" />
-                  Place Bet & Challenge
+                  Place Bet
                 </button>
               </div>
-            )}
+            </div>
+          )}
 
             {activeTab === 'analysis' && (
               <div className="space-y-6">
-                {/* Market Analysis */}
-                {pool.market && (
-                  <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/30 rounded-2xl p-6">
-                    <h3 className="text-xl font-bold text-white mb-4">Market Analysis</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <div className="text-sm text-gray-400">Current Price</div>
-                        <div className="text-2xl font-bold text-white">
-                          ${pool.market.currentPrice.toLocaleString()}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-sm text-gray-400">Target Price</div>
-                        <div className="text-2xl font-bold text-cyan-400">
-                          ${pool.market.targetPrice.toLocaleString()}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-sm text-gray-400">Progress</div>
-                        <div className="text-2xl font-bold text-yellow-400">
-                          {pool.market.progress.toFixed(1)}%
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-sm text-gray-400">24h Volume</div>
-                        <div className="text-2xl font-bold text-white">
-                          ${(pool.market.volume24h / 1000000000).toFixed(2)}B
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                <div className="text-center">
+                  <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">Market Analysis</h3>
+                  <p className="text-sm sm:text-base text-gray-400">
+                    Detailed analysis and insights for this prediction
+                  </p>
+                </div>
 
-                {/* Conditions */}
-                {pool.conditions && (
-                  <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/30 rounded-2xl p-6">
-                    <h3 className="text-xl font-bold text-white mb-4">Settlement Conditions</h3>
-                    <div className="space-y-3">
-                      {pool.conditions.map((condition, index) => (
-                        <div key={index} className="flex items-start gap-3">
-                          <div className="w-6 h-6 bg-cyan-500/20 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                            <span className="text-xs font-bold text-cyan-400">{index + 1}</span>
-                          </div>
-                          <p className="text-gray-300">{condition}</p>
-                        </div>
-                      ))}
+                {/* Analysis Content */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                  <div className="p-4 sm:p-6 bg-gray-700/30 rounded-lg border border-gray-600/30">
+                    <h4 className="text-lg sm:text-xl font-bold text-white mb-3">Creator Track Record</h4>
+                    <div className="space-y-3 text-sm sm:text-base">
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Success Rate:</span>
+                        <span className="text-green-400">{pool.creator.successRate.toFixed(1)}%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Total Pools:</span>
+                        <span className="text-white">{pool.creator.totalPools}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Total Volume:</span>
+                        <span className="text-cyan-400">{(pool.creator.totalVolume / 1000).toFixed(0)}k {pool.currency}</span>
+                      </div>
                     </div>
                   </div>
-                )}
+
+                  <div className="p-4 sm:p-6 bg-gray-700/30 rounded-lg border border-gray-600/30">
+                    <h4 className="text-lg sm:text-xl font-bold text-white mb-3">Market Sentiment</h4>
+                    <div className="space-y-3 text-sm sm:text-base">
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Participants:</span>
+                        <span className="text-white">{pool.participants}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Defeated:</span>
+                        <span className="text-red-400">{pool.defeated}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Odds:</span>
+                        <span className="text-yellow-400">{pool.odds}x</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Additional Analysis */}
+                <div className="p-4 sm:p-6 bg-gray-700/30 rounded-lg border border-gray-600/30">
+                  <h4 className="text-lg sm:text-xl font-bold text-white mb-3">Risk Assessment</h4>
+                  <div className="text-sm sm:text-base text-gray-300 space-y-2">
+                    <p>
+                      This creator has a {pool.creator.successRate.toFixed(1)}% success rate, meaning they&apos;ve been right 
+                      in {pool.creator.successRate.toFixed(1)}% of their predictions. This suggests they have a good track 
+                      record of identifying unlikely events.
+                    </p>
+                    <p>
+                      The {pool.odds}x odds indicate the creator is offering a {((pool.odds - 1) * 100).toFixed(0)}% 
+                      premium to challengers, suggesting they have high confidence in their prediction.
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
 
             {activeTab === 'liquidity' && (
-              <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/30 rounded-2xl p-6">
-                <h3 className="text-xl font-bold text-white mb-4">Pool Liquidity</h3>
-                <div className="space-y-4">
-                  <div className="flex justify-between">
-                    <span className="text-gray-300">Total Pool Size:</span>
-                    <span className="font-bold text-white">
-                      {pool.volume.toLocaleString()} {pool.currency}
-                    </span>
+              <div className="space-y-6">
+                <div className="text-center">
+                  <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">Liquidity Pool</h3>
+                  <p className="text-sm sm:text-base text-gray-400">
+                    Provide liquidity and earn from trading fees
+                  </p>
+                </div>
+
+                {/* Liquidity Stats */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+                  <div className="p-4 sm:p-6 bg-gray-700/30 rounded-lg border border-gray-600/30 text-center">
+                    <div className="text-2xl sm:text-3xl font-bold text-cyan-400 mb-2">
+                      {pool.volume.toLocaleString()}
+                    </div>
+                    <div className="text-sm sm:text-base text-gray-400">Total Liquidity</div>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-300">24h Volume:</span>
-                    <span className="font-bold text-white">
-                      {(pool.volume24h || 0).toLocaleString()} {pool.currency}
-                    </span>
+                  <div className="p-4 sm:p-6 bg-gray-700/30 rounded-lg border border-gray-600/30 text-center">
+                    <div className="text-2xl sm:text-3xl font-bold text-green-400 mb-2">
+                      {pool.creator.successRate.toFixed(1)}%
+                    </div>
+                    <div className="text-sm sm:text-base text-gray-400">Creator Success Rate</div>
+                  </div>
+                  <div className="p-4 sm:p-6 bg-gray-700/30 rounded-lg border border-gray-600/30 text-center">
+                    <div className="text-2xl sm:text-3xl font-bold text-yellow-400 mb-2">
+                      {pool.participants}
+                    </div>
+                    <div className="text-sm sm:text-base text-gray-400">Active Participants</div>
+                  </div>
+                </div>
+
+                {/* LP Information */}
+                <div className="p-4 sm:p-6 bg-gray-700/30 rounded-lg border border-gray-600/30">
+                  <h4 className="text-lg sm:text-xl font-bold text-white mb-3">How LP Works</h4>
+                  <div className="text-sm sm:text-base text-gray-300 space-y-3">
+                    <p>
+                      As a liquidity provider, you agree with the creator&apos;s prediction and share in the 
+                      rewards when they&apos;re correct. Your returns are proportional to your stake in the pool.
+                    </p>
+                    <p>
+                      <strong>Risk:</strong> If the creator is wrong, you lose your stake to the winning bettors.
+                    </p>
+                    <p>
+                      <strong>Reward:</strong> If the creator is right, you share the betting pool with other LPs 
+                      and the creator, based on your proportional stake.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -935,6 +1023,6 @@ export default function BetPage() {
           </div>
         </div>
       </div>
-    </div>
+  
   );
 } 

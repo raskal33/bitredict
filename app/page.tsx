@@ -486,8 +486,10 @@ export default function HomePage() {
             {/* Pool Economics */}
             <div className="mb-3 p-2 bg-gray-700/40 rounded border border-gray-600/20">
               {(() => {
-                const creatorStake = Math.round(pool.volume * (pool.odds - 1) / pool.odds);
-                const maxBets = pool.volume - creatorStake;
+                // Working from creator stake and odds to calculate total pool
+                const creatorStake = Math.round(pool.volume * 0.4); // Assume 40% is creator stake for demo
+                const maxBettorStake = Math.round(creatorStake / (pool.odds - 1));
+                const totalPool = creatorStake + maxBettorStake;
                 return (
                   <div className="grid grid-cols-3 gap-2 text-xs">
                     <div className="text-center">
@@ -499,12 +501,12 @@ export default function HomePage() {
                     <div className="text-center">
                       <div className="text-gray-400">Max Bets</div>
                       <div className="font-semibold text-white">
-                        {maxBets.toLocaleString()} {pool.currency}
+                        {maxBettorStake.toLocaleString()} {pool.currency}
                       </div>
                     </div>
                     <div className="text-center">
                       <div className="text-gray-400">Total Pool</div>
-                      <div className="font-semibold text-cyan-400">{pool.volume.toLocaleString()} {pool.currency}</div>
+                      <div className="font-semibold text-cyan-400">{totalPool.toLocaleString()} {pool.currency}</div>
                     </div>
                   </div>
                 );
@@ -521,12 +523,12 @@ export default function HomePage() {
               </div>
               
               {/* Yes/No Betting Options */}
-              <div className="flex gap-2">
-                <div className="px-3 py-1 bg-green-500/20 border border-green-500/30 rounded text-xs text-green-400 font-medium">
-                  YES • Challenge
+              <div className="flex gap-1">
+                <div className="px-2 py-1 bg-green-500/20 border border-green-500/30 rounded text-xs text-green-400 font-medium">
+                  YES
                 </div>
-                <div className="px-3 py-1 bg-red-500/20 border border-red-500/30 rounded text-xs text-red-400 font-medium">
-                  NO • Agree
+                <div className="px-2 py-1 bg-red-500/20 border border-red-500/30 rounded text-xs text-red-400 font-medium">
+                  NO
                 </div>
               </div>
             </div>
