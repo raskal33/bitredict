@@ -34,7 +34,6 @@ import {
   FireIcon as FireSolid,
 } from "@heroicons/react/24/solid";
 import { useContractStats } from "@/hooks/useContractStats";
-import AnimatedTitle from "@/components/AnimatedTitle";
 
 ChartJS.register(
   CategoryScale,
@@ -155,7 +154,7 @@ export default function StatsPage() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
-        className="text-center relative mb-8"
+        className="text-center relative mb-6"
       >
         {/* Animated background elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -176,34 +175,21 @@ export default function StatsPage() {
           />
         </div>
 
-        <div className="relative z-10 mb-8">
-          <AnimatedTitle 
-            size="lg"
-            leftIcon={TrophySolid}
-            rightIcon={StarSolid}
-          >
-            Platform Statistics
-          </AnimatedTitle>
-          
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            className="flex items-center justify-center gap-2 mb-4"
-          >
-            <span className="text-sm bg-green-500/20 text-green-400 px-3 py-1 rounded-full font-medium flex items-center gap-1">
-              <SparklesIcon className="h-4 w-4" />
-              LIVE DATA
+        <div className="relative z-10 mb-4">
+          <h1 className="text-3xl md:text-4xl font-bold mb-2">
+            <span className="bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">
+              Platform Statistics
             </span>
-          </motion.div>
+          </h1>
+          <div className="w-24 h-0.5 bg-gradient-to-r from-cyan-400 to-purple-500 mx-auto rounded-full"></div>
           
           <motion.p 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.6 }}
-            className="text-xl text-text-secondary max-w-2xl mx-auto text-center"
+            transition={{ delay: 0.5 }}
+            className="text-base text-text-secondary max-w-2xl mx-auto mt-2"
           >
-            Real-time insights from the BitRedict prediction ecosystem
+            Real-time insights into platform activity, performance metrics, and market trends.
           </motion.p>
         </div>
       </motion.div>

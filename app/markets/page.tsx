@@ -515,45 +515,39 @@ export default function MarketsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-      <div className="container mx-auto px-4 py-8 space-y-8">
+      <div className="container mx-auto px-4 py-6 space-y-6">
         {/* Animated Hero Header */}
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
-          className="text-center space-y-6 relative overflow-hidden"
+          className="text-center space-y-4 relative"
         >
-          {/* Background Effects */}
-          <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-blue-500/5 to-purple-500/10 rounded-3xl blur-3xl"></div>
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-500/5 to-transparent"></div>
+          {/* Simple gradient background */}
+          <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 via-blue-500/3 to-purple-500/5 rounded-xl"></div>
           
-          <div className="relative z-10 py-12">
+          <div className="relative z-10 py-6">
             <motion.div
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ duration: 1, delay: 0.2 }}
-              className="mb-6"
+              className="mb-3"
             >
-              <h1 className="text-6xl md:text-7xl font-bold mb-4">
+              <h1 className="text-3xl md:text-4xl font-bold mb-2">
                 <span className="bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">
-                  Prediction
-                </span>
-                <br />
-                <span className="bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 bg-clip-text text-transparent">
-                  Markets
+                  Prediction Markets
                 </span>
               </h1>
-              <div className="w-32 h-1 bg-gradient-to-r from-cyan-400 to-purple-500 mx-auto rounded-full"></div>
+              <div className="w-24 h-0.5 bg-gradient-to-r from-cyan-400 to-purple-500 mx-auto rounded-full"></div>
             </motion.div>
             
             <motion.p 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.4 }}
-              className="text-xl text-gray-300 max-w-4xl mx-auto leading-relaxed"
+              className="text-base text-gray-300 max-w-2xl mx-auto leading-relaxed"
             >
               Where intellect meets opportunity. Challenge the brightest minds, 
-              <br className="hidden md:block" />
               earn from precision, and build your legendary reputation.
             </motion.p>
             

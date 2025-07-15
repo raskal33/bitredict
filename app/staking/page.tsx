@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import Button from "@/components/button";
-import AnimatedTitle from "@/components/AnimatedTitle";
 import { PriceTrendChart } from "./charts";
 import { useStore } from "zustand";
 import { usePreferences } from "@/store/usePreferences";
@@ -11,10 +10,6 @@ import { IoMdLock } from "react-icons/io";
 import { FaTrophy, FaChartLine, FaCoins } from "react-icons/fa";
 import { MdStars } from "react-icons/md";
 import { HiOutlineChevronRight } from "react-icons/hi";
-import {
-  BoltIcon as BoltSolid,
-  CurrencyDollarIcon as CurrencySolid,
-} from "@heroicons/react/24/solid";
 
 export default function StakingPage() {
   const { preferences } = useStore(usePreferences);
@@ -74,7 +69,8 @@ export default function StakingPage() {
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-center relative"
+        transition={{ delay: 0.1 }}
+        className="text-center relative mb-6"
       >
         {/* Animated background elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -95,22 +91,21 @@ export default function StakingPage() {
           />
         </div>
 
-        <div className="relative z-10 mb-8">
-          <AnimatedTitle 
-            size="lg"
-            leftIcon={BoltSolid}
-            rightIcon={CurrencySolid}
-          >
-            BITR Staking
-          </AnimatedTitle>
+        <div className="relative z-10 mb-4">
+          <h1 className="text-3xl md:text-4xl font-bold mb-2">
+            <span className="bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">
+              BITR Staking
+            </span>
+          </h1>
+          <div className="w-24 h-0.5 bg-gradient-to-r from-cyan-400 to-purple-500 mx-auto rounded-full"></div>
           
           <motion.p 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
-            className="text-xl text-text-secondary max-w-2xl mx-auto text-center"
+            className="text-base text-text-secondary max-w-2xl mx-auto mt-2"
           >
-            Stake your BITR tokens to earn rewards and gain access to exclusive platform benefits.
+            Stake BITR tokens to earn platform fees and unlock exclusive benefits.
           </motion.p>
         </div>
       </motion.div>
