@@ -47,7 +47,7 @@ export default function BetPage() {
 
   const fetchPoolData = useCallback(async () => {
     const getDemoPoolData = (poolId: string): Pool => {
-      // Generate unique pool data based on pool ID
+      // Generate the exact same pool data as the home page for consistency
       const poolVariants = [
         {
           title: "Bitcoin will reach $100,000 by March 2025",
@@ -75,7 +75,17 @@ export default function BetPage() {
           volume: 125000,
           image: "🪙",
           cardTheme: "cyan",
-          tags: ["macro", "btc", "institutional", "halving"]
+          tags: ["macro", "btc", "institutional", "halving"],
+          trending: true,
+          boosted: true,
+          boostTier: 3,
+          socialStats: {
+            comments: 89,
+            likes: 156,
+            views: 2340,
+            shares: 23
+          },
+          defeated: 34
         },
         {
           title: "Ethereum will complete The Merge by September 2024",
@@ -103,7 +113,17 @@ export default function BetPage() {
           volume: 89000,
           image: "🔷",
           cardTheme: "purple",
-          tags: ["eth", "pos", "merge", "upgrade"]
+          tags: ["eth", "pos", "merge", "upgrade"],
+          trending: false,
+          boosted: true,
+          boostTier: 2,
+          socialStats: {
+            comments: 67,
+            likes: 134,
+            views: 1890,
+            shares: 18
+          },
+          defeated: 28
         },
         {
           title: "Tesla stock will hit $300 by end of 2024",
@@ -131,7 +151,17 @@ export default function BetPage() {
           volume: 67000,
           image: "🚗",
           cardTheme: "green",
-          tags: ["tesla", "stocks", "ev", "technology"]
+          tags: ["tesla", "stocks", "ev", "technology"],
+          trending: true,
+          boosted: false,
+          boostTier: 1,
+          socialStats: {
+            comments: 45,
+            likes: 98,
+            views: 1450,
+            shares: 12
+          },
+          defeated: 22
         },
         {
           title: "US Federal Reserve will cut rates 3 times in 2024",
@@ -159,7 +189,17 @@ export default function BetPage() {
           volume: 189000,
           image: "🏦",
           cardTheme: "blue",
-          tags: ["fed", "rates", "macro", "policy"]
+          tags: ["fed", "rates", "macro", "policy"],
+          trending: true,
+          boosted: true,
+          boostTier: 3,
+          socialStats: {
+            comments: 123,
+            likes: 234,
+            views: 3450,
+            shares: 34
+          },
+          defeated: 45
         },
         {
           title: "OpenAI will release GPT-5 by Q3 2024",
@@ -187,7 +227,17 @@ export default function BetPage() {
           volume: 45000,
           image: "🤖",
           cardTheme: "orange",
-          tags: ["ai", "openai", "gpt", "technology"]
+          tags: ["ai", "openai", "gpt", "technology"],
+          trending: false,
+          boosted: true,
+          boostTier: 2,
+          socialStats: {
+            comments: 34,
+            likes: 78,
+            views: 1200,
+            shares: 8
+          },
+          defeated: 15
         },
         {
           title: "SpaceX will successfully land on Mars by 2026",
@@ -215,11 +265,21 @@ export default function BetPage() {
           volume: 32000,
           image: "🚀",
           cardTheme: "red",
-          tags: ["spacex", "mars", "space", "rocket"]
+          tags: ["spacex", "mars", "space", "rocket"],
+          trending: false,
+          boosted: false,
+          boostTier: 1,
+          socialStats: {
+            comments: 23,
+            likes: 45,
+            views: 890,
+            shares: 5
+          },
+          defeated: 12
         }
       ];
 
-      // Use pool ID to select variant (simple hash-based selection)
+      // Use pool ID to select the exact same variant as the home page
       const hash = poolId.split('').reduce((a, b) => {
         a = ((a << 5) - a) + b.charCodeAt(0);
         return a & a;
@@ -235,7 +295,7 @@ export default function BetPage() {
         creator: variant.creator,
         challengeScore: variant.challengeScore,
         qualityScore: variant.qualityScore,
-        difficultyTier: variant.difficultyTier as "easy" | "medium" | "hard" | "very_hard" | "legendary",
+        difficultyTier: variant.difficultyTier as "legendary" | "very_hard" | "easy" | "medium" | "hard",
         predictedOutcome: variant.predictedOutcome,
         eventDetails: {
           startTime: new Date("2024-12-01T00:00:00Z"),
@@ -249,20 +309,15 @@ export default function BetPage() {
         volume: variant.volume,
         currency: "BITR",
         endDate: "2025-03-31",
-        trending: Math.random() > 0.5,
-        boosted: Math.random() > 0.7,
-        boostTier: Math.random() > 0.8 ? 3 : Math.random() > 0.6 ? 2 : 1,
+        trending: variant.trending,
+        boosted: variant.boosted,
+        boostTier: variant.boostTier,
         poolType: "single",
         image: variant.image,
         cardTheme: variant.cardTheme,
-        socialStats: {
-          comments: Math.floor(Math.random() * 200) + 50,
-          likes: Math.floor(Math.random() * 500) + 100,
-          views: Math.floor(Math.random() * 5000) + 1000,
-          shares: Math.floor(Math.random() * 100) + 10
-        },
+        socialStats: variant.socialStats,
         comments: [],
-        defeated: Math.floor(Math.random() * 100) + 20,
+        defeated: variant.defeated,
         conditions: [
           "Event must occur within the specified timeframe",
           "Outcome must be verifiable through official sources",
@@ -282,7 +337,7 @@ export default function BetPage() {
         setPool(data.data);
         setComments(data.data.comments || []);
       } else {
-        // Fallback to unique demo data based on pool ID
+        // Fallback to exact same demo data as home page
         const demoData = getDemoPoolData(poolId);
         setPool(demoData);
       }

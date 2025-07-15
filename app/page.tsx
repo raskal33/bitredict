@@ -105,13 +105,14 @@ export default function HomePage() {
 
   const getDemoPoolData = (): Pool[] => [
     {
-      id: "1",
+      id: "pool-1",
       title: "Bitcoin will reach $100,000 by March 2025",
-      description: "Creator believes Bitcoin won't hit $100k by March 2025, but offering 1.75x odds to attract bulls who think it will",
+      description: "Prediction market on Bitcoin reaching six-figure milestone before March 31, 2025. This challenge tests your ability to predict the macro crypto market trends and timing.",
       category: "crypto",
       creator: {
         address: "0x1234...5678",
         username: "CryptoSage",
+        avatar: "/logo.png",
         reputation: 4.8,
         totalPools: 23,
         successRate: 78.3,
@@ -119,17 +120,15 @@ export default function HomePage() {
         totalVolume: 450000,
         badges: ["legendary", "crypto_expert", "whale"],
         createdAt: "2024-01-15T10:30:00Z",
-        bio: "Macro crypto analyst with 8 years of experience."
+        bio: "Macro crypto analyst with 8 years of experience. Specialized in Bitcoin cycle analysis and institutional adoption trends."
       },
       challengeScore: 89,
       qualityScore: 94,
       difficultyTier: "very_hard",
-      progress: 650,
-      total: 1000,
+      predictedOutcome: "Bitcoin will reach $100,000 by March 2025",
       odds: 1.75,
-      outcome: "Yes",
       participants: 247,
-      volume: 125000, // Total pool: creator stake (41.7k) + max bets (83.3k)
+      volume: 125000,
       currency: "BITR",
       endDate: "2025-03-31",
       trending: true,
@@ -146,45 +145,47 @@ export default function HomePage() {
       },
       comments: [],
       defeated: 34,
-      volume24h: 12500,
-      change24h: 8.5,
-      confidence: 73,
-      predictedOutcome: "Bitcoin will not reach $100,000 by March 2025"
+      conditions: [
+        "Bitcoin (BTC) must reach or exceed $100,000 USD on any major exchange",
+        "Price must be sustained for at least 1 hour on the target date",
+        "Data will be sourced from CoinGecko API and verified by multiple oracles",
+        "Settlement occurs within 24 hours of the event end date"
+      ],
+      tags: ["macro", "btc", "institutional", "halving"]
     },
     {
-      id: "2", 
-      title: "Manchester City will win Premier League 2024/25",
-      description: "Creator doubts Man City can win the league this season, offering 1.6x odds for believers",
-      category: "sports",
+      id: "pool-2",
+      title: "Ethereum will complete The Merge by September 2024",
+      description: "Prediction on Ethereum's transition to Proof of Stake consensus mechanism. This historic event will test your understanding of blockchain technology evolution.",
+      category: "crypto",
       creator: {
-        address: "0x5678...9012",
-        username: "FootballPro",
-        reputation: 4.2,
+        address: "0x2345...6789",
+        username: "EthereumOracle",
+        avatar: "/logo.png",
+        reputation: 4.6,
         totalPools: 18,
         successRate: 82.1,
-        challengeScore: 76,
+        challengeScore: 85,
         totalVolume: 320000,
-        badges: ["sports_expert", "verified"],
-        createdAt: "2024-02-10T14:20:00Z",
-        bio: "Professional football analyst and former player."
+        badges: ["ethereum_expert", "developer", "validator"],
+        createdAt: "2024-02-01T14:20:00Z",
+        bio: "Ethereum developer and validator with deep knowledge of PoS consensus mechanisms and network upgrades."
       },
-      challengeScore: 76,
-      qualityScore: 88,
+      challengeScore: 85,
+      qualityScore: 91,
       difficultyTier: "hard",
-      progress: 430,
-      total: 800,
-      odds: 1.6,
-      outcome: "No",
-      participants: 156,
-      volume: 89000, // Total pool: creator stake (35.6k) + max bets (53.4k) 
-      currency: "STT",
-      endDate: "2025-05-25",
+      predictedOutcome: "Ethereum will complete The Merge by September 2024",
+      odds: 2.1,
+      participants: 189,
+      volume: 89000,
+      currency: "BITR",
+      endDate: "2025-03-31",
       trending: false,
       boosted: true,
       boostTier: 2,
       poolType: "single",
-      image: "⚽",
-      cardTheme: "green",
+      image: "🔷",
+      cardTheme: "purple",
       socialStats: {
         comments: 67,
         likes: 134,
@@ -192,58 +193,210 @@ export default function HomePage() {
         shares: 18
       },
       comments: [],
-      defeated: 18,
-      volume24h: 8900,
-      change24h: -2.1,
-      confidence: 65,
-      predictedOutcome: "Manchester City will not win Premier League 2024/25"
+      defeated: 28,
+      conditions: [
+        "Ethereum must complete the transition to Proof of Stake",
+        "Merge must be confirmed by multiple validators",
+        "Network must remain stable for 24 hours post-merge",
+        "Settlement occurs within 48 hours of successful merge"
+      ],
+      tags: ["eth", "pos", "merge", "upgrade"]
     },
     {
-      id: "3",
-      title: "Tesla stock will hit $300 by end of 2024", 
-      description: "Creator thinks Tesla is overvalued and won't reach $300, but offering 2.1x odds for the bulls",
+      id: "pool-3",
+      title: "Tesla stock will hit $300 by end of 2024",
+      description: "Prediction market on Tesla's stock performance. This challenge evaluates your ability to analyze electric vehicle market dynamics and company fundamentals.",
       category: "stocks",
       creator: {
-        address: "0x9012...3456",
-        username: "StockBear",
-        reputation: 3.9,
-        totalPools: 12,
-        successRate: 75.8,
-        challengeScore: 68,
-        totalVolume: 180000,
-        badges: ["analyst", "bear"],
-        createdAt: "2024-03-05T09:15:00Z",
-        bio: "Traditional markets analyst with Tesla expertise."
+        address: "0x3456...7890",
+        username: "StockMaster",
+        avatar: "/logo.png",
+        reputation: 4.7,
+        totalPools: 31,
+        successRate: 75.9,
+        challengeScore: 82,
+        totalVolume: 280000,
+        badges: ["stock_expert", "tesla_bull", "ev_analyst"],
+        createdAt: "2024-01-20T09:15:00Z",
+        bio: "Equity analyst specializing in technology and electric vehicle sectors with 12 years of market experience."
       },
-      challengeScore: 68,
-      qualityScore: 82,
+      challengeScore: 82,
+      qualityScore: 88,
       difficultyTier: "medium",
-      progress: 320,
-      total: 600,
-      odds: 2.1,
-      outcome: "Yes",
-      participants: 89,
-      volume: 67000, // Total pool: creator stake (20.6k) + max bets (46.4k)
-      currency: "STT",
-      endDate: "2024-12-31",
+      predictedOutcome: "Tesla stock will hit $300 by end of 2024",
+      odds: 1.45,
+      participants: 156,
+      volume: 67000,
+      currency: "BITR",
+      endDate: "2025-03-31",
       trending: true,
       boosted: false,
-      boostTier: 0,
+      boostTier: 1,
       poolType: "single",
-      image: "📈",
-      cardTheme: "purple",
+      image: "🚗",
+      cardTheme: "green",
       socialStats: {
         comments: 45,
         likes: 98,
-        views: 1456,
+        views: 1450,
         shares: 12
       },
       comments: [],
       defeated: 22,
-      volume24h: 5600,
-      change24h: 3.2,
-      confidence: 65,
-      predictedOutcome: "Tesla stock will not hit $300 by end of 2024"
+      conditions: [
+        "Tesla stock must reach or exceed $300 per share",
+        "Price must be sustained for at least 1 trading day",
+        "Data sourced from major stock exchanges",
+        "Settlement occurs within 24 hours of year end"
+      ],
+      tags: ["tesla", "stocks", "ev", "technology"]
+    },
+    {
+      id: "pool-4",
+      title: "US Federal Reserve will cut rates 3 times in 2024",
+      description: "Prediction on Federal Reserve monetary policy decisions. This challenge tests your understanding of macroeconomic indicators and central bank behavior.",
+      category: "economics",
+      creator: {
+        address: "0x4567...8901",
+        username: "MacroGuru",
+        avatar: "/logo.png",
+        reputation: 4.9,
+        totalPools: 27,
+        successRate: 88.2,
+        challengeScore: 93,
+        totalVolume: 520000,
+        badges: ["macro_expert", "fed_watcher", "economist"],
+        createdAt: "2024-01-10T16:45:00Z",
+        bio: "Macroeconomic analyst with expertise in Federal Reserve policy and interest rate forecasting."
+      },
+      challengeScore: 93,
+      qualityScore: 96,
+      difficultyTier: "very_hard",
+      predictedOutcome: "US Federal Reserve will cut rates 3 times in 2024",
+      odds: 1.25,
+      participants: 312,
+      volume: 189000,
+      currency: "BITR",
+      endDate: "2025-03-31",
+      trending: true,
+      boosted: true,
+      boostTier: 3,
+      poolType: "single",
+      image: "🏦",
+      cardTheme: "blue",
+      socialStats: {
+        comments: 123,
+        likes: 234,
+        views: 3450,
+        shares: 34
+      },
+      comments: [],
+      defeated: 45,
+      conditions: [
+        "Federal Reserve must announce rate cuts at FOMC meetings",
+        "Total of 3 rate cuts must occur in 2024",
+        "Official Fed statements will be the source of truth",
+        "Settlement occurs within 24 hours of year end"
+      ],
+      tags: ["fed", "rates", "macro", "policy"]
+    },
+    {
+      id: "pool-5",
+      title: "OpenAI will release GPT-5 by Q3 2024",
+      description: "Prediction on OpenAI's next major language model release. This challenge evaluates your understanding of AI development timelines and industry trends.",
+      category: "technology",
+      creator: {
+        address: "0x5678...9012",
+        username: "AIProphet",
+        avatar: "/logo.png",
+        reputation: 4.5,
+        totalPools: 15,
+        successRate: 71.4,
+        challengeScore: 78,
+        totalVolume: 180000,
+        badges: ["ai_expert", "openai_watcher", "researcher"],
+        createdAt: "2024-02-15T11:30:00Z",
+        bio: "AI researcher and industry analyst with deep knowledge of language model development and OpenAI's roadmap."
+      },
+      challengeScore: 78,
+      qualityScore: 85,
+      difficultyTier: "medium",
+      predictedOutcome: "OpenAI will release GPT-5 by Q3 2024",
+      odds: 1.8,
+      participants: 98,
+      volume: 45000,
+      currency: "BITR",
+      endDate: "2025-03-31",
+      trending: false,
+      boosted: true,
+      boostTier: 2,
+      poolType: "single",
+      image: "🤖",
+      cardTheme: "orange",
+      socialStats: {
+        comments: 34,
+        likes: 78,
+        views: 1200,
+        shares: 8
+      },
+      comments: [],
+      defeated: 15,
+      conditions: [
+        "OpenAI must officially announce GPT-5 release",
+        "Release must occur before end of Q3 2024",
+        "Official OpenAI channels will be the source",
+        "Settlement occurs within 24 hours of announcement"
+      ],
+      tags: ["ai", "openai", "gpt", "technology"]
+    },
+    {
+      id: "pool-6",
+      title: "SpaceX will successfully land on Mars by 2026",
+      description: "Prediction on SpaceX's ambitious Mars mission timeline. This challenge tests your knowledge of space exploration and engineering feasibility.",
+      category: "space",
+      creator: {
+        address: "0x6789...0123",
+        username: "SpaceExplorer",
+        avatar: "/logo.png",
+        reputation: 4.3,
+        totalPools: 12,
+        successRate: 65.8,
+        challengeScore: 72,
+        totalVolume: 95000,
+        badges: ["space_expert", "spacex_watcher", "engineer"],
+        createdAt: "2024-01-25T13:20:00Z",
+        bio: "Aerospace engineer and space industry analyst with expertise in rocket technology and Mars mission planning."
+      },
+      challengeScore: 72,
+      qualityScore: 79,
+      difficultyTier: "hard",
+      predictedOutcome: "SpaceX will successfully land on Mars by 2026",
+      odds: 2.5,
+      participants: 67,
+      volume: 32000,
+      currency: "BITR",
+      endDate: "2025-03-31",
+      trending: false,
+      boosted: false,
+      boostTier: 1,
+      poolType: "single",
+      image: "🚀",
+      cardTheme: "red",
+      socialStats: {
+        comments: 23,
+        likes: 45,
+        views: 890,
+        shares: 5
+      },
+      comments: [],
+      defeated: 12,
+      conditions: [
+        "SpaceX must successfully land a spacecraft on Mars",
+        "Landing must occur before end of 2026",
+        "Official SpaceX confirmation required",
+        "Settlement occurs within 48 hours of landing"
+      ],
+      tags: ["spacex", "mars", "space", "rocket"]
     }
   ];
 
@@ -415,7 +568,7 @@ export default function HomePage() {
           transition={{ duration: 0.6, delay: index * 0.1 }}
           whileHover={{ y: -8, scale: 1.02 }}
           className={`
-            relative overflow-hidden group cursor-pointer h-[480px] flex flex-col
+            relative overflow-hidden group cursor-pointer h-[520px] flex flex-col
             ${theme.background} ${theme.border} ${theme.glow} ${theme.hoverGlow}
             ${pool.boosted ? getBoostGlow(pool.boostTier) : ''}
             transition-all duration-500 p-6 rounded-2xl border backdrop-blur-sm
@@ -521,13 +674,11 @@ export default function HomePage() {
                 </div>
               </div>
               
-              {/* Yes/No Betting Options */}
-              <div className="flex gap-1">
-                <div className="px-2 py-1 bg-green-500/20 border border-green-500/30 rounded text-xs text-green-400 font-medium">
-                  YES
-                </div>
-                <div className="px-2 py-1 bg-red-500/20 border border-red-500/30 rounded text-xs text-red-400 font-medium">
-                  NO
+              {/* Creator's Prediction Only */}
+              <div className="text-center">
+                <div className="text-xs text-gray-400">Creator Predicts</div>
+                <div className="px-3 py-1 bg-orange-500/20 border border-orange-500/30 rounded text-xs text-orange-400 font-medium">
+                  WON&apos;T HAPPEN
                 </div>
               </div>
             </div>
