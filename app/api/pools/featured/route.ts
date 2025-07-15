@@ -91,7 +91,8 @@ const getDemoPoolData = () => [
     comments: [],
     defeated: 34,
     volume24h: 12500,
-    change24h: 8.5
+    change24h: 8.5,
+    predictedOutcome: "No" // What creator thinks WON'T happen
   },
   {
     id: "2",
@@ -131,7 +132,8 @@ const getDemoPoolData = () => [
     comments: [],
     defeated: 18,
     volume24h: 8900,
-    change24h: -2.1
+    change24h: -2.1,
+    predictedOutcome: "Yes" // What creator thinks WON'T happen
   },
   {
     id: "3",
@@ -172,7 +174,8 @@ const getDemoPoolData = () => [
     comments: [],
     defeated: 22,
     volume24h: 5600,
-    change24h: 3.2
+    change24h: 3.2,
+    predictedOutcome: "No" // What creator thinks WON'T happen
   }
 ];
 
@@ -272,6 +275,7 @@ export async function GET(request: NextRequest) {
         total: parseInt(pool.target_amount || '100000'),
         odds: parseFloat(pool.odds || '1.5'),
         outcome: pool.predicted_outcome,
+        predictedOutcome: pool.predicted_outcome, // What creator thinks WON'T happen
         participants: parseInt(pool.participant_count || '0'),
         endDate: pool.end_date,
         trending: pool.trending === 1,

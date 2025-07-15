@@ -65,7 +65,7 @@ export default function BetPage() {
       challengeScore: 89,
       qualityScore: 94,
       difficultyTier: "very_hard",
-      predictedOutcome: "Yes",
+      predictedOutcome: "Bitcoin will reach $100,000 by March 2025",
       eventDetails: {
         startTime: new Date("2024-12-01T00:00:00Z"),
         endTime: new Date("2025-03-31T23:59:59Z"),
@@ -471,6 +471,37 @@ export default function BetPage() {
                   ))}
                 </div>
               </div>
+              
+              {/* Creator Prediction - Core Mechanic */}
+              <div className="mb-4 p-4 bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/20 rounded-lg">
+                <div className="text-sm text-red-400 font-medium mb-2">🎯 Creator&apos;s Position:</div>
+                <div className="text-lg font-bold text-white mb-2">
+                  Creator believes <span className="text-red-400">&quot;{pool.title}&quot; WON&apos;T happen</span>
+                </div>
+                <div className="text-sm text-gray-400 mb-3">
+                  But offering {pool.odds}x odds to attract bettors who think it WILL happen
+                </div>
+                
+                {/* Pool Economics */}
+                <div className="grid grid-cols-3 gap-4 p-3 bg-gray-800/30 rounded border border-gray-700/30">
+                  <div className="text-center">
+                    <div className="text-xs text-gray-400">Creator Stake</div>
+                    <div className="text-lg font-bold text-white">{(pool.volume * 0.33).toFixed(0)} {pool.currency}</div>
+                    <div className="text-xs text-gray-400">Risked by creator</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xs text-gray-400">Max Betting Pool</div>
+                    <div className="text-lg font-bold text-cyan-400">{(pool.volume * 0.67).toFixed(0)} {pool.currency}</div>
+                    <div className="text-xs text-gray-400">Available for bets</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xs text-gray-400">Total Pool Size</div>
+                    <div className="text-lg font-bold text-yellow-400">{pool.volume.toLocaleString()} {pool.currency}</div>
+                    <div className="text-xs text-gray-400">When fully filled</div>
+                  </div>
+                </div>
+              </div>
+              
               <h1 className="text-3xl font-bold text-white mb-3">{pool.title}</h1>
               <p className="text-gray-300 leading-relaxed">{pool.description}</p>
             </div>
@@ -567,7 +598,7 @@ export default function BetPage() {
                 {/* Bet Side Selection */}
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Your Prediction
+                    Your Position
                   </label>
                   <div className="grid grid-cols-2 gap-3">
                     <button
@@ -578,8 +609,9 @@ export default function BetPage() {
                           : 'border-gray-600/50 hover:border-green-500/50 text-gray-300'
                       }`}
                     >
-                      <div className="text-lg font-bold">YES</div>
-                      <div className="text-sm">Agree with creator</div>
+                      <div className="text-lg font-bold">YES - CHALLENGE</div>
+                      <div className="text-sm">It WILL happen</div>
+                      <div className="text-xs text-gray-400 mt-1">Bet against creator</div>
                     </button>
                     <button
                       onClick={() => setBetSide('no')}
@@ -589,9 +621,25 @@ export default function BetPage() {
                           : 'border-gray-600/50 hover:border-red-500/50 text-gray-300'
                       }`}
                     >
-                      <div className="text-lg font-bold">NO</div>
-                      <div className="text-sm">Challenge the creator</div>
+                      <div className="text-lg font-bold">NO - AGREE</div>
+                      <div className="text-sm">It WON&apos;T happen</div>
+                      <div className="text-xs text-gray-400 mt-1">Join as LP with creator</div>
                     </button>
+                  </div>
+                  
+                  {/* Explanation */}
+                  <div className="mt-3 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                    <div className="text-sm text-blue-400">
+                      {betSide === 'yes' && 
+                        `⚔️ You challenge the creator - betting it WILL happen. Win ${pool.odds}x your stake if you&apos;re right.`
+                      }
+                      {betSide === 'no' && 
+                        `🤝 You agree with creator - betting it WON&apos;T happen. Share the betting pool with creator + other LPs if you&apos;re right.`
+                      }
+                      {!betSide && 
+                        "Choose: Challenge creator (Bettor) or Agree with creator (LP)"
+                      }
+                    </div>
                   </div>
                 </div>
 

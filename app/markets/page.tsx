@@ -32,6 +32,7 @@ import {
   FireIcon as FireSolid
 } from "@heroicons/react/24/solid";
 import { Pool } from "@/lib/types";
+import PageTitle from "@/components/PageTitle";
 
 export default function MarketsPage() {
   const [pools, setPools] = useState<Pool[]>([]);
@@ -143,7 +144,8 @@ export default function MarketsPage() {
       comments: [],
       defeated: 34,
       volume24h: 12500,
-      change24h: 8.5
+      change24h: 8.5,
+      predictedOutcome: "Bitcoin will not reach $100,000 by March 2025"
     },
     {
       id: "2",
@@ -183,7 +185,8 @@ export default function MarketsPage() {
       comments: [],
       defeated: 18,
       volume24h: 8900,
-      change24h: -2.1
+      change24h: -2.1,
+      predictedOutcome: "Manchester City will not win the Premier League 2024/25"
     },
     {
       id: "3",
@@ -224,7 +227,8 @@ export default function MarketsPage() {
       comments: [],
       defeated: 22,
       volume24h: 5600,
-      change24h: 3.2
+      change24h: 3.2,
+      predictedOutcome: "Tesla stock will not hit $300 by end of 2024"
     }
   ];
 
@@ -431,6 +435,57 @@ export default function MarketsPage() {
               </div>
             </div>
             
+            {/* Creator Prediction Section - The Core Mechanic */}
+            <div className="mb-4 p-3 bg-gradient-to-r from-gray-800/40 to-gray-700/40 rounded-lg border border-gray-600/30 flex-shrink-0">
+              <div className="mb-3">
+                <div className="text-xs text-orange-400 mb-1">💡 Creator believes this WON&apos;T happen:</div>
+                <div className="text-sm font-medium text-white line-clamp-2" style={{ minHeight: '2.5rem' }}>
+                  {pool.title}
+                </div>
+                <div className="text-xs text-gray-400 mt-1">
+                  But offering odds to attract bettors who think it WILL happen
+                </div>
+              </div>
+              
+              {/* Pool Economics */}
+              <div className="mb-3 p-2 bg-gray-700/40 rounded border border-gray-600/20">
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <div className="text-center">
+                    <div className="text-gray-400">Creator Stake</div>
+                    <div className="font-semibold text-white">{(pool.volume * 0.33).toFixed(0)} {pool.currency}</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-gray-400">Max Bets</div>
+                    <div className="font-semibold text-white">{(pool.volume * 0.67).toFixed(0)} {pool.currency}</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-gray-400">Total Pool</div>
+                    <div className="font-semibold text-cyan-400">{pool.volume.toLocaleString()} {pool.currency}</div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Betting Options */}
+              <div className="flex items-center justify-between">
+                <div className="text-center">
+                  <div className="text-xs text-gray-400">Odds</div>
+                  <div className={`text-lg font-bold ${theme.accent}`}>
+                    {pool.odds.toFixed(1)}x
+                  </div>
+                </div>
+                
+                {/* Yes/No Betting Options */}
+                <div className="flex gap-2">
+                  <div className="px-3 py-1 bg-green-500/20 border border-green-500/30 rounded text-xs text-green-400 font-medium">
+                    YES • Challenge
+                  </div>
+                  <div className="px-3 py-1 bg-red-500/20 border border-red-500/30 rounded text-xs text-red-400 font-medium">
+                    NO • Agree
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Title and category */}
             <div className="mb-4 flex-shrink-0">
               <div className="flex items-center gap-2 mb-2">
@@ -518,58 +573,9 @@ export default function MarketsPage() {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       <div className="container mx-auto px-4 py-6 space-y-6">
         {/* Animated Hero Header */}
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
-          className="text-center space-y-4 relative"
-        >
-          {/* Simple gradient background */}
-          <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 via-blue-500/3 to-purple-500/5 rounded-xl"></div>
-          
-          <div className="relative z-10 py-6">
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 1, delay: 0.2 }}
-              className="mb-3"
-            >
-              <h1 className="text-3xl md:text-4xl font-bold mb-2">
-                <span className="bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">
-                  Prediction Markets
-                </span>
-              </h1>
-              <div className="w-24 h-0.5 bg-gradient-to-r from-cyan-400 to-purple-500 mx-auto rounded-full"></div>
-            </motion.div>
-            
-            <motion.p 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.4 }}
-              className="text-base text-gray-300 max-w-2xl mx-auto leading-relaxed"
-            >
-              Where intellect meets opportunity. Challenge the brightest minds, 
-              earn from precision, and build your legendary reputation.
-            </motion.p>
-            
-            {/* Sub-header */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.6 }}
-              className="mt-8 p-6 bg-gradient-to-r from-gray-800/50 to-gray-700/50 rounded-2xl border border-gray-600/30 backdrop-blur-sm"
-            >
-              <h2 className="text-2xl font-bold text-white mb-2">
-                <span className="bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
-                  Challenge the Creators
-                </span>
-              </h2>
-              <p className="text-gray-400">
-                Join the elite prediction community where accuracy is rewarded and legends are born
-              </p>
-            </motion.div>
-          </div>
-        </motion.div>
+        <PageTitle subtitle="Where intellect meets opportunity. Challenge the brightest minds, earn from precision, and build your legendary reputation.">
+          Prediction Markets
+        </PageTitle>
 
         {/* Search and Controls */}
         <motion.div 

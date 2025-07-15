@@ -115,7 +115,7 @@ export default function HomePage() {
     {
       id: "1",
       title: "Bitcoin will reach $100,000 by March 2025",
-      description: "Prediction market on Bitcoin reaching six-figure milestone",
+      description: "Creator believes Bitcoin won't hit $100k by March 2025, but offering 1.75x odds to attract bulls who think it will",
       category: "crypto",
       creator: {
         address: "0x1234...5678",
@@ -137,7 +137,7 @@ export default function HomePage() {
       odds: 1.75,
       outcome: "Yes",
       participants: 247,
-      volume: 125000,
+      volume: 125000, // Total pool: creator stake (41.7k) + max bets (83.3k)
       currency: "BITR",
       endDate: "2025-03-31",
       trending: true,
@@ -156,96 +156,102 @@ export default function HomePage() {
       defeated: 34,
       volume24h: 12500,
       change24h: 8.5,
-      confidence: 73
+      confidence: 73,
+      predictedOutcome: "Bitcoin will not reach $100,000 by March 2025"
     },
     {
-      id: "2",
-      title: "Manchester City wins Premier League 2024/25",
-      description: "Premier League championship prediction market",
+      id: "2", 
+      title: "Manchester City will win Premier League 2024/25",
+      description: "Creator doubts Man City can win the league this season, offering 1.6x odds for believers",
       category: "sports",
       creator: {
         address: "0x5678...9012",
-        username: "FootballOracle",
-        reputation: 4.5,
-        totalPools: 15,
-        successRate: 73.2,
+        username: "FootballPro",
+        reputation: 4.2,
+        totalPools: 18,
+        successRate: 82.1,
         challengeScore: 76,
-        totalVolume: 280000,
-        badges: ["sports_expert", "predictor"],
-        createdAt: "2024-02-01T14:20:00Z"
+        totalVolume: 320000,
+        badges: ["sports_expert", "verified"],
+        createdAt: "2024-02-10T14:20:00Z",
+        bio: "Professional football analyst and former player."
       },
       challengeScore: 76,
-      qualityScore: 82,
+      qualityScore: 88,
       difficultyTier: "hard",
-      progress: 420,
+      progress: 430,
       total: 800,
-      odds: 2.1,
-      outcome: "Yes",
-      participants: 189,
-      volume: 89000,
+      odds: 1.6,
+      outcome: "No",
+      participants: 156,
+      volume: 89000, // Total pool: creator stake (35.6k) + max bets (53.4k) 
       currency: "STT",
       endDate: "2025-05-25",
       trending: false,
-      boosted: false,
+      boosted: true,
+      boostTier: 2,
       poolType: "single",
       image: "⚽",
-      cardTheme: "magenta",
+      cardTheme: "green",
       socialStats: {
-        comments: 34,
-        likes: 67,
-        views: 890,
-        shares: 12
+        comments: 67,
+        likes: 134,
+        views: 1890,
+        shares: 18
       },
       comments: [],
       defeated: 18,
       volume24h: 8900,
       change24h: -2.1,
-      confidence: 65
+      confidence: 65,
+      predictedOutcome: "Manchester City will not win Premier League 2024/25"
     },
     {
       id: "3",
-      title: "Tesla stock will hit $300 by end of 2024",
-      description: "Tesla's stock price prediction for year-end 2024",
-      category: "finance",
+      title: "Tesla stock will hit $300 by end of 2024", 
+      description: "Creator thinks Tesla is overvalued and won't reach $300, but offering 2.1x odds for the bulls",
+      category: "stocks",
       creator: {
         address: "0x9012...3456",
-        username: "StockWizard",
-        reputation: 4.2,
-        totalPools: 31,
-        successRate: 69.8,
-        challengeScore: 82,
-        totalVolume: 320000,
-        badges: ["finance_expert", "analyst"],
-        createdAt: "2024-01-20T09:15:00Z"
+        username: "StockBear",
+        reputation: 3.9,
+        totalPools: 12,
+        successRate: 75.8,
+        challengeScore: 68,
+        totalVolume: 180000,
+        badges: ["analyst", "bear"],
+        createdAt: "2024-03-05T09:15:00Z",
+        bio: "Traditional markets analyst with Tesla expertise."
       },
-      challengeScore: 82,
-      qualityScore: 88,
+      challengeScore: 68,
+      qualityScore: 82,
       difficultyTier: "medium",
       progress: 320,
       total: 600,
-      odds: 1.9,
+      odds: 2.1,
       outcome: "Yes",
-      participants: 156,
-      volume: 67000,
+      participants: 89,
+      volume: 67000, // Total pool: creator stake (20.6k) + max bets (46.4k)
       currency: "STT",
       endDate: "2024-12-31",
       trending: true,
-      boosted: true,
-      boostTier: 2,
+      boosted: false,
+      boostTier: 0,
       poolType: "single",
       image: "📈",
-      cardTheme: "violet",
+      cardTheme: "purple",
       socialStats: {
         comments: 45,
-        likes: 78,
-        views: 1240,
-        shares: 15
+        likes: 98,
+        views: 1456,
+        shares: 12
       },
       comments: [],
       defeated: 22,
       volume24h: 5600,
       change24h: 3.2,
-      confidence: 65
+      confidence: 65,
+      predictedOutcome: "Tesla stock will not hit $300 by end of 2024"
     }
   ];
 
@@ -353,6 +359,22 @@ export default function HomePage() {
         hoverGlow: "hover:shadow-[0_0_40px_rgba(59,130,246,0.2)]",
         accent: "text-blue-400",
         progressBg: "bg-gradient-to-r from-blue-500 to-indigo-500",
+      },
+      green: {
+        background: "bg-gradient-to-br from-green-500/10 via-teal-500/5 to-transparent",
+        border: "border-green-500/20",
+        glow: "shadow-[0_0_30px_rgba(74,222,128,0.1)]",
+        hoverGlow: "hover:shadow-[0_0_40px_rgba(74,222,128,0.2)]",
+        accent: "text-green-400",
+        progressBg: "bg-gradient-to-r from-green-500 to-teal-500",
+      },
+      purple: {
+        background: "bg-gradient-to-br from-purple-500/10 via-indigo-500/5 to-transparent",
+        border: "border-purple-500/20",
+        glow: "shadow-[0_0_30px_rgba(168,85,247,0.1)]",
+        hoverGlow: "hover:shadow-[0_0_40px_rgba(168,85,247,0.2)]",
+        accent: "text-purple-400",
+        progressBg: "bg-gradient-to-r from-purple-500 to-indigo-500",
       }
     };
     return themes[theme as keyof typeof themes] || themes.cyan;
@@ -456,6 +478,57 @@ export default function HomePage() {
             </div>
           </div>
           
+          {/* Creator Prediction Section - The Core Mechanic */}
+          <div className="mb-4 p-3 bg-gradient-to-r from-gray-800/40 to-gray-700/40 rounded-lg border border-gray-600/30 flex-shrink-0">
+            <div className="mb-3">
+              <div className="text-xs text-orange-400 mb-1">💡 Creator believes this WON&apos;T happen:</div>
+              <div className="text-sm font-medium text-white line-clamp-2" style={{ minHeight: '2.5rem' }}>
+                {pool.title}
+              </div>
+              <div className="text-xs text-gray-400 mt-1">
+                But offering odds to attract bettors who think it WILL happen
+              </div>
+            </div>
+            
+            {/* Pool Economics */}
+            <div className="mb-3 p-2 bg-gray-700/40 rounded border border-gray-600/20">
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <div className="text-center">
+                  <div className="text-gray-400">Creator Stake</div>
+                  <div className="font-semibold text-white">{(pool.volume * 0.33).toFixed(0)} {pool.currency}</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-gray-400">Max Bets</div>
+                  <div className="font-semibold text-white">{(pool.volume * 0.67).toFixed(0)} {pool.currency}</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-gray-400">Total Pool</div>
+                  <div className="font-semibold text-cyan-400">{pool.volume.toLocaleString()} {pool.currency}</div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Betting Options */}
+            <div className="flex items-center justify-between">
+              <div className="text-center">
+                <div className="text-xs text-gray-400">Odds</div>
+                <div className={`text-lg font-bold ${theme.accent}`}>
+                  {pool.odds.toFixed(1)}x
+                </div>
+              </div>
+              
+              {/* Yes/No Betting Options */}
+              <div className="flex gap-2">
+                <div className="px-3 py-1 bg-green-500/20 border border-green-500/30 rounded text-xs text-green-400 font-medium">
+                  YES • Challenge
+                </div>
+                <div className="px-3 py-1 bg-red-500/20 border border-red-500/30 rounded text-xs text-red-400 font-medium">
+                  NO • Agree
+                </div>
+              </div>
+            </div>
+          </div>
+          
           {/* Title */}
           <h3 className="text-lg font-bold text-white line-clamp-2 mb-3 group-hover:text-cyan-400 transition-colors flex-shrink-0" style={{ minHeight: '3.5rem' }}>
             {pool.title}
@@ -522,14 +595,10 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 overflow-hidden">
-      {/* Background Effects */}
-      <div className="fixed inset-0 bg-gradient-to-br from-cyan-500/5 via-blue-500/3 to-purple-500/5 pointer-events-none" />
-      <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(34,199,255,0.1),transparent_70%)] pointer-events-none" />
-      
-      <div className="relative z-10">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+      <div className="container mx-auto px-4 py-6 space-y-6">
         {/* Hero Section */}
-        <section className="relative min-h-screen flex items-center justify-center px-4 py-12">
+        <section className="relative flex items-center justify-center px-4 py-8">
           <div className="container mx-auto text-center relative z-10">
             <motion.div
               initial={{ opacity: 0, y: 30 }}
@@ -542,14 +611,10 @@ export default function HomePage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 1, delay: 0.2 }}
-                className="text-4xl md:text-5xl font-bold mb-4 leading-tight"
+                className="text-3xl md:text-4xl font-bold mb-3 leading-tight"
               >
                 <span className="bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">
-                  Challenge
-                </span>
-                <br />
-                <span className="bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 bg-clip-text text-transparent">
-                  The Future
+                  Challenge The Future
                 </span>
               </motion.h1>
               
@@ -557,15 +622,20 @@ export default function HomePage() {
               <motion.p 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 1, delay: 0.4 }}
-                className="text-base md:text-lg text-gray-300 mb-6 max-w-3xl mx-auto leading-relaxed"
+                transition={{ duration: 0.8, delay: 0.4 }}
+                className="text-lg text-gray-300 mb-4 max-w-2xl mx-auto"
               >
-                Where brilliant minds converge to predict tomorrow. 
-                <br className="hidden md:block" />
-                <span className="bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent font-semibold">
-                  Challenge the Creators
-                </span>
-                , earn legendary rewards, and shape the future of prediction markets.
+                Where brilliant minds converge to predict tomorrow.
+              </motion.p>
+              
+              {/* Description */}
+              <motion.p 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 0.6 }}
+                className="text-base text-gray-400 mb-6 max-w-3xl mx-auto"
+              >
+                Challenge the Creators, earn legendary rewards, and shape the future of prediction markets.
               </motion.p>
               
               {/* CTA Buttons */}
