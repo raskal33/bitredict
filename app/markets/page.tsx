@@ -584,8 +584,8 @@ export default function MarketsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-      {/* Remove container background, keep only main background */}
-      <div className="container mx-auto px-4 py-6 space-y-6">
+      {/* Remove container background, use only main background */}
+      <div className="container mx-auto px-4 py-8 space-y-12">
         {/* Animated Hero Header */}
         <AnimatedTitle 
           size="md"
@@ -599,7 +599,7 @@ export default function MarketsPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.4 }}
-          className="text-base text-gray-300 max-w-2xl mx-auto text-center leading-relaxed mb-6"
+          className="text-base text-gray-300 max-w-2xl mx-auto text-center leading-relaxed mb-12"
         >
           Where intellect meets opportunity. Challenge the brightest minds, earn from precision, and build your legendary reputation.
         </motion.p>
@@ -609,7 +609,7 @@ export default function MarketsPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.8 }}
-          className="space-y-6"
+          className="space-y-8"
         >
           {/* Search Bar */}
           <div className="relative max-w-2xl mx-auto">

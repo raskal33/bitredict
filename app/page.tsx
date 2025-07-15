@@ -21,7 +21,6 @@ import {
   SparklesIcon as SparklesSolid
 } from "@heroicons/react/24/solid";
 import { Pool, PlatformStats } from "@/lib/types";
-import PageTitle from "@/components/PageTitle";
 
 export default function HomePage() {
   const [pools, setPools] = useState<Pool[]>([]);
@@ -601,11 +600,28 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-      <div className="container mx-auto px-4 py-6 space-y-8">
-        {/* Header */}
-        <PageTitle subtitle="Where brilliant minds converge to predict tomorrow. Challenge the Creators, earn legendary rewards, and shape the future of prediction markets.">
-          Challenge The Future
-        </PageTitle>
+      {/* Remove container background, use only main background */}
+      <div className="container mx-auto px-4 py-8 space-y-12">
+        {/* Hero Section */}
+        <section className="py-12 px-4 relative">
+          <div className="text-center max-w-4xl mx-auto">
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
+              className="mb-8"
+            >
+              <h1 className="text-4xl md:text-6xl font-bold text-white mb-6">
+                <span className="bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">
+                  Challenge The Future
+                </span>
+              </h1>
+              <p className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed">
+                Where brilliant minds converge to predict tomorrow. Challenge the Creators, earn legendary rewards, and shape the future of prediction markets.
+              </p>
+            </motion.div>
+          </div>
+        </section>
 
         {/* Platform Stats */}
         <section className="py-12 px-4 relative">
@@ -618,22 +634,22 @@ export default function HomePage() {
               className="text-center mb-12"
             >
               <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-                <span className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-blue-400 to-cyan-500 bg-clip-text text-transparent">
                   Platform Statistics
                 </span>
               </h2>
-              <p className="text-lg text-gray-400 max-w-2xl mx-auto">
-                Join thousands of predictors in the most advanced prediction ecosystem
+              <p className="text-lg text-gray-300 max-w-3xl mx-auto">
+                Join thousands of predictors in the most advanced prediction ecosystem.
               </p>
             </motion.div>
             
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
-              <StatCard icon={CurrencyDollarIcon} label="Total Volume" value={stats.totalVolume} suffix="" delay={0} />
-              <StatCard icon={TrophyIcon} label="Active Pools" value={stats.activePools} suffix="" delay={0.1} />
-              <StatCard icon={UsersIcon} label="Total Bets" value={stats.totalBets} suffix="" delay={0.2} />
-              <StatCard icon={StarIcon} label="Success Rate" value={stats.successRate} suffix="%" delay={0.3} />
-              <StatCard icon={AcademicCapIcon} label="Creators" value={stats.totalCreators} suffix="" delay={0.4} />
-              <StatCard icon={ChartBarIcon} label="Avg Score" value={stats.avgChallengeScore} suffix="" delay={0.5} />
+              <StatCard icon={CurrencyDollarIcon} label="Total Volume" value={stats.totalVolume} suffix=" tokens" delay={0.1} />
+              <StatCard icon={TrophyIcon} label="Active Pools" value={stats.activePools} delay={0.2} />
+              <StatCard icon={UsersIcon} label="Total Bets" value={stats.totalBets} delay={0.3} />
+              <StatCard icon={StarIcon} label="Success Rate" value={stats.successRate} suffix="%" delay={0.4} />
+              <StatCard icon={AcademicCapIcon} label="Creators" value={stats.totalCreators} delay={0.5} />
+              <StatCard icon={ChartBarIcon} label="Avg Score" value={stats.avgChallengeScore} delay={0.6} />
             </div>
           </div>
         </section>
