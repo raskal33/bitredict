@@ -590,14 +590,14 @@ export default function HomePage() {
           transition={{ duration: 0.6, delay: index * 0.1 }}
           whileHover={{ y: -8, scale: 1.02 }}
           className={`
-            relative overflow-hidden group cursor-pointer h-[420px] flex flex-col
+            relative overflow-hidden group cursor-pointer h-[380px] flex flex-col
             ${theme.background} ${theme.border} ${theme.glow} ${theme.hoverGlow}
             ${pool.boosted ? getBoostGlow(pool.boostTier) : ''}
-            transition-all duration-500 p-6 rounded-2xl border backdrop-blur-sm
+            transition-all duration-500 p-4 rounded-2xl border backdrop-blur-sm
           `}
         >
           {/* Badge Container */}
-          <div className="absolute top-3 left-3 right-3 z-10 flex justify-between items-start pointer-events-none">
+          <div className="absolute top-2 left-2 right-2 z-10 flex justify-between items-start pointer-events-none">
             {/* Trending Badge */}
             {pool.trending && (
               <div className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
@@ -621,8 +621,8 @@ export default function HomePage() {
           </div>
 
           {/* Header */}
-          <div className="flex items-center gap-3 mb-4 mt-6">
-            <div className="text-3xl">{pool.image}</div>
+          <div className="flex items-center gap-2 mb-3 mt-4">
+            <div className="text-2xl">{pool.image}</div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
                 <span className={`text-xs px-2 py-1 rounded-full ${theme.accent} bg-current/10 truncate`}>
@@ -645,17 +645,17 @@ export default function HomePage() {
             </div>
           </div>
           
-          {/* Title - Only show once */}
-          <h3 className="text-lg font-bold text-white line-clamp-3 mb-4 group-hover:text-cyan-400 transition-colors flex-shrink-0" style={{ minHeight: '4.5rem' }}>
+          {/* Title */}
+          <h3 className="text-base font-bold text-white line-clamp-2 mb-3 group-hover:text-cyan-400 transition-colors flex-shrink-0" style={{ minHeight: '2.5rem' }}>
             {pool.title}
           </h3>
           
           {/* Creator Prediction Section */}
-          <div className="mb-4 p-3 bg-gradient-to-r from-gray-800/40 to-gray-700/40 rounded-lg border border-gray-600/30 flex-shrink-0">
-            <div className="mb-3">
+          <div className="mb-3 p-2 bg-gradient-to-r from-gray-800/40 to-gray-700/40 rounded-lg border border-gray-600/30 flex-shrink-0">
+            <div className="mb-2">
               <div className="text-xs text-orange-400 mb-1">💡 Creator believes this WON&apos;T happen</div>
               <div className="text-xs text-gray-400">
-                Challenging users who think it WILL happen. Dare to challenge?
+                Challenging users who think it WILL happen
               </div>
             </div>
             
@@ -668,22 +668,18 @@ export default function HomePage() {
                 </div>
               </div>
               
-              {/* Creator's Selected Prediction */}
+              {/* Challenging Option */}
               <div className="text-center">
-                <div className="text-xs text-gray-400">Creator Predicts</div>
-                <div className={`px-3 py-1 rounded text-xs font-medium ${
-                  pool.creatorPrediction === 'yes' 
-                    ? 'bg-green-500/20 border border-green-500/30 text-green-400'
-                    : 'bg-red-500/20 border border-red-500/30 text-red-400'
-                }`}>
-                  {pool.creatorPrediction === 'yes' ? 'YES' : 'NO'}
+                <div className="text-xs text-gray-400">Challenge</div>
+                <div className="px-3 py-1 rounded text-xs font-medium bg-green-500/20 border border-green-500/30 text-green-400">
+                  YES
                 </div>
               </div>
             </div>
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-3 gap-4 mb-4 text-center flex-shrink-0">
+          <div className="grid grid-cols-3 gap-3 mb-3 text-center flex-shrink-0">
             <div>
               <div className="text-xs text-gray-400">Volume</div>
               <div className="text-sm font-bold text-white">${(pool.volume / 1000).toFixed(0)}k</div>
@@ -699,8 +695,8 @@ export default function HomePage() {
           </div>
 
           {/* Social Stats - pushed to bottom */}
-          <div className="flex items-center justify-between pt-4 border-t border-gray-700/20 mt-auto">
-            <div className="flex items-center gap-4 text-xs text-gray-400">
+          <div className="flex items-center justify-between pt-3 border-t border-gray-700/20 mt-auto">
+            <div className="flex items-center gap-3 text-xs text-gray-400">
               <div className="flex items-center gap-1">
                 <BoltIcon className="w-3 h-3" />
                 {pool.socialStats.likes}
@@ -741,7 +737,7 @@ export default function HomePage() {
           className="mb-8"
         >
           <h1 className="text-4xl md:text-6xl font-bold text-white mb-6">
-            <span className="bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-somnia-cyan via-somnia-blue to-somnia-violet bg-clip-text text-transparent">
               Challenge The Future
             </span>
           </h1>
@@ -755,7 +751,7 @@ export default function HomePage() {
               <motion.button
                 whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
-                className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all duration-300 flex items-center gap-3"
+                className="bg-gradient-to-r from-somnia-cyan to-somnia-blue text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg shadow-somnia-cyan/25 hover:shadow-somnia-cyan/40 transition-all duration-300 flex items-center gap-3"
               >
                 <RocketLaunchIcon className="w-6 h-6" />
                 Start Predicting
@@ -765,7 +761,7 @@ export default function HomePage() {
             <motion.button
               whileHover={{ scale: 1.05, y: -2 }}
               whileTap={{ scale: 0.95 }}
-              className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all duration-300 flex items-center gap-3"
+              className="bg-gradient-to-r from-somnia-magenta to-somnia-violet text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg shadow-somnia-magenta/25 hover:shadow-somnia-magenta/40 transition-all duration-300 flex items-center gap-3"
             >
               <PlayIcon className="w-6 h-6" />
               Watch Demo
@@ -775,7 +771,7 @@ export default function HomePage() {
               <motion.button
                 whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
-                className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg shadow-green-500/25 hover:shadow-green-500/40 transition-all duration-300 flex items-center gap-3"
+                className="bg-gradient-to-r from-somnia-violet to-somnia-indigo text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg shadow-somnia-violet/25 hover:shadow-somnia-violet/40 transition-all duration-300 flex items-center gap-3"
               >
                 <TrophySolid className="w-6 h-6" />
                 Create Market
