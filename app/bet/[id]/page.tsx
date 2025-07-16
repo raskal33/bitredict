@@ -378,7 +378,7 @@ export default function BetPage() {
                   <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-cyan-500/20 to-blue-500/20 rounded-full flex items-center justify-center border-2 border-cyan-500/30">
                     <UserIcon className="w-6 h-6 sm:w-8 sm:h-8 text-cyan-400" />
                   </div>
-                  {pool.creator.badges.includes('legendary') && (
+                  {pool.creator?.badges?.includes('legendary') && (
                     <div className="absolute -top-1 -right-1 w-5 h-5 sm:w-6 sm:h-6 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center">
                       <StarSolid className="w-2 h-2 sm:w-3 sm:h-3 text-black" />
                     </div>
@@ -388,7 +388,7 @@ export default function BetPage() {
                   <div className="flex flex-wrap items-center gap-2 mb-1">
                     <h3 className="text-lg sm:text-xl font-bold text-white">{pool.creator.username}</h3>
                     <div className="flex gap-1">
-                      {pool.creator.badges.slice(0, 2).map((badge, index) => (
+                      {pool.creator?.badges?.slice(0, 2).map((badge, index) => (
                         <div key={index} className={`px-1 sm:px-2 py-1 rounded-full text-xs font-bold text-black ${getBadgeColor(badge)}`}>
                           <span className="hidden sm:inline">{badge.replace('_', ' ').toUpperCase()}</span>
                           <span className="sm:hidden">{badge.charAt(0).toUpperCase()}</span>
