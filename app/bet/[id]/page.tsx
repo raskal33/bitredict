@@ -24,7 +24,6 @@ import {
   HandThumbDownIcon as ThumbDownSolid
 } from "@heroicons/react/24/solid";
 import { Pool, Comment } from "@/lib/types";
-import { getDemoPoolData } from "@/lib/demoData";
 
 export default function BetPage() {
   const { address } = useAccount();
@@ -47,31 +46,312 @@ export default function BetPage() {
   const [betType, setBetType] = useState<'yes' | 'no' | null>(null);
 
   const fetchPoolData = useCallback(async () => {
+    const getDemoPoolData = (poolId: string): Pool => {
+      // Generate the exact same pool data as the home page for consistency
+      const poolVariants = [
+        {
+          title: "Bitcoin will reach $100,000 by March 2025",
+          description: "Prediction market on Bitcoin reaching six-figure milestone before March 31, 2025. This challenge tests your ability to predict the macro crypto market trends and timing.",
+          category: "crypto",
+          creator: {
+            address: "0x1234...5678",
+            username: "CryptoSage",
+            avatar: "/logo.png",
+            reputation: 4.8,
+            totalPools: 23,
+            successRate: 78.3,
+            challengeScore: 89,
+            totalVolume: 450000,
+            badges: ["legendary", "crypto_expert", "whale"],
+            createdAt: "2024-01-15T10:30:00Z",
+            bio: "Macro crypto analyst with 8 years of experience. Specialized in Bitcoin cycle analysis and institutional adoption trends."
+          },
+          challengeScore: 89,
+          qualityScore: 94,
+          difficultyTier: "very_hard",
+          predictedOutcome: "Bitcoin will reach $100,000 by March 2025",
+          creatorPrediction: "no", // Creator thinks it WON'T happen
+          odds: 1.75,
+          participants: 247,
+          volume: 125000,
+          image: "🪙",
+          cardTheme: "cyan",
+          tags: ["macro", "btc", "institutional", "halving"],
+          trending: true,
+          boosted: true,
+          boostTier: 3,
+          socialStats: {
+            comments: 89,
+            likes: 156,
+            views: 2340,
+            shares: 23
+          },
+          defeated: 34
+        },
+        {
+          title: "Ethereum will complete The Merge by September 2024",
+          description: "Prediction on Ethereum's transition to Proof of Stake consensus mechanism. This historic event will test your understanding of blockchain technology evolution.",
+          category: "crypto",
+          creator: {
+            address: "0x2345...6789",
+            username: "EthereumOracle",
+            avatar: "/logo.png",
+            reputation: 4.6,
+            totalPools: 18,
+            successRate: 82.1,
+            challengeScore: 85,
+            totalVolume: 320000,
+            badges: ["ethereum_expert", "developer", "validator"],
+            createdAt: "2024-02-01T14:20:00Z",
+            bio: "Ethereum developer and validator with deep knowledge of PoS consensus mechanisms and network upgrades."
+          },
+          challengeScore: 85,
+          qualityScore: 91,
+          difficultyTier: "hard",
+          predictedOutcome: "Ethereum will complete The Merge by September 2024",
+          creatorPrediction: "yes", // Creator thinks it WILL happen
+          odds: 2.1,
+          participants: 189,
+          volume: 89000,
+          image: "🔷",
+          cardTheme: "purple",
+          tags: ["eth", "pos", "merge", "upgrade"],
+          trending: false,
+          boosted: true,
+          boostTier: 2,
+          socialStats: {
+            comments: 67,
+            likes: 134,
+            views: 1890,
+            shares: 18
+          },
+          defeated: 28
+        },
+        {
+          title: "Tesla stock will hit $300 by end of 2024",
+          description: "Prediction market on Tesla's stock performance. This challenge evaluates your ability to analyze electric vehicle market dynamics and company fundamentals.",
+          category: "stocks",
+          creator: {
+            address: "0x3456...7890",
+            username: "StockMaster",
+            avatar: "/logo.png",
+            reputation: 4.7,
+            totalPools: 31,
+            successRate: 75.9,
+            challengeScore: 82,
+            totalVolume: 280000,
+            badges: ["stock_expert", "tesla_bull", "ev_analyst"],
+            createdAt: "2024-01-20T09:15:00Z",
+            bio: "Equity analyst specializing in technology and electric vehicle sectors with 12 years of market experience."
+          },
+          challengeScore: 82,
+          qualityScore: 88,
+          difficultyTier: "medium",
+          predictedOutcome: "Tesla stock will hit $300 by end of 2024",
+          creatorPrediction: "no", // Creator thinks it WON'T happen
+          odds: 1.45,
+          participants: 156,
+          volume: 67000,
+          image: "🚗",
+          cardTheme: "green",
+          tags: ["tesla", "stocks", "ev", "technology"],
+          trending: true,
+          boosted: false,
+          boostTier: 1,
+          socialStats: {
+            comments: 45,
+            likes: 98,
+            views: 1450,
+            shares: 12
+          },
+          defeated: 22
+        },
+        {
+          title: "US Federal Reserve will cut rates 3 times in 2024",
+          description: "Prediction on Federal Reserve monetary policy decisions. This challenge tests your understanding of macroeconomic indicators and central bank behavior.",
+          category: "economics",
+          creator: {
+            address: "0x4567...8901",
+            username: "MacroGuru",
+            avatar: "/logo.png",
+            reputation: 4.9,
+            totalPools: 27,
+            successRate: 88.2,
+            challengeScore: 93,
+            totalVolume: 520000,
+            badges: ["macro_expert", "fed_watcher", "economist"],
+            createdAt: "2024-01-10T16:45:00Z",
+            bio: "Macroeconomic analyst with expertise in Federal Reserve policy and interest rate forecasting."
+          },
+          challengeScore: 93,
+          qualityScore: 96,
+          difficultyTier: "very_hard",
+          predictedOutcome: "US Federal Reserve will cut rates 3 times in 2024",
+          creatorPrediction: "yes", // Creator thinks it WILL happen
+          odds: 1.25,
+          participants: 312,
+          volume: 189000,
+          image: "🏦",
+          cardTheme: "blue",
+          tags: ["fed", "rates", "macro", "policy"],
+          trending: true,
+          boosted: true,
+          boostTier: 3,
+          socialStats: {
+            comments: 123,
+            likes: 234,
+            views: 3450,
+            shares: 34
+          },
+          defeated: 45
+        },
+        {
+          title: "OpenAI will release GPT-5 by Q3 2024",
+          description: "Prediction on OpenAI's next major language model release. This challenge evaluates your understanding of AI development timelines and industry trends.",
+          category: "technology",
+          creator: {
+            address: "0x5678...9012",
+            username: "AIProphet",
+            avatar: "/logo.png",
+            reputation: 4.5,
+            totalPools: 15,
+            successRate: 71.4,
+            challengeScore: 78,
+            totalVolume: 180000,
+            badges: ["ai_expert", "openai_watcher", "researcher"],
+            createdAt: "2024-02-15T11:30:00Z",
+            bio: "AI researcher and industry analyst with deep knowledge of language model development and OpenAI's roadmap."
+          },
+          challengeScore: 78,
+          qualityScore: 85,
+          difficultyTier: "medium",
+          predictedOutcome: "OpenAI will release GPT-5 by Q3 2024",
+          creatorPrediction: "no", // Creator thinks it WON'T happen
+          odds: 1.8,
+          participants: 98,
+          volume: 45000,
+          image: "🤖",
+          cardTheme: "orange",
+          tags: ["ai", "openai", "gpt", "technology"],
+          trending: false,
+          boosted: true,
+          boostTier: 2,
+          socialStats: {
+            comments: 34,
+            likes: 78,
+            views: 1200,
+            shares: 8
+          },
+          defeated: 15
+        },
+        {
+          title: "SpaceX will successfully land on Mars by 2026",
+          description: "Prediction on SpaceX's ambitious Mars mission timeline. This challenge tests your knowledge of space exploration and engineering feasibility.",
+          category: "space",
+          creator: {
+            address: "0x6789...0123",
+            username: "SpaceExplorer",
+            avatar: "/logo.png",
+            reputation: 4.3,
+            totalPools: 12,
+            successRate: 65.8,
+            challengeScore: 72,
+            totalVolume: 95000,
+            badges: ["space_expert", "spacex_watcher", "engineer"],
+            createdAt: "2024-01-25T13:20:00Z",
+            bio: "Aerospace engineer and space industry analyst with expertise in rocket technology and Mars mission planning."
+          },
+          challengeScore: 72,
+          qualityScore: 79,
+          difficultyTier: "hard",
+          predictedOutcome: "SpaceX will successfully land on Mars by 2026",
+          creatorPrediction: "yes", // Creator thinks it WILL happen
+          odds: 2.5,
+          participants: 67,
+          volume: 32000,
+          image: "🚀",
+          cardTheme: "red",
+          tags: ["spacex", "mars", "space", "rocket"],
+          trending: false,
+          boosted: false,
+          boostTier: 1,
+          socialStats: {
+            comments: 23,
+            likes: 45,
+            views: 890,
+            shares: 5
+          },
+          defeated: 12
+        }
+      ];
+
+      // Use pool ID to select the exact same variant as the home page
+      const hash = poolId.split('').reduce((a, b) => {
+        a = ((a << 5) - a) + b.charCodeAt(0);
+        return a & a;
+      }, 0);
+      const variantIndex = Math.abs(hash) % poolVariants.length;
+      const variant = poolVariants[variantIndex];
+
+      return {
+        id: poolId,
+        title: variant.title,
+        description: variant.description,
+        category: variant.category,
+        creator: variant.creator,
+        challengeScore: variant.challengeScore,
+        qualityScore: variant.qualityScore,
+        difficultyTier: variant.difficultyTier as "legendary" | "very_hard" | "easy" | "medium" | "hard",
+        predictedOutcome: variant.predictedOutcome,
+        creatorPrediction: variant.creatorPrediction as 'yes' | 'no',
+        eventDetails: {
+          startTime: new Date("2024-12-01T00:00:00Z"),
+          endTime: new Date("2025-03-31T23:59:59Z"),
+          venue: "Global Markets",
+          league: "Prediction Markets",
+          region: "Global"
+        },
+        odds: variant.odds,
+        participants: variant.participants,
+        volume: variant.volume,
+        currency: "BITR",
+        endDate: "2025-03-31",
+        trending: variant.trending,
+        boosted: variant.boosted,
+        boostTier: variant.boostTier,
+        poolType: "single",
+        image: variant.image,
+        cardTheme: variant.cardTheme,
+        socialStats: variant.socialStats,
+        comments: [],
+        defeated: variant.defeated,
+        conditions: [
+          "Event must occur within the specified timeframe",
+          "Outcome must be verifiable through official sources",
+          "Settlement occurs within 24 hours of the event end date",
+          "All disputes will be resolved by community consensus"
+        ],
+        tags: variant.tags
+      };
+    };
+
     try {
       setLoading(true);
-      
-      // Production API call - this will be the primary data source in production
       const response = await fetch(`/api/pools/${poolId}?include_social=true`);
+      const data = await response.json();
       
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setPool(data.data);
-          setComments(data.data.comments || []);
-          return;
-        }
+      if (data.success) {
+        setPool(data.data);
+        setComments(data.data.comments || []);
+      } else {
+        // Fallback to exact same demo data as home page
+        const demoData = getDemoPoolData(poolId);
+        setPool(demoData);
       }
-      
-      // Fallback to demo data only during development
-      // This ensures exact same data as shown in pool cards
-      const demoData = getDemoPoolData(poolId);
-      setPool(demoData[0]);
-      
     } catch (error) {
       console.error('Error fetching pool data:', error);
-      // Fallback to demo data
       const demoData = getDemoPoolData(poolId);
-      setPool(demoData[0]);
+      setPool(demoData);
     } finally {
       setLoading(false);
     }
@@ -82,12 +362,11 @@ export default function BetPage() {
     
     try {
       const response = await fetch(`/api/pools/${poolId}/user-bet?address=${address}`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.data.hasBet) {
-          setHasUserBet(true);
-          setUserBetAmount(data.data.betAmount);
-        }
+      const data = await response.json();
+      
+      if (data.success && data.data.hasBet) {
+        setHasUserBet(true);
+        setUserBetAmount(data.data.betAmount);
       }
     } catch (error) {
       console.error('Error checking bet status:', error);
@@ -128,7 +407,9 @@ export default function BetPage() {
     try {
       const response = await fetch(`/api/pools/${poolId}/comments`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({
           content: comment,
           sentiment: commentSentiment,
@@ -137,15 +418,14 @@ export default function BetPage() {
         })
       });
       
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          setComment("");
-          setCommentSentiment('neutral');
-          setCommentConfidence(75);
-          setShowCommentBox(false);
-          fetchPoolData();
-        }
+      const data = await response.json();
+      
+      if (data.success) {
+        setComment("");
+        setCommentSentiment('neutral');
+        setCommentConfidence(75);
+        setShowCommentBox(false);
+        fetchPoolData(); // Refresh comments
       }
     } catch (error: unknown) {
       console.error('Error adding comment:', error);
@@ -160,12 +440,14 @@ export default function BetPage() {
     try {
       const response = await fetch(`/api/pools/${poolId}/comments/${commentId}/like`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ userAddress: address })
       });
       
       if (response.ok) {
-        fetchPoolData();
+        fetchPoolData(); // Refresh comments
       }
     } catch (error: unknown) {
       console.error('Error liking comment:', error);
@@ -176,25 +458,9 @@ export default function BetPage() {
     if(!betType || betAmount <= 0) return;
     
     try {
-      const response = await fetch(`/api/pools/${poolId}/bet`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userAddress: address,
-          betType,
-          amount: betAmount
-        })
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) {
-          // Refresh pool data and user bet status
-          await Promise.all([fetchPoolData(), checkUserBetStatus()]);
-          setBetAmount(0);
-          setBetType(null);
-        }
-      }
+      console.log('Placing bet:', { address, poolId, betType, betAmount });
+      // Add actual bet placement logic here
+      // For now, just log the action
     } catch (error: unknown) {
       console.error('Error placing bet:', error);
     }
@@ -316,6 +582,7 @@ export default function BetPage() {
               </button>
             </div>
             
+            {/* Replies */}
             {comment.replies.length > 0 && (
               <div className="mt-4 space-y-3 pl-4 border-l-2 border-gray-700/30">
                 {comment.replies.map((reply) => renderComment(reply))}
@@ -351,6 +618,7 @@ export default function BetPage() {
         {/* Header Section */}
         <div className="relative">
           <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/30 rounded-2xl p-4 sm:p-8 space-y-4 sm:space-y-6 relative overflow-hidden">
+            {/* Boost indicator - Fixed positioning inside container */}
             {pool.boosted && (
               <div className="absolute top-2 right-2 sm:top-4 sm:right-4 z-10">
                 <div className={`
@@ -378,7 +646,7 @@ export default function BetPage() {
                   <div className="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-cyan-500/20 to-blue-500/20 rounded-full flex items-center justify-center border-2 border-cyan-500/30">
                     <UserIcon className="w-6 h-6 sm:w-8 sm:h-8 text-cyan-400" />
                   </div>
-                  {pool.creator?.badges?.includes('legendary') && (
+                  {pool.creator.badges.includes('legendary') && (
                     <div className="absolute -top-1 -right-1 w-5 h-5 sm:w-6 sm:h-6 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center">
                       <StarSolid className="w-2 h-2 sm:w-3 sm:h-3 text-black" />
                     </div>
@@ -388,7 +656,7 @@ export default function BetPage() {
                   <div className="flex flex-wrap items-center gap-2 mb-1">
                     <h3 className="text-lg sm:text-xl font-bold text-white">{pool.creator.username}</h3>
                     <div className="flex gap-1">
-                      {pool.creator?.badges?.slice(0, 2).map((badge, index) => (
+                      {pool.creator.badges.slice(0, 2).map((badge, index) => (
                         <div key={index} className={`px-1 sm:px-2 py-1 rounded-full text-xs font-bold text-black ${getBadgeColor(badge)}`}>
                           <span className="hidden sm:inline">{badge.replace('_', ' ').toUpperCase()}</span>
                           <span className="sm:hidden">{badge.charAt(0).toUpperCase()}</span>
@@ -439,18 +707,21 @@ export default function BetPage() {
                 </div>
               </div>
               
+              {/* Creator Prediction - Core Mechanic */}
               <div className="mb-4 p-3 sm:p-4 bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/20 rounded-lg">
                 <div className="text-xs sm:text-sm text-red-400 font-medium mb-2">🎯 Creator&apos;s Position:</div>
                 <div className="text-base sm:text-lg font-bold text-white mb-2">
                   Creator believes <span className="text-red-400">&quot;{pool.title}&quot; WON&apos;T happen</span>
                 </div>
                 <div className="text-xs sm:text-sm text-gray-400 mb-3">
-                  Challenge them if you think it WILL happen!
+                  Challenging users who think it WILL happen. Dare to challenge?
                 </div>
                 
+                {/* Pool Economics */}
                 <div className="grid grid-cols-3 gap-2 sm:gap-4 p-2 sm:p-3 bg-gray-800/30 rounded border border-gray-700/30">
                   {(() => {
-                    const creatorStake = Math.round(pool.volume * 0.4);
+                    // Working from creator stake and odds to calculate total pool
+                    const creatorStake = Math.round(pool.volume * 0.4); // Assume 40% is creator stake for demo
                     const maxBettorStake = Math.round(creatorStake / (pool.odds - 1));
                     const totalPool = creatorStake + maxBettorStake;
                     return (
@@ -480,6 +751,7 @@ export default function BetPage() {
               <p className="text-sm sm:text-base text-gray-300 leading-relaxed">{pool.description}</p>
             </div>
 
+            {/* Challenge Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-700/30 rounded-lg border border-gray-600/30">
               <div className="text-center">
                 <div className="text-lg sm:text-2xl font-bold text-white">{pool.defeated}</div>
@@ -499,6 +771,7 @@ export default function BetPage() {
               </div>
             </div>
 
+            {/* Time Remaining */}
             {pool.eventDetails && (
               <div className="text-center p-3 sm:p-4 bg-gradient-to-r from-cyan-500/5 to-blue-500/5 rounded-lg border border-cyan-500/20">
                 <div className="text-xs sm:text-sm text-gray-400 mb-2">Time Remaining</div>
@@ -550,7 +823,9 @@ export default function BetPage() {
         <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/30 rounded-2xl p-4 sm:p-8">
           {activeTab === 'bet' && (
             <div className="space-y-6">
+              {/* Betting Interface */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Left Column - Betting Options */}
                 <div className="space-y-4">
                   <div className="text-center">
                     <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">Choose Your Position</h3>
@@ -559,7 +834,9 @@ export default function BetPage() {
                     </p>
                   </div>
 
+                  {/* Betting Options */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* YES - Challenge Creator */}
                     <div className={`
                       p-4 sm:p-6 rounded-xl border-2 transition-all cursor-pointer
                       ${betType === 'yes' 
@@ -575,7 +852,7 @@ export default function BetPage() {
                           <div className="text-lg sm:text-xl font-bold text-green-400 mb-1">YES</div>
                           <div className="text-xs sm:text-sm text-gray-400">Challenge Creator</div>
                           <div className="text-xs text-green-400/80 mt-1">
-                            You think it WILL happen
+                            You think &quot;{pool.title}&quot; WILL happen
                           </div>
                         </div>
                         <div className="text-sm sm:text-base font-bold text-white">
@@ -584,6 +861,7 @@ export default function BetPage() {
                       </div>
                     </div>
 
+                    {/* NO - Agree with Creator */}
                     <div className={`
                       p-4 sm:p-6 rounded-xl border-2 transition-all cursor-pointer
                       ${betType === 'no' 
@@ -599,7 +877,7 @@ export default function BetPage() {
                           <div className="text-lg sm:text-xl font-bold text-red-400 mb-1">NO</div>
                           <div className="text-xs sm:text-sm text-gray-400">Agree with Creator</div>
                           <div className="text-xs text-red-400/80 mt-1">
-                            You think it WON&apos;T happen
+                            You think &quot;{pool.title}&quot; WON&apos;T happen
                           </div>
                         </div>
                         <div className="text-sm sm:text-base font-bold text-white">
@@ -610,6 +888,7 @@ export default function BetPage() {
                   </div>
                 </div>
 
+                {/* Right Column - Bet Amount & Preview */}
                 <div className="space-y-4">
                   <div className="text-center">
                     <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">Bet Amount</h3>
@@ -618,6 +897,7 @@ export default function BetPage() {
                     </p>
                   </div>
 
+                  {/* Bet Amount Input */}
                   <div className="space-y-4">
                     <div className="relative">
                       <input
@@ -632,6 +912,7 @@ export default function BetPage() {
                       </div>
                     </div>
 
+                    {/* Quick Amount Buttons */}
                     <div className="grid grid-cols-4 gap-2">
                       {[10, 50, 100, 500].map(amount => (
                         <button
@@ -644,6 +925,7 @@ export default function BetPage() {
                       ))}
                     </div>
 
+                    {/* Bet Preview */}
                     {betAmount > 0 && betType && (
                       <div className="p-4 bg-gray-700/30 rounded-lg border border-gray-600/30">
                         <div className="text-sm sm:text-base font-medium text-white mb-3">Bet Preview</div>
@@ -677,6 +959,7 @@ export default function BetPage() {
                 </div>
               </div>
 
+              {/* Place Bet Button */}
               <div className="text-center">
                 <button
                   onClick={handlePlaceBet}
@@ -695,115 +978,178 @@ export default function BetPage() {
             </div>
           )}
 
-          {activeTab === 'analysis' && (
-            <div className="space-y-6">
-              <div className="text-center">
-                <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">Market Analysis</h3>
-                <p className="text-sm sm:text-base text-gray-400">
-                  Detailed analysis and insights for this prediction
-                </p>
-              </div>
+            {activeTab === 'analysis' && (
+              <div className="space-y-6">
+                <div className="text-center">
+                  <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">Market Analysis</h3>
+                  <p className="text-sm sm:text-base text-gray-400">
+                    Detailed analysis and insights for this prediction
+                  </p>
+                </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                <div className="p-4 sm:p-6 bg-gray-700/30 rounded-lg border border-gray-600/30">
-                  <h4 className="text-lg sm:text-xl font-bold text-white mb-3">Creator Track Record</h4>
-                  <div className="space-y-3 text-sm sm:text-base">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Success Rate:</span>
-                      <span className="text-green-400">{pool.creator.successRate.toFixed(1)}%</span>
+                {/* Analysis Content */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                  <div className="p-4 sm:p-6 bg-gray-700/30 rounded-lg border border-gray-600/30">
+                    <h4 className="text-lg sm:text-xl font-bold text-white mb-3">Creator Track Record</h4>
+                    <div className="space-y-3 text-sm sm:text-base">
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Success Rate:</span>
+                        <span className="text-green-400">{pool.creator.successRate.toFixed(1)}%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Total Pools:</span>
+                        <span className="text-white">{pool.creator.totalPools}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Total Volume:</span>
+                        <span className="text-cyan-400">{(pool.creator.totalVolume / 1000).toFixed(0)}k {pool.currency}</span>
+                      </div>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Total Pools:</span>
-                      <span className="text-white">{pool.creator.totalPools}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Total Volume:</span>
-                      <span className="text-cyan-400">{(pool.creator.totalVolume / 1000).toFixed(0)}k {pool.currency}</span>
+                  </div>
+
+                  <div className="p-4 sm:p-6 bg-gray-700/30 rounded-lg border border-gray-600/30">
+                    <h4 className="text-lg sm:text-xl font-bold text-white mb-3">Market Sentiment</h4>
+                    <div className="space-y-3 text-sm sm:text-base">
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Participants:</span>
+                        <span className="text-white">{pool.participants}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Defeated:</span>
+                        <span className="text-red-400">{pool.defeated}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Odds:</span>
+                        <span className="text-yellow-400">{pool.odds}x</span>
+                      </div>
                     </div>
                   </div>
                 </div>
 
+                {/* Additional Analysis */}
                 <div className="p-4 sm:p-6 bg-gray-700/30 rounded-lg border border-gray-600/30">
-                  <h4 className="text-lg sm:text-xl font-bold text-white mb-3">Market Sentiment</h4>
-                  <div className="space-y-3 text-sm sm:text-base">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Participants:</span>
-                      <span className="text-white">{pool.participants}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Defeated:</span>
-                      <span className="text-red-400">{pool.defeated}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">Odds:</span>
-                      <span className="text-yellow-400">{pool.odds}x</span>
-                    </div>
+                  <h4 className="text-lg sm:text-xl font-bold text-white mb-3">Risk Assessment</h4>
+                  <div className="text-sm sm:text-base text-gray-300 space-y-2">
+                    <p>
+                      This creator has a {pool.creator.successRate.toFixed(1)}% success rate, meaning they&apos;ve been right 
+                      in {pool.creator.successRate.toFixed(1)}% of their predictions. This suggests they have a good track 
+                      record of identifying unlikely events.
+                    </p>
+                    <p>
+                      The {pool.odds}x odds indicate the creator is offering a {((pool.odds - 1) * 100).toFixed(0)}% 
+                      premium to challengers, suggesting they have high confidence in their prediction.
+                    </p>
                   </div>
                 </div>
               </div>
+            )}
 
-              <div className="p-4 sm:p-6 bg-gray-700/30 rounded-lg border border-gray-600/30">
-                <h4 className="text-lg sm:text-xl font-bold text-white mb-3">Risk Assessment</h4>
-                <div className="text-sm sm:text-base text-gray-300 space-y-2">
-                  <p>
-                    This creator has a {pool.creator.successRate.toFixed(1)}% success rate across {pool.creator.totalPools} pools.
-                    The {pool.odds}x odds suggest they have high confidence in their prediction.
+            {activeTab === 'liquidity' && (
+              <div className="space-y-6">
+                <div className="text-center">
+                  <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">Liquidity Pool</h3>
+                  <p className="text-sm sm:text-base text-gray-400">
+                    Provide liquidity and earn from trading fees
                   </p>
-                  <p>
-                    With {pool.participants} participants and {pool.defeated} defeated challengers, 
-                    this pool shows active community engagement.
-                  </p>
+                </div>
+
+                {/* Liquidity Stats */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+                  <div className="p-4 sm:p-6 bg-gray-700/30 rounded-lg border border-gray-600/30 text-center">
+                    <div className="text-2xl sm:text-3xl font-bold text-cyan-400 mb-2">
+                      {pool.volume.toLocaleString()}
+                    </div>
+                    <div className="text-sm sm:text-base text-gray-400">Total Liquidity</div>
+                  </div>
+                  <div className="p-4 sm:p-6 bg-gray-700/30 rounded-lg border border-gray-600/30 text-center">
+                    <div className="text-2xl sm:text-3xl font-bold text-green-400 mb-2">
+                      {pool.creator.successRate.toFixed(1)}%
+                    </div>
+                    <div className="text-sm sm:text-base text-gray-400">Creator Success Rate</div>
+                  </div>
+                  <div className="p-4 sm:p-6 bg-gray-700/30 rounded-lg border border-gray-600/30 text-center">
+                    <div className="text-2xl sm:text-3xl font-bold text-yellow-400 mb-2">
+                      {pool.participants}
+                    </div>
+                    <div className="text-sm sm:text-base text-gray-400">Active Participants</div>
+                  </div>
+                </div>
+
+                {/* LP Information */}
+                <div className="p-4 sm:p-6 bg-gray-700/30 rounded-lg border border-gray-600/30">
+                  <h4 className="text-lg sm:text-xl font-bold text-white mb-3">How LP Works</h4>
+                  <div className="text-sm sm:text-base text-gray-300 space-y-3">
+                    <p>
+                      As a liquidity provider, you agree with the creator&apos;s prediction and share in the 
+                      rewards when they&apos;re correct. Your returns are proportional to your stake in the pool.
+                    </p>
+                    <p>
+                      <strong>Risk:</strong> If the creator is wrong, you lose your stake to the winning bettors.
+                    </p>
+                    <p>
+                      <strong>Reward:</strong> If the creator is right, you share the betting pool with other LPs 
+                      and the creator, based on your proportional stake.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Social Stats */}
+            <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/30 rounded-2xl p-6">
+              <h3 className="text-lg font-bold text-white mb-4">Community</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-white">{pool.socialStats.comments}</div>
+                  <div className="text-xs text-gray-400">Comments</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-pink-400">{pool.socialStats.likes}</div>
+                  <div className="text-xs text-gray-400">Likes</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-400">{pool.socialStats.views}</div>
+                  <div className="text-xs text-gray-400">Views</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-400">{pool.socialStats.shares}</div>
+                  <div className="text-xs text-gray-400">Shares</div>
                 </div>
               </div>
             </div>
-          )}
 
-          {activeTab === 'liquidity' && (
-            <div className="space-y-6">
-              <div className="text-center">
-                <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">Liquidity Pool</h3>
-                <p className="text-sm sm:text-base text-gray-400">
-                  Provide liquidity and earn from trading fees
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
-                <div className="p-4 sm:p-6 bg-gray-700/30 rounded-lg border border-gray-600/30 text-center">
-                  <div className="text-2xl sm:text-3xl font-bold text-cyan-400 mb-2">
-                    {pool.volume.toLocaleString()}
+            {/* Event Details */}
+            {pool.eventDetails && (
+              <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/30 rounded-2xl p-6">
+                <h3 className="text-lg font-bold text-white mb-4">Event Details</h3>
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">League:</span>
+                    <span className="text-white">{pool.eventDetails.league}</span>
                   </div>
-                  <div className="text-sm sm:text-base text-gray-400">Total Liquidity</div>
-                </div>
-                <div className="p-4 sm:p-6 bg-gray-700/30 rounded-lg border border-gray-600/30 text-center">
-                  <div className="text-2xl sm:text-3xl font-bold text-green-400 mb-2">
-                    {pool.creator.successRate.toFixed(1)}%
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Region:</span>
+                    <span className="text-white">{pool.eventDetails.region}</span>
                   </div>
-                  <div className="text-sm sm:text-base text-gray-400">Creator Success Rate</div>
-                </div>
-                <div className="p-4 sm:p-6 bg-gray-700/30 rounded-lg border border-gray-600/30 text-center">
-                  <div className="text-2xl sm:text-3xl font-bold text-yellow-400 mb-2">
-                    {pool.participants}
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">Start:</span>
+                    <span className="text-white">
+                      {pool.eventDetails.startTime.toLocaleDateString()}
+                    </span>
                   </div>
-                  <div className="text-sm sm:text-base text-gray-400">Active Participants</div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-400">End:</span>
+                    <span className="text-white">
+                      {pool.eventDetails.endTime.toLocaleDateString()}
+                    </span>
+                  </div>
                 </div>
               </div>
-
-              <div className="p-4 sm:p-6 bg-gray-700/30 rounded-lg border border-gray-600/30">
-                <h4 className="text-lg sm:text-xl font-bold text-white mb-3">How LP Works</h4>
-                <div className="text-sm sm:text-base text-gray-300 space-y-3">
-                  <p>
-                    As a liquidity provider, you support the creator&apos;s position and share rewards proportionally.
-                  </p>
-                  <p>
-                    <strong>Risk:</strong> If the creator is wrong, you lose your stake to winning bettors.
-                  </p>
-                  <p>
-                    <strong>Reward:</strong> If the creator is right, you share the betting pool based on your stake.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Comments Section */}
@@ -815,6 +1161,7 @@ export default function BetPage() {
             </div>
           </div>
 
+          {/* Add Comment */}
           {hasUserBet && (
             <div className="space-y-4">
               <div className="flex items-center gap-3">
@@ -895,6 +1242,7 @@ export default function BetPage() {
             </div>
           )}
 
+          {/* Comments List */}
           <div className="space-y-4">
             {comments.length === 0 ? (
               <div className="text-center py-8 text-gray-400">
@@ -907,6 +1255,6 @@ export default function BetPage() {
           </div>
         </div>
       </div>
-    </div>
+  
   );
 } 

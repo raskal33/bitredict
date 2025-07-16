@@ -9,20 +9,12 @@ import {
   XMarkIcon,
   Squares2X2Icon,
   Bars3Icon,
-  ClockIcon,
-  ChatBubbleLeftRightIcon,
-  HeartIcon,
-  EyeIcon,
   TrophyIcon,
   SparklesIcon,
   ShieldCheckIcon,
-  LightBulbIcon,
   CpuChipIcon,
-  RocketLaunchIcon,
-  BeakerIcon,
   CurrencyDollarIcon,
   UsersIcon,
-  ArrowTrendingUpIcon,
   StarIcon,
   BoltIcon,
   ChartBarIcon
@@ -106,13 +98,14 @@ export default function MarketsPage() {
 
   const getDemoPoolData = (): Pool[] => [
     {
-      id: "1",
+      id: "pool-1",
       title: "Bitcoin will reach $100,000 by March 2025",
-      description: "Prediction market on Bitcoin reaching six-figure milestone before March 31, 2025. This challenge tests macro crypto market timing.",
+      description: "Prediction market on Bitcoin reaching six-figure milestone before March 31, 2025. This challenge tests your ability to predict the macro crypto market trends and timing.",
       category: "crypto",
       creator: {
         address: "0x1234...5678",
         username: "CryptoSage",
+        avatar: "/logo.png",
         reputation: 4.8,
         totalPools: 23,
         successRate: 78.3,
@@ -120,11 +113,13 @@ export default function MarketsPage() {
         totalVolume: 450000,
         badges: ["legendary", "crypto_expert", "whale"],
         createdAt: "2024-01-15T10:30:00Z",
-        bio: "Macro crypto analyst with 8 years of experience."
+        bio: "Macro crypto analyst with 8 years of experience. Specialized in Bitcoin cycle analysis and institutional adoption trends."
       },
       challengeScore: 89,
       qualityScore: 94,
       difficultyTier: "very_hard",
+      predictedOutcome: "Bitcoin will reach $100,000 by March 2025",
+      creatorPrediction: "no", // Creator thinks it WON'T happen
       odds: 1.75,
       participants: 247,
       volume: 125000,
@@ -145,94 +140,232 @@ export default function MarketsPage() {
       comments: [],
       defeated: 34,
       volume24h: 12500,
-      change24h: 8.5,
-      predictedOutcome: "Bitcoin will not reach $100,000 by March 2025",
-      creatorPrediction: "no" // Added for demo
+      change24h: 8.5
     },
     {
-      id: "2",
-      title: "Manchester City wins Premier League 2024/25",
-      description: "Premier League championship prediction market for the 2024/25 season. Will City claim another title?",
-      category: "sports",
+      id: "pool-2",
+      title: "Ethereum will complete The Merge by September 2024",
+      description: "Prediction on Ethereum's transition to Proof of Stake consensus mechanism. This historic event will test your understanding of blockchain technology evolution.",
+      category: "crypto",
       creator: {
-        address: "0x5678...9012",
-        username: "FootballOracle",
-        reputation: 4.5,
-        totalPools: 15,
-        successRate: 73.2,
-        challengeScore: 76,
-        totalVolume: 280000,
-        badges: ["sports_expert", "predictor"],
-        createdAt: "2024-02-01T14:20:00Z"
+        address: "0x2345...6789",
+        username: "EthereumOracle",
+        avatar: "/logo.png",
+        reputation: 4.6,
+        totalPools: 18,
+        successRate: 82.1,
+        challengeScore: 85,
+        totalVolume: 320000,
+        badges: ["ethereum_expert", "developer", "validator"],
+        createdAt: "2024-02-01T14:20:00Z",
+        bio: "Ethereum developer and validator with deep knowledge of PoS consensus mechanisms and network upgrades."
       },
-      challengeScore: 76,
-      qualityScore: 82,
+      challengeScore: 85,
+      qualityScore: 91,
       difficultyTier: "hard",
+      predictedOutcome: "Ethereum will complete The Merge by September 2024",
+      creatorPrediction: "yes", // Creator thinks it WILL happen
       odds: 2.1,
       participants: 189,
       volume: 89000,
-      currency: "STT",
-      endDate: "2025-05-25",
+      currency: "BITR",
+      endDate: "2025-03-31",
       trending: false,
-      boosted: false,
+      boosted: true,
+      boostTier: 2,
       poolType: "single",
-      image: "⚽",
-      cardTheme: "magenta",
+      image: "🔷",
+      cardTheme: "purple",
       socialStats: {
-        comments: 34,
-        likes: 67,
-        views: 890,
-        shares: 12
+        comments: 67,
+        likes: 134,
+        views: 1890,
+        shares: 18
       },
       comments: [],
-      defeated: 18,
+      defeated: 28,
       volume24h: 8900,
-      change24h: -2.1,
-      predictedOutcome: "Manchester City will not win the Premier League 2024/25",
-      creatorPrediction: "yes" // Added for demo
+      change24h: -2.1
     },
     {
-      id: "3",
+      id: "pool-3",
       title: "Tesla stock will hit $300 by end of 2024",
-      description: "Tesla's stock price prediction for year-end 2024. Will TSLA reach the $300 milestone?",
-      category: "finance",
+      description: "Prediction market on Tesla's stock performance. This challenge evaluates your ability to analyze electric vehicle market dynamics and company fundamentals.",
+      category: "stocks",
       creator: {
-        address: "0x9012...3456",
-        username: "StockWizard",
-        reputation: 4.2,
+        address: "0x3456...7890",
+        username: "StockMaster",
+        avatar: "/logo.png",
+        reputation: 4.7,
         totalPools: 31,
-        successRate: 69.8,
+        successRate: 75.9,
         challengeScore: 82,
-        totalVolume: 320000,
-        badges: ["finance_expert", "analyst"],
-        createdAt: "2024-01-20T09:15:00Z"
+        totalVolume: 280000,
+        badges: ["stock_expert", "tesla_bull", "ev_analyst"],
+        createdAt: "2024-01-20T09:15:00Z",
+        bio: "Equity analyst specializing in technology and electric vehicle sectors with 12 years of market experience."
       },
       challengeScore: 82,
       qualityScore: 88,
       difficultyTier: "medium",
-      odds: 1.9,
+      predictedOutcome: "Tesla stock will hit $300 by end of 2024",
+      creatorPrediction: "no", // Creator thinks it WON'T happen
+      odds: 1.45,
       participants: 156,
       volume: 67000,
-      currency: "STT",
-      endDate: "2024-12-31",
+      currency: "BITR",
+      endDate: "2025-03-31",
       trending: true,
-      boosted: true,
-      boostTier: 2,
+      boosted: false,
+      boostTier: 1,
       poolType: "single",
-      image: "📈",
-      cardTheme: "violet",
+      image: "🚗",
+      cardTheme: "green",
       socialStats: {
         comments: 45,
-        likes: 78,
-        views: 1240,
-        shares: 15
+        likes: 98,
+        views: 1450,
+        shares: 12
       },
       comments: [],
       defeated: 22,
       volume24h: 5600,
-      change24h: 3.2,
-      predictedOutcome: "Tesla stock will not hit $300 by end of 2024",
-      creatorPrediction: "no" // Added for demo
+      change24h: 3.2
+    },
+    {
+      id: "pool-4",
+      title: "US Federal Reserve will cut rates 3 times in 2024",
+      description: "Prediction on Federal Reserve monetary policy decisions. This challenge tests your understanding of macroeconomic indicators and central bank behavior.",
+      category: "economics",
+      creator: {
+        address: "0x4567...8901",
+        username: "MacroGuru",
+        avatar: "/logo.png",
+        reputation: 4.9,
+        totalPools: 27,
+        successRate: 88.2,
+        challengeScore: 93,
+        totalVolume: 520000,
+        badges: ["macro_expert", "fed_watcher", "economist"],
+        createdAt: "2024-01-10T16:45:00Z",
+        bio: "Macroeconomic analyst with expertise in Federal Reserve policy and interest rate forecasting."
+      },
+      challengeScore: 93,
+      qualityScore: 96,
+      difficultyTier: "very_hard",
+      predictedOutcome: "US Federal Reserve will cut rates 3 times in 2024",
+      creatorPrediction: "yes", // Creator thinks it WILL happen
+      odds: 1.25,
+      participants: 312,
+      volume: 189000,
+      currency: "BITR",
+      endDate: "2025-03-31",
+      trending: true,
+      boosted: true,
+      boostTier: 3,
+      poolType: "single",
+      image: "🏦",
+      cardTheme: "blue",
+      socialStats: {
+        comments: 123,
+        likes: 234,
+        views: 3450,
+        shares: 34
+      },
+      comments: [],
+      defeated: 45,
+      volume24h: 18900,
+      change24h: 12.5
+    },
+    {
+      id: "pool-5",
+      title: "OpenAI will release GPT-5 by Q3 2024",
+      description: "Prediction on OpenAI's next major language model release. This challenge evaluates your understanding of AI development timelines and industry trends.",
+      category: "technology",
+      creator: {
+        address: "0x5678...9012",
+        username: "AIProphet",
+        avatar: "/logo.png",
+        reputation: 4.5,
+        totalPools: 15,
+        successRate: 71.4,
+        challengeScore: 78,
+        totalVolume: 180000,
+        badges: ["ai_expert", "openai_watcher", "researcher"],
+        createdAt: "2024-02-15T11:30:00Z",
+        bio: "AI researcher and industry analyst with deep knowledge of language model development and OpenAI's roadmap."
+      },
+      challengeScore: 78,
+      qualityScore: 85,
+      difficultyTier: "medium",
+      predictedOutcome: "OpenAI will release GPT-5 by Q3 2024",
+      creatorPrediction: "no", // Creator thinks it WON'T happen
+      odds: 1.8,
+      participants: 98,
+      volume: 45000,
+      currency: "BITR",
+      endDate: "2025-03-31",
+      trending: false,
+      boosted: true,
+      boostTier: 2,
+      poolType: "single",
+      image: "🤖",
+      cardTheme: "orange",
+      socialStats: {
+        comments: 34,
+        likes: 78,
+        views: 1200,
+        shares: 8
+      },
+      comments: [],
+      defeated: 15,
+      volume24h: 3400,
+      change24h: -1.8
+    },
+    {
+      id: "pool-6",
+      title: "SpaceX will successfully land on Mars by 2026",
+      description: "Prediction on SpaceX's ambitious Mars mission timeline. This challenge tests your knowledge of space exploration and engineering feasibility.",
+      category: "space",
+      creator: {
+        address: "0x6789...0123",
+        username: "SpaceExplorer",
+        avatar: "/logo.png",
+        reputation: 4.3,
+        totalPools: 12,
+        successRate: 65.8,
+        challengeScore: 72,
+        totalVolume: 95000,
+        badges: ["space_expert", "spacex_watcher", "engineer"],
+        createdAt: "2024-01-25T13:20:00Z",
+        bio: "Aerospace engineer and space industry analyst with expertise in rocket technology and Mars mission planning."
+      },
+      challengeScore: 72,
+      qualityScore: 79,
+      difficultyTier: "hard",
+      predictedOutcome: "SpaceX will successfully land on Mars by 2026",
+      creatorPrediction: "yes", // Creator thinks it WILL happen
+      odds: 2.5,
+      participants: 67,
+      volume: 32000,
+      currency: "BITR",
+      endDate: "2025-03-31",
+      trending: false,
+      boosted: false,
+      boostTier: 1,
+      poolType: "single",
+      image: "🚀",
+      cardTheme: "red",
+      socialStats: {
+        comments: 23,
+        likes: 45,
+        views: 890,
+        shares: 5
+      },
+      comments: [],
+      defeated: 12,
+      volume24h: 2100,
+      change24h: 5.2
     }
   ];
 
@@ -312,17 +445,6 @@ export default function MarketsPage() {
     }
   };
 
-  const getDifficultyIcon = (tier: string) => {
-    switch (tier) {
-      case 'easy': return <LightBulbIcon className="w-3 h-3" />;
-      case 'medium': return <BeakerIcon className="w-3 h-3" />;
-      case 'hard': return <RocketLaunchIcon className="w-3 h-3" />;
-      case 'very_hard': return <BoltIcon className="w-3 h-3" />;
-      case 'legendary': return <StarIcon className="w-3 h-3" />;
-      default: return <LightBulbIcon className="w-3 h-3" />;
-    }
-  };
-
   const getCardTheme = (theme: string) => {
     const themes = {
       cyan: {
@@ -385,10 +507,10 @@ export default function MarketsPage() {
             ${theme.background} ${theme.border} ${theme.glow} ${theme.hoverGlow}
             ${pool.boosted ? getBoostGlow(pool.boostTier) : ''}
             transition-all duration-500
-            ${isListView ? 'flex items-center p-6 space-x-6' : 'p-6 rounded-2xl border h-[580px] flex flex-col'}
+            ${isListView ? 'flex items-center p-6 space-x-6' : 'p-6 rounded-2xl border h-[420px] flex flex-col'}
           `}
         >
-          {/* Badge Container - Fixed positioning */}
+          {/* Badge Container */}
           {!isListView && (
             <div className="absolute top-3 left-3 right-3 z-10 flex justify-between items-start pointer-events-none">
               {/* Trending Badge */}
@@ -420,65 +542,40 @@ export default function MarketsPage() {
               <div className="flex items-center gap-3">
                 <div className="text-3xl">{pool.image}</div>
                 <div className="min-w-0 flex-1">
-                  <div className="text-xs text-gray-400 mb-1">Created by</div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-white truncate">
-                      {pool.creator.username}
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`text-xs px-2 py-1 rounded-full ${theme.accent} bg-current/10 truncate`}>
+                      {pool.category}
                     </span>
-                    <div className="text-xs text-gray-400">
-                      {pool.creator.successRate.toFixed(1)}% win rate
+                    <div className={`flex items-center gap-1 text-xs ${getDifficultyColor(pool.difficultyTier)}`}>
+                      <StarIcon className="w-3 h-3 flex-shrink-0" />
+                      <span className="truncate">{pool.difficultyTier.replace('_', ' ').toUpperCase()}</span>
                     </div>
+                  </div>
+                  <div className="text-xs text-gray-400 truncate">
+                    by {pool.creator.username} • {pool.creator.successRate.toFixed(1)}% win rate
                   </div>
                 </div>
               </div>
               <div className="text-right flex-shrink-0">
-                <div className="text-xs text-gray-400">Challenge Score</div>
-                <div className={`text-lg font-bold ${getDifficultyColor(pool.difficultyTier)}`}>
+                <div className="text-xs text-gray-400">Score</div>
+                <div className={`text-lg font-bold ${theme.accent}`}>
                   {pool.challengeScore}
                 </div>
               </div>
             </div>
             
-            {/* Creator Prediction Section - The Core Mechanic */}
+            {/* Title - Only show once */}
+            <h3 className="text-lg font-bold text-white line-clamp-3 mb-4 group-hover:text-cyan-400 transition-colors flex-shrink-0" style={{ minHeight: '4.5rem' }}>
+              {pool.title}
+            </h3>
+            
+            {/* Creator Prediction Section */}
             <div className="mb-4 p-3 bg-gradient-to-r from-gray-800/40 to-gray-700/40 rounded-lg border border-gray-600/30 flex-shrink-0">
               <div className="mb-3">
-                <div className="text-xs text-orange-400 mb-1">💡 Creator believes this WON&apos;T happen:</div>
-                <div className="text-sm font-medium text-white line-clamp-2" style={{ minHeight: '2.5rem' }}>
-                  {pool.title}
-                </div>
-                <div className="text-xs text-gray-400 mt-1">
+                <div className="text-xs text-orange-400 mb-1">💡 Creator believes this WON&apos;T happen</div>
+                <div className="text-xs text-gray-400">
                   Challenging users who think it WILL happen. Dare to challenge?
                 </div>
-              </div>
-              
-              {/* Pool Economics */}
-              <div className="mb-3 p-2 bg-gray-700/40 rounded border border-gray-600/20">
-                {(() => {
-                  // Working from creator stake and odds to calculate total pool
-                  const creatorStake = Math.round(pool.volume * 0.4); // Assume 40% is creator stake for demo
-                  const maxBettorStake = Math.round(creatorStake / (pool.odds - 1));
-                  const totalPool = creatorStake + maxBettorStake;
-                  return (
-                    <div className="grid grid-cols-3 gap-2 text-xs">
-                      <div className="text-center">
-                        <div className="text-gray-400">Creator Stake</div>
-                        <div className="font-semibold text-white">
-                          {creatorStake.toLocaleString()} {pool.currency}
-                        </div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-gray-400">Max Bets</div>
-                        <div className="font-semibold text-white">
-                          {maxBettorStake.toLocaleString()} {pool.currency}
-                        </div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-gray-400">Total Pool</div>
-                        <div className="font-semibold text-cyan-400">{totalPool.toLocaleString()} {pool.currency}</div>
-                      </div>
-                    </div>
-                  );
-                })()}
               </div>
               
               {/* Betting Options */}
@@ -504,80 +601,42 @@ export default function MarketsPage() {
               </div>
             </div>
 
-            {/* Title and category */}
-            <div className="mb-4 flex-shrink-0">
-              <div className="flex items-center gap-2 mb-2">
-                <span className={`text-xs px-2 py-1 rounded-full ${theme.accent} bg-current/10 truncate`}>
-                  {pool.category}
-                </span>
-                <div className={`flex items-center gap-1 text-xs ${getDifficultyColor(pool.difficultyTier)}`}>
-                  {getDifficultyIcon(pool.difficultyTier)}
-                  <span className="truncate">{pool.difficultyTier.replace('_', ' ').toUpperCase()}</span>
-                </div>
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-4 mb-4 text-center flex-shrink-0">
+              <div>
+                <div className="text-xs text-gray-400">Volume</div>
+                <div className="text-sm font-bold text-white">${(pool.volume / 1000).toFixed(0)}k</div>
               </div>
-              <h3 className="text-lg font-bold text-white line-clamp-2 mb-2 group-hover:text-cyan-400 transition-colors" style={{ minHeight: '3.5rem' }}>
-                {pool.title}
-              </h3>
-              <p className="text-sm text-gray-400 line-clamp-2" style={{ minHeight: '2.5rem' }}>
-                {pool.description}
-              </p>
-            </div>
-
-            {/* Challenge info */}
-            <div className="mb-4 p-3 bg-gray-800/30 rounded-lg border border-gray-700/30 flex-shrink-0">
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2">
-                  <TrophyIcon className="w-4 h-4 text-yellow-400" />
-                  <span className="text-gray-300">
-                    {pool.defeated} defeated • {pool.odds}x odds
-                  </span>
-                </div>
-                <div className={`font-bold ${theme.accent}`}>
-                  {pool.volume.toLocaleString()} {pool.currency}
-                </div>
+              <div>
+                <div className="text-xs text-gray-400">Participants</div>
+                <div className="text-sm font-bold text-white">{pool.participants}</div>
+              </div>
+              <div>
+                <div className="text-xs text-gray-400">Defeated</div>
+                <div className="text-sm font-bold text-white">{pool.defeated}</div>
               </div>
             </div>
 
-            {/* Social stats */}
-            <div className="grid grid-cols-4 gap-3 mb-4 text-center flex-shrink-0">
-              <div>
-                <ChatBubbleLeftRightIcon className="w-4 h-4 text-gray-400 mx-auto mb-1" />
-                <div className="text-xs font-semibold text-white">{pool.socialStats.comments}</div>
-              </div>
-              <div>
-                <HeartIcon className="w-4 h-4 text-gray-400 mx-auto mb-1" />
-                <div className="text-xs font-semibold text-white">{pool.socialStats.likes}</div>
-              </div>
-              <div>
-                <EyeIcon className="w-4 h-4 text-gray-400 mx-auto mb-1" />
-                <div className="text-xs font-semibold text-white">{pool.socialStats.views}</div>
-              </div>
-              <div>
-                <UsersIcon className="w-4 h-4 text-gray-400 mx-auto mb-1" />
-                <div className="text-xs font-semibold text-white">{pool.participants}</div>
-              </div>
-            </div>
-
-            {/* Footer stats - pushed to bottom */}
+            {/* Social Stats - pushed to bottom */}
             <div className={`flex items-center justify-between pt-4 border-t border-gray-700/20 ${isListView ? '' : 'mt-auto'}`}>
               <div className="flex items-center gap-4 text-xs text-gray-400">
                 <div className="flex items-center gap-1">
-                  <ClockIcon className="w-3 h-3" />
-                  {new Date(pool.endDate).toLocaleDateString()}
+                  <BoltIcon className="w-3 h-3" />
+                  {pool.socialStats.likes}
                 </div>
                 <div className="flex items-center gap-1">
-                  <CurrencyDollarIcon className="w-3 h-3" />
-                  {(pool.volume24h || 0).toLocaleString()} {pool.currency}
+                  <BoltIcon className="w-3 h-3" />
+                  {pool.socialStats.comments}
+                </div>
+                <div className="flex items-center gap-1">
+                  <BoltIcon className="w-3 h-3" />
+                  {pool.socialStats.views}
                 </div>
               </div>
               <div className={`flex items-center gap-1 text-xs font-semibold ${
                 (pool.change24h || 0) >= 0 ? 'text-green-400' : 'text-red-400'
               }`}>
-                {(pool.change24h || 0) >= 0 ? (
-                  <ArrowTrendingUpIcon className="w-3 h-3" />
-                ) : (
-                  <ArrowTrendingUpIcon className="w-3 h-3 rotate-180" />
-                )}
+                <BoltIcon className={`w-3 h-3 ${(pool.change24h || 0) < 0 ? 'rotate-180' : ''}`} />
                 {Math.abs(pool.change24h || 0).toFixed(1)}%
               </div>
             </div>

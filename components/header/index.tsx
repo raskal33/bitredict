@@ -471,9 +471,15 @@ const bitredictorLinks = [
 
 const links = [
   {
-    label: "Markets",
+    label: "Home",
     href: "/",
     segment: undefined,
+    icon: ChartBarIcon,
+  },
+  {
+    label: "Markets",
+    href: "/markets",
+    segment: "markets",
     icon: ChartBarIcon,
   },
   {
