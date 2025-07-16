@@ -45,6 +45,8 @@ export default function BetPage() {
   const [comments, setComments] = useState<Comment[]>([]);
   const [betType, setBetType] = useState<'yes' | 'no' | null>(null);
 
+
+
   const fetchPoolData = useCallback(async () => {
     const getDemoPoolData = (poolId: string): Pool => {
       // Generate the exact same pool data as the home page for consistency
@@ -881,7 +883,7 @@ export default function BetPage() {
                           </div>
                         </div>
                         <div className="text-sm sm:text-base font-bold text-white">
-                          Win {(1 / (pool.odds - 1)).toFixed(2)}x your stake
+                          Win {(pool.odds - 1).toFixed(2)}x your stake
                         </div>
                       </div>
                     </div>
@@ -939,7 +941,7 @@ export default function BetPage() {
                             <span className="text-green-400">
                               {betType === 'yes' 
                                 ? (betAmount * pool.odds).toLocaleString()
-                                : (betAmount * (1 / (pool.odds - 1))).toLocaleString()
+                                : (betAmount + (betAmount * (pool.odds - 1))).toLocaleString()
                               } {pool.currency}
                             </span>
                           </div>
@@ -948,7 +950,7 @@ export default function BetPage() {
                             <span className="text-cyan-400">
                               {betType === 'yes' 
                                 ? (betAmount * (pool.odds - 1)).toLocaleString()
-                                : (betAmount * ((1 / (pool.odds - 1)) - 1)).toLocaleString()
+                                : (betAmount * (pool.odds - 1)).toLocaleString()
                               } {pool.currency}
                             </span>
                           </div>
@@ -1087,8 +1089,13 @@ export default function BetPage() {
                       <strong>Risk:</strong> If the creator is wrong, you lose your stake to the winning bettors.
                     </p>
                     <p>
-                      <strong>Reward:</strong> If the creator is right, you share the betting pool with other LPs 
-                      and the creator, based on your proportional stake.
+                      <strong>Reward:</strong> If the creator is right, you get your stake back plus a proportional 
+                      share of the bettor stakes, based on your stake in the total creator-side pool.
+                    </p>
+                    <p>
+                      <strong>Example:</strong> If you stake 100 {pool.currency} and the odds are {pool.odds}x, 
+                      you can win up to {(100 * (pool.odds - 1)).toFixed(0)} {pool.currency} in profit 
+                      (plus your original 100 {pool.currency} stake back).
                     </p>
                   </div>
                 </div>
