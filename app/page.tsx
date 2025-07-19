@@ -3,8 +3,8 @@
 import { useEffect, useCallback, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  TrophyIcon,
+import { 
+  TrophyIcon, 
   CurrencyDollarIcon,
   ChartBarIcon,
   BoltIcon,
@@ -584,14 +584,14 @@ export default function HomePage() {
     
     return (
       <Link href={`/bet/${pool.id}`} className="block">
-        <motion.div
+      <motion.div
           initial={{ opacity: 0, y: 30, scale: 0.9 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 0.6, delay: index * 0.1 }}
-          whileHover={{ y: -8, scale: 1.02 }}
-          className={`
+        whileHover={{ y: -8, scale: 1.02 }}
+        className={`
             relative overflow-hidden group cursor-pointer h-[380px] flex flex-col
-            ${theme.background} ${theme.border} ${theme.glow} ${theme.hoverGlow}
+          ${theme.background} ${theme.border} ${theme.glow} ${theme.hoverGlow}
             ${pool.boosted ? getBoostGlow(pool.boostTier) : ''}
             transition-all duration-500 p-4 rounded-2xl border backdrop-blur-sm
           `}
@@ -603,7 +603,7 @@ export default function HomePage() {
               <div className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
                 <BoltIcon className="w-3 h-3" />
                 HOT
-              </div>
+        </div>
             )}
 
             {/* Boost Badge */}
@@ -618,7 +618,7 @@ export default function HomePage() {
                 {pool.boostTier === 3 ? 'GOLD' : pool.boostTier === 2 ? 'SILVER' : 'BRONZE'}
               </div>
             )}
-          </div>
+                </div>
 
           {/* Header */}
           <div className="flex items-center gap-2 mb-3 mt-4">
@@ -626,8 +626,8 @@ export default function HomePage() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
                 <span className={`text-xs px-2 py-1 rounded-full ${theme.accent} bg-current/10 truncate`}>
-                  {pool.category}
-                </span>
+                      {pool.category}
+                    </span>
                 <div className={`flex items-center gap-1 text-xs ${getDifficultyColor(pool.difficultyTier)}`}>
                   <StarIcon className="w-3 h-3 flex-shrink-0" />
                   <span className="truncate">{pool.difficultyTier.replace('_', ' ').toUpperCase()}</span>
@@ -642,14 +642,14 @@ export default function HomePage() {
               <div className={`text-lg font-bold ${theme.accent}`}>
                 {pool.challengeScore}
               </div>
+              </div>
             </div>
-          </div>
-          
-          {/* Title */}
+
+            {/* Title */}
           <h3 className="text-base font-bold text-white line-clamp-2 mb-3 group-hover:text-cyan-400 transition-colors flex-shrink-0" style={{ minHeight: '2.5rem' }}>
-            {pool.title}
-          </h3>
-          
+              {pool.title}
+            </h3>
+
           {/* Creator Prediction Section */}
           <div className="mb-3 p-2 bg-gradient-to-r from-gray-800/40 to-gray-700/40 rounded-lg border border-gray-600/30 flex-shrink-0">
             <div className="mb-2">
@@ -675,8 +675,8 @@ export default function HomePage() {
                   YES
                 </div>
               </div>
+              </div>
             </div>
-          </div>
 
           {/* Stats */}
           <div className="grid grid-cols-3 gap-3 mb-3 text-center flex-shrink-0">
@@ -687,13 +687,13 @@ export default function HomePage() {
             <div>
               <div className="text-xs text-gray-400">Participants</div>
               <div className="text-sm font-bold text-white">{pool.participants}</div>
-            </div>
+              </div>
             <div>
               <div className="text-xs text-gray-400">Defeated</div>
               <div className="text-sm font-bold text-white">{pool.defeated}</div>
             </div>
-          </div>
-
+              </div>
+              
           {/* Social Stats - pushed to bottom */}
           <div className="flex items-center justify-between pt-3 border-t border-gray-700/20 mt-auto">
             <div className="flex items-center gap-3 text-xs text-gray-400">
@@ -718,7 +718,7 @@ export default function HomePage() {
             </div>
           </div>
         </motion.div>
-      </Link>
+        </Link>
     );
   };
 
@@ -730,17 +730,17 @@ export default function HomePage() {
     >
       {/* Hero Section */}
       <div className="text-center max-w-4xl mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
           className="mb-8"
         >
           <h1 className="text-4xl md:text-6xl font-bold text-white mb-6">
             <span className="bg-gradient-to-r from-somnia-cyan via-somnia-blue to-somnia-violet bg-clip-text text-transparent">
               Challenge The Future
-            </span>
-          </h1>
+              </span>
+            </h1>
           <p className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed mb-8">
             Where brilliant minds converge to predict tomorrow. Challenge the Creators, earn legendary rewards, and shape the future of prediction markets.
           </p>
@@ -778,11 +778,11 @@ export default function HomePage() {
               </motion.button>
             </Link>
           </div>
-        </motion.div>
+              </motion.div>
       </div>
-
+              
       {/* Platform Stats - Removed title */}
-      <motion.div
+              <motion.div
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
@@ -792,8 +792,8 @@ export default function HomePage() {
         <p className="text-lg text-gray-300 max-w-3xl mx-auto mb-8">
           Join thousands of predictors in the most advanced prediction ecosystem.
         </p>
-      </motion.div>
-      
+            </motion.div>
+
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
         <StatCard icon={CurrencyDollarIcon} label="Total Volume" value={stats.totalVolume} delay={0.1} />
         <StatCard icon={TrophyIcon} label="Active Pools" value={stats.activePools} delay={0.2} />
@@ -806,7 +806,7 @@ export default function HomePage() {
         {/* Features Section */}
         <section className="py-12 px-4 relative">
           <div className="container mx-auto">
-            <motion.div
+            <motion.div 
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
@@ -822,10 +822,10 @@ export default function HomePage() {
                 Experience the next generation of prediction markets with cutting-edge features
               </p>
             </motion.div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
               {features.map((feature, index) => (
-                <motion.div
+          <motion.div
                   key={index}
                   initial={{ opacity: 0, y: 30 }}
                   whileInView={{ opacity: 1, y: 0 }}
@@ -844,19 +844,19 @@ export default function HomePage() {
                 </motion.div>
               ))}
             </div>
-          </div>
-        </section>
+        </div>
+      </section>
 
         {/* Featured Pools */}
         <section className="py-12 px-4 relative">
           <div className="container mx-auto">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
               viewport={{ once: true }}
-              className="text-center mb-12"
-            >
+            className="text-center mb-12"
+          >
               <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
                 <span className="bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
                   Featured Predictions
@@ -864,28 +864,28 @@ export default function HomePage() {
               </h2>
               <p className="text-lg text-gray-400 max-w-3xl mx-auto mb-6">
                 Discover the most exciting prediction markets and challenge the best creators
-              </p>
-              
-              {/* Category Filter */}
+            </p>
+
+            {/* Category Filter */}
               <div className="flex flex-wrap justify-center gap-3 mb-12">
-                {categories.map((category) => (
+              {categories.map((category) => (
                   <motion.button
-                    key={category}
+                  key={category}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => handleSetCategory(category)}
+                  onClick={() => handleSetCategory(category)}
                     className={`px-6 py-3 rounded-xl font-medium transition-all ${
                       (activeCategory === "" && category === "All") || activeCategory === category
                         ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/25"
                         : "bg-gray-800/50 text-gray-400 hover:text-white hover:bg-gray-700/50 border border-gray-700/30"
-                    }`}
-                  >
-                    {category}
+                  }`}
+                >
+                  {category}
                   </motion.button>
-                ))}
-              </div>
-            </motion.div>
-            
+              ))}
+            </div>
+          </motion.div>
+
             {loading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {[...Array(6)].map((_, i) => (
@@ -993,15 +993,15 @@ export default function HomePage() {
                   />
                 ))}
               </div>
-            </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* CTA Section */}
+      {/* CTA Section */}
         <section className="py-12 px-4 relative">
           <div className="container mx-auto">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
               viewport={{ once: true }}
@@ -1015,7 +1015,7 @@ export default function HomePage() {
                 <span className="bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 bg-clip-text text-transparent">
                   The Future?
                 </span>
-              </h2>
+            </h2>
               <p className="text-lg text-gray-300 mb-8 leading-relaxed">
                 Join the elite community of predictors and start earning from your insights today.
                 <br />
@@ -1042,10 +1042,10 @@ export default function HomePage() {
                   <TrophySolid className="w-6 h-6" />
                   Create Pool
                 </motion.button>
-              </div>
-            </motion.div>
-          </div>
-        </section>
+            </div>
+          </motion.div>
+        </div>
+      </section>
       </motion.section>
-    );
-} 
+  );
+}

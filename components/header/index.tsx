@@ -6,7 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSelectedLayoutSegment } from "next/navigation";
 import { useEffect, useState } from "react";
-import { 
+import {
   Bars3Icon, 
   XMarkIcon,
   ChartBarIcon,
@@ -18,7 +18,8 @@ import {
   ChevronDownIcon,
   CubeTransparentIcon,
   WalletIcon,
-  BeakerIcon
+  BeakerIcon,
+  DocumentTextIcon
 } from "@heroicons/react/24/outline";
 import Button from "@/components/button";
 import { useAccount, useDisconnect, useChainId } from 'wagmi';
@@ -499,5 +500,11 @@ const links = [
     href: "/faucet",
     segment: "faucet",
     icon: BeakerIcon,
+  },
+  {
+    label: "Docs",
+    href: "/docs",
+    segment: "docs",
+    icon: DocumentTextIcon,
   },
 ];

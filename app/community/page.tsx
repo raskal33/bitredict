@@ -171,56 +171,56 @@ export default function CommunityPage() {
     }
   };
 
-  const statsData = [
-    {
-      title: "Active Discussions",
+const statsData = [
+  {
+    title: "Active Discussions",
       value: stats.activeDiscussions.toString(),
-      subtitle: "Live conversations",
-      icon: ChatBubbleLeftRightIcon,
-      gradient: "from-primary to-blue-500",
-      iconColor: "text-primary",
-      glowColor: "glow-cyan"
-    },
-    {
-      title: "Community Members",
+    subtitle: "Live conversations",
+    icon: ChatBubbleLeftRightIcon,
+    gradient: "from-primary to-blue-500",
+    iconColor: "text-primary",
+    glowColor: "glow-cyan"
+  },
+  {
+    title: "Community Members",
       value: stats.communityMembers.toString(),
-      subtitle: "Growing strong",
-      icon: UsersIcon,
-      gradient: "from-secondary to-purple-500", 
-      iconColor: "text-secondary",
-      glowColor: "glow-magenta"
-    },
-    {
-      title: "Total Comments",
+    subtitle: "Growing strong",
+    icon: UsersIcon,
+    gradient: "from-secondary to-purple-500", 
+    iconColor: "text-secondary",
+    glowColor: "glow-magenta"
+  },
+  {
+    title: "Total Comments",
       value: stats.totalComments.toString(),
-      subtitle: "Engaging content",
+    subtitle: "Engaging content",
       icon: ChatBubbleLeftRightIcon,
-      gradient: "from-green-400 to-blue-500",
-      iconColor: "text-green-400", 
-      glowColor: "glow-violet"
-    },
-  ];
+    gradient: "from-green-400 to-blue-500",
+    iconColor: "text-green-400", 
+    glowColor: "glow-violet"
+  },
+];
 
-  const guidelinesData = [
-    {
+const guidelinesData = [
+  {
+    icon: ChatBubbleLeftRightIcon,
+    title: "Stay On Topic",
+    description: "Contribute meaningfully to discussions and stay relevant",
+    color: "text-blue-400"
+  },
+  {
       icon: ChatBubbleLeftRightIcon,
-      title: "Stay On Topic",
-      description: "Contribute meaningfully to discussions and stay relevant",
-      color: "text-blue-400"
-    },
-    {
+    title: "No Spam",
+    description: "Avoid spam, advertising, or excessive self-promotion",
+    color: "text-yellow-400"
+  },
+  {
       icon: ChatBubbleLeftRightIcon,
-      title: "No Spam",
-      description: "Avoid spam, advertising, or excessive self-promotion",
-      color: "text-yellow-400"
-    },
-    {
-      icon: ChatBubbleLeftRightIcon,
-      title: "Respect Privacy",
-      description: "Maintain privacy and confidentiality at all times",
-      color: "text-green-400"
-    }
-  ];
+    title: "Respect Privacy",
+    description: "Maintain privacy and confidentiality at all times",
+    color: "text-green-400"
+  }
+];
 
   return (
     <motion.div 
@@ -532,7 +532,7 @@ export default function CommunityPage() {
                 <div className="text-xs text-text-muted mt-1">
                   {newDiscussion.title.length}/100 characters
                 </div>
-              </div>
+            </div>
 
               <div>
                 <label className="block text-sm font-medium text-text-secondary mb-2">
@@ -602,7 +602,7 @@ export default function CommunityPage() {
                 Help us maintain a positive and engaging environment for everyone.
               </p>
             </div>
-
+            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {guidelinesData.map((guideline, index) => {
                 const IconComponent = guideline.icon;
