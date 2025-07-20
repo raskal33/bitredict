@@ -98,7 +98,7 @@ const CryptoMarketSelector: React.FC<CryptoMarketSelectorProps> = ({
       
       if (data.success && data.data.length > 0) {
         // Get ticker data for search results
-        const tickerPromises = data.data.slice(0, 5).map(async (coin: any) => {
+        const tickerPromises = data.data.slice(0, 5).map(async (coin: { symbol: string; name: string; id: string }) => {
           try {
             const tickerResponse = await fetch(`/api/crypto/prices/${coin.symbol}`);
             const tickerData = await tickerResponse.json();
@@ -237,7 +237,7 @@ const CryptoMarketSelector: React.FC<CryptoMarketSelectorProps> = ({
       currentPrice: selectedCrypto.price,
       targetPrice: target.targetPrice,
       direction: target.direction,
-      timeframe: timeframe as any,
+      timeframe: timeframe as '1h' | '24h' | '7d' | '30d',
       difficulty: target.difficulty,
       volatility: selectedCrypto.volatility
     };

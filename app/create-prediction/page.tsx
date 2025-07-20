@@ -1,18 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useState, useEffect } from "react";
+import { motion } from "framer-motion";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { parseEther } from "viem";
 import { toast } from "react-hot-toast";
 import { 
-  CurrencyDollarIcon,
-  UserGroupIcon,
   ExclamationTriangleIcon,
   CheckCircleIcon,
   MagnifyingGlassIcon,
-  ShieldCheckIcon,
-  InformationCircleIcon
+  ShieldCheckIcon
 } from "@heroicons/react/24/outline";
 import Button from "@/components/button";
 import Input from "@/components/input";
@@ -28,7 +25,7 @@ const BITREDICT_POOL_ABI = [
   {
     name: "createPool",
     type: "function",
-    stateMutability: "nonpayable",
+    stateMutability: "payable",
     inputs: [
       { name: "_predictedOutcome", type: "bytes32" },
       { name: "_odds", type: "uint256" },
@@ -46,7 +43,7 @@ const BITREDICT_POOL_ABI = [
   }
 ] as const;
 
-const CONTRACT_ADDRESS = "0x742d35Cc6635C0532925a3b8D84e4123a4b37A12";
+const CONTRACT_ADDRESS = "0x742d35Cc6635C0532925a3b8D84e4123a4b37A12" as `0x${string}`;
 
 // SportMonks Fixture interface
 interface Fixture {
@@ -324,12 +321,12 @@ export default function CreateMarketPage() {
         region = 'Global';
       }
 
-      await writeContract({
+      const baseConfig = {
         address: CONTRACT_ADDRESS,
         abi: BITREDICT_POOL_ABI,
-        functionName: 'createPool',
+        functionName: 'createPool' as const,
         args: [
-          `0x${Buffer.from(predictedOutcome, 'utf8').toString('hex').padEnd(64, '0')}`,
+          `0x${Buffer.from(predictedOutcome, 'utf8').toString('hex').padEnd(64, '0')}` as `0x${string}`,
           BigInt(data.odds),
           parseEther(data.creatorStake.toString()),
           BigInt(eventStartTime),
@@ -337,12 +334,20 @@ export default function CreateMarketPage() {
           league,
           data.category,
           region,
-          false, // isPrivate
+          false as boolean, // isPrivate
           parseEther('0'), // maxBetPerUser (0 = no limit)
-          useBitr
-        ],
-        value: useBitr ? undefined : parseEther((data.creatorStake + 1).toString()) // +1 for creation fee
-      });
+          useBitr as boolean
+        ] as const
+      };
+
+      const contractConfig = useBitr 
+        ? baseConfig 
+        : { 
+            ...baseConfig, 
+            value: parseEther((data.creatorStake + 1).toString()) // +1 for creation fee
+          };
+
+      await writeContract(contractConfig);
     } catch (error) {
       console.error('Error creating market:', error);
       toast.error('Failed to create market');
@@ -423,7 +428,7 @@ export default function CreateMarketPage() {
                     key={outcome.key}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => handleInputChange('outcome', outcome.key as any)}
+                    onClick={() => handleInputChange('outcome', outcome.key as 'home' | 'away' | 'draw' | 'over25' | 'under25')}
                     className={`p-3 rounded-lg border text-sm font-medium transition-all ${
                       data.outcome === outcome.key
                         ? 'border-cyan-500 bg-cyan-500/10 text-cyan-400'
@@ -431,7 +436,7 @@ export default function CreateMarketPage() {
                     }`}
                   >
                     {outcome.label}
-                    {data.selectedFixture.odds && (
+                    {data.selectedFixture?.odds && (
                       <div className="text-xs mt-1 opacity-75">
                         {outcome.key === 'home' && `${data.selectedFixture.odds.home.toFixed(2)}`}
                         {outcome.key === 'draw' && `${data.selectedFixture.odds.draw.toFixed(2)}`}
@@ -767,9 +772,8 @@ export default function CreateMarketPage() {
           {userReputation && (
             <div className="mb-6">
               <ReputationBadge 
-                reputation={userReputation.points} 
-                level={userReputation.level}
-                size="large"
+                reputation={userReputation} 
+                size="lg"
               />
             </div>
           )}
@@ -799,8 +803,7 @@ export default function CreateMarketPage() {
             {userReputation && (
               <div className="mt-6 flex justify-center">
                 <ReputationBadge 
-                  reputation={userReputation.points} 
-                  level={userReputation.level}
+                  reputation={userReputation}
                 />
               </div>
             )}

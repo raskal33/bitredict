@@ -5,9 +5,10 @@ import { forwardRef, TextareaHTMLAttributes } from 'react';
 interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string;
   error?: string;
+  help?: string;
 }
 
-const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(({ label, error, ...props }, ref) => {
+const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(({ label, error, help, ...props }, ref) => {
   return (
     <div className="w-full">
       {label && <label className="block text-sm font-medium text-text-secondary mb-1">{label}</label>}
@@ -21,7 +22,8 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(({ label, error,
           ${error ? 'border-red-500' : 'border-border-card'}
           ${props.disabled ? 'bg-bg-overlay cursor-not-allowed' : ''}
         `}
-      />
+              />
+      {help && <p className="mt-1 text-xs text-text-muted">{help}</p>}
       {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
     </div>
   );

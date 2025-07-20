@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { CalendarIcon, ClockIcon, StarIcon } from '@heroicons/react/24/outline';
 
 interface Fixture {
@@ -61,16 +61,7 @@ export default function FixtureSelector({ onFixtureSelect, selectedFixture, clas
   // Use bitredict backend API (adjust URL as needed)
   const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
 
-  useEffect(() => {
-    fetchLeagues();
-    fetchFixtures();
-  }, []);
-
-  useEffect(() => {
-    fetchFixtures();
-  }, [selectedLeague, days]);
-
-  const fetchLeagues = async () => {
+  const fetchLeagues = useCallback(async () => {
     try {
       const response = await fetch(`${API_BASE}/api/fixtures/leagues/popular`);
       const data = await response.json();
@@ -81,9 +72,9 @@ export default function FixtureSelector({ onFixtureSelect, selectedFixture, clas
     } catch (error) {
       console.error('Error fetching leagues:', error);
     }
-  };
+  }, [API_BASE]);
 
-  const fetchFixtures = async () => {
+  const fetchFixtures = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams({
@@ -106,7 +97,16 @@ export default function FixtureSelector({ onFixtureSelect, selectedFixture, clas
     } finally {
       setLoading(false);
     }
-  };
+  }, [API_BASE, days, selectedLeague]);
+
+  useEffect(() => {
+    fetchLeagues();
+    fetchFixtures();
+  }, [fetchLeagues, fetchFixtures]);
+
+  useEffect(() => {
+    fetchFixtures();
+  }, [fetchFixtures]);
 
   const filteredFixtures = fixtures.filter(fixture => {
     if (!searchTerm) return true;
