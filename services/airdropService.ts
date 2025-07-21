@@ -1,20 +1,10 @@
 import { UserEligibility, AirdropStatistics, FaucetClaimRequest, FaucetClaimResponse } from "@/types/airdrop";
-
-const API_URL = "/api/airdrop";
+import { getAPIUrl, apiRequest } from "@/config/api";
 
 // Get airdrop eligibility for a specific wallet address
 export async function checkAirdropEligibility(address: string): Promise<UserEligibility> {
   try {
-    const response = await fetch(`${API_URL}/eligibility/${address}`);
-    
-    if (!response.ok) {
-      if (response.status === 400) {
-        throw new Error("Invalid wallet address format");
-      }
-      throw new Error("Failed to check airdrop eligibility");
-    }
-    
-    return await response.json();
+    return await apiRequest<UserEligibility>(`/api/airdrop/eligibility/${address}`);
   } catch (error) {
     console.error("Error checking airdrop eligibility:", error);
     throw error;
@@ -24,15 +14,39 @@ export async function checkAirdropEligibility(address: string): Promise<UserElig
 // Get overall airdrop statistics
 export async function getAirdropStatistics(): Promise<AirdropStatistics> {
   try {
-    const response = await fetch(`${API_URL}/statistics`);
-    
-    if (!response.ok) {
-      throw new Error("Failed to fetch airdrop statistics");
-    }
-    
-    return await response.json();
+    return await apiRequest<AirdropStatistics>("/api/airdrop/statistics");
   } catch (error) {
     console.error("Error fetching airdrop statistics:", error);
+    throw error;
+  }
+}
+
+// Check faucet eligibility 
+export async function checkFaucetEligibility(address: string) {
+  try {
+    return await apiRequest(`/api/faucet/eligibility/${address}`);
+  } catch (error) {
+    console.error("Error checking faucet eligibility:", error);
+    throw error;
+  }
+}
+
+// Get faucet statistics
+export async function getFaucetStatistics() {
+  try {
+    return await apiRequest("/api/faucet/statistics");
+  } catch (error) {
+    console.error("Error fetching faucet statistics:", error);
+    throw error;
+  }
+}
+
+// Get user activity for faucet eligibility
+export async function getFaucetActivity(address: string) {
+  try {
+    return await apiRequest(`/api/faucet/activity/${address}`);
+  } catch (error) {
+    console.error("Error fetching faucet activity:", error);
     throw error;
   }
 }
@@ -40,7 +54,7 @@ export async function getAirdropStatistics(): Promise<AirdropStatistics> {
 // Claim faucet tokens (this would typically call smart contract)
 export async function claimFaucet(request: FaucetClaimRequest): Promise<FaucetClaimResponse> {
   try {
-    const response = await fetch(`${API_URL}/faucet/claim`, {
+    const response = await fetch(getAPIUrl("/api/faucet/claim"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -72,13 +86,7 @@ export async function claimFaucet(request: FaucetClaimRequest): Promise<FaucetCl
 // Get leaderboard of eligible users
 export async function getAirdropLeaderboard(limit: number = 100) {
   try {
-    const response = await fetch(`${API_URL}/leaderboard?limit=${limit}`);
-    
-    if (!response.ok) {
-      throw new Error("Failed to fetch airdrop leaderboard");
-    }
-    
-    return await response.json();
+    return await apiRequest(`/api/airdrop/leaderboard?limit=${limit}`);
   } catch (error) {
     console.error("Error fetching airdrop leaderboard:", error);
     throw error;
@@ -128,4 +136,4 @@ export function calculateRequirementProgress(requirements: UserEligibility['requ
   if (requirements.oddysseySlips.met) completed++;
   
   return Math.round((completed / total) * 100);
-} 
+}

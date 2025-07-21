@@ -1,608 +1,401 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { motion } from "framer-motion";
 import { useAccount } from "wagmi";
 import { toast } from "react-hot-toast";
 import Button from "@/components/button";
 import AnimatedTitle from "@/components/AnimatedTitle";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import { useFaucet } from "@/hooks/useFaucet";
+import { useBITRToken } from "@/hooks/useBITRToken";
 import { 
-  checkAirdropEligibility, 
-  claimFaucet, 
-  getAirdropStatistics,
-  formatBITRAmount,
-  formatAddress,
-  calculateRequirementProgress 
+  getFaucetStatistics,
+  formatAddress 
 } from "@/services/airdropService";
-import { UserEligibility, AirdropStatistics } from "@/types/airdrop";
 import { 
   FaFaucet, 
   FaCheckCircle, 
-  FaTimesCircle, 
-  FaExclamationTriangle,
   FaCopy,
   FaExternalLinkAlt,
   FaGamepad,
   FaCoins,
   FaChartLine,
   FaTrophy,
-  FaShieldAlt
+  FaShieldAlt,
+  FaTimesCircle,
+  FaExclamationTriangle
 } from "react-icons/fa";
 import { 
   BeakerIcon as BeakerSolid,
-  GiftIcon as GiftSolid,
-  CheckBadgeIcon,
-  ClockIcon
+  GiftIcon as GiftSolid
 } from "@heroicons/react/24/solid";
+
+interface FaucetStats {
+  totalClaimed: string;
+  totalUsers: number;
+  claimsToday: number;
+  remainingTokens: string;
+}
 
 export default function FaucetPage() {
   const { address, isConnected } = useAccount();
-  const [eligibility, setEligibility] = useState<UserEligibility | null>(null);
-  const [statistics, setStatistics] = useState<AirdropStatistics | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [claiming, setClaiming] = useState(false);
-  const [lastClaimedTx, setLastClaimedTx] = useState<string>("");
+  const [stats, setStats] = useState<FaucetStats | null>(null);
+  
+  // Smart contract hooks
+  const faucet = useFaucet();
+  const token = useBITRToken();
 
-  const fetchEligibility = useCallback(async () => {
+  const fetchFaucetData = useCallback(async () => {
     if (!address) return;
     
-    setLoading(true);
     try {
-      const result = await checkAirdropEligibility(address);
-      setEligibility(result);
-    } catch (error) {
-      console.error("Error fetching eligibility:", error);
-      toast.error("Failed to check eligibility");
-    } finally {
-      setLoading(false);
-    }
-  }, [address]);
-
-  // Fetch eligibility when wallet connects
-  useEffect(() => {
-    if (address) {
-      fetchEligibility();
-    } else {
-      setEligibility(null);
-    }
-  }, [address, fetchEligibility]);
-
-  // Fetch statistics on page load
-  useEffect(() => {
-    fetchStatistics();
-  }, []);
-
-  const fetchStatistics = async () => {
-    try {
-      const stats = await getAirdropStatistics();
-      setStatistics(stats);
-    } catch (error) {
-      console.error("Error fetching statistics:", error);
-    }
-  };
-
-  const handleClaimFaucet = async () => {
-    if (!address) {
-      toast.error("Please connect your wallet first");
-      return;
-    }
-
-    setClaiming(true);
-    try {
-      const result = await claimFaucet({ userAddress: address });
+      // Fetch backend data
+      const statistics = await getFaucetStatistics();
       
-      if (result.success) {
-        toast.success("Faucet claimed successfully!");
-        if (result.transactionHash) {
-          setLastClaimedTx(result.transactionHash);
-        }
-        // Refresh eligibility
-        await fetchEligibility();
-        await fetchStatistics();
-      } else {
-        toast.error(result.message || "Failed to claim faucet");
-      }
+      setStats(statistics as FaucetStats);
+      
+      // Refetch contract data
+      faucet.refetchAll();
+      token.refetchBalance();
     } catch (error) {
+      console.error("Error fetching faucet data:", error);
+      toast.error("Failed to load faucet data");
+    }
+  }, [address, faucet, token]);
+
+  useEffect(() => {
+    if (isConnected && address) {
+      fetchFaucetData();
+    }
+  }, [isConnected, address, fetchFaucetData]);
+
+  // Handle faucet claim
+  const handleClaimFaucet = async () => {
+    if (!address || !faucet.canClaim) return;
+    
+    try {
+      await faucet.claimBitr();
+      toast.success("Faucet claim transaction submitted!");
+    } catch (error: unknown) {
       console.error("Error claiming faucet:", error);
-      toast.error("An error occurred while claiming faucet");
-    } finally {
-      setClaiming(false);
+      toast.error((error as Error).message || "Failed to claim faucet");
     }
   };
 
-  const copyAddress = (addr: string) => {
-    navigator.clipboard.writeText(addr);
-    toast.success("Address copied to clipboard!");
+  // Watch for successful transaction
+  useEffect(() => {
+    if (faucet.isConfirmed) {
+      toast.success("Faucet claimed successfully! 🎉");
+      fetchFaucetData(); // Refresh data
+    }
+  }, [faucet.isConfirmed, fetchFaucetData]);
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Copied to clipboard!");
   };
 
-  const getRequirementIcon = (met: boolean, warning?: boolean) => {
-    if (warning) return <FaExclamationTriangle className="text-warning" />;
-    return met ? <FaCheckCircle className="text-success" /> : <FaTimesCircle className="text-error" />;
-  };
-
-  const getStatusBadge = (eligibilityStatus: string) => {
-    switch (eligibilityStatus) {
-      case 'eligible':
-        return (
-          <div className="inline-flex items-center gap-2 bg-success/20 text-success px-3 py-1 rounded-full text-sm font-medium">
-            <FaCheckCircle size={14} />
-            Eligible for Airdrop
-          </div>
-        );
-      case 'not_eligible':
-        return (
-          <div className="inline-flex items-center gap-2 bg-error/20 text-error px-3 py-1 rounded-full text-sm font-medium">
-            <FaTimesCircle size={14} />
-            Not Eligible
-          </div>
-        );
-      case 'pending_calculation':
-        return (
-          <div className="inline-flex items-center gap-2 bg-warning/20 text-warning px-3 py-1 rounded-full text-sm font-medium">
-            <ClockIcon className="w-4 h-4" />
-            Calculating...
-          </div>
-        );
-      default:
-        return (
-          <div className="inline-flex items-center gap-2 bg-text-muted/20 text-text-muted px-3 py-1 rounded-full text-sm font-medium">
-            <FaFaucet size={14} />
-            Claim Faucet First
-          </div>
-        );
+  const getClaimStatusIcon = () => {
+    if (faucet.hasClaimed) {
+      return <FaCheckCircle className="h-12 w-12 text-green-400" />;
+    } else if (!faucet.isActive) {
+      return <FaTimesCircle className="h-12 w-12 text-red-400" />;
+    } else if (!faucet.hasSufficientBalance) {
+      return <FaExclamationTriangle className="h-12 w-12 text-yellow-400" />;
+    } else {
+      return <FaFaucet className="h-12 w-12 text-blue-400" />;
     }
   };
+
+  const getClaimStatusColor = () => {
+    if (faucet.hasClaimed) {
+      return "text-green-400";
+    } else if (!faucet.isActive || !faucet.hasSufficientBalance) {
+      return "text-red-400";
+    } else {
+      return "text-blue-400";
+    }
+  };
+
+  if (!isConnected) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex items-center justify-center p-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 text-center"
+        >
+          <BeakerSolid className="h-16 w-16 text-blue-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-white mb-4">Connect Your Wallet</h2>
+          <p className="text-gray-300 mb-6">
+            Connect your wallet to claim your testnet BITR tokens from the faucet.
+          </p>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
-    <motion.section 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="container mx-auto px-4 space-y-8"
-    >
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="text-center relative"
-      >
-        {/* Animated background elements */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <motion.div 
-            className="absolute top-[20%] left-[15%] w-6 h-6 bg-primary/20 rounded-full blur-sm"
-            animate={{ y: [-10, 10, -10], x: [-5, 5, -5], scale: [1, 1.2, 1] }}
-            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-          />
-          <motion.div 
-            className="absolute top-[60%] right-[20%] w-4 h-4 bg-secondary/30 rounded-full blur-sm"
-            animate={{ y: [10, -10, 10], x: [5, -5, 5], scale: [1, 1.3, 1] }}
-            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-          />
-          <motion.div 
-            className="absolute bottom-[30%] left-[70%] w-5 h-5 bg-accent/25 rounded-full blur-sm"
-            animate={{ y: [-8, 8, -8], x: [-3, 3, -3], scale: [1, 1.1, 1] }}
-            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-          />
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 p-6">
+      <div className="max-w-6xl mx-auto">
+        <AnimatedTitle>
+          <div className="text-4xl md:text-6xl font-bold text-center mb-4 bg-gradient-to-r from-blue-400 to-green-400 bg-clip-text text-transparent">
+            Testnet Faucet
+          </div>
+        </AnimatedTitle>
+        
+        <p className="text-center text-gray-300 mb-12 text-lg max-w-3xl mx-auto">
+          Claim your free testnet BITR tokens to start participating in prediction markets and staking.
+        </p>
 
-        <div className="relative z-10 mb-8">
-          <AnimatedTitle 
-            size="md"
-            leftIcon={BeakerSolid}
-            rightIcon={GiftSolid}
-          >
-            BITR Faucet & Airdrop
-          </AnimatedTitle>
-          
-          <motion.p 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            className="text-xl text-text-secondary max-w-3xl mx-auto text-center"
-          >
-            Claim 20,000 testnet BITR tokens and become eligible for the mainnet airdrop by completing platform activities.
-          </motion.p>
-        </div>
-      </motion.div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Claim Panel */}
+          <div className="lg:col-span-2">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20"
+            >
+              {/* Claim Status */}
+              <div className="text-center mb-8">
+                <div className="flex justify-center mb-4">
+                  {getClaimStatusIcon()}
+                </div>
+                <h2 className={`text-2xl font-bold mb-2 ${getClaimStatusColor()}`}>
+                  {faucet.claimStatus}
+                </h2>
+                <p className="text-gray-400">
+                  {faucet.hasClaimed 
+                    ? `You claimed ${faucet.faucetAmount} BITR on ${faucet.claimDate}`
+                    : `Get ${faucet.faucetAmount} BITR tokens for free`
+                  }
+                </p>
+              </div>
 
-      {/* Main Content Grid */}
-      <div className="grid gap-8 lg:grid-cols-3">
-        {/* Left Column - Faucet Claim */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Faucet Claim Card */}
-          <motion.div 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
-            className="glass-card"
-          >
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-3 bg-primary/20 rounded-full">
-                <FaFaucet className="text-2xl text-primary" />
-              </div>
-              <div>
-                <h3 className="text-xl font-semibold text-text-primary">Claim Testnet BITR</h3>
-                <p className="text-text-muted">Get 20,000 BITR tokens (once per wallet)</p>
-              </div>
-            </div>
-
-            {!isConnected ? (
-              <div className="text-center py-8">
-                <FaShieldAlt className="text-4xl text-text-muted mx-auto mb-4" />
-                <p className="text-text-muted mb-4">Connect your wallet to claim faucet tokens</p>
-                <w3m-connect-button />
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-bg-card rounded-xl border border-border-card">
-                  <span className="text-text-muted">Your Address:</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-text-primary font-mono">{formatAddress(address!)}</span>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => copyAddress(address!)}
-                      className="p-2"
-                    >
-                      <FaCopy size={14} />
-                    </Button>
+              {/* Claim Details */}
+              <div className="bg-black/20 rounded-xl p-6 mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+                  <div>
+                    <FaCoins className="h-8 w-8 text-yellow-400 mx-auto mb-2" />
+                    <p className="text-gray-400 text-sm">Claim Amount</p>
+                    <p className="text-2xl font-bold text-white">{faucet.faucetAmount} BITR</p>
+                  </div>
+                  
+                  <div>
+                    <FaShieldAlt className="h-8 w-8 text-green-400 mx-auto mb-2" />
+                    <p className="text-gray-400 text-sm">Claim Type</p>
+                    <p className="text-xl font-bold text-white">One-Time Only</p>
+                  </div>
+                  
+                  <div>
+                    <FaChartLine className="h-8 w-8 text-blue-400 mx-auto mb-2" />
+                    <p className="text-gray-400 text-sm">Faucet Status</p>
+                    <p className={`text-xl font-bold ${faucet.isActive ? 'text-green-400' : 'text-red-400'}`}>
+                      {faucet.isActive ? 'Active' : 'Inactive'}
+                    </p>
                   </div>
                 </div>
+              </div>
 
-                {loading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <LoadingSpinner />
-                    <span className="ml-3 text-text-muted">Checking eligibility...</span>
+              {/* Claim Button */}
+              <div className="text-center">
+                {faucet.hasClaimed ? (
+                  <div className="bg-green-500/20 border border-green-500/50 rounded-xl p-6">
+                    <FaCheckCircle className="h-8 w-8 text-green-400 mx-auto mb-3" />
+                    <h3 className="text-xl font-bold text-green-400 mb-2">
+                      Already Claimed!
+                    </h3>
+                    <p className="text-gray-300 mb-4">
+                      You have already claimed your testnet BITR tokens on {faucet.claimDate}.
+                    </p>
+                    <p className="text-gray-400 text-sm">
+                      Each wallet can only claim once. Use your tokens for staking and prediction markets!
+                    </p>
                   </div>
-                ) : eligibility ? (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-text-muted">Status:</span>
-                      {getStatusBadge(eligibility.eligibilityStatus)}
-                    </div>
-
-                    {eligibility.faucetClaim.hasClaimed ? (
-                      <div className="bg-success/10 border border-success/20 rounded-xl p-4">
-                        <div className="flex items-center gap-3 mb-2">
-                          <FaCheckCircle className="text-success" />
-                          <span className="font-medium text-success">Faucet Already Claimed!</span>
-                        </div>
-                        <p className="text-text-secondary text-sm">
-                          You claimed {formatBITRAmount(eligibility.faucetClaim.amount || "0", 18)} BITR on{" "}
-                          {eligibility.faucetClaim.claimedAt ? 
-                            new Date(eligibility.faucetClaim.claimedAt).toLocaleDateString() : "N/A"}
-                        </p>
+                ) : (
+                  <Button
+                    onClick={handleClaimFaucet}
+                    disabled={
+                      !faucet.canClaim ||
+                      faucet.isPending ||
+                      faucet.isConfirming
+                    }
+                    className={`w-full py-6 text-xl font-bold ${
+                      faucet.canClaim
+                        ? "bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600"
+                        : "bg-gray-600 cursor-not-allowed"
+                    }`}
+                  >
+                    {faucet.isPending || faucet.isConfirming ? (
+                      <div className="flex items-center justify-center gap-3">
+                        <LoadingSpinner size="sm" />
+                        {faucet.isPending ? "Confirming..." : "Processing..."}
                       </div>
                     ) : (
-                      <Button
-                        variant="primary"
-                        fullWidth
-                        size="lg"
-                        onClick={handleClaimFaucet}
-                        loading={claiming}
-                        disabled={claiming}
-                      >
-                        {claiming ? "Claiming..." : "Claim 20,000 BITR"}
-                      </Button>
+                      <>
+                        <FaFaucet className="inline mr-3" />
+                        {faucet.canClaim ? `Claim ${faucet.faucetAmount} BITR` : faucet.claimStatus}
+                      </>
                     )}
+                  </Button>
+                )}
 
-                    {lastClaimedTx && (
-                      <div className="flex items-center gap-2 text-sm text-text-muted">
-                        <span>Transaction:</span>
-                        <a 
-                          href={`https://explorer.somnia.network/tx/${lastClaimedTx}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline flex items-center gap-1"
-                        >
-                          {formatAddress(lastClaimedTx, 12)}
-                          <FaExternalLinkAlt size={12} />
-                        </a>
-                      </div>
+                {!faucet.canClaim && !faucet.hasClaimed && (
+                  <div className="mt-4 p-4 bg-yellow-500/20 border border-yellow-500/50 rounded-xl">
+                    <FaExclamationTriangle className="h-6 w-6 text-yellow-400 mx-auto mb-2" />
+                    <p className="text-yellow-300 font-medium">{faucet.claimStatus}</p>
+                    {!faucet.hasSufficientBalance && (
+                      <p className="text-gray-400 text-sm mt-2">
+                        The faucet is temporarily empty. Please try again later.
+                      </p>
                     )}
                   </div>
-                ) : null}
+                )}
               </div>
-            )}
-          </motion.div>
 
-          {/* Airdrop Requirements */}
-          {eligibility && (
-            <motion.div 
-              initial={{ opacity: 0, x: -20 }}
+              {/* Usage Instructions */}
+              <div className="mt-8 border-t border-gray-600 pt-8">
+                <h3 className="text-xl font-bold text-white mb-4">What to do with your BITR?</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex items-start gap-3 p-4 bg-black/20 rounded-xl">
+                    <FaTrophy className="h-6 w-6 text-yellow-400 mt-1" />
+                    <div>
+                      <h4 className="text-white font-medium mb-1">Stake for Rewards</h4>
+                      <p className="text-gray-400 text-sm">
+                        Stake your BITR tokens to earn APY rewards and revenue sharing
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start gap-3 p-4 bg-black/20 rounded-xl">
+                    <FaGamepad className="h-6 w-6 text-purple-400 mt-1" />
+                    <div>
+                      <h4 className="text-white font-medium mb-1">Prediction Markets</h4>
+                      <p className="text-gray-400 text-sm">
+                        Use BITR to create pools and place bets on future events
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+
+          {/* Stats Panel */}
+          <div className="space-y-6">
+            {/* Current Balance */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.4 }}
-              className="glass-card"
+              className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20"
             >
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-3 bg-secondary/20 rounded-full">
-                  <CheckBadgeIcon className="w-6 h-6 text-secondary" />
+              <h3 className="text-xl font-bold text-white mb-4">Your Balance</h3>
+              <div className="text-center">
+                <div className="flex justify-center mb-3">
+                  <FaCoins className="h-12 w-12 text-yellow-400" />
                 </div>
-                <div>
-                  <h3 className="text-xl font-semibold text-text-primary">Airdrop Requirements</h3>
-                  <p className="text-text-muted">
-                    Complete all requirements to become eligible ({calculateRequirementProgress(eligibility.requirements)}% complete)
-                  </p>
-                </div>
-              </div>
-
-              {/* Progress Bar */}
-              <div className="mb-6">
-                <div className="w-full bg-bg-card rounded-full h-3 overflow-hidden">
-                  <motion.div 
-                    className="h-full bg-gradient-primary rounded-full"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${calculateRequirementProgress(eligibility.requirements)}%` }}
-                    transition={{ duration: 1, delay: 0.5 }}
-                  />
+                <p className="text-3xl font-bold text-white mb-2">{token.balance}</p>
+                <p className="text-gray-400">BITR Tokens</p>
+                
+                <div className="flex items-center justify-center gap-2 mt-4">
+                  <span className="text-gray-400 text-sm truncate">{formatAddress(address!)}</span>
+                  <button
+                    onClick={() => copyToClipboard(address!)}
+                    className="text-blue-400 hover:text-blue-300 transition-colors"
+                  >
+                    <FaCopy className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
+            </motion.div>
 
+            {/* Faucet Statistics */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.1 }}
+              className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20"
+            >
+              <h3 className="text-xl font-bold text-white mb-4">Faucet Statistics</h3>
+              
               <div className="space-y-4">
-                {/* Requirement 1: Faucet Claim */}
-                <div className="flex items-center gap-3 p-4 bg-bg-card rounded-xl border border-border-card">
-                  {getRequirementIcon(eligibility.requirements.faucetClaim)}
-                  <div className="flex-1">
-                    <div className="font-medium text-text-primary">Claim Faucet</div>
-                    <div className="text-sm text-text-muted">Must claim testnet BITR tokens</div>
-                  </div>
-                </div>
-
-                {/* Requirement 2: STT Activity */}
-                <div className="flex items-center gap-3 p-4 bg-bg-card rounded-xl border border-border-card">
-                  {getRequirementIcon(eligibility.requirements.sttActivityBeforeFaucet)}
-                  <div className="flex-1">
-                    <div className="font-medium text-text-primary">STT Activity Before Faucet</div>
-                    <div className="text-sm text-text-muted">
-                      Create a pool OR place a bet with STT before claiming faucet
-                      {eligibility.faucetClaim.hadPriorSTTActivity && (
-                        <span className="text-success ml-2">
-                          ({eligibility.faucetClaim.sttActivityCountBeforeFaucet} activities found)
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Requirement 3: BITR Actions */}
-                <div className="flex items-center gap-3 p-4 bg-bg-card rounded-xl border border-border-card">
-                  {getRequirementIcon(eligibility.requirements.bitrActions.met)}
-                  <div className="flex-1">
-                    <div className="font-medium text-text-primary">
-                      BITR Actions ({eligibility.requirements.bitrActions.current}/{eligibility.requirements.bitrActions.required})
-                    </div>
-                    <div className="text-sm text-text-muted">
-                      Create pools, place bets, or stake using BITR
-                    </div>
-                    <div className="text-xs text-text-muted mt-1">
-                      Pools: {eligibility.activityBreakdown.poolCreations} | 
-                      Bets: {eligibility.activityBreakdown.betsPlaced} | 
-                      Staking: {eligibility.activityBreakdown.stakingActions}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Requirement 4: Staking */}
-                <div className="flex items-center gap-3 p-4 bg-bg-card rounded-xl border border-border-card">
-                  {getRequirementIcon(eligibility.requirements.stakingActivity)}
-                  <div className="flex-1">
-                    <div className="font-medium text-text-primary">Stake BITR</div>
-                    <div className="text-sm text-text-muted">Stake any amount of BITR tokens</div>
-                  </div>
-                  {!eligibility.requirements.stakingActivity && (
-                    <Button variant="outline" size="sm" onClick={() => window.open('/staking', '_blank')}>
-                      <FaCoins className="mr-2" size={14} />
-                      Stake Now
-                    </Button>
-                  )}
-                </div>
-
-                {/* Requirement 5: Oddyssey */}
-                <div className="flex items-center gap-3 p-4 bg-bg-card rounded-xl border border-border-card">
-                  {getRequirementIcon(eligibility.requirements.oddysseySlips.met)}
-                  <div className="flex-1">
-                    <div className="font-medium text-text-primary">
-                      Oddyssey Slips ({eligibility.requirements.oddysseySlips.current}/{eligibility.requirements.oddysseySlips.required})
-                    </div>
-                    <div className="text-sm text-text-muted">Submit prediction slips in the daily game</div>
-                  </div>
-                  {!eligibility.requirements.oddysseySlips.met && (
-                    <Button variant="outline" size="sm" onClick={() => window.open('/oddyssey', '_blank')}>
-                      <FaGamepad className="mr-2" size={14} />
-                      Play Now
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              {/* Sybil Flags Warning */}
-              {eligibility.sybilFlags.hasSybilActivity && (
-                <div className="mt-6 bg-error/10 border border-error/20 rounded-xl p-4">
-                  <div className="flex items-center gap-3 mb-2">
-                    <FaExclamationTriangle className="text-error" />
-                    <span className="font-medium text-error">Account Flagged</span>
-                  </div>
-                  <p className="text-text-secondary text-sm mb-2">
-                    Your account has been flagged for suspicious activity:
-                  </p>
-                  <ul className="text-sm text-text-muted space-y-1">
-                    {eligibility.sybilFlags.suspiciousTransfers && (
-                      <li>• Suspicious transfer patterns detected</li>
-                    )}
-                    {eligibility.sybilFlags.transferOnlyRecipient && (
-                      <li>• Only received BITR without platform activity</li>
-                    )}
-                    {eligibility.sybilFlags.consolidationDetected && (
-                      <li>• Token consolidation pattern detected</li>
-                    )}
-                  </ul>
-                </div>
-              )}
-
-              {/* Next Steps */}
-              {eligibility.nextSteps.length > 0 && (
-                <div className="mt-6 p-4 bg-primary/10 border border-primary/20 rounded-xl">
-                  <h4 className="font-medium text-primary mb-3">Next Steps:</h4>
-                  <ul className="space-y-2">
-                    {eligibility.nextSteps.map((step, index) => (
-                      <li key={index} className="text-sm text-text-secondary flex items-start gap-2">
-                        <span className="text-primary mt-1">•</span>
-                        <span>{step}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </motion.div>
-          )}
-        </div>
-
-        {/* Right Column - Statistics */}
-        <div className="space-y-6">
-          {/* Airdrop Info */}
-          <motion.div 
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.3 }}
-            className="glass-card"
-          >
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-accent/20 rounded-full">
-                <FaTrophy className="text-lg text-accent" />
-              </div>
-              <h3 className="text-lg font-semibold text-text-primary">Mainnet Airdrop</h3>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-text-muted">Total Pool:</span>
-                <span className="font-medium text-text-primary">5,000,000 BITR</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-muted">Faucet Amount:</span>
-                <span className="font-medium text-text-primary">20,000 BITR</span>
-              </div>
-              {eligibility?.isEligible && eligibility.airdropInfo && (
-                <>
-                  <div className="flex justify-between">
-                    <span className="text-text-muted">Your Balance:</span>
-                    <span className="font-medium text-success">
-                      {formatBITRAmount(eligibility.airdropInfo.snapshotBalance || "0", 18)} BITR
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-text-muted">Estimated Airdrop:</span>
-                    <span className="font-medium text-primary">
-                      {formatBITRAmount(eligibility.airdropInfo.airdropAmount || "0", 18)} BITR
-                    </span>
-                  </div>
-                </>
-              )}
-            </div>
-          </motion.div>
-
-          {/* Global Statistics */}
-          {statistics && (
-            <motion.div 
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.5 }}
-              className="glass-card"
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-somnia-cyan/20 rounded-full">
-                  <FaChartLine className="text-lg text-somnia-cyan" />
-                </div>
-                <h3 className="text-lg font-semibold text-text-primary">Global Stats</h3>
-              </div>
-
-              <div className="space-y-3">
                 <div className="flex justify-between">
-                  <span className="text-text-muted">Total Claims:</span>
-                  <span className="font-medium text-text-primary">
-                    {statistics.overview.totalFaucetClaims.toLocaleString()}
-                  </span>
+                  <span className="text-gray-400">Faucet Balance</span>
+                  <span className="text-white font-medium">{faucet.faucetBalance} BITR</span>
                 </div>
+                
                 <div className="flex justify-between">
-                  <span className="text-text-muted">Eligible Users:</span>
-                  <span className="font-medium text-success">
-                    {statistics.overview.totalEligible.toLocaleString()}
-                  </span>
+                  <span className="text-gray-400">Total Distributed</span>
+                  <span className="text-white font-medium">{faucet.totalDistributed} BITR</span>
                 </div>
+                
                 <div className="flex justify-between">
-                  <span className="text-text-muted">Eligibility Rate:</span>
-                  <span className="font-medium text-primary">
-                    {statistics.overview.eligibilityRate.toFixed(1)}%
-                  </span>
+                  <span className="text-gray-400">Total Users</span>
+                  <span className="text-white font-medium">{faucet.userCount}</span>
                 </div>
+                
                 <div className="flex justify-between">
-                  <span className="text-text-muted">Avg BITR Actions:</span>
-                  <span className="font-medium text-text-secondary">
-                    {statistics.overview.averageBITRActions}
-                  </span>
+                  <span className="text-gray-400">Remaining Claims</span>
+                  <span className="text-white font-medium">{faucet.maxPossibleClaims}</span>
                 </div>
+                
                 <div className="flex justify-between">
-                  <span className="text-text-muted">Avg Oddyssey Slips:</span>
-                  <span className="font-medium text-text-secondary">
-                    {statistics.overview.averageOddysseySlips}
+                  <span className="text-gray-400">Status</span>
+                  <span className={`font-medium ${faucet.isActive ? 'text-green-400' : 'text-red-400'}`}>
+                    {faucet.isActive ? 'Active' : 'Inactive'}
                   </span>
                 </div>
               </div>
             </motion.div>
-          )}
 
-          {/* Requirements Funnel */}
-          {statistics && (
-            <motion.div 
+            {/* Quick Links */}
+            <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.7 }}
-              className="glass-card"
+              transition={{ delay: 0.2 }}
+              className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20"
             >
-              <h3 className="text-lg font-semibold text-text-primary mb-4">Requirement Funnel</h3>
+              <h3 className="text-xl font-bold text-white mb-4">Quick Actions</h3>
               
               <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-text-muted">Claimed Faucet</span>
-                  <span className="font-medium text-text-primary">
-                    {statistics.requirementFunnel.claimedFaucet.toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-text-muted">Had STT Activity</span>
-                  <span className="font-medium text-text-secondary">
-                    {statistics.requirementFunnel.hadSTTActivity.toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-text-muted">Sufficient BITR Actions</span>
-                  <span className="font-medium text-text-secondary">
-                    {statistics.requirementFunnel.sufficientBITRActions.toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-text-muted">Has Staking</span>
-                  <span className="font-medium text-text-secondary">
-                    {statistics.requirementFunnel.hasStaking.toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-text-muted">Sufficient Oddyssey</span>
-                  <span className="font-medium text-text-secondary">
-                    {statistics.requirementFunnel.sufficientOddyssey.toLocaleString()}
-                  </span>
-                </div>
-                <div className="border-t border-border-card pt-3 flex justify-between items-center">
-                  <span className="text-text-primary font-medium">Fully Eligible</span>
-                  <span className="font-bold text-success">
-                    {statistics.requirementFunnel.fullyEligible.toLocaleString()}
-                  </span>
-                </div>
+                <a
+                  href="/staking"
+                  className="w-full flex items-center justify-between p-3 bg-black/20 hover:bg-black/30 rounded-lg transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <FaTrophy className="h-5 w-5 text-yellow-400" />
+                    <span className="text-white">Start Staking</span>
+                  </div>
+                  <FaExternalLinkAlt className="h-4 w-4 text-gray-400" />
+                </a>
+                
+                <a
+                  href="/markets"
+                  className="w-full flex items-center justify-between p-3 bg-black/20 hover:bg-black/30 rounded-lg transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <FaGamepad className="h-5 w-5 text-purple-400" />
+                    <span className="text-white">Prediction Markets</span>
+                  </div>
+                  <FaExternalLinkAlt className="h-4 w-4 text-gray-400" />
+                </a>
+                
+                <a
+                  href="/airdrop"
+                  className="w-full flex items-center justify-between p-3 bg-black/20 hover:bg-black/30 rounded-lg transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <GiftSolid className="h-5 w-5 text-green-400" />
+                    <span className="text-white">Check Airdrop</span>
+                  </div>
+                  <FaExternalLinkAlt className="h-4 w-4 text-gray-400" />
+                </a>
               </div>
             </motion.div>
-          )}
+          </div>
         </div>
       </div>
-    </motion.section>
+    </div>
   );
-} 
+}

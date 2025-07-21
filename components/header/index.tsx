@@ -19,7 +19,11 @@ import {
   CubeTransparentIcon,
   WalletIcon,
   BeakerIcon,
-  DocumentTextIcon
+  DocumentTextIcon,
+  BoltIcon,
+  ArrowTrendingUpIcon,
+  LockClosedIcon,
+  Squares2X2Icon
 } from "@heroicons/react/24/outline";
 import Button from "@/components/button";
 import { useAccount, useDisconnect, useChainId } from 'wagmi';
@@ -30,6 +34,7 @@ import { somniaNetwork } from '@/config/wagmi';
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const [isBitredictorOpen, setIsBitredictorOpen] = useState<boolean>(false);
+  const [isMarketsOpen, setIsMarketsOpen] = useState<boolean>(false);
   const [{ y }] = useWindowScroll();
   const segment = useSelectedLayoutSegment();
   const [isRender, setIsRender] = useState<boolean>(false);
@@ -63,6 +68,8 @@ export default function Header() {
   const handleClose = () => setIsMenuOpen(false);
   const handleBitredictorToggle = () => setIsBitredictorOpen(!isBitredictorOpen);
   const handleBitredictorClose = () => setIsBitredictorOpen(false);
+  const handleMarketsToggle = () => setIsMarketsOpen(!isMarketsOpen);
+  const handleMarketsClose = () => setIsMarketsOpen(false);
 
   // Switch to Somnia network
   const switchToSomnia = async () => {
@@ -94,17 +101,18 @@ export default function Header() {
     }
   };
 
-  // Close dropdown when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = () => {
       setIsBitredictorOpen(false);
+      setIsMarketsOpen(false);
     };
 
-    if (isBitredictorOpen) {
+    if (isBitredictorOpen || isMarketsOpen) {
       document.addEventListener('click', handleClickOutside);
       return () => document.removeEventListener('click', handleClickOutside);
     }
-  }, [isBitredictorOpen]);
+  }, [isBitredictorOpen, isMarketsOpen]);
 
   if (segment !== "/_not-found") {
     return (
@@ -196,6 +204,71 @@ export default function Header() {
 
               {/* Center - Desktop Navigation */}
               <nav className="hidden lg:flex items-center space-x-1">
+                {/* Markets Dropdown */}
+                <div className="relative">
+                  <motion.button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleMarketsToggle();
+                    }}
+                    whileHover={{ scale: 1.01 }}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-button text-sm font-medium transition-all duration-200 ${
+                      segment?.startsWith('markets') || segment === 'markets'
+                        ? "bg-gradient-primary text-black shadow-button"
+                        : "text-text-secondary hover:text-text-primary hover:bg-bg-card"
+                    }`}
+                  >
+                    <ChartBarIcon className="h-4 w-4" />
+                    Markets
+                    <motion.div
+                      animate={{ rotate: isMarketsOpen ? 180 : 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <ChevronDownIcon className="h-4 w-4" />
+                    </motion.div>
+                  </motion.button>
+
+                  <AnimatePresence>
+                    {isMarketsOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                        transition={{ duration: 0.2, ease: "easeOut" }}
+                        className="absolute top-full left-0 mt-2 w-56 bg-[rgba(5,5,15,0.95)] backdrop-blur-xl border border-border-card/50 rounded-2xl shadow-2xl z-50 overflow-hidden"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="py-3 px-2">
+                          {marketsLinks.map((link) => (
+                            <Link
+                              key={link.href}
+                              href={link.href}
+                              onClick={handleMarketsClose}
+                              className={`flex items-center gap-3 px-3 py-2.5 mx-1 text-sm font-medium transition-all duration-200 rounded-xl group ${
+                                segment === link.segment
+                                  ? "bg-gradient-primary text-black shadow-lg"
+                                  : "text-text-secondary hover:text-text-primary hover:bg-[rgba(255,255,255,0.08)]"
+                              }`}
+                            >
+                              <link.icon className={`h-4 w-4 transition-colors duration-200 ${
+                                segment === link.segment ? 'text-black' : 'text-primary group-hover:text-secondary'
+                              }`} />
+                              <span className="font-medium">{link.label}</span>
+                              {segment === link.segment && (
+                                <div className="ml-auto w-1.5 h-1.5 bg-black rounded-full" />
+                              )}
+                            </Link>
+                          ))}
+                        </div>
+                        
+                        {/* Bottom gradient accent */}
+                        <div className="h-0.5 bg-gradient-to-r from-primary via-secondary to-accent" />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* Other navigation links */}
                 {links.map((link) => (
                   <Link
                     key={link.href}
@@ -351,11 +424,33 @@ export default function Header() {
                             onClick={handleClose}
                             className={`flex items-center gap-3 px-4 py-3 rounded-button text-sm font-medium transition-all duration-200 ${
                               segment === link.segment
-                                ? "bg-gradient-primary text-black shadow-button"
+                                ? "bg-gradient-primary text-black"
                                 : "text-text-secondary hover:text-text-primary hover:bg-bg-card"
                             }`}
                           >
-                            <link.icon className="h-5 w-5" />
+                            <link.icon className="h-4 w-4" />
+                            {link.label}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Markets Section */}
+                    <div className="mb-6">
+                      <h3 className="text-sm font-semibold text-text-secondary mb-3">Markets</h3>
+                      <div className="space-y-2">
+                        {marketsLinks.map((link) => (
+                          <Link
+                            key={link.href}
+                            href={link.href}
+                            onClick={handleClose}
+                            className={`flex items-center gap-3 px-4 py-3 rounded-button text-sm font-medium transition-all duration-200 ${
+                              segment === link.segment
+                                ? "bg-gradient-primary text-black"
+                                : "text-text-secondary hover:text-text-primary hover:bg-bg-card"
+                            }`}
+                          >
+                            <link.icon className="h-4 w-4" />
                             {link.label}
                           </Link>
                         ))}
@@ -371,11 +466,11 @@ export default function Header() {
                           onClick={handleClose}
                           className={`flex items-center gap-3 px-4 py-3 rounded-button text-sm font-medium transition-all duration-200 ${
                             segment === link.segment
-                              ? "bg-gradient-primary text-black shadow-button"
+                              ? "bg-gradient-primary text-black"
                               : "text-text-secondary hover:text-text-primary hover:bg-bg-card"
                           }`}
                         >
-                          <link.icon className="h-5 w-5" />
+                          <link.icon className="h-4 w-4" />
                           {link.label}
                         </Link>
                       ))}
@@ -470,13 +565,34 @@ const bitredictorLinks = [
   },
 ];
 
-const links = [
+const marketsLinks = [
   {
-    label: "Markets",
-    href: "/markets",
-    segment: "markets",
-    icon: ChartBarIcon,
+    label: "Boosted Markets",
+    href: "/markets/boosted",
+    segment: "boosted",
+    icon: BoltIcon,
   },
+  {
+    label: "Trending",
+    href: "/markets/trending", 
+    segment: "trending",
+              icon: ArrowTrendingUpIcon,
+  },
+  {
+    label: "Private (Whitelist)",
+    href: "/markets/private",
+    segment: "private", 
+    icon: LockClosedIcon,
+  },
+  {
+    label: "Combo Markets",
+    href: "/markets/combo",
+    segment: "combo",
+    icon: Squares2X2Icon,
+  },
+];
+
+const links = [
   {
     label: "Oddyssey",
     href: "/oddyssey",

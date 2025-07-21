@@ -1,831 +1,617 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
+import { useAccount } from "wagmi";
+import { toast } from "react-hot-toast";
 import Button from "@/components/button";
 import AnimatedTitle from "@/components/AnimatedTitle";
-import {
-  CurrencyDollarIcon,
-  UsersIcon,
-  BoltIcon,
-  SparklesIcon,
-  ClockIcon,
-  EyeIcon,
-  ShieldCheckIcon,
-  CheckCircleIcon,
-  ChartBarIcon,
-  TrophyIcon,
-} from "@heroicons/react/24/outline";
+import LoadingSpinner from "@/components/LoadingSpinner";
+import { useOddyssey, Match, UserPrediction, BetType, LeaderboardEntry } from "@/hooks/useOddyssey";
 
-interface Pick {
-  id: number;
-  time: string;
-  match: string;
-  pick: "odds1" | "oddsX" | "odds2" | "over" | "under";
-  odd: number;
+interface MatchWithLiveData extends Match {
+  isLive?: boolean;
+  currentScore?: { home: number; away: number };
+  liveData?: { status?: string; minute?: number };
+}
+import { useBITRToken } from "@/hooks/useBITRToken";
+import { 
+  FaGamepad, 
+  FaFootballBall,
+  FaTrophy,
+  FaMedal,
+  FaCoins,
+  FaUsers,
+  FaChartLine,
+  FaChevronDown,
+  FaChevronUp
+} from "react-icons/fa";
+import { 
+  PlayIcon as PlaySolid
+} from "@heroicons/react/24/solid";
+
+interface MatchPrediction {
+  matchId: bigint;
+  betType: BetType;
+  selection: string;
+  selectedOdd: number;
 }
 
-const matches = [
-  {
-    id: 1,
-    time: "10:00",
-    team1: "SK Poltava",
-    team2: "Metalist",
-    odds1: 2.75,
-    oddsX: 3.02,
-    odds2: 2.4,
-    over: 1.85,
-    under: 2.0,
-  },
-  {
-    id: 2,
-    time: "12:15",
-    team1: "Al Najma",
-    team2: "Alhazm",
-    odds1: 3.2,
-    oddsX: 3.2,
-    odds2: 2.35,
-    over: 2.1,
-    under: 1.8,
-  },
-  {
-    id: 3,
-    time: "17:30",
-    team1: "Empoli",
-    team2: "Udinese",
-    odds1: 2.78,
-    oddsX: 2.9,
-    odds2: 2.88,
-    over: 1.95,
-    under: 2.1,
-  },
-  {
-    id: 4,
-    time: "19:45",
-    team1: "Venezia",
-    team2: "Lecce",
-    odds1: 2.8,
-    oddsX: 3.25,
-    odds2: 3.25,
-    over: 2.0,
-    under: 1.85,
-  },
-  {
-    id: 5,
-    time: "14:30",
-    team1: "Arsenal",
-    team2: "Liverpool",
-    odds1: 2.45,
-    oddsX: 3.40,
-    odds2: 2.90,
-    over: 1.75,
-    under: 2.15,
-  },
-  {
-    id: 6,
-    time: "16:00",
-    team1: "Barcelona",
-    team2: "Real Madrid",
-    odds1: 2.10,
-    oddsX: 3.50,
-    odds2: 3.20,
-    over: 1.65,
-    under: 2.30,
-  },
-  {
-    id: 7,
-    time: "20:15",
-    team1: "PSG",
-    team2: "Bayern Munich",
-    odds1: 2.60,
-    oddsX: 3.30,
-    odds2: 2.70,
-    over: 1.70,
-    under: 2.20,
-  },
-  {
-    id: 8,
-    time: "13:45",
-    team1: "Manchester City",
-    team2: "Chelsea",
-    odds1: 1.95,
-    oddsX: 3.60,
-    odds2: 3.80,
-    over: 1.60,
-    under: 2.40,
-  },
-  {
-    id: 9,
-    time: "15:30",
-    team1: "Juventus",
-    team2: "AC Milan",
-    odds1: 2.30,
-    oddsX: 3.20,
-    odds2: 3.10,
-    over: 1.80,
-    under: 2.10,
-  },
-  {
-    id: 10,
-    time: "18:00",
-    team1: "Atletico Madrid",
-    team2: "Sevilla",
-    odds1: 2.15,
-    oddsX: 3.10,
-    odds2: 3.50,
-    over: 1.90,
-    under: 2.05,
-  },
-];
-
-const statsData = [
-  {
-    title: "Total Prize Pool",
-    value: "2,450 ETH",
-    subtitle: "Across all slips",
-    icon: CurrencyDollarIcon,
-    gradient: "from-primary to-blue-500",
-    iconColor: "text-primary",
-    glowColor: "glow-cyan"
-  },
-  {
-    title: "Active Players",
-    value: "8,934",
-    subtitle: "Competing today",
-    icon: UsersIcon,
-    gradient: "from-secondary to-purple-500",
-    iconColor: "text-secondary",
-    glowColor: "glow-magenta"
-  },
-  {
-    title: "Live Matches",
-    value: "10",
-    subtitle: "Ready to predict",
-    icon: EyeIcon,
-    gradient: "from-green-400 to-blue-500",
-    iconColor: "text-green-400",
-    glowColor: "glow-violet"
-  },
-];
-
 export default function OddysseyPage() {
-  const [picks, setPicks] = useState<Pick[]>([]);
-  const [slips, setSlips] = useState<Pick[][]>([]);
-  const [activeTab, setActiveTab] = useState<"today" | "slips">("today");
-  const [timeLeft, setTimeLeft] = useState({ hours: 23, minutes: 45, seconds: 30 });
-  const [entryFee, setEntryFee] = useState(0.1);
+  const { address, isConnected } = useAccount();
+  const [activeTab, setActiveTab] = useState("play");
+  const [predictions, setPredictions] = useState<MatchPrediction[]>([]);
+  const [expandedMatch, setExpandedMatch] = useState<number | null>(null);
+  
+  // Smart contract hooks
+  const oddyssey = useOddyssey();
+  const token = useBITRToken();
 
+  // Initialize predictions when matches are loaded
   useEffect(() => {
-    
-    // Countdown timer
-    const timer = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev.seconds > 0) {
-          return { ...prev, seconds: prev.seconds - 1 };
-        } else if (prev.minutes > 0) {
-          return { ...prev, minutes: prev.minutes - 1, seconds: 59 };
-        } else if (prev.hours > 0) {
-          return { hours: prev.hours - 1, minutes: 59, seconds: 59 };
-        }
-        return prev;
-      });
-    }, 1000);
+    if (oddyssey.dailyMatches && oddyssey.dailyMatches.length === 10) {
+      const initialPredictions = oddyssey.dailyMatches.map((match: Match) => ({
+        matchId: match.id,
+        betType: BetType.MONEYLINE,
+        selection: '1', // Default to home win
+        selectedOdd: match.oddsHome
+      }));
+      setPredictions(initialPredictions);
+    }
+  }, [oddyssey.dailyMatches]);
 
-    return () => clearInterval(timer);
-  }, []);
-
-  const handlePickSelection = (matchId: number, pick: "odds1" | "oddsX" | "odds2" | "over" | "under") => {
+  // Handle prediction change
+  const updatePrediction = (matchIndex: number, field: keyof MatchPrediction, value: string | number | BetType) => {
+    const newPredictions = [...predictions];
+    const match = oddyssey.dailyMatches[matchIndex];
     
-    setPicks((prev) => {
-      // Remove existing pick for this match
-      const filteredPicks = prev.filter(p => p.id !== matchId);
-      // Add new pick if it's not the same as the one being removed
-      if (!prev.find(p => p.id === matchId && p.pick === pick)) {
-        return [
-          ...filteredPicks,
-          {
-            id: matchId,
-            time: matches.find(m => m.id === matchId)?.time || "",
-            match: matches.find(m => m.id === matchId)?.team1 + " - " + matches.find(m => m.id === matchId)?.team2 || "",
-            pick: pick,
-            odd: matches.find(m => m.id === matchId)?.[pick] || 0,
-          },
-        ];
+    if (field === 'betType') {
+      newPredictions[matchIndex].betType = value as BetType;
+      // Reset selection to first option for new bet type
+      if (value === BetType.MONEYLINE) {
+        newPredictions[matchIndex].selection = '1';
+        newPredictions[matchIndex].selectedOdd = match.oddsHome;
+      } else {
+        newPredictions[matchIndex].selection = 'Over';
+        newPredictions[matchIndex].selectedOdd = match.oddsOver;
       }
-      return filteredPicks;
-    });
+    } else if (field === 'selection') {
+      newPredictions[matchIndex].selection = value as string;
+      newPredictions[matchIndex].selectedOdd = oddyssey.getOddsForSelection(
+        match, 
+        value as string, 
+        newPredictions[matchIndex].betType
+      );
+    }
+    
+    setPredictions(newPredictions);
   };
 
-  const handleTrollMode = () => {
-    const possiblePicks: ("odds1" | "oddsX" | "odds2" | "over" | "under")[] = ["odds1", "oddsX", "odds2", "over", "under"];
-    
-    const trollPicks = matches.map((match) => {
-      const randomPick = possiblePicks[Math.floor(Math.random() * possiblePicks.length)];
-      return {
-        id: match.id,
-        time: match.time,
-        match: `${match.team1} - ${match.team2}`,
-        pick: randomPick,
-        odd: match[randomPick],
-      };
-    });
-    
-    setPicks(trollPicks);
+  // Handle slip placement
+  const handlePlaceSlip = async () => {
+    if (predictions.length !== 10) {
+      toast.error("Please make predictions for all 10 matches");
+      return;
+    }
+
+    try {
+      const userPredictions: UserPrediction[] = predictions.map(p => ({
+        matchId: p.matchId,
+        betType: p.betType,
+        selection: oddyssey.getSelectionHash(p.selection),
+        selectedOdd: p.selectedOdd
+      }));
+
+      await oddyssey.placeSlip(userPredictions);
+      toast.success("Slip placed successfully!");
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to place slip";
+      toast.error(errorMessage);
+    }
   };
 
-  const totalOdd = picks.reduce((acc, reducer) => acc * reducer.odd, 1).toFixed(2);
-  const calculatePotentialPayout = (userOdds: number) => {
-    return (entryFee * userOdds * 0.8).toFixed(2); // 80% of potential winnings
+  // Handle prize claim
+  const handleClaimPrize = async () => {
+    try {
+      await oddyssey.claimPrize(oddyssey.dailyCycleId);
+      toast.success("Prize claim transaction submitted!");
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Failed to claim prize";
+      toast.error(errorMessage);
+    }
   };
+
+  // Watch for successful transactions
+  useEffect(() => {
+    if (oddyssey.isConfirmed) {
+      toast.success("Transaction confirmed! 🎉");
+      oddyssey.refetchAll();
+      token.refetchBalance();
+    }
+  }, [oddyssey.isConfirmed, oddyssey, token]);
+
+  const formatTimeRemaining = (): string => {
+    const remaining = oddyssey.timeRemaining;
+    if (remaining <= 0) return "Betting Closed";
+    
+    const hours = Math.floor(remaining / (1000 * 60 * 60));
+    const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes}m`;
+  };
+
+  const getSelectionOptions = (match: Match, betType: BetType) => {
+    if (betType === BetType.MONEYLINE) {
+      return [
+        { value: '1', label: 'Home Win', odds: match.oddsHome },
+        { value: 'X', label: 'Draw', odds: match.oddsDraw },
+        { value: '2', label: 'Away Win', odds: match.oddsAway }
+      ];
+    } else {
+      return [
+        { value: 'Over', label: 'Over', odds: match.oddsOver },
+        { value: 'Under', label: 'Under', odds: match.oddsUnder }
+      ];
+    }
+  };
+
+  if (!isConnected) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex items-center justify-center p-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 text-center"
+        >
+          <PlaySolid className="h-16 w-16 text-purple-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-white mb-4">Connect Your Wallet</h2>
+          <p className="text-gray-300 mb-6">
+            Connect your wallet to participate in the daily Oddyssey prediction game.
+          </p>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-main">
-      <div className="container-nav py-8 space-y-8">
-        {/* Hero Section */}
-        <motion.div
-          initial={{ opacity: 0, y: -30 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center relative"
-        >
-          {/* Animated background elements */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <motion.div 
-              className="absolute top-[20%] left-[15%] w-6 h-6 bg-primary/20 rounded-full blur-sm"
-              animate={{ y: [-10, 10, -10], x: [-5, 5, -5], scale: [1, 1.2, 1] }}
-              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-            />
-            <motion.div 
-              className="absolute top-[60%] right-[20%] w-4 h-4 bg-secondary/30 rounded-full blur-sm"
-              animate={{ y: [10, -10, 10], x: [5, -5, 5], scale: [1, 1.3, 1] }}
-              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-            />
-            <motion.div 
-              className="absolute bottom-[30%] left-[70%] w-5 h-5 bg-accent/25 rounded-full blur-sm"
-              animate={{ y: [-8, 8, -8], x: [-3, 3, -3], scale: [1, 1.1, 1] }}
-              transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-            />
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 p-6">
+      <div className="max-w-7xl mx-auto">
+        <AnimatedTitle>
+          <div className="text-4xl md:text-6xl font-bold text-center mb-4 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+            Oddyssey
           </div>
+        </AnimatedTitle>
+        
+        <p className="text-center text-gray-300 mb-12 text-lg max-w-3xl mx-auto">
+          Daily prediction game - predict outcomes of 10 matches and compete for daily prizes!
+        </p>
 
-          <div className="relative z-10 mb-8">
-            <AnimatedTitle size="md">
-              ODDYSSEY
-            </AnimatedTitle>
+        {/* Game Stats */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 mb-8"
+        >
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+            <div>
+              <FaGamepad className="h-8 w-8 text-purple-400 mx-auto mb-2" />
+              <p className="text-gray-400 text-sm">Cycle #{oddyssey.dailyCycleId}</p>
+              <p className="text-xl font-bold text-white">{formatTimeRemaining()}</p>
+            </div>
             
-            <p className="text-xl text-text-secondary max-w-2xl mx-auto text-center">
-              The ultimate prediction challenge. Select outcomes for 10 matches, compete with the highest odds, and claim your share of the prize pool.
-            </p>
-          </div>
-        </motion.div>
-
-        {/* Stats Cards */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-6"
-        >
-          {statsData.map((stat, index) => {
-            const IconComponent = stat.icon;
-            return (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.1 * index }}
-                whileHover={{ scale: 1.02, y: -2 }}
-                className={`glass-card text-center bg-gradient-to-br ${stat.gradient}/10 border-2 border-transparent hover:border-white/10 hover:${stat.glowColor} transition-all duration-300`}
-              >
-                <IconComponent className={`h-12 w-12 mx-auto mb-4 ${stat.iconColor}`} />
-                <h3 className="text-2xl font-bold text-text-primary mb-1">{stat.value}</h3>
-                <p className="text-lg font-semibold text-text-secondary mb-1">{stat.title}</p>
-                <p className="text-sm text-text-muted">{stat.subtitle}</p>
-              </motion.div>
-            );
-          })}
-        </motion.div>
-
-        {/* How It Works */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="glass-card"
-        >
-          <h2 className="text-2xl font-bold text-center mb-8 gradient-text">How It Works</h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <motion.div
-              whileHover={{ scale: 1.02, y: -3 }}
-              className="text-center p-6 glass-card"
-            >
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-primary to-blue-500 flex items-center justify-center text-black font-bold text-xl shadow-lg">
-                1
-              </div>
-              <h3 className="text-lg font-semibold text-primary mb-2">Select 10 Matches</h3>
-              <p className="text-text-secondary text-sm">Pick outcomes for all 10 matches - moneyline or over/under goals</p>
-            </motion.div>
-
-            <motion.div
-              whileHover={{ scale: 1.02, y: -3 }}
-              className="text-center p-6 glass-card"
-            >
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-secondary to-purple-500 flex items-center justify-center text-black font-bold text-xl shadow-lg">
-                2
-              </div>
-              <h3 className="text-lg font-semibold text-secondary mb-2">Compete for Highest Odds</h3>
-              <p className="text-text-secondary text-sm">Your combined odds determine your ranking against other players</p>
-            </motion.div>
-
-            <motion.div
-              whileHover={{ scale: 1.02, y: -3 }}
-              className="text-center p-6 glass-card"
-            >
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-accent to-green-500 flex items-center justify-center text-black font-bold text-xl shadow-lg">
-                3
-              </div>
-              <h3 className="text-lg font-semibold text-accent mb-2">Win Big Rewards</h3>
-              <p className="text-text-secondary text-sm">Top performers share the prize pool based on their rankings</p>
-            </motion.div>
+            <div>
+              <FaCoins className="h-8 w-8 text-yellow-400 mx-auto mb-2" />
+              <p className="text-gray-400 text-sm">Prize Pool</p>
+              <p className="text-xl font-bold text-white">{oddyssey.prizePool} STT</p>
+            </div>
+            
+            <div>
+              <FaUsers className="h-8 w-8 text-blue-400 mx-auto mb-2" />
+              <p className="text-gray-400 text-sm">Players</p>
+              <p className="text-xl font-bold text-white">{oddyssey.cycleStats?.slips || 0}</p>
+            </div>
+            
+            <div>
+              <FaTrophy className="h-8 w-8 text-green-400 mx-auto mb-2" />
+              <p className="text-gray-400 text-sm">Entry Fee</p>
+              <p className="text-xl font-bold text-white">{oddyssey.entryFee} STT</p>
+            </div>
           </div>
         </motion.div>
 
         {/* Tab Navigation */}
-        <div className="glass-card p-6">
-          <div className="flex items-center justify-center gap-4">
-            <button
-              onClick={() => setActiveTab("today")}
-              className={`px-8 py-3 rounded-button font-semibold transition-all duration-300 flex items-center gap-2 ${
-                activeTab === "today"
-                  ? "bg-gradient-primary text-black shadow-lg scale-105"
-                  : "text-text-secondary hover:text-text-primary hover:bg-bg-card/50"
-              }`}
-            >
-              <ChartBarIcon className="h-5 w-5" />
-              Today&apos;s Matches
-            </button>
-            <button
-              onClick={() => setActiveTab("slips")}
-              className={`px-8 py-3 rounded-button font-semibold transition-all duration-300 flex items-center gap-2 ${
-                activeTab === "slips"
-                  ? "bg-gradient-primary text-black shadow-lg scale-105"
-                  : "text-text-secondary hover:text-text-primary hover:bg-bg-card/50"
-              }`}
-            >
-              <TrophyIcon className="h-5 w-5" />
-              My Slips ({slips.length})
-            </button>
+        <div className="flex justify-center mb-8">
+          <div className="flex space-x-1 bg-black/20 rounded-xl p-1">
+            {["play", "leaderboard", "history"].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`py-3 px-6 rounded-lg font-medium transition-all ${
+                  activeTab === tab
+                    ? "bg-purple-500 text-white"
+                    : "text-gray-300 hover:text-white hover:bg-white/10"
+                }`}
+              >
+                {tab === "play" && "Play Game"}
+                {tab === "leaderboard" && "Leaderboard"}
+                {tab === "history" && "History"}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Countdown Timer - Moved here */}
-        {activeTab === "today" && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.3 }}
-            className="glass-card text-center"
-          >
-            <h3 className="text-lg font-bold text-primary mb-4 flex items-center justify-center gap-2">
-              <ClockIcon className="h-5 w-5" />
-              Betting Closes In
-            </h3>
-            <div className="flex justify-center gap-3 mb-3">
-              <motion.div 
-                className="glass-card p-3 min-w-[70px] bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/30"
-                animate={{ scale: [1, 1.05, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
+        {/* Play Game Tab */}
+        {activeTab === "play" && (
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            {/* Matches */}
+            <div className="lg:col-span-3">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20"
               >
-                <div className="text-xl font-bold text-primary">{timeLeft.hours.toString().padStart(2, '0')}</div>
-                <div className="text-xs text-text-muted uppercase tracking-wider">Hours</div>
-              </motion.div>
-              <motion.div 
-                className="glass-card p-3 min-w-[70px] bg-gradient-to-br from-secondary/20 to-secondary/5 border border-secondary/30"
-                animate={{ scale: [1, 1.05, 1] }}
-                transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
-              >
-                <div className="text-xl font-bold text-secondary">{timeLeft.minutes.toString().padStart(2, '0')}</div>
-                <div className="text-xs text-text-muted uppercase tracking-wider">Minutes</div>
-              </motion.div>
-              <motion.div 
-                className="glass-card p-3 min-w-[70px] bg-gradient-to-br from-accent/20 to-accent/5 border border-accent/30"
-                animate={{ scale: [1, 1.05, 1] }}
-                transition={{ duration: 2, repeat: Infinity, delay: 1 }}
-              >
-                <div className="text-xl font-bold text-accent">{timeLeft.seconds.toString().padStart(2, '0')}</div>
-                <div className="text-xs text-text-muted uppercase tracking-wider">Seconds</div>
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-white">Today&apos;s Matches</h2>
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    oddyssey.isBettingOpen ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"
+                  }`}>
+                    {oddyssey.isBettingOpen ? "Betting Open" : "Betting Closed"}
+                  </span>
+                </div>
+
+                {!oddyssey.dailyMatches || oddyssey.dailyMatches.length === 0 ? (
+                  <div className="text-center py-12">
+                    <FaFootballBall className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-xl font-bold text-white mb-2">No Matches Available</h3>
+                    <p className="text-gray-400">Check back later for today&apos;s matches</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {oddyssey.dailyMatches.map((match: Match, index: number) => (
+                      <div key={Number(match.id)} className="bg-black/20 rounded-xl p-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex-1">
+                            <h3 className="text-lg font-bold text-white">Match #{index + 1}</h3>
+                            <p className="text-gray-400 text-sm">
+                              {new Date(Number(match.startTime) * 1000).toLocaleString()}
+                            </p>
+                            
+                            {/* Live Score Display */}
+                            {(match as MatchWithLiveData).isLive && (match as MatchWithLiveData).currentScore && (
+                              <div className="mt-2 flex items-center gap-2">
+                                <span className="px-2 py-1 bg-red-500/20 text-red-400 text-xs font-medium rounded-full animate-pulse">
+                                  LIVE
+                                </span>
+                                <span className="text-green-400 font-medium text-sm">
+                                  {(match as MatchWithLiveData).currentScore!.home} - {(match as MatchWithLiveData).currentScore!.away}
+                                </span>
+                                {(match as MatchWithLiveData).liveData?.minute && (
+                                  <span className="text-gray-400 text-xs">
+                                    {(match as MatchWithLiveData).liveData.minute}&apos;
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            
+                            {/* Match Status */}
+                            {(match as MatchWithLiveData).liveData?.status && !(match as MatchWithLiveData).isLive && (
+                              <div className="mt-2">
+                                <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                                  (match as MatchWithLiveData).liveData!.status === 'FT' 
+                                    ? 'bg-gray-500/20 text-gray-400'
+                                    : 'bg-orange-500/20 text-orange-400'
+                                }`}>
+                                  {(match as MatchWithLiveData).liveData!.status}
+                                </span>
+                                {(match as MatchWithLiveData).liveData!.status === 'FT' && (match as MatchWithLiveData).currentScore && (
+                                  <span className="ml-2 text-gray-400 text-sm">
+                                    Final: {(match as MatchWithLiveData).currentScore.home} - {(match as MatchWithLiveData).currentScore.away}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => setExpandedMatch(expandedMatch === index ? null : index)}
+                            className="text-gray-400 hover:text-white transition-colors"
+                          >
+                            {expandedMatch === index ? (
+                              <FaChevronUp className="h-5 w-5" />
+                            ) : (
+                              <FaChevronDown className="h-5 w-5" />
+                            )}
+                          </button>
+                        </div>
+
+                        {expandedMatch === index && predictions[index] && (
+                          <div className="space-y-4">
+                            {/* Bet Type Selection */}
+                            <div>
+                              <label className="block text-white font-medium mb-2">Bet Type</label>
+                              <div className="flex space-x-2">
+                                <button
+                                  onClick={() => updatePrediction(index, 'betType', BetType.MONEYLINE)}
+                                  className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                                    predictions[index].betType === BetType.MONEYLINE
+                                      ? "bg-purple-500 text-white"
+                                      : "bg-black/30 text-gray-300 hover:text-white"
+                                  }`}
+                                >
+                                  Moneyline
+                                </button>
+                                <button
+                                  onClick={() => updatePrediction(index, 'betType', BetType.OVER_UNDER)}
+                                  className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                                    predictions[index].betType === BetType.OVER_UNDER
+                                      ? "bg-purple-500 text-white"
+                                      : "bg-black/30 text-gray-300 hover:text-white"
+                                  }`}
+                                >
+                                  Over/Under
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Selection Options */}
+                            <div>
+                              <label className="block text-white font-medium mb-2">Your Prediction</label>
+                              <div className="grid grid-cols-3 gap-2">
+                                {getSelectionOptions(match, predictions[index].betType).map((option) => (
+                                  <button
+                                    key={option.value}
+                                    onClick={() => updatePrediction(index, 'selection', option.value)}
+                                    disabled={option.odds === 0}
+                                    className={`p-3 rounded-lg text-center transition-all ${
+                                      predictions[index].selection === option.value
+                                        ? "bg-purple-500 text-white"
+                                        : option.odds === 0
+                                          ? "bg-gray-700 text-gray-500 cursor-not-allowed"
+                                          : "bg-black/30 text-gray-300 hover:bg-black/50 hover:text-white"
+                                    }`}
+                                  >
+                                    <div className="font-medium">{option.label}</div>
+                                    <div className="text-sm opacity-75">
+                                      {option.odds > 0 ? oddyssey.formatOdds(option.odds) + 'x' : 'N/A'}
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Selected Prediction Summary */}
+                            <div className="bg-purple-500/20 border border-purple-500/50 rounded-lg p-4">
+                              <div className="flex items-center justify-between">
+                                <span className="text-white font-medium">
+                                  Your Prediction: {oddyssey.getSelectionName(
+                                    predictions[index].selection, 
+                                    predictions[index].betType
+                                  )}
+                                </span>
+                                <span className="text-purple-400 font-bold">
+                                  {oddyssey.formatOdds(predictions[index].selectedOdd)}x
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </motion.div>
             </div>
-            <p className="text-text-muted text-sm">
-              Make your predictions before the deadline
-            </p>
+
+            {/* Slip Panel */}
+            <div>
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 sticky top-6"
+              >
+                <h3 className="text-xl font-bold text-white mb-6">Your Slip</h3>
+                
+                {predictions.length === 10 ? (
+                  <div className="space-y-6">
+                    {/* Potential Score */}
+                    <div className="bg-black/20 rounded-xl p-4">
+                      <div className="text-center">
+                        <p className="text-gray-400 text-sm mb-1">Potential Score</p>
+                        <p className="text-2xl font-bold text-yellow-400">
+                          {oddyssey.calculatePotentialScore(predictions).toLocaleString()}
+                        </p>
+                        <p className="text-gray-400 text-xs mt-1">
+                          (if all predictions are correct)
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Entry Fee */}
+                    <div className="bg-black/20 rounded-xl p-4">
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Entry Fee</span>
+                        <span className="text-white font-medium">{oddyssey.entryFee} STT</span>
+                      </div>
+                    </div>
+
+                    {/* Place Slip Button */}
+                    <Button
+                      onClick={handlePlaceSlip}
+                      disabled={
+                        !oddyssey.isBettingOpen ||
+                        oddyssey.isPending ||
+                        oddyssey.isConfirming ||
+                        predictions.some(p => p.selectedOdd === 0)
+                      }
+                      className="w-full py-4 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                    >
+                      {oddyssey.isPending || oddyssey.isConfirming ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <LoadingSpinner size="sm" />
+                          Processing...
+                        </div>
+                      ) : !oddyssey.isBettingOpen ? (
+                        "Betting Closed"
+                      ) : (
+                        "Place Slip"
+                      )}
+                    </Button>
+
+                    {/* User Slips Count */}
+                    <div className="text-center">
+                      <p className="text-gray-400 text-sm">
+                        You have {oddyssey.userSlips.length} slip(s) this cycle
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <FaGamepad className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-400">
+                      Make predictions for all 10 matches to place your slip
+                    </p>
+                  </div>
+                )}
+              </motion.div>
+            </div>
+          </div>
+        )}
+
+        {/* Leaderboard Tab */}
+        {activeTab === "leaderboard" && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-4xl mx-auto"
+          >
+            <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20">
+              <h2 className="text-2xl font-bold text-white mb-8">Daily Leaderboard</h2>
+              
+              {!oddyssey.dailyLeaderboard || oddyssey.dailyLeaderboard.length === 0 ? (
+                <div className="text-center py-12">
+                  <FaTrophy className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-xl font-bold text-white mb-2">No Entries Yet</h3>
+                  <p className="text-gray-400">Be the first to place a slip today!</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Prize Distribution */}
+                  <div className="bg-black/20 rounded-xl p-6 mb-6">
+                    <h3 className="text-lg font-bold text-white mb-4">Prize Distribution</h3>
+                    <div className="grid grid-cols-5 gap-4 text-center">
+                      {oddyssey.prizeDistribution.map((prize, index) => (
+                        <div key={index} className="bg-black/30 rounded-lg p-3">
+                          <div className="text-yellow-400 font-bold">#{prize.rank}</div>
+                          <div className="text-white text-sm">{prize.percentage}%</div>
+                          <div className="text-gray-400 text-xs">
+                            {oddyssey.calculatePrizeAmount(index)} STT
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Leaderboard Entries */}
+                  {oddyssey.dailyLeaderboard.map((entry: LeaderboardEntry, index: number) => {
+                    const isCurrentUser = entry.player.toLowerCase() === address?.toLowerCase();
+                    
+                    return (
+                      <div
+                        key={Number(entry.slipId)}
+                        className={`p-6 rounded-xl border ${
+                          isCurrentUser
+                            ? "bg-purple-500/20 border-purple-500/50"
+                            : "bg-black/20 border-gray-600"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold ${
+                              index === 0 ? "bg-yellow-500 text-black" :
+                              index === 1 ? "bg-gray-400 text-black" :
+                              index === 2 ? "bg-orange-500 text-black" :
+                              "bg-gray-600 text-white"
+                            }`}>
+                              {index < 3 ? <FaMedal className="h-6 w-6" /> : `#${index + 1}`}
+                            </div>
+                            <div>
+                              <p className="text-white font-medium">
+                                {entry.player.slice(0, 6)}...{entry.player.slice(-4)}
+                                {isCurrentUser && <span className="text-purple-400 ml-2">(You)</span>}
+                              </p>
+                              <p className="text-gray-400 text-sm">
+                                {entry.correctCount}/10 correct predictions
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-white font-bold text-lg">
+                              {Number(entry.finalScore).toLocaleString()}
+                            </p>
+                            <p className="text-gray-400 text-sm">points</p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Current User Position */}
+                  {oddyssey.userRank >= 0 && (
+                    <div className="mt-6 p-4 bg-purple-500/20 border border-purple-500/50 rounded-xl">
+                      <div className="flex items-center justify-between">
+                        <span className="text-white font-medium">
+                          Your Position: #{oddyssey.userRank + 1}
+                        </span>
+                        <Button
+                          onClick={handleClaimPrize}
+                          disabled={
+                            oddyssey.userRank >= 5 ||
+                            !oddyssey.isCycleResolved ||
+                            oddyssey.isPending ||
+                            oddyssey.isConfirming
+                          }
+                          className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600"
+                        >
+                          {oddyssey.isPending || oddyssey.isConfirming ? (
+                            <div className="flex items-center gap-2">
+                              <LoadingSpinner size="sm" />
+                              Claiming...
+                            </div>
+                          ) : oddyssey.userRank >= 5 ? (
+                            "Not in top 5"
+                          ) : !oddyssey.isCycleResolved ? (
+                            "Cycle not resolved"
+                          ) : (
+                            `Claim ${oddyssey.userPrizeAmount} STT`
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </motion.div>
         )}
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <AnimatePresence mode="wait">
-            {activeTab === "today" ? (
-              <>
-                {/* Matches Section - Restored Original Layout with Modern Enhancements */}
-                <motion.div
-                  key="matches"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  className="lg:col-span-2"
-                >
-                  <div className="glass-card">
-                    <div className="flex items-center justify-between mb-6">
-                      <h2 className="text-2xl font-bold gradient-text">Live Matches</h2>
-                      <div className="flex items-center gap-3">
-                        <motion.button
-                          onClick={handleTrollMode}
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg font-semibold text-sm shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2"
-                        >
-                          <SparklesIcon className="w-4 h-4" />
-                          Troll Mode
-                        </motion.button>
-                        <div className="flex items-center gap-2 text-sm text-text-muted">
-                          <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-                          <span>Live Odds</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Responsive Table Layout */}
-                    <div className="overflow-x-auto">
-                      {/* Desktop Table */}
-                      <div className="hidden md:block min-w-full space-y-2">
-                        {/* Table Header */}
-                        <div className="grid grid-cols-9 gap-3 text-xs font-bold text-text-muted uppercase tracking-wider px-4">
-                          <div className="col-span-1">Time</div>
-                          <div className="col-span-3">Match</div>
-                          <div className="text-center">1</div>
-                          <div className="text-center">X</div>
-                          <div className="text-center">2</div>
-                          <div className="text-center">Over</div>
-                          <div className="text-center">Under</div>
-                        </div>
-
-                        {/* Table Body */}
-                        <div className="space-y-3">
-                          {matches.map((match) => (
-                            <div key={match.id} className="grid grid-cols-9 gap-3 items-center glass-card py-3 px-4 hover:border-primary/50 transition-all duration-200">
-                              {/* Time */}
-                              <div className="col-span-1 text-sm font-semibold text-primary">{match.time}</div>
-                              
-                              {/* Match */}
-                              <div className="col-span-3 text-sm font-semibold text-text-primary">{match.team1} vs {match.team2}</div>
-                              
-                              {/* Odds Buttons */}
-                              <div className="text-center">
-                                <button onClick={() => handlePickSelection(match.id, "odds1")} className={`w-full h-9 rounded-md font-bold text-sm transition-all duration-200 border-2 ${picks.find(p => p.id === match.id && p.pick === 'odds1') ? 'bg-primary text-black border-primary scale-105 shadow-lg' : 'bg-[#1A2035] text-primary border-primary/50 hover:bg-primary/20'}`}>{match.odds1}</button>
-                              </div>
-                              <div className="text-center">
-                                <button onClick={() => handlePickSelection(match.id, "oddsX")} className={`w-full h-9 rounded-md font-bold text-sm transition-all duration-200 border-2 ${picks.find(p => p.id === match.id && p.pick === 'oddsX') ? 'bg-secondary text-black border-secondary scale-105 shadow-lg' : 'bg-[#1A2035] text-secondary border-secondary/50 hover:bg-secondary/20'}`}>{match.oddsX}</button>
-                              </div>
-                              <div className="text-center">
-                                <button onClick={() => handlePickSelection(match.id, "odds2")} className={`w-full h-9 rounded-md font-bold text-sm transition-all duration-200 border-2 ${picks.find(p => p.id === match.id && p.pick === 'odds2') ? 'bg-accent text-black border-accent scale-105 shadow-lg' : 'bg-[#1A2035] text-accent border-accent/50 hover:bg-accent/20'}`}>{match.odds2}</button>
-                              </div>
-                              <div className="text-center">
-                                <button onClick={() => handlePickSelection(match.id, "over")} className={`w-full h-9 rounded-md font-bold text-sm transition-all duration-200 border-2 ${picks.find(p => p.id === match.id && p.pick === 'over') ? 'bg-blue-400 text-black border-blue-400 scale-105 shadow-lg' : 'bg-[#1A2035] text-blue-400 border-blue-400/50 hover:bg-blue-400/20'}`}>{match.over}</button>
-                              </div>
-                              <div className="text-center">
-                                <button onClick={() => handlePickSelection(match.id, "under")} className={`w-full h-9 rounded-md font-bold text-sm transition-all duration-200 border-2 ${picks.find(p => p.id === match.id && p.pick === 'under') ? 'bg-purple-400 text-black border-purple-400 scale-105 shadow-lg' : 'bg-[#1A2035] text-purple-400 border-purple-400/50 hover:bg-purple-400/20'}`}>{match.under}</button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Mobile Card Layout */}
-                      <div className="md:hidden space-y-4">
-                        {matches.map((match) => (
-                          <div key={match.id} className="glass-card p-4 space-y-4">
-                            {/* Match Header */}
-                            <div className="flex items-center justify-between border-b border-border-card pb-3">
-                              <div>
-                                <div className="text-xs text-primary font-semibold">{match.time}</div>
-                                <div className="text-sm font-bold text-text-primary">{match.team1}</div>
-                                <div className="text-xs text-text-muted">vs</div>
-                                <div className="text-sm font-bold text-text-primary">{match.team2}</div>
-                              </div>
-                            </div>
-                            
-                            {/* Match Result Betting */}
-                            <div>
-                              <div className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">Match Result</div>
-                              <div className="grid grid-cols-3 gap-2">
-                                <button 
-                                  onClick={() => handlePickSelection(match.id, "odds1")} 
-                                  className={`p-3 rounded-lg font-bold text-sm transition-all duration-200 border-2 ${picks.find(p => p.id === match.id && p.pick === 'odds1') ? 'bg-primary text-black border-primary scale-105 shadow-lg' : 'bg-[#1A2035] text-primary border-primary/50 hover:bg-primary/20'}`}
-                                >
-                                  <div className="text-xs opacity-80">1</div>
-                                  <div>{match.odds1}</div>
-                                </button>
-                                <button 
-                                  onClick={() => handlePickSelection(match.id, "oddsX")} 
-                                  className={`p-3 rounded-lg font-bold text-sm transition-all duration-200 border-2 ${picks.find(p => p.id === match.id && p.pick === 'oddsX') ? 'bg-secondary text-black border-secondary scale-105 shadow-lg' : 'bg-[#1A2035] text-secondary border-secondary/50 hover:bg-secondary/20'}`}
-                                >
-                                  <div className="text-xs opacity-80">X</div>
-                                  <div>{match.oddsX}</div>
-                                </button>
-                                <button 
-                                  onClick={() => handlePickSelection(match.id, "odds2")} 
-                                  className={`p-3 rounded-lg font-bold text-sm transition-all duration-200 border-2 ${picks.find(p => p.id === match.id && p.pick === 'odds2') ? 'bg-accent text-black border-accent scale-105 shadow-lg' : 'bg-[#1A2035] text-accent border-accent/50 hover:bg-accent/20'}`}
-                                >
-                                  <div className="text-xs opacity-80">2</div>
-                                  <div>{match.odds2}</div>
-                                </button>
-                              </div>
-                            </div>
-
-                            {/* Over/Under Betting */}
-                            <div>
-                              <div className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">Total Goals</div>
-                              <div className="grid grid-cols-2 gap-2">
-                                <button 
-                                  onClick={() => handlePickSelection(match.id, "over")} 
-                                  className={`p-3 rounded-lg font-bold text-sm transition-all duration-200 border-2 ${picks.find(p => p.id === match.id && p.pick === 'over') ? 'bg-blue-400 text-black border-blue-400 scale-105 shadow-lg' : 'bg-[#1A2035] text-blue-400 border-blue-400/50 hover:bg-blue-400/20'}`}
-                                >
-                                  <div className="text-xs opacity-80">Over 2.5</div>
-                                  <div>{match.over}</div>
-                                </button>
-                                <button 
-                                  onClick={() => handlePickSelection(match.id, "under")} 
-                                  className={`p-3 rounded-lg font-bold text-sm transition-all duration-200 border-2 ${picks.find(p => p.id === match.id && p.pick === 'under') ? 'bg-purple-400 text-black border-purple-400 scale-105 shadow-lg' : 'bg-[#1A2035] text-purple-400 border-purple-400/50 hover:bg-purple-400/20'}`}
-                                >
-                                  <div className="text-xs opacity-80">Under 2.5</div>
-                                  <div>{match.under}</div>
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-
-                {/* Slip Builder Sidebar */}
-                <motion.div
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.3 }}
-                  className="lg:col-span-1"
-                >
-                  <div className="glass-card sticky top-8">
-                    <h3 className="text-xl font-bold gradient-text mb-4 text-center flex items-center justify-center gap-2">
-                      <ShieldCheckIcon className="h-6 w-6" />
-                      Slip Builder
-                    </h3>
-
-                    <AnimatePresence mode="wait">
-                      {picks.length > 0 ? (
-                        <motion.div
-                          key="with-picks"
-                          initial={{ opacity: 0, scale: 0.95 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          className="space-y-4"
-                        >
-                          {/* Selection Progress */}
-                          <div className="text-center mb-4">
-                            <p className={`text-lg font-semibold mb-2 ${picks.length < 10 ? 'text-yellow-400' : 'text-green-400'}`}>
-                              {picks.length}/10 selections
-                            </p>
-                            <div className="w-full bg-[#0F1029] h-2.5 rounded-full overflow-hidden border border-border-card/30">
-                              <motion.div 
-                                className="h-full rounded-full transition-all duration-300"
-                                style={{ 
-                                  width: `${(picks.length / 10) * 100}%`,
-                                  background: picks.length === 10 ? 'linear-gradient(90deg, var(--color-success), var(--somnia-cyan))' : 'linear-gradient(90deg, var(--color-warning), var(--color-error))'
-                                }}
-                                animate={{ scale: picks.length === 10 ? [1, 1.02, 1] : 1 }}
-                                transition={{ duration: 0.5, repeat: picks.length === 10 ? Infinity : 0 }}
-                              />
-                            </div>
-                          </div>
-
-                          {/* Picks List - No max height, extends down */}
-                          <div className="space-y-2">
-                            {picks.map((pick, i) => (
-                              <div 
-                                key={i} 
-                                className="flex items-center justify-between p-3 bg-[#131432] rounded-lg border border-[#1E1E45] hover:border-primary/30 transition-all duration-200"
-                              >
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-1.5 mb-1">
-                                    <span className="text-primary text-xs font-medium">{pick.time}</span>
-                                    <span className="text-text-muted text-xs">•</span>
-                                    <div className="text-xs text-text-secondary truncate">{pick.match}</div>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className={`px-2.5 py-1 rounded-md text-xs font-bold text-black ${
-                                      pick.pick === "odds1" ? "bg-primary" : 
-                                      pick.pick === "odds2" ? "bg-accent" : 
-                                      pick.pick === "oddsX" ? "bg-secondary" : 
-                                      pick.pick === "over" ? "bg-blue-400" : "bg-purple-400"
-                                    }`}>
-                                      {pick.pick === 'odds1' ? "Home" : pick.pick === 'odds2' ? "Away" : pick.pick === 'oddsX' ? "Draw" : pick.pick}
-                                    </span>
-                                    <span className="text-primary font-bold">{pick.odd}</span>
-                                  </div>
-                                </div>
-                                <button 
-                                  onClick={() => setPicks(prev => prev.filter(p => p.id !== pick.id))} 
-                                  className="ml-2 p-1.5 rounded-full bg-[#1A1A40] hover:bg-red-500/20 text-text-muted hover:text-red-400 transition-all"
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                  </svg>
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-
-                          {/* Stats */}
-                          <div className="space-y-3 pt-4 mt-2 border-t border-[#1E1E45]">
-                            <div className="flex justify-between items-center">
-                              <span className="text-text-secondary font-medium">Total Odds:</span>
-                              <span className="text-primary font-bold text-lg">{totalOdd}x</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-text-secondary font-medium">Entry Fee:</span>
-                              <div className="flex items-center gap-2">
-                                <input
-                                  type="number"
-                                  value={entryFee}
-                                  onChange={(e) => setEntryFee(Number(e.target.value))}
-                                  className="w-24 bg-[#131432] border border-[#1E1E45] rounded-md px-3 py-1.5 text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                                  step="0.1"
-                                  min="0.1"
-                                />
-                                <span className="text-text-secondary text-sm font-medium">ETH</span>
-                              </div>
-                            </div>
-                            <div className="flex justify-between items-center">
-                              <span className="text-text-secondary font-medium">Potential Win:</span>
-                              <span className="font-bold text-lg text-[#00D9A5]">{calculatePotentialPayout(Number(totalOdd))} ETH</span>
-                            </div>
-                          </div>
-
-                          {/* Submit Button */}
-                          <div className="pt-4">
-                            <Button
-                              fullWidth
-                              variant="primary"
-                              size="lg"
-                              leftIcon={<BoltIcon className="h-5 w-5" />}
-                              onClick={() => {
-                                if (picks.length < 10) {
-                                  alert("You need to select all 10 matches");
-                                  return;
-                                }
-                                setSlips([...slips, [...picks]]);
-                                setPicks([]);
-                                alert("Slip created successfully!");
-                              }}
-                              disabled={picks.length < 10}
-                              className={`${picks.length === 10 ? 'animate-pulse' : ''}`}
-                            >
-                              {picks.length < 10 ? `Select ${10 - picks.length} More` : "Place Bet"}
-                            </Button>
-                          </div>
-
-                          {picks.length > 0 && (
-                            <button
-                              onClick={() => setPicks([])}
-                              className="w-full text-text-muted hover:text-red-400 transition-colors text-sm pt-2 mt-1"
-                            >
-                              Clear All Selections
-                            </button>
-                          )}
-                        </motion.div>
-                      ) : (
-                        <motion.div
-                          key="empty-builder"
-                          initial={{ opacity: 0, scale: 0.95 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          className="text-center py-8"
-                        >
-                          <div className="text-6xl mb-4 opacity-50">⚽</div>
-                          <h4 className="font-semibold text-text-primary mb-2">Start Building Your Slip</h4>
-                          <p className="text-text-muted text-sm mb-4">
-                            Click on any odds to add selections to your slip
-                          </p>
-                          <div className="text-xs text-primary font-medium bg-primary/10 px-3 py-2 rounded-button">
-                            You need to select exactly 10 matches
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                </motion.div>
-              </>
-            ) : (
-              <motion.div
-                key="slips"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                className="lg:col-span-3"
-              >
-                <div className="glass-card">
-                  <h2 className="text-2xl font-bold gradient-text mb-6">My Submitted Slips</h2>
-                  
-                  <AnimatePresence mode="wait">
-                    {slips.length > 0 ? (
-                      <motion.div
-                        key="with-slips"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="space-y-6"
-                      >
-                        {slips.map((slip, slipIndex) => {
-                          const slipTotalOdd = slip.reduce((acc, pick) => acc * pick.odd, 1).toFixed(2);
-                          
-                          return (
-                            <motion.div
-                              key={slipIndex}
-                              initial={{ opacity: 0, y: 20 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ delay: slipIndex * 0.1 }}
-                              className="glass-card hover:glow-cyan transition-all duration-300"
-                            >
-                              <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-lg font-bold text-primary flex items-center gap-2">
-                                  <CheckCircleIcon className="h-5 w-5" />
-                                  Slip #{slipIndex + 1}
-                                </h3>
-                                <div className="flex items-center gap-4 text-sm">
-                                  <span className="text-text-muted">Status: <span className="text-green-400">Active</span></span>
-                                  <span className="text-text-muted">Total Odds: <span className="text-primary font-bold">{slipTotalOdd}x</span></span>
-                                </div>
-                              </div>
-                              
-                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2">
-                                {slip.map((pick, i) => (
-                                  <div key={i} className="bg-[#131432] border border-[#1E1E45] hover:border-primary/30 p-3 rounded-lg transition-all duration-200">
-                                    <div className="flex items-center gap-1.5 mb-1">
-                                      <span className="text-primary text-xs font-medium">{pick.time}</span>
-                                      <span className="text-text-muted text-xs">•</span>
-                                      <div className="text-xs text-text-secondary truncate">{pick.match}</div>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                      <span className={`px-2.5 py-1 rounded-md text-xs font-bold text-black ${
-                                        pick.pick === "odds1" ? "bg-primary" : 
-                                        pick.pick === "odds2" ? "bg-accent" : 
-                                        pick.pick === "oddsX" ? "bg-secondary" : 
-                                        pick.pick === "over" ? "bg-blue-400" : "bg-purple-400"
-                                      }`}>
-                                        {pick.pick === 'odds1' ? "Home" : pick.pick === 'odds2' ? "Away" : pick.pick === 'oddsX' ? "Draw" : pick.pick}
-                                      </span>
-                                      <span className="text-primary font-bold text-sm">{pick.odd}</span>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </motion.div>
-                          );
-                        })}
-                        
-                        <div className="text-center mt-8">
-                          <Button
-                            onClick={() => setActiveTab("today")}
-                            variant="primary"
-                            leftIcon={<SparklesIcon className="h-5 w-5" />}
-                          >
-                            Create New Slip
-                          </Button>
-                        </div>
-                      </motion.div>
-                    ) : (
-                      <motion.div
-                        key="no-slips"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="text-center py-12"
-                      >
-                        <TrophyIcon className="h-16 w-16 text-text-muted mx-auto mb-4" />
-                        <h3 className="text-xl font-semibold text-text-primary mb-2">No Slips Submitted Yet</h3>
-                        <p className="text-text-muted mb-6">Submit a slip with 10 selections to see it here</p>
-                        <Button
-                          onClick={() => setActiveTab("today")}
-                          variant="primary"
-                          leftIcon={<SparklesIcon className="h-5 w-5" />}
-                        >
-                          Create Your First Slip
-                        </Button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+        {/* History Tab */}
+        {activeTab === "history" && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-4xl mx-auto"
+          >
+            <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20">
+              <h2 className="text-2xl font-bold text-white mb-8">Game History</h2>
+              
+              <div className="text-center py-12">
+                <FaChartLine className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-xl font-bold text-white mb-2">Coming Soon</h3>
+                <p className="text-gray-400">Historical game data and statistics will be available here</p>
+              </div>
+            </div>
+          </motion.div>
+        )}
       </div>
     </div>
   );

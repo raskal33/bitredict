@@ -2,7 +2,7 @@ import { createAppKit } from '@reown/appkit/react'
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi'
 import { mainnet, sepolia, type AppKitNetwork } from '@reown/appkit/networks'
 
-// Somnia Network configuration
+// Somnia Network configuration - CORRECT SETTINGS FROM HARDHAT
 export const somniaNetwork: AppKitNetwork = {
   id: 50312,
   name: 'Somnia Testnet',
@@ -13,11 +13,11 @@ export const somniaNetwork: AppKitNetwork = {
   },
   rpcUrls: {
     default: {
-      http: ['https://dream-rpc.somnia.network'],
+      http: ['https://dream-rpc.somnia.network/'],
     },
   },
   blockExplorers: {
-    default: { name: 'Somnia Explorer', url: 'https://shannon-explorer.somnia.network' },
+    default: { name: 'Somnia Explorer', url: 'https://somnia-testnet.explorer.caldera.xyz' },
   },
   testnet: true,
 }
@@ -63,4 +63,22 @@ export const appKit = createAppKit({
   }
 })
 
-export const config = wagmiAdapter.wagmiConfig 
+export const config = wagmiAdapter.wagmiConfig
+
+// Contract addresses for smart contract integration
+export const CONTRACT_ADDRESSES = {
+  BITR_TOKEN: process.env.NEXT_PUBLIC_BITR_TOKEN_ADDRESS as `0x${string}`,
+  FAUCET: process.env.NEXT_PUBLIC_FAUCET_ADDRESS as `0x${string}`,
+  GUIDED_ORACLE: process.env.NEXT_PUBLIC_GUIDED_ORACLE_ADDRESS as `0x${string}`,
+  BITREDICT_POOL: process.env.NEXT_PUBLIC_BITREDICT_POOL_ADDRESS as `0x${string}`,
+  OPTIMISTIC_ORACLE: process.env.NEXT_PUBLIC_OPTIMISTIC_ORACLE_ADDRESS as `0x${string}`,
+  BITREDICT_STAKING: process.env.NEXT_PUBLIC_BITREDICT_STAKING_ADDRESS as `0x${string}`,
+  ODDYSSEY: process.env.NEXT_PUBLIC_ODDYSSEY_ADDRESS as `0x${string}`,
+}
+
+// Network configuration for contract calls
+export const NETWORK_CONFIG = {
+  chainId: 50312,
+  rpcUrl: 'https://dream-rpc.somnia.network/',
+  explorerUrl: 'https://somnia-testnet.explorer.caldera.xyz',
+}

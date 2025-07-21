@@ -1,582 +1,565 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { useAccount } from "wagmi";
+import { toast } from "react-hot-toast";
 import Button from "@/components/button";
-import { PriceTrendChart } from "./charts";
-import { useStore } from "zustand";
-import { usePreferences } from "@/store/usePreferences";
-import { IoMdLock } from "react-icons/io";
-import { FaTrophy, FaChartLine, FaCoins } from "react-icons/fa";
-import { MdStars } from "react-icons/md";
-import { HiOutlineChevronRight } from "react-icons/hi";
 import AnimatedTitle from "@/components/AnimatedTitle";
-import { CurrencyDollarIcon as CurrencySolid, BoltIcon as BoltSolid } from "@heroicons/react/24/solid";
+import LoadingSpinner from "@/components/LoadingSpinner";
+import { useStaking, DurationOption, StakeWithRewards } from "@/hooks/useStaking";
+import { useBITRToken } from "@/hooks/useBITRToken";
+import { CONTRACTS } from "@/contracts";
+import { parseUnits } from "viem";
+import { IoMdLock } from "react-icons/io";
+import { 
+  FaTrophy, 
+  FaChartLine, 
+  FaCoins, 
+  FaCrown, 
+  FaStar, 
+  FaGem, 
+  FaClock,
+  FaMoneyBillWave
+} from "react-icons/fa";
+import { BoltIcon as BoltSolid } from "@heroicons/react/24/solid";
+
+const TIER_ICONS = [FaCoins, FaStar, FaTrophy, FaCrown, FaGem];
+const TIER_COLORS = [
+  "text-orange-400", // Bronze
+  "text-gray-400",   // Silver  
+  "text-yellow-400", // Gold
+  "text-purple-400", // Platinum
+  "text-blue-400"    // Diamond
+];
 
 export default function StakingPage() {
-  const { preferences } = useStore(usePreferences);
-  const [selectedLockPeriod, setSelectedLockPeriod] = useState(30);
-  const [stakeAmount, setStakeAmount] = useState(preferences?.defaultStake || "");
-  const [activeTab, setActiveTab] = useState("stake");
+  const { isConnected } = useAccount();
+  // const [activeTab, setActiveTab] = useState("stake"); // TODO: Implement tabs
+  const [stakeAmount, setStakeAmount] = useState("");
+  const [selectedTier, setSelectedTier] = useState(0);
+  const [selectedDuration, setSelectedDuration] = useState<DurationOption>(DurationOption.THIRTY_DAYS);
+  const [needsApproval, setNeedsApproval] = useState(false);
   
-  // User's current staking stats
-  const userStats = {
-    tier: "Advanced",
-    stakedAmount: 3000,
-    apy: 12,
-    revenueShare: 30,
-    rewardsAccrued: 650,
-    rewardsClaimed: 250,
-    nextTierProgress: 30, // percentage to next tier
-  };
-  
-  // Monthly revenue pool data
-  const revenuePool = {
-    total: 25000,
-    userShare: 1250, // 5% of total based on stake
-    percentage: 30, // progress percentage for visual bar
-  };
-  
-  const handleStakeAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/[^0-9.]/g, "");
-    setStakeAmount(value);
-  };
-  
-  // Calculate estimated rewards based on selected lock period
-  const getEstimatedRewards = () => {
-    const amount = parseFloat(String(stakeAmount)) || 0;
-    let apy = 0;
+  // Smart contract hooks
+  const staking = useStaking();
+  const token = useBITRToken();
+
+  // Check if approval is needed
+  useEffect(() => {
+    if (stakeAmount && token.balance) {
+      const allowance = token.getAllowance(CONTRACTS.BITREDICT_STAKING.address);
+      const stakeAmountWei = parseUnits(stakeAmount, 18);
+      setNeedsApproval(!allowance || (allowance as bigint) < stakeAmountWei);
+    }
+  }, [stakeAmount, token, token.balance]);
+
+  // Handle approval
+  const handleApprove = async () => {
+    if (!stakeAmount) return;
     
-    // Determine APY based on amount staked
-    if (amount >= 10000) apy = 18;
-    else if (amount >= 3000) apy = 12;
-    else if (amount >= 1000) apy = 6;
-    
-    // Apply bonus for longer lock periods
-    if (selectedLockPeriod === 90) apy += 2;
-    else if (selectedLockPeriod === 60) apy += 1;
-    
-    const monthlyRate = apy / 12 / 100;
-    const months = selectedLockPeriod / 30;
-    return (amount * monthlyRate * months).toFixed(2);
+    try {
+      await token.approveMax(CONTRACTS.BITREDICT_STAKING.address);
+      toast.success("Approval transaction submitted!");
+    } catch (error: unknown) {
+      toast.error((error as Error).message || "Approval failed");
+    }
   };
 
-  return (
-    <motion.section 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="container mx-auto px-4 space-y-8"
-    >
-      {/* Header */}
-      <AnimatedTitle 
-        size="md"
-        leftIcon={CurrencySolid}
-        rightIcon={BoltSolid}
-      >
-        BITR Staking
-      </AnimatedTitle>
-      
-      <motion.p 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.5 }}
-        className="text-base text-text-secondary max-w-2xl mx-auto text-center mb-6"
-      >
-        Stake BITR tokens to earn platform fees and unlock exclusive benefits.
-      </motion.p>
-      
-      {/* Staking Tiers Section */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="mb-10"
-      >
-        <motion.h3 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="mb-4 text-xl font-medium text-secondary gradient-text text-center"
+  // Handle staking
+  const handleStake = async () => {
+    if (!stakeAmount || needsApproval) return;
+    
+    try {
+      await staking.stake(stakeAmount, selectedTier, selectedDuration);
+      toast.success("Stake transaction submitted!");
+      setStakeAmount("");
+    } catch (error: unknown) {
+      toast.error((error as Error).message || "Staking failed");
+    }
+  };
+
+  // Handle individual stake actions
+  const handleClaimStakeRewards = async (stakeIndex: number) => {
+    try {
+      await staking.claimStakeRewards(stakeIndex);
+      toast.success("Claim rewards transaction submitted!");
+    } catch (error: unknown) {
+      toast.error((error as Error).message || "Claiming rewards failed");
+    }
+  };
+
+  const handleUnstakeSpecific = async (stakeIndex: number) => {
+    try {
+      await staking.unstakeSpecific(stakeIndex);
+      toast.success("Unstake transaction submitted!");
+    } catch (error: unknown) {
+      toast.error((error as Error).message || "Unstaking failed");
+    }
+  };
+
+  // Handle revenue share claim
+  const handleClaimRevenueShare = async () => {
+    try {
+      await staking.claimRevenueShare();
+      toast.success("Revenue share claim transaction submitted!");
+    } catch (error: unknown) {
+      toast.error((error as Error).message || "Claiming revenue share failed");
+    }
+  };
+
+  // Watch for successful transactions
+  useEffect(() => {
+    if (staking.isConfirmed) {
+      toast.success("Transaction confirmed! 🎉");
+      staking.refetchAll();
+      token.refetchBalance();
+    }
+  }, [staking.isConfirmed, staking, token]);
+
+  useEffect(() => {
+    if (token.isConfirmed) {
+      toast.success("Approval confirmed! 🎉");
+      setNeedsApproval(false);
+    }
+  }, [token.isConfirmed]);
+
+  const TierIcon = TIER_ICONS[staking.userTier] || FaCoins;
+  const tierColor = TIER_COLORS[staking.userTier] || "text-gray-400";
+
+  const getProgressToNextTier = (): number => {
+    if (!staking.tiers || staking.userTier >= staking.tiers.length - 1) {
+      return 100; // Max tier reached
+    }
+    
+    const currentThreshold = staking.tiers[staking.userTier].minStake;
+    const nextThreshold = staking.tiers[staking.userTier + 1].minStake;
+    const currentStaked = parseUnits(staking.totalUserStaked, 18);
+    
+    if (currentStaked <= currentThreshold) return 0;
+    
+    const progress = Number(currentStaked - currentThreshold) / Number(nextThreshold - currentThreshold);
+    return Math.min(100, progress * 100);
+  };
+
+  const formatTimeRemaining = (unlockTime: number): string => {
+    const now = Date.now();
+    if (now >= unlockTime) return "Unlocked";
+    
+    const remaining = unlockTime - now;
+    const days = Math.floor(remaining / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((remaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    
+    if (days > 0) return `${days}d ${hours}h`;
+    return `${hours}h`;
+  };
+
+  if (!isConnected) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex items-center justify-center p-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 text-center"
         >
-          Staking Tiers
-        </motion.h3>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          {/* Basic Tier */}
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.4 }}
-            whileHover={{ scale: 1.02, y: -2 }}
-            className={`glass-card relative overflow-hidden bg-gradient-to-br from-somnia-cyan/10 to-blue-500/10 border-2 hover:border-white/10 hover:glow-cyan transition-all duration-300 ${userStats.tier === "Basic" ? "border-primary" : "border-transparent"}`}
-          >
-            {userStats.tier === "Basic" && (
-              <div className="absolute -right-8 top-4 rotate-45 bg-primary px-10 py-1 text-xs font-bold text-black">
-                CURRENT
-              </div>
-            )}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-somnia-cyan/20 text-somnia-cyan">
-                  <MdStars size={24} />
-                </div>
-                <h4 className="text-lg font-semibold text-somnia-cyan">🟢 Basic</h4>
-              </div>
-            </div>
-            
-            <div className="mt-4 space-y-2">
-              <div className="flex justify-between">
-                <span className="text-text-muted">Required Stake:</span>
-                <span className="font-medium text-text-secondary">1,000 BITR</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-muted">APY Rate:</span>
-                <span className="font-medium text-somnia-cyan">6%</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-muted">Revenue Share:</span>
-                <span className="font-medium text-somnia-cyan">10%</span>
-              </div>
-            </div>
-            
-            {userStats.stakedAmount < 1000 ? (
-              <Button variant="primary" fullWidth className="mt-4">
-                Stake 1,000 BITR
-              </Button>
-            ) : userStats.tier === "Basic" ? (
-              <Button variant="outline" fullWidth className="mt-4">
-                Stake More to Upgrade <HiOutlineChevronRight />
-              </Button>
-            ) : (
-              <Button variant="ghost" fullWidth className="mt-4" disabled>
-                Current Tier
-              </Button>
-            )}
-          </motion.div>
-          
-          {/* Advanced Tier */}
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.5 }}
-            whileHover={{ scale: 1.02, y: -2 }}
-            className={`glass-card relative overflow-hidden bg-gradient-to-br from-somnia-blue/10 to-purple-500/10 border-2 hover:border-white/10 hover:glow-magenta transition-all duration-300 ${userStats.tier === "Advanced" ? "border-primary" : "border-transparent"}`}
-          >
-            {userStats.tier === "Advanced" && (
-              <div className="absolute -right-8 top-4 rotate-45 bg-primary px-10 py-1 text-xs font-bold text-black">
-                CURRENT
-              </div>
-            )}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-somnia-blue/20 text-somnia-blue">
-                  <FaTrophy size={20} />
-                </div>
-                <h4 className="text-lg font-semibold text-somnia-blue">🔵 Advanced</h4>
-              </div>
-            </div>
-            
-            <div className="mt-4 space-y-2">
-              <div className="flex justify-between">
-                <span className="text-text-muted">Required Stake:</span>
-                <span className="font-medium text-text-secondary">3,000 BITR</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-muted">APY Rate:</span>
-                <span className="font-medium text-somnia-blue">12%</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-muted">Revenue Share:</span>
-                <span className="font-medium text-somnia-blue">30%</span>
-              </div>
-            </div>
-            
-            {userStats.stakedAmount < 3000 ? (
-              <Button variant="primary" fullWidth className="mt-4">
-                Stake 3,000 BITR
-              </Button>
-            ) : userStats.tier === "Advanced" ? (
-              <Button variant="outline" fullWidth className="mt-4">
-                Stake More to Upgrade <HiOutlineChevronRight />
-              </Button>
-            ) : (
-              <Button variant="ghost" fullWidth className="mt-4" disabled>
-                Current Tier
-              </Button>
-            )}
-          </motion.div>
-          
-          {/* Elite Tier */}
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.6 }}
-            whileHover={{ scale: 1.02, y: -2 }}
-            className={`glass-card relative overflow-hidden bg-gradient-to-br from-somnia-violet/10 to-purple-500/10 border-2 hover:border-white/10 hover:glow-violet transition-all duration-300 ${userStats.tier === "Elite" ? "border-primary" : "border-transparent"}`}
-          >
-            {userStats.tier === "Elite" && (
-              <div className="absolute -right-8 top-4 rotate-45 bg-primary px-10 py-1 text-xs font-bold text-black">
-                CURRENT
-              </div>
-            )}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-somnia-violet/20 text-somnia-violet">
-                  <MdStars size={24} />
-                </div>
-                <h4 className="text-lg font-semibold text-somnia-violet">🟣 Elite</h4>
-              </div>
-            </div>
-            
-            <div className="mt-4 space-y-2">
-              <div className="flex justify-between">
-                <span className="text-text-muted">Required Stake:</span>
-                <span className="font-medium text-text-secondary">10,000 BITR</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-muted">APY Rate:</span>
-                <span className="font-medium text-somnia-violet">18%</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-muted">Revenue Share:</span>
-                <span className="font-medium text-somnia-violet">60%</span>
-              </div>
-            </div>
-            
-            {userStats.stakedAmount < 10000 ? (
-              <Button variant="primary" fullWidth className="mt-4">
-                Stake 10,000 BITR
-              </Button>
-            ) : (
-              <Button variant="ghost" fullWidth className="mt-4" disabled>
-                Maximum Tier
-              </Button>
-            )}
-          </motion.div>
-        </div>
-        
-        {/* Tier Progress Bar (if not at max tier) */}
-        {userStats.tier !== "Elite" && (
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7 }}
-            className="mt-6 glass-card bg-gradient-to-br from-primary/5 to-secondary/5"
-          >
-            <div className="mb-2 flex justify-between">
-              <span className="text-sm text-text-muted">Current Tier: {userStats.tier}</span>
-              <span className="text-sm text-text-muted">
-                Next Tier: {userStats.tier === "Basic" ? "Advanced" : "Elite"}
-              </span>
-            </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-bg-card">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-somnia-cyan to-somnia-violet"
-                style={{ width: `${userStats.nextTierProgress}%` }}
-              ></div>
-            </div>
-            <div className="mt-2 text-right text-xs text-text-muted">
-              {userStats.nextTierProgress}% to next tier
-            </div>
-          </motion.div>
-        )}
-      </motion.div>
-      
-      {/* Main Dashboard Grid */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.8 }}
-        className="grid grid-cols-1 gap-6 lg:grid-cols-3"
-      >
-        {/* Left Column - Rewards Dashboard */}
-        <div className="glass-card lg:col-span-1">
-          <h3 className="mb-4 flex items-center gap-2 text-xl font-medium text-secondary">
-            <FaCoins className="text-primary" />
-            Rewards Dashboard
-          </h3>
-          
-          <div className="space-y-6">
-            <div className="space-y-4 rounded-lg bg-bg-card p-4">
-              <div className="flex justify-between">
-                <span className="text-text-muted">Total Staked:</span>
-                <span className="font-semibold text-text-secondary">{userStats.stakedAmount.toLocaleString()} BITR</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-muted">Current APY:</span>
-                <span className="font-semibold text-primary">{userStats.apy}%</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-muted">Revenue Share:</span>
-                <span className="font-semibold text-primary">{userStats.revenueShare}%</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-muted">Rewards Accrued:</span>
-                <span className="font-semibold text-secondary">{userStats.rewardsAccrued} BITR</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-muted">Rewards Claimed:</span>
-                <span className="font-semibold text-text-secondary">{userStats.rewardsClaimed} BITR</span>
-              </div>
-            </div>
-            
-            <div className="flex flex-col gap-4">
-              <Button variant="primary" fullWidth leftIcon={<FaCoins />}>
-                Claim {userStats.rewardsAccrued - userStats.rewardsClaimed} BITR
-              </Button>
-              <Button variant="outline" fullWidth>
-                View Reward History
-              </Button>
-            </div>
+          <BoltSolid className="h-16 w-16 text-purple-400 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-white mb-4">Connect Your Wallet</h2>
+          <p className="text-gray-300 mb-6">
+            Connect your wallet to start staking BITR tokens and earn rewards.
+          </p>
+        </motion.div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 p-6">
+      <div className="max-w-7xl mx-auto">
+        <AnimatedTitle>
+          <div className="text-4xl md:text-6xl font-bold text-center mb-4 bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+            BITR Staking
           </div>
-        </div>
+        </AnimatedTitle>
         
-        {/* Middle Column - Stake/Unstake Interface */}
-        <div className="glass-card lg:col-span-1">
-          <div className="mb-4 flex border-b border-border-card pb-2">
-            <button
-              className={`flex-1 border-b-2 pb-2 text-center font-medium ${
-                activeTab === "stake"
-                  ? "border-primary text-primary"
-                  : "border-transparent text-text-muted"
-              }`}
-              onClick={() => setActiveTab("stake")}
+        <p className="text-center text-gray-300 mb-12 text-lg max-w-3xl mx-auto">
+          Stake your BITR tokens to earn rewards and unlock exclusive tiers. Higher tiers provide better rewards and platform benefits.
+        </p>
+
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+          {/* Main Staking Panel */}
+          <div className="xl:col-span-2 space-y-8">
+            {/* User Stats Overview */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20"
             >
-              Stake BITR
-            </button>
-            <button
-              className={`flex-1 border-b-2 pb-2 text-center font-medium ${
-                activeTab === "unstake"
-                  ? "border-primary text-primary"
-                  : "border-transparent text-text-muted"
-              }`}
-              onClick={() => setActiveTab("unstake")}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="text-center">
+                  <div className="flex items-center justify-center mb-2">
+                    <TierIcon className={`h-8 w-8 ${tierColor}`} />
+                  </div>
+                  <p className="text-gray-400 text-sm">Current Tier</p>
+                  <p className="text-2xl font-bold text-white">{staking.userTierName}</p>
+                </div>
+                
+                <div className="text-center">
+                  <FaCoins className="h-8 w-8 text-yellow-400 mx-auto mb-2" />
+                  <p className="text-gray-400 text-sm">Total Staked</p>
+                  <p className="text-2xl font-bold text-white">{staking.totalUserStaked} BITR</p>
+                </div>
+                
+                <div className="text-center">
+                  <FaChartLine className="h-8 w-8 text-green-400 mx-auto mb-2" />
+                  <p className="text-gray-400 text-sm">Total Rewards</p>
+                  <p className="text-2xl font-bold text-white">{staking.totalPendingRewards} BITR</p>
+                </div>
+
+                <div className="text-center">
+                  <FaMoneyBillWave className="h-8 w-8 text-blue-400 mx-auto mb-2" />
+                  <p className="text-gray-400 text-sm">Active Stakes</p>
+                  <p className="text-2xl font-bold text-white">{staking.userStakesWithRewards.length}</p>
+                </div>
+              </div>
+
+              {/* Progress to Next Tier */}
+              {staking.userTier < (staking.tiers?.length || 0) - 1 && (
+                <div className="mt-8 p-6 bg-black/20 rounded-xl">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-white font-medium">Progress to {staking.getTierName(staking.userTier + 1)}</span>
+                    <span className="text-gray-300">{getProgressToNextTier().toFixed(1)}%</span>
+                  </div>
+                  <div className="w-full bg-gray-700 rounded-full h-2">
+                    <div
+                      className="bg-gradient-to-r from-purple-500 to-blue-500 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${getProgressToNextTier()}%` }}
+                    />
+                  </div>
+                  <p className="text-gray-400 text-sm mt-2">
+                    Need {staking.nextTierThreshold} BITR to reach next tier
+                  </p>
+                </div>
+              )}
+            </motion.div>
+
+            {/* Revenue Sharing Panel */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20"
             >
-              Unstake BITR
-            </button>
-          </div>
-          
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <label className="text-sm text-text-muted">
-                {activeTab === "stake" ? "Amount to Stake" : "Amount to Unstake"}
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={stakeAmount}
-                  onChange={handleStakeAmountChange}
-                  placeholder="Enter amount"
-                  className="h-12 w-full rounded-md border border-border-input bg-bg-card pl-4 pr-16 focus:border-primary focus:outline-none"
-                />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted">
-                  BITR
-                </span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <button 
-                  className="text-primary"
-                  onClick={() => setStakeAmount("1000")}
-                >
-                  Min (1,000)
-                </button>
-                <button 
-                  className="text-primary"
-                  onClick={() => setStakeAmount((userStats.stakedAmount / 2).toString())}
-                >
-                  Half
-                </button>
-                <button 
-                  className="text-primary"
-                  onClick={() => setStakeAmount(userStats.stakedAmount.toString())}
-                >
-                  Max ({userStats.stakedAmount})
-                </button>
-              </div>
-            </div>
-            
-            {/* Lock Period Selection (Only show for staking) */}
-            {activeTab === "stake" && (
-              <div className="space-y-2">
-                <label className="flex items-center gap-1 text-sm text-text-muted">
-                  <IoMdLock size={14} />
-                  Lock Period
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {[30, 60, 90].map((days) => (
-                    <button
-                      key={days}
-                      className={`rounded-md border p-2 text-center text-sm ${
-                        selectedLockPeriod === days
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-border-input bg-bg-card text-text-muted"
-                      }`}
-                      onClick={() => setSelectedLockPeriod(days)}
-                    >
-                      <div className="font-medium">{days} Days</div>
-                      <div className="text-xs">
-                        {days === 30 ? "+0%" : days === 60 ? "+1%" : "+2%"} APY
+              <h3 className="text-2xl font-bold text-white mb-6">Revenue Sharing</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="text-center">
+                  <FaCoins className="h-8 w-8 text-yellow-400 mx-auto mb-2" />
+                  <p className="text-gray-400 text-sm">Pending BITR</p>
+                  <p className="text-xl font-bold text-white">{staking.pendingRevenueBITR}</p>
+                </div>
+                
+                <div className="text-center">
+                  <FaGem className="h-8 w-8 text-blue-400 mx-auto mb-2" />
+                  <p className="text-gray-400 text-sm">Pending STT</p>
+                  <p className="text-xl font-bold text-white">{staking.pendingRevenueSTT}</p>
+                </div>
+
+                <div className="flex items-center">
+                  <Button
+                    onClick={handleClaimRevenueShare}
+                    disabled={
+                      (parseFloat(staking.pendingRevenueBITR) === 0 && parseFloat(staking.pendingRevenueSTT) === 0) ||
+                      staking.isPending ||
+                      staking.isConfirming
+                    }
+                    className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
+                  >
+                    {staking.isPending || staking.isConfirming ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <LoadingSpinner size="sm" />
+                        Claiming...
                       </div>
-                    </button>
+                    ) : (
+                      "Claim Revenue"
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Individual Stakes */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20"
+            >
+              <h3 className="text-2xl font-bold text-white mb-6">Your Stakes</h3>
+              
+              {staking.userStakesWithRewards.length === 0 ? (
+                <div className="text-center py-12">
+                  <IoMdLock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <h4 className="text-lg font-bold text-white mb-2">No Stakes Yet</h4>
+                  <p className="text-gray-400">Create your first stake to start earning rewards</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {staking.userStakesWithRewards.map((stake: StakeWithRewards) => (
+                    <div key={stake.index} className="bg-black/20 rounded-xl p-6">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h4 className="text-lg font-bold text-white">
+                              Stake #{stake.index + 1}
+                            </h4>
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                              stake.canUnstake ? "bg-green-500/20 text-green-400" : "bg-orange-500/20 text-orange-400"
+                            }`}>
+                              {stake.canUnstake ? "Unlocked" : "Locked"}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            <div>
+                              <p className="text-gray-400">Amount</p>
+                              <p className="text-white font-medium">{staking.formatAmount(stake.amount)} BITR</p>
+                            </div>
+                            <div>
+                              <p className="text-gray-400">Tier</p>
+                              <p className="text-white font-medium">{staking.getTierName(stake.tierId)}</p>
+                            </div>
+                            <div>
+                              <p className="text-gray-400">Duration</p>
+                              <p className="text-white font-medium">{staking.getDurationName(stake.durationOption)}</p>
+                            </div>
+                            <div>
+                              <p className="text-gray-400">APY</p>
+                              <p className="text-green-400 font-medium">{stake.currentAPY.toFixed(2)}%</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-4 text-sm">
+                          <div className="flex items-center gap-1 text-gray-400">
+                            <FaClock className="h-4 w-4" />
+                            <span>{stake.canUnstake ? "Ready to unstake" : formatTimeRemaining(stake.unlockTime)}</span>
+                          </div>
+                          <div className="flex items-center gap-1 text-green-400">
+                            <FaCoins className="h-4 w-4" />
+                            <span>{staking.formatAmount(stake.pendingRewards)} BITR pending</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => handleClaimStakeRewards(stake.index)}
+                          disabled={
+                            stake.pendingRewards === BigInt(0) ||
+                            staking.isPending ||
+                            staking.isConfirming
+                          }
+                          className="flex-1 bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600"
+                        >
+                          Claim Rewards
+                        </Button>
+                        <Button
+                          onClick={() => handleUnstakeSpecific(stake.index)}
+                          disabled={
+                            !stake.canUnstake ||
+                            staking.isPending ||
+                            staking.isConfirming
+                          }
+                          className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+                        >
+                          {stake.canUnstake ? "Unstake" : "Locked"}
+                        </Button>
+                      </div>
+                    </div>
                   ))}
                 </div>
-                <div className="mt-2 text-xs text-text-muted">
-                  <span className="text-warning">Note:</span> Early unstaking incurs a 10% penalty fee
-                </div>
-              </div>
-            )}
-            
-            {/* Estimated Returns (Only show for staking) */}
-            {activeTab === "stake" && parseFloat(String(stakeAmount)) > 0 && (
-              <div className="rounded-md bg-bg-card p-3">
-                <div className="mb-1 text-sm text-text-muted">Estimated Returns:</div>
-                <div className="text-lg font-semibold text-primary">
-                  +{getEstimatedRewards()} BITR
-                </div>
-                <div className="text-xs text-text-muted">
-                  After {selectedLockPeriod} days at{" "}
-                  {userStats.apy + (selectedLockPeriod === 90 ? 2 : selectedLockPeriod === 60 ? 1 : 0)}% APY
-                </div>
-              </div>
-            )}
-            
-            <Button 
-              variant={activeTab === "stake" ? "primary" : "secondary"} 
-              fullWidth
-              disabled={!parseFloat(String(stakeAmount))}
+              )}
+            </motion.div>
+          </div>
+
+          {/* Create New Stake Panel */}
+          <div>
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 sticky top-6"
             >
-              {activeTab === "stake" ? "Stake Now" : "Unstake Now"}
-            </Button>
-          </div>
-        </div>
-        
-        {/* Right Column - Revenue Pool Tracker */}
-        <div className="glass-card lg:col-span-1">
-          <h3 className="mb-4 flex items-center gap-2 text-xl font-medium text-secondary">
-            <FaChartLine className="text-secondary" />
-            Revenue Pool Tracker
-          </h3>
-          
-          <div className="space-y-6">
-            <div className="space-y-4">
-              <div className="flex justify-between">
-                <span className="text-text-muted">Monthly Revenue Pool:</span>
-                <span className="font-semibold text-text-secondary">
-                  {revenuePool.total.toLocaleString()} BITR
-                </span>
-              </div>
+              <h3 className="text-xl font-bold text-white mb-6">Create New Stake</h3>
               
-              <div>
-                <div className="mb-2 flex justify-between text-sm">
-                  <span className="text-text-muted">Platform Revenue</span>
-                  <span className="text-text-muted">30% to Stakers</span>
+              <div className="space-y-6">
+                {/* Amount Input */}
+                <div>
+                  <label className="block text-white font-medium mb-3">
+                    Amount to Stake
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={stakeAmount}
+                      onChange={(e) => setStakeAmount(e.target.value)}
+                      placeholder="Enter BITR amount"
+                      className="w-full bg-black/30 border border-gray-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500"
+                    />
+                    <button
+                      onClick={() => setStakeAmount(token.balance)}
+                      className="absolute right-3 top-3 text-purple-400 hover:text-purple-300 text-sm font-medium"
+                    >
+                      MAX
+                    </button>
+                  </div>
+                  <p className="text-gray-400 text-sm mt-2">
+                    Available: {token.balance} BITR
+                  </p>
                 </div>
-                <div className="h-4 w-full overflow-hidden rounded-full bg-bg-card">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-somnia-magenta to-somnia-violet"
-                    style={{ width: `${revenuePool.percentage}%` }}
-                  ></div>
+
+                {/* Tier Selection */}
+                <div>
+                  <label className="block text-white font-medium mb-3">
+                    Select Tier
+                  </label>
+                  <div className="space-y-2">
+                    {staking.tiers?.map((tier, index) => {
+                      const canSelect = staking.canStakeInTier(index, stakeAmount || "0");
+                      const TierIconComponent = TIER_ICONS[index] || FaCoins;
+                      const tierColor = TIER_COLORS[index] || "text-gray-400";
+                      
+                      return (
+                        <button
+                          key={index}
+                          onClick={() => setSelectedTier(index)}
+                          disabled={!canSelect}
+                          className={`w-full p-3 rounded-xl border-2 text-left transition-all ${
+                            selectedTier === index
+                              ? "border-purple-500 bg-purple-500/20"
+                              : canSelect
+                                ? "border-gray-600 bg-black/20 hover:border-purple-500/50"
+                                : "border-gray-700 bg-gray-800/20 opacity-50"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <TierIconComponent className={`h-5 w-5 ${tierColor}`} />
+                              <div>
+                                <p className="text-white font-medium">{staking.getTierName(index)}</p>
+                                <p className="text-gray-400 text-sm">
+                                  {(tier.baseAPY / 100).toFixed(1)}% APY • Min: {staking.formatAmount(tier.minStake)} BITR
+                                </p>
+                              </div>
+                            </div>
+                            {selectedTier === index && (
+                              <div className="w-4 h-4 bg-purple-500 rounded-full"></div>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
+
+                {/* Duration Selection */}
+                <div>
+                  <label className="block text-white font-medium mb-3">
+                    Staking Duration
+                  </label>
+                  <div className="space-y-2">
+                    {[DurationOption.THIRTY_DAYS, DurationOption.SIXTY_DAYS, DurationOption.NINETY_DAYS].map((duration) => (
+                      <button
+                        key={duration}
+                        onClick={() => setSelectedDuration(duration)}
+                        className={`w-full p-3 rounded-xl border-2 text-left transition-all ${
+                          selectedDuration === duration
+                            ? "border-purple-500 bg-purple-500/20"
+                            : "border-gray-600 bg-black/20 hover:border-purple-500/50"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-white font-medium">{staking.getDurationName(duration)}</p>
+                            <p className="text-gray-400 text-sm">
+                              +{staking.getDurationBonus(duration)}% APY bonus
+                            </p>
+                          </div>
+                          {selectedDuration === duration && (
+                            <div className="w-4 h-4 bg-purple-500 rounded-full"></div>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Stake Button */}
+                <div className="space-y-3">
+                  {needsApproval ? (
+                    <Button
+                      onClick={handleApprove}
+                      disabled={!stakeAmount || token.isPending}
+                      className="w-full py-4 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600"
+                    >
+                      {token.isPending ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <LoadingSpinner size="sm" />
+                          Approving...
+                        </div>
+                      ) : (
+                        "Approve BITR"
+                      )}
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={handleStake}
+                      disabled={
+                        !stakeAmount ||
+                        !staking.canStakeInTier(selectedTier, stakeAmount) ||
+                        staking.isPending || 
+                        staking.isConfirming
+                      }
+                      className="w-full py-4 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
+                    >
+                      {staking.isPending || staking.isConfirming ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <LoadingSpinner size="sm" />
+                          {staking.isPending ? "Confirming..." : "Processing..."}
+                        </div>
+                      ) : (
+                        "Create Stake"
+                      )}
+                    </Button>
+                  )}
+                </div>
+
+                {/* Estimated Returns */}
+                {stakeAmount && staking.tiers && (
+                  <div className="p-4 bg-black/20 rounded-xl">
+                    <h4 className="text-white font-medium mb-2">Estimated Returns</h4>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Base APY:</span>
+                        <span className="text-white">{(staking.tiers[selectedTier].baseAPY / 100).toFixed(1)}%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Duration Bonus:</span>
+                        <span className="text-green-400">+{staking.getDurationBonus(selectedDuration)}%</span>
+                      </div>
+                      <div className="flex justify-between border-t border-gray-600 pt-1">
+                        <span className="text-gray-400">Total APY:</span>
+                        <span className="text-white font-medium">
+                          {((staking.tiers[selectedTier].baseAPY / 100) + staking.getDurationBonus(selectedDuration)).toFixed(1)}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
-              
-              <div className="rounded-lg bg-bg-card p-4">
-                <div className="text-center text-sm text-text-muted">Your Share This Month</div>
-                <div className="text-center text-2xl font-bold text-secondary">
-                  {revenuePool.userShare.toLocaleString()} BITR
-                </div>
-                <div className="text-center text-xs text-text-muted">
-                  Based on your {userStats.revenueShare}% tier allocation
-                </div>
-              </div>
-            </div>
-            
-            <div className="rounded-lg border border-border-card bg-bg-card p-4">
-              <h4 className="mb-2 text-center text-sm font-medium text-text-secondary">
-                Distribution Schedule
-              </h4>
-              <div className="flex justify-between text-xs">
-                <div className="text-center">
-                  <div className="font-medium text-text-secondary">15</div>
-                  <div className="text-text-muted">Days</div>
-                </div>
-                <div className="text-center">
-                  <div className="font-medium text-text-secondary">07</div>
-                  <div className="text-text-muted">Hours</div>
-                </div>
-                <div className="text-center">
-                  <div className="font-medium text-text-secondary">23</div>
-                  <div className="text-text-muted">Minutes</div>
-                </div>
-                <div className="text-center">
-                  <div className="font-medium text-text-secondary">11</div>
-                  <div className="text-text-muted">Seconds</div>
-                </div>
-              </div>
-            </div>
+            </motion.div>
           </div>
         </div>
-      </motion.div>
-      
-      {/* Global Stats */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.9 }}
-        className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-4"
-      >
-        {[
-          { value: "$9,574,208.84", label: "Total Value Locked" },
-          { value: "$26,569,025", label: "Market Cap" },
-          { value: "18%", label: "Max APY Rate" },
-          { value: "6,997", label: "Total Stakers" },
-        ].map((stat, i) => (
-          <div
-            key={i}
-            className="glass-card flex flex-col items-center justify-center gap-2 p-4 text-center"
-          >
-            <p className="text-xl font-semibold text-primary">{stat.value}</p>
-            <p className="text-sm text-text-muted">{stat.label}</p>
-          </div>
-        ))}
-      </motion.div>
-      
-      {/* Token Rates */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 1.0 }}
-        className="mt-10"
-      >
-        <h3 className="mb-4 text-xl font-medium text-secondary">Token Rate</h3>
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-          <div className="glass-card flex flex-col items-center justify-center gap-2 p-4">
-            <p className="text-text-muted">BITR/USD</p>
-            <p className="text-2xl font-semibold text-secondary">0.75 USD</p>
-          </div>
-          
-          <div className="glass-card flex flex-col items-center justify-center gap-2 p-4">
-            <p className="text-text-muted">BITR/STT</p>
-            <p className="text-2xl font-semibold text-secondary">0.00288 STT</p>
-          </div>
-          
-          <div className="glass-card flex flex-col items-center justify-center gap-2 p-4">
-            <p className="text-text-muted">24h Change</p>
-            <p className="text-2xl font-semibold text-success">+2.4%</p>
-          </div>
-        </div>
-      </motion.div>
-      
-      {/* Price Chart */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 1.1 }}
-        className="mt-10 glass-card"
-      >
-        <h3 className="mb-4 text-xl font-medium text-secondary">Price Trend</h3>
-        <div className="h-64">
-          <PriceTrendChart />
-        </div>
-      </motion.div>
-    </motion.section>
+      </div>
+    </div>
   );
 }
