@@ -269,12 +269,12 @@ export function usePools() {
   };
 
   // Pool boosting
-  const boostPool = async (poolId: number, tier: BoostTier) => {
+  const boostPool = async (poolId: number, tier: number) => {
     // Get boost fees - these would need to be read from contract
-    const boostFees = {
-      [BoostTier.BRONZE]: parseUnits("10", 18), // 10 STT
-      [BoostTier.SILVER]: parseUnits("25", 18), // 25 STT  
-      [BoostTier.GOLD]: parseUnits("50", 18),   // 50 STT
+    const boostFees: { [key: number]: bigint } = {
+      1: parseUnits("10", 18), // Bronze - 10 STT
+      2: parseUnits("25", 18), // Silver - 25 STT  
+      3: parseUnits("50", 18), // Gold - 50 STT
     };
 
     writeContract({

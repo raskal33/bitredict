@@ -216,17 +216,17 @@ export function useOddyssey() {
   const { data: dailyMatchesWithLive, refetch: refetchDailyMatches } = useQuery({
     queryKey: ['oddyssey-daily-matches-live', dailyCycleId],
     queryFn: async () => {
-      const matches = dailyMatches || [];
+      const matches = Array.isArray(dailyMatches) ? dailyMatches : [];
       const liveData = await fetchLiveMatchData(matches);
       
-      return matches.map(match => ({
+      return matches.map((match: any) => ({
         ...match,
         liveData: liveData[Number(match.id)] || null,
         isLive: liveData[Number(match.id)]?.status === 'LIVE' || false,
         currentScore: liveData[Number(match.id)]?.score || null
       }));
     },
-    enabled: !!dailyMatches && dailyMatches.length > 0,
+    enabled: !!dailyMatches && Array.isArray(dailyMatches) && dailyMatches.length > 0,
     refetchInterval: 30000, // Refetch every 30 seconds for live data
   });
 

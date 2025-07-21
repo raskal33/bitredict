@@ -63,7 +63,7 @@ export default function TrendingMarketsPage() {
                 <div>
                   <label className="text-gray-400 text-sm">Total Volume</label>
                   <p className="text-white font-medium">
-                    {Number(selectedPool.totalStaked).toLocaleString()} BITR
+                    {Number(('totalCreatorSideStake' in selectedPool ? Number(selectedPool.totalCreatorSideStake) : 0) + ('totalBettorStake' in selectedPool ? Number(selectedPool.totalBettorStake) : 0)).toLocaleString()} BITR
                   </p>
                 </div>
                 {'liquidityPool' in selectedPool && (

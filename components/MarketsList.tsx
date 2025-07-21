@@ -45,10 +45,6 @@ export default function MarketsList({
 
   const poolsContract = usePools();
 
-  useEffect(() => {
-    loadPools();
-  }, [poolsContract.poolCount, poolsContract.comboPoolCount, marketType, loadPools]);
-
   const loadPools = useCallback(async () => {
     if (!poolsContract.poolCount && !poolsContract.comboPoolCount) return;
     
@@ -63,7 +59,7 @@ export default function MarketsList({
           case "private":
             return pool.isPrivate;
           case "boosted":
-            return !pool.isPrivate && poolsContract.getPoolBoost(Number(pool.id)) > 0;
+            return !pool.isPrivate && poolsContract.getPoolBoost(Number(pool.id)).boostTier > 0;
           case "trending":
             return !pool.isPrivate && poolsContract.isPoolActive(pool);
           case "combo":
@@ -103,8 +99,8 @@ export default function MarketsList({
           case "boosted":
             // Sort by boost amount
             filtered.sort((a, b) => {
-              const aBoost = poolsContract.getPoolBoost(Number(a.id));
-              const bBoost = poolsContract.getPoolBoost(Number(b.id));
+              const aBoost = poolsContract.getPoolBoost(Number(a.id)).boostTier;
+              const bBoost = poolsContract.getPoolBoost(Number(b.id)).boostTier;
               return bBoost - aBoost;
             });
             break;
@@ -139,7 +135,7 @@ export default function MarketsList({
       // Load regular pools
       if (poolType !== "combo") {
         for (let i = 0; i < Number(poolsContract.poolCount || 0); i++) {
-          const pool = await poolsContract.getPool(i);
+          const { pool } = poolsContract.getPool(i);
           if (pool && shouldIncludePool(pool)) {
             regularPools.push(pool);
           }
@@ -149,7 +145,7 @@ export default function MarketsList({
       // Load combo pools
       if (poolType !== "regular") {
         for (let i = 0; i < Number(poolsContract.comboPoolCount || 0); i++) {
-          const comboPool = await poolsContract.getComboPool(i);
+          const { comboPool } = poolsContract.getComboPool(i);
           if (comboPool && shouldIncludeComboPool(comboPool)) {
             comboPools.push(comboPool);
           }
@@ -165,6 +161,9 @@ export default function MarketsList({
     }
   }, [poolsContract, marketType, poolType]);
 
+  useEffect(() => {
+    loadPools();
+  }, [poolsContract.poolCount, poolsContract.comboPoolCount, marketType, loadPools]);
 
 
   const getPoolTypeIcon = () => {
@@ -310,7 +309,7 @@ export default function MarketsList({
                     </div>
                     <div className="text-xl font-bold text-green-400">
                       {isRegular 
-                        ? `${poolsContract.calculateOdds(pool as Pool).toFixed(2)}%`
+                        ? `${(pool as Pool).odds / 100}x`
                         : `${Number((pool as ComboPool).combinedOdds) / 100}x`
                       }
                     </div>
@@ -326,11 +325,9 @@ export default function MarketsList({
                     <div className="flex items-center gap-1 text-gray-400">
                       <FaClock className="h-3 w-3" />
                       <span>
-                        {poolsContract.getTimeRemaining(
-                          isRegular 
+                        {new Date(Number((isRegular 
                             ? (pool as Pool).eventEndTime 
-                            : (pool as ComboPool).latestEventEnd
-                        )}
+                            : (pool as ComboPool).eventEndTime) * BigInt(1000))).toLocaleDateString()}
                       </span>
                     </div>
                   </div>

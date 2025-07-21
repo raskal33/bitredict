@@ -49,7 +49,7 @@ export default function OddysseyPage() {
 
   // Initialize predictions when matches are loaded
   useEffect(() => {
-    if (oddyssey.dailyMatches && oddyssey.dailyMatches.length === 10) {
+    if (oddyssey.dailyMatches && Array.isArray(oddyssey.dailyMatches) && oddyssey.dailyMatches.length === 10) {
       const initialPredictions = oddyssey.dailyMatches.map((match: Match) => ({
         matchId: match.id,
         betType: BetType.MONEYLINE,
@@ -63,7 +63,7 @@ export default function OddysseyPage() {
   // Handle prediction change
   const updatePrediction = (matchIndex: number, field: keyof MatchPrediction, value: string | number | BetType) => {
     const newPredictions = [...predictions];
-    const match = oddyssey.dailyMatches[matchIndex];
+    const match = Array.isArray(oddyssey.dailyMatches) ? oddyssey.dailyMatches[matchIndex] : null;
     
     if (field === 'betType') {
       newPredictions[matchIndex].betType = value as BetType;
@@ -260,7 +260,7 @@ export default function OddysseyPage() {
                   </span>
                 </div>
 
-                {!oddyssey.dailyMatches || oddyssey.dailyMatches.length === 0 ? (
+                {!oddyssey.dailyMatches || !Array.isArray(oddyssey.dailyMatches) || oddyssey.dailyMatches.length === 0 ? (
                   <div className="text-center py-12">
                     <FaFootballBall className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-xl font-bold text-white mb-2">No Matches Available</h3>
@@ -268,7 +268,7 @@ export default function OddysseyPage() {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {oddyssey.dailyMatches.map((match: Match, index: number) => (
+                    {Array.isArray(oddyssey.dailyMatches) && oddyssey.dailyMatches.map((match: Match, index: number) => (
                       <div key={Number(match.id)} className="bg-black/20 rounded-xl p-6">
                         <div className="flex items-center justify-between mb-4">
                           <div className="flex-1">
@@ -288,7 +288,7 @@ export default function OddysseyPage() {
                                 </span>
                                 {(match as MatchWithLiveData).liveData?.minute && (
                                   <span className="text-gray-400 text-xs">
-                                    {(match as MatchWithLiveData).liveData.minute}&apos;
+                                    {(match as MatchWithLiveData).liveData?.minute}&apos;
                                   </span>
                                 )}
                               </div>
@@ -306,7 +306,7 @@ export default function OddysseyPage() {
                                 </span>
                                 {(match as MatchWithLiveData).liveData!.status === 'FT' && (match as MatchWithLiveData).currentScore && (
                                   <span className="ml-2 text-gray-400 text-sm">
-                                    Final: {(match as MatchWithLiveData).currentScore.home} - {(match as MatchWithLiveData).currentScore.away}
+                                    Final: {(match as MatchWithLiveData).currentScore?.home} - {(match as MatchWithLiveData).currentScore?.away}
                                   </span>
                                 )}
                               </div>
