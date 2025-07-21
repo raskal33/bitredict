@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useAccount } from "wagmi";
 import { toast } from "react-hot-toast";
@@ -10,7 +10,6 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 import { useFaucet } from "@/hooks/useFaucet";
 import { useBITRToken } from "@/hooks/useBITRToken";
 import { 
-  getFaucetStatistics,
   formatAddress 
 } from "@/services/airdropService";
 import { 
@@ -31,16 +30,10 @@ import {
   GiftIcon as GiftSolid
 } from "@heroicons/react/24/solid";
 
-interface FaucetStats {
-  totalClaimed: string;
-  totalUsers: number;
-  claimsToday: number;
-  remainingTokens: string;
-}
+
 
 export default function FaucetPage() {
   const { address, isConnected } = useAccount();
-  const [stats, setStats] = useState<FaucetStats | null>(null);
   
   // Smart contract hooks
   const faucet = useFaucet();
@@ -50,10 +43,8 @@ export default function FaucetPage() {
     if (!address) return;
     
     try {
-      // Fetch backend data
-      const statistics = await getFaucetStatistics();
-      
-      setStats(statistics as FaucetStats);
+      // Fetch backend data if needed
+      // const statistics = await getFaucetStatistics();
       
       // Refetch contract data
       faucet.refetchAll();

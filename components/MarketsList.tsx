@@ -57,6 +57,85 @@ export default function MarketsList({
       const regularPools: Pool[] = [];
       const comboPools: ComboPool[] = [];
 
+      // Helper functions defined inside useCallback
+      const shouldIncludePool = (pool: Pool): boolean => {
+        switch (marketType) {
+          case "private":
+            return pool.isPrivate;
+          case "boosted":
+            return !pool.isPrivate && poolsContract.getPoolBoost(Number(pool.id)) > 0;
+          case "trending":
+            return !pool.isPrivate && poolsContract.isPoolActive(pool);
+          case "combo":
+            return false; // Regular pools don't belong in combo section
+          default:
+            return true;
+        }
+      };
+
+      const shouldIncludeComboPool = (comboPool: ComboPool): boolean => {
+        switch (marketType) {
+          case "private":
+            return false; // Combo pools aren't private in current implementation
+          case "boosted":
+            return false; // Combo pools don't have boosts yet
+          case "trending":
+            return poolsContract.isComboPoolActive(comboPool);
+          case "combo":
+            return true;
+          default:
+            return true;
+        }
+      };
+
+      const filterAndSortPools = (pools: Pool[]): Pool[] => {
+        const filtered = [...pools];
+
+        switch (marketType) {
+          case "trending":
+            // Sort by betting activity (total stake + creator support)
+            filtered.sort((a, b) => {
+              const aActivity = Number(a.totalCreatorSideStake) + Number(a.totalBettorStake);
+              const bActivity = Number(b.totalCreatorSideStake) + Number(b.totalBettorStake);
+              return bActivity - aActivity;
+            });
+            break;
+          case "boosted":
+            // Sort by boost amount
+            filtered.sort((a, b) => {
+              const aBoost = poolsContract.getPoolBoost(Number(a.id));
+              const bBoost = poolsContract.getPoolBoost(Number(b.id));
+              return bBoost - aBoost;
+            });
+            break;
+          default:
+            // Sort by creation time (newest first)
+            filtered.sort((a, b) => Number(b.id) - Number(a.id));
+        }
+
+        return filtered;
+      };
+
+      const filterAndSortComboPools = (comboPools: ComboPool[]): ComboPool[] => {
+        const filtered = [...comboPools];
+
+        switch (marketType) {
+          case "trending":
+            // Sort by betting activity
+            filtered.sort((a, b) => {
+              const aActivity = Number(a.totalCreatorSideStake) + Number(a.totalBettorStake);
+              const bActivity = Number(b.totalCreatorSideStake) + Number(b.totalBettorStake);
+              return bActivity - aActivity;
+            });
+            break;
+          default:
+            // Sort by creation time (newest first)
+            filtered.sort((a, b) => Number(b.id) - Number(a.id));
+        }
+
+        return filtered;
+      };
+
       // Load regular pools
       if (poolType !== "combo") {
         for (let i = 0; i < Number(poolsContract.poolCount || 0); i++) {
@@ -84,85 +163,9 @@ export default function MarketsList({
     } finally {
       setLoading(false);
     }
-  }, [poolsContract, shouldIncludePool, shouldIncludeComboPool, filterAndSortPools, filterAndSortComboPools, poolType]);
+  }, [poolsContract, marketType, poolType]);
 
-  const shouldIncludePool = (pool: Pool): boolean => {
-    switch (marketType) {
-      case "private":
-        return pool.isPrivate;
-      case "boosted":
-        return !pool.isPrivate && poolsContract.getPoolBoost(Number(pool.id)) > 0;
-      case "trending":
-        return !pool.isPrivate && poolsContract.isPoolActive(pool);
-      case "combo":
-        return false; // Regular pools don't belong in combo section
-      default:
-        return true;
-    }
-  };
 
-  const shouldIncludeComboPool = (comboPool: ComboPool): boolean => {
-    switch (marketType) {
-      case "private":
-        return false; // Combo pools aren't private in current implementation
-      case "boosted":
-        return false; // Combo pools don't have boosts yet
-      case "trending":
-        return poolsContract.isComboPoolActive(comboPool);
-      case "combo":
-        return true;
-      default:
-        return true;
-    }
-  };
-
-  const filterAndSortPools = (pools: Pool[]): Pool[] => {
-    const filtered = [...pools];
-
-    switch (marketType) {
-      case "trending":
-        // Sort by betting activity (total stake + creator support)
-        filtered.sort((a, b) => {
-          const aActivity = Number(a.totalCreatorSideStake) + Number(a.totalBettorStake);
-          const bActivity = Number(b.totalCreatorSideStake) + Number(b.totalBettorStake);
-          return bActivity - aActivity;
-        });
-        break;
-      case "boosted":
-        // Sort by boost amount
-        filtered.sort((a, b) => {
-          const aBoost = poolsContract.getPoolBoost(Number(a.id));
-          const bBoost = poolsContract.getPoolBoost(Number(b.id));
-          return bBoost - aBoost;
-        });
-        break;
-      default:
-        // Sort by creation time (newest first)
-        filtered.sort((a, b) => Number(b.id) - Number(a.id));
-    }
-
-    return filtered;
-  };
-
-  const filterAndSortComboPools = (comboPools: ComboPool[]): ComboPool[] => {
-    const filtered = [...comboPools];
-
-    switch (marketType) {
-      case "trending":
-        // Sort by betting activity
-        filtered.sort((a, b) => {
-          const aActivity = Number(a.totalCreatorSideStake) + Number(a.totalBettorStake);
-          const bActivity = Number(b.totalCreatorSideStake) + Number(b.totalBettorStake);
-          return bActivity - aActivity;
-        });
-        break;
-      default:
-        // Sort by creation time (newest first)
-        filtered.sort((a, b) => Number(b.id) - Number(a.id));
-    }
-
-    return filtered;
-  };
 
   const getPoolTypeIcon = () => {
     switch (marketType) {

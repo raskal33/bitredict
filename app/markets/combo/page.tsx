@@ -68,7 +68,7 @@ export default function ComboMarketsPage() {
                 <div>
                   <label className="text-gray-400 text-sm">Total Volume</label>
                   <p className="text-white font-medium">
-                    {Number(selectedPool.totalStaked).toLocaleString()} BITR
+                    {Number((selectedPool as any).totalCreatorSideStake || 0).toLocaleString()} BITR
                   </p>
                 </div>
                 <div>
