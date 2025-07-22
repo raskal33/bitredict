@@ -2,27 +2,9 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Search, TrendingUp, TrendingDown, Star, AlertCircle, Target, Clock } from 'lucide-react';
+import { cryptoService, type CryptoData, type PriceTarget } from '@/services/cryptoService';
 
-interface CryptoData {
-  symbol: string;
-  name: string;
-  price: number;
-  change24h: number;
-  change7d: number;
-  marketCap: number;
-  volume24h: number;
-  rank: number;
-  volatility: number;
-  difficulty: 'easy' | 'medium' | 'hard';
-  timestamp: string;
-}
-
-interface PriceTarget {
-  direction: 'above' | 'below';
-  targetPrice: number;
-  percentage: number;
-  difficulty: 'easy' | 'medium' | 'hard';
-}
+// Remove duplicate interfaces since they're imported from the service
 
 interface CryptoMarket {
   coinId: string;
@@ -65,17 +47,10 @@ const CryptoMarketSelector: React.FC<CryptoMarketSelectorProps> = ({
       setLoading(true);
       setError(null);
       
-      // Fetch from backend oracle server
-      const response = await fetch('/api/crypto/popular?limit=20');
-      const data = await response.json();
-      
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to fetch cryptocurrencies');
-      }
-      
-      setCryptos(data.data);
-      setFilteredCryptos(data.data);
-      console.log('Loaded cryptocurrencies:', data.data);
+      const popularCryptos = await cryptoService.getPopularCryptos();
+      setCryptos(popularCryptos);
+      setFilteredCryptos(popularCryptos);
+      console.log('Loaded cryptocurrencies:', popularCryptos);
       
     } catch (err) {
       console.error('Error fetching cryptocurrencies:', err);
@@ -93,23 +68,10 @@ const CryptoMarketSelector: React.FC<CryptoMarketSelectorProps> = ({
     }
 
     try {
-      const response = await fetch(`/api/crypto/search?q=${encodeURIComponent(query)}&limit=10`);
-      const data = await response.json();
+      const searchResults = await cryptoService.searchCryptos(query);
       
-      if (data.success && data.data.length > 0) {
-        // Get ticker data for search results
-        const tickerPromises = data.data.slice(0, 5).map(async (coin: { symbol: string; name: string; id: string }) => {
-          try {
-            const tickerResponse = await fetch(`/api/crypto/prices/${coin.symbol}`);
-            const tickerData = await tickerResponse.json();
-            return tickerData.success ? tickerData.data : null;
-          } catch {
-            return null;
-          }
-        });
-        
-        const tickers = (await Promise.all(tickerPromises)).filter(Boolean);
-        setFilteredCryptos(tickers);
+      if (searchResults.length > 0) {
+        setFilteredCryptos(searchResults.slice(0, 10));
       } else {
         // Filter local cryptos
         const filtered = cryptos.filter(crypto =>
@@ -159,7 +121,7 @@ const CryptoMarketSelector: React.FC<CryptoMarketSelectorProps> = ({
         // Generate fallback targets based on current price and volatility
         const crypto = selectedCrypto;
         if (crypto) {
-          const fallbackTargets = generateFallbackTargets(crypto.price, crypto.volatility);
+          const fallbackTargets = generateFallbackTargets(crypto.price, crypto.volatility || 5);
           setPriceTargets(fallbackTargets);
         }
       }
@@ -167,7 +129,7 @@ const CryptoMarketSelector: React.FC<CryptoMarketSelectorProps> = ({
       console.error('Error fetching price targets:', err);
       // Generate fallback targets
       if (selectedCrypto) {
-        const fallbackTargets = generateFallbackTargets(selectedCrypto.price, selectedCrypto.volatility);
+        const fallbackTargets = generateFallbackTargets(selectedCrypto.price, selectedCrypto.volatility || 5);
         setPriceTargets(fallbackTargets);
       }
     } finally {
@@ -239,7 +201,7 @@ const CryptoMarketSelector: React.FC<CryptoMarketSelectorProps> = ({
       direction: target.direction,
       timeframe: timeframe as '1h' | '24h' | '7d' | '30d',
       difficulty: target.difficulty,
-      volatility: selectedCrypto.volatility
+      volatility: selectedCrypto.volatility || 5
     };
     
     onMarketSelect(market);
@@ -396,7 +358,7 @@ const CryptoMarketSelector: React.FC<CryptoMarketSelectorProps> = ({
                     <div className="flex items-center gap-2">
                       <h4 className="font-medium text-gray-900">{crypto.name}</h4>
                       <span className="text-sm text-gray-500">#{crypto.rank}</span>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(crypto.difficulty)}`}>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(crypto.difficulty || 'medium')}`}>
                         {crypto.difficulty}
                       </span>
                     </div>
@@ -463,7 +425,7 @@ const CryptoMarketSelector: React.FC<CryptoMarketSelectorProps> = ({
               </div>
               <div>
                 <span className="text-gray-600">Volatility</span>
-                <div className="font-semibold">{selectedCrypto.volatility.toFixed(1)}%</div>
+                <div className="font-semibold">{(selectedCrypto.volatility || 5).toFixed(1)}%</div>
               </div>
             </div>
           </div>

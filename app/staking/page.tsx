@@ -13,6 +13,7 @@ import { useBITRToken } from "@/hooks/useBITRToken";
 import { CONTRACTS } from "@/contracts";
 import { parseUnits } from "viem";
 import { IoMdLock } from "react-icons/io";
+import { isBigIntZero } from "@/utils/bigint-helpers";
 import { 
   FaTrophy, 
   FaChartLine, 
@@ -157,7 +158,7 @@ export default function StakingPage() {
 
   if (!isConnected) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex items-center justify-center p-6">
+      <div className="min-h-screen bg-bg-main flex items-center justify-center p-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -174,11 +175,12 @@ export default function StakingPage() {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="space-y-8"
-    >
+    <div className="min-h-screen bg-bg-main">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="space-y-8 p-6"
+      >
       {/* Header */}
       <AnimatedTitle 
         size="md"
@@ -521,7 +523,7 @@ export default function StakingPage() {
                         <Button
                           onClick={() => handleClaimStakeRewards(stake.index)}
                           disabled={
-                            stake.pendingRewards === BigInt(0) ||
+                            isBigIntZero(stake.pendingRewards) ||
                             staking.isPending ||
                             staking.isConfirming
                           }
@@ -725,6 +727,7 @@ export default function StakingPage() {
             </motion.div>
           </div>
         </div>
-    </motion.div>
+      </motion.div>
+    </div>
   );
 }

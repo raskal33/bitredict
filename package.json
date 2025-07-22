@@ -8,7 +8,11 @@
     "start": "next start",
     "lint": "next lint",
     "pretty": "prettier --write \"./**/*.{js,jsx,mjs,cjs,ts,tsx,json}\"",
-    "install:force": "npm install --legacy-peer-deps"
+    "install:force": "npm install --legacy-peer-deps",
+    "check-faucet": "node scripts/check-faucet-status.js",
+    "debug-faucet": "node scripts/debug-faucet-frontend.js",
+    "add-faucet-debug": "node scripts/add-faucet-debug.js add",
+    "remove-faucet-debug": "node scripts/add-faucet-debug.js remove"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",

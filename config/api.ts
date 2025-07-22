@@ -6,7 +6,11 @@ export const API_CONFIG = {
     pools: '/api/pools',
     analytics: '/api/analytics',
     social: '/api/social',
-    health: '/health'
+    health: '/health',
+    crypto: '/api/crypto',
+    fixtures: '/api/fixtures',
+    oddyssey: '/api/oddyssey',
+    staking: '/api/staking'
   }
 } as const;
 

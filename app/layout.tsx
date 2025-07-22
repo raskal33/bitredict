@@ -61,7 +61,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="scroll-smooth">
       <body
-        className={`${onest.className} ${onest.variable} flex min-h-screen flex-col bg-background-primary text-text-primary antialiased`}
+        className={`${onest.className} ${onest.variable} flex min-h-screen flex-col bg-bg-main text-text-primary antialiased`}
       >
         <WalletProvider>
           <AppContent>{children}</AppContent>

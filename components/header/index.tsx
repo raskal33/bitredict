@@ -393,125 +393,128 @@ export default function Header() {
                 animate={{ x: 0 }}
                 exit={{ x: "100%" }}
                 transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                className="absolute right-0 top-0 h-full w-80 max-w-sm glass-card"
+                className="absolute right-0 top-0 h-full w-72 max-w-[85vw] glass-card"
                 style={{ borderRadius: "0px" }}
               >
                 <div className="flex flex-col h-full">
                   {/* Header */}
-                                      <div className="flex items-center justify-between p-6 border-b border-border-card">
-                                        <Link href="/" className="flex items-center gap-3">
-                                          <Image 
-                                            src="/logo.png" 
-                                            alt="BitRedict Logo" 
-                                            width={120} 
-                                            height={120} 
-                                            className="logo-color-shift"
-                                            priority 
-                                          />
-                                        </Link>
-                                      </div>
+                  <div className="flex items-center justify-between p-4 border-b border-border-card">
+                    <Link href="/" className="flex items-center gap-2" onClick={handleClose}>
+                      <Image 
+                        src="/logo.png" 
+                        alt="BitRedict Logo" 
+                        width={100} 
+                        height={100} 
+                        className="logo-color-shift"
+                        priority 
+                      />
+                    </Link>
+                  </div>
 
                   {/* Navigation Links */}
-                  <nav className="flex-1 p-6">
+                  <nav className="flex-1 p-4 overflow-y-auto">
                     {/* Bitredictor Section */}
-                    <div className="mb-6">
-                      <h3 className="text-sm font-semibold text-text-secondary mb-3">Bitredictor</h3>
-                      <div className="space-y-2">
+                    <div className="mb-4">
+                      <h3 className="text-xs font-semibold text-text-secondary mb-2 px-2">BITREDICTOR</h3>
+                      <div className="space-y-1">
                         {bitredictorLinks.map((link) => (
                           <Link
                             key={link.href}
                             href={link.href}
                             onClick={handleClose}
-                            className={`flex items-center gap-3 px-4 py-3 rounded-button text-sm font-medium transition-all duration-200 ${
+                            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                               segment === link.segment
                                 ? "bg-gradient-primary text-black"
                                 : "text-text-secondary hover:text-text-primary hover:bg-bg-card"
                             }`}
                           >
-                            <link.icon className="h-4 w-4" />
-                            {link.label}
+                            <link.icon className="h-4 w-4 flex-shrink-0" />
+                            <span className="truncate">{link.label}</span>
                           </Link>
                         ))}
                       </div>
                     </div>
 
                     {/* Markets Section */}
-                    <div className="mb-6">
-                      <h3 className="text-sm font-semibold text-text-secondary mb-3">Markets</h3>
-                      <div className="space-y-2">
+                    <div className="mb-4">
+                      <h3 className="text-xs font-semibold text-text-secondary mb-2 px-2">MARKETS</h3>
+                      <div className="space-y-1">
                         {marketsLinks.map((link) => (
                           <Link
                             key={link.href}
                             href={link.href}
                             onClick={handleClose}
-                            className={`flex items-center gap-3 px-4 py-3 rounded-button text-sm font-medium transition-all duration-200 ${
+                            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                               segment === link.segment
                                 ? "bg-gradient-primary text-black"
                                 : "text-text-secondary hover:text-text-primary hover:bg-bg-card"
                             }`}
                           >
-                            <link.icon className="h-4 w-4" />
-                            {link.label}
+                            <link.icon className="h-4 w-4 flex-shrink-0" />
+                            <span className="truncate">{link.label}</span>
                           </Link>
                         ))}
                       </div>
                     </div>
 
-                    {/* Main Navigation */}
-                    <div className="space-y-2">
-                      {links.map((link) => (
-                        <Link
-                          key={link.href}
-                          href={link.href}
-                          onClick={handleClose}
-                          className={`flex items-center gap-3 px-4 py-3 rounded-button text-sm font-medium transition-all duration-200 ${
-                            segment === link.segment
-                              ? "bg-gradient-primary text-black"
-                              : "text-text-secondary hover:text-text-primary hover:bg-bg-card"
-                          }`}
-                        >
-                          <link.icon className="h-4 w-4" />
-                          {link.label}
-                        </Link>
-                      ))}
+                    {/* Other Navigation */}
+                    <div className="mb-4">
+                      <h3 className="text-xs font-semibold text-text-secondary mb-2 px-2">OTHER</h3>
+                      <div className="space-y-1">
+                        {links.map((link) => (
+                          <Link
+                            key={link.href}
+                            href={link.href}
+                            onClick={handleClose}
+                            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                              segment === link.segment
+                                ? "bg-gradient-primary text-black"
+                                : "text-text-secondary hover:text-text-primary hover:bg-bg-card"
+                            }`}
+                          >
+                            <link.icon className="h-4 w-4 flex-shrink-0" />
+                            <span className="truncate">{link.label}</span>
+                          </Link>
+                        ))}
+                      </div>
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="mt-8 space-y-3">
+                    <div className="space-y-2">
                       <Link href="/create-prediction" onClick={handleClose}>
-                        <Button fullWidth variant="primary">
+                        <Button fullWidth variant="primary" size="sm">
                           Create Market
                         </Button>
                       </Link>
                       
                       {isRender && (
                         isConnected && address ? (
-                          <div className="space-y-3">
-                            <div className="flex items-center gap-2 px-3 py-2 rounded-button bg-bg-card border border-border-input text-sm">
-                              <div className={`w-2 h-2 rounded-full ${isOnSomnia ? 'bg-green-500' : 'bg-orange-500'}`}></div>
-                              <span className="text-text-secondary font-mono">
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-bg-card border border-border-input text-sm">
+                              <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isOnSomnia ? 'bg-green-500' : 'bg-orange-500'}`}></div>
+                              <span className="text-text-secondary font-mono text-xs truncate">
                                 {address.slice(0, 6)}...{address.slice(-4)}
                               </span>
                             </div>
                             {!isOnSomnia && (
                               <button
                                 onClick={switchToSomnia}
-                                className="w-full px-4 py-3 rounded-button text-sm font-medium text-orange-400 hover:text-orange-300 hover:bg-bg-card border border-orange-500"
+                                className="w-full px-3 py-2.5 rounded-lg text-sm font-medium text-orange-400 hover:text-orange-300 hover:bg-bg-card border border-orange-500 transition-colors"
                               >
-                                Switch to Somnia Testnet
+                                Switch Network
                               </button>
                             )}
                             <button
                               onClick={() => disconnect()}
-                              className="w-full px-4 py-3 rounded-button text-sm font-medium text-text-muted hover:text-text-secondary hover:bg-bg-card border border-border-input"
+                              className="w-full px-3 py-2.5 rounded-lg text-sm font-medium text-text-muted hover:text-text-secondary hover:bg-bg-card border border-border-input transition-colors"
                             >
-                              Disconnect Wallet
+                              Disconnect
                             </button>
                           </div>
                         ) : (
                           <button
                             onClick={() => open()}
-                            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-button text-sm font-medium transition-all duration-200 border-2 border-primary text-primary hover:bg-primary hover:text-black"
+                            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 border-2 border-primary text-primary hover:bg-primary hover:text-black"
                             style={{
                               fontFamily: "var(--font-onest)",
                               fontWeight: "500",
@@ -526,7 +529,7 @@ export default function Header() {
                   </nav>
 
                   {/* Footer */}
-                  <div className="p-6 border-t border-border-card">
+                  <div className="p-4 border-t border-border-card">
                     <div className="text-center">
                       <p className="text-xs text-text-muted">
                         Powered by{" "}

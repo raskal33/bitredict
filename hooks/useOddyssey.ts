@@ -4,6 +4,7 @@ import { CONTRACTS } from '@/contracts';
 import { formatUnits, parseUnits } from 'viem';
 import { useQuery } from '@tanstack/react-query';
 import { API_CONFIG } from '@/config/api';
+import { oddysseyService, type OddysseyCycle, type OddysseyMatch } from '@/services/oddysseyService';
 
 export enum BetType {
   MONEYLINE = 0,
@@ -131,6 +132,33 @@ export function useOddyssey() {
     functionName: 'dailyPrizePools',
     args: dailyCycleId ? [Number(dailyCycleId)] : undefined,
     query: { enabled: !!dailyCycleId }
+  });
+
+  // Backend API queries for additional data
+  const { data: backendCycleData, isLoading: backendLoading, refetch: refetchBackendData } = useQuery({
+    queryKey: ['oddyssey', 'backend', 'currentCycle'],
+    queryFn: () => oddysseyService.getCurrentCycle(),
+    refetchInterval: 30000, // Refetch every 30 seconds
+  });
+
+  const { data: leaderboardData, refetch: refetchBackendLeaderboard } = useQuery({
+    queryKey: ['oddyssey', 'leaderboard', dailyCycleId?.toString()],
+    queryFn: () => oddysseyService.getLeaderboard(),
+    enabled: !!dailyCycleId,
+    refetchInterval: 60000,
+  });
+
+  const { data: backendUserSlips, refetch: refetchBackendSlips } = useQuery({
+    queryKey: ['oddyssey', 'backend', 'slips', address, dailyCycleId?.toString()],
+    queryFn: () => address ? oddysseyService.getUserSlips(address) : Promise.resolve({ slips: [] }),
+    enabled: !!address && !!dailyCycleId,
+  });
+
+  const { data: backendStats, refetch: refetchBackendStats } = useQuery({
+    queryKey: ['oddyssey', 'backend', 'stats', dailyCycleId?.toString()],
+    queryFn: () => oddysseyService.getCycleStats(),
+    enabled: !!dailyCycleId,
+    refetchInterval: 60000,
   });
 
   // Get current cycle end time
@@ -346,6 +374,11 @@ export function useOddyssey() {
     refetchUserSlips();
     refetchGlobalStats();
     refetchDailyMatches(); // Refetch live matches
+    // Backend data
+    refetchBackendData();
+    refetchBackendLeaderboard();
+    refetchBackendSlips();
+    refetchBackendStats();
   };
 
   return {
@@ -360,6 +393,13 @@ export function useOddyssey() {
     prizePool: formatAmount(prizePool as bigint),
     isCycleResolved: isCycleResolved as boolean,
     userSlips: userSlips as bigint[],
+    
+    // Backend data
+    backendCycleData: backendCycleData?.cycle,
+    backendLoading,
+    leaderboard: leaderboardData?.leaderboard || [],
+    backendUserSlips: backendUserSlips?.slips || [],
+    backendStats: backendStats?.stats,
     
     // Calculated data
     isBettingOpen: isBettingOpen(),
