@@ -105,7 +105,7 @@ export function useOddyssey() {
   const { data: dailyMatches, refetch: refetchMatches } = useReadContract({
     ...CONTRACTS.ODDYSSEY,
     functionName: 'getDailyMatches',
-    args: dailyCycleId ? [dailyCycleId] : undefined,
+    args: dailyCycleId ? [Number(dailyCycleId)] : undefined,
     query: { enabled: !!dailyCycleId }
   });
 
@@ -113,7 +113,7 @@ export function useOddyssey() {
   const { data: dailyLeaderboard, refetch: refetchLeaderboard } = useReadContract({
     ...CONTRACTS.ODDYSSEY,
     functionName: 'getDailyLeaderboard',
-    args: dailyCycleId ? [dailyCycleId] : undefined,
+    args: dailyCycleId ? [Number(dailyCycleId)] : undefined,
     query: { enabled: !!dailyCycleId }
   });
 
@@ -121,7 +121,7 @@ export function useOddyssey() {
   const { data: cycleStats, refetch: refetchCycleStats } = useReadContract({
     ...CONTRACTS.ODDYSSEY,
     functionName: 'cycleStats',
-    args: dailyCycleId ? [dailyCycleId] : undefined,
+    args: dailyCycleId ? [Number(dailyCycleId)] : undefined,
     query: { enabled: !!dailyCycleId }
   });
 
@@ -129,7 +129,7 @@ export function useOddyssey() {
   const { data: prizePool, refetch: refetchPrizePool } = useReadContract({
     ...CONTRACTS.ODDYSSEY,
     functionName: 'dailyPrizePools',
-    args: dailyCycleId ? [dailyCycleId] : undefined,
+    args: dailyCycleId ? [Number(dailyCycleId)] : undefined,
     query: { enabled: !!dailyCycleId }
   });
 
@@ -137,7 +137,7 @@ export function useOddyssey() {
   const { data: cycleEndTime } = useReadContract({
     ...CONTRACTS.ODDYSSEY,
     functionName: 'dailyCycleEndTimes',
-    args: dailyCycleId ? [dailyCycleId] : undefined,
+    args: dailyCycleId ? [Number(dailyCycleId)] : undefined,
     query: { enabled: !!dailyCycleId }
   });
 
@@ -145,7 +145,7 @@ export function useOddyssey() {
   const { data: userSlips, refetch: refetchUserSlips } = useReadContract({
     ...CONTRACTS.ODDYSSEY,
     functionName: 'getUserSlipsForCycle',
-    args: address && dailyCycleId ? [address, dailyCycleId] : undefined,
+    args: address && dailyCycleId ? [address, Number(dailyCycleId)] : undefined,
     query: { enabled: !!(address && dailyCycleId) }
   });
 
@@ -153,7 +153,7 @@ export function useOddyssey() {
   const { data: isCycleResolved } = useReadContract({
     ...CONTRACTS.ODDYSSEY,
     functionName: 'isCycleResolved',
-    args: dailyCycleId ? [dailyCycleId] : undefined,
+    args: dailyCycleId ? [Number(dailyCycleId)] : undefined,
     query: { enabled: !!dailyCycleId }
   });
 

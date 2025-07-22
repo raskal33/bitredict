@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { CurrencyDollarIcon as CurrencySolid } from "@heroicons/react/24/solid";
 import { useAccount } from "wagmi";
 import { toast } from "react-hot-toast";
 import Button from "@/components/button";
@@ -173,17 +174,28 @@ export default function StakingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 p-6">
-      <div className="max-w-7xl mx-auto">
-        <AnimatedTitle>
-          <div className="text-4xl md:text-6xl font-bold text-center mb-4 bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
-            BITR Staking
-          </div>
-        </AnimatedTitle>
-        
-        <p className="text-center text-gray-300 mb-8 text-lg max-w-3xl mx-auto">
-          Stake your BITR tokens to earn rewards and unlock exclusive tiers. Higher tiers provide better rewards and platform benefits.
-        </p>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="space-y-8"
+    >
+      {/* Header */}
+      <AnimatedTitle 
+        size="md"
+        leftIcon={BoltSolid}
+        rightIcon={CurrencySolid}
+      >
+        BITR Staking
+            </AnimatedTitle>
+      
+      <motion.p 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.5 }}
+        className="text-base text-text-secondary max-w-2xl mx-auto text-center mb-6"
+      >
+        Stake your BITR tokens to earn rewards and unlock exclusive tiers. Higher tiers provide better rewards and platform benefits.
+      </motion.p>
 
         {/* Staking Information Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
@@ -713,7 +725,6 @@ export default function StakingPage() {
             </motion.div>
           </div>
         </div>
-      </div>
-    </div>
+    </motion.div>
   );
 }

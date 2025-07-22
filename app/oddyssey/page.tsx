@@ -27,7 +27,8 @@ import {
   FaChevronUp
 } from "react-icons/fa";
 import { 
-  PlayIcon as PlaySolid
+  PlayIcon as PlaySolid,
+  TrophyIcon as TrophySolid
 } from "@heroicons/react/24/solid";
 
 interface MatchPrediction {
@@ -175,17 +176,28 @@ export default function OddysseyPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 p-6">
-      <div className="max-w-7xl mx-auto">
-        <AnimatedTitle>
-          <div className="text-4xl md:text-6xl font-bold text-center mb-4 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-            Daily Oddyssey
-          </div>
-        </AnimatedTitle>
-        
-        <p className="text-center text-gray-300 mb-12 text-lg max-w-3xl mx-auto">
-          Daily prediction game - predict outcomes of 10 matches and compete for daily prizes!
-        </p>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="space-y-8"
+    >
+      {/* Header */}
+      <AnimatedTitle 
+        size="md"
+        leftIcon={PlaySolid}
+        rightIcon={TrophySolid}
+      >
+        Daily Oddyssey
+      </AnimatedTitle>
+      
+      <motion.p 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.5 }}
+        className="text-base text-text-secondary max-w-2xl mx-auto text-center mb-6"
+      >
+        Daily prediction game - predict outcomes of 10 matches and compete for daily prizes!
+      </motion.p>
 
         {/* Game Stats */}
         <motion.div
@@ -612,7 +624,6 @@ export default function OddysseyPage() {
             </div>
           </motion.div>
         )}
-      </div>
-    </div>
+    </motion.div>
   );
 }

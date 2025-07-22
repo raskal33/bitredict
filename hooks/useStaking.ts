@@ -193,7 +193,12 @@ export function useStaking() {
 
   const getTotalPendingRewards = (): bigint => {
     const stakesWithRewards = getUserStakesWithRewards();
-    return stakesWithRewards.reduce((total, stake) => total + stake.pendingRewards, BigInt(0));
+    return stakesWithRewards.reduce((total, stake) => {
+      // Ensure both values are BigInt
+      const totalBig = typeof total === 'bigint' ? total : BigInt(total);
+      const rewardsBig = typeof stake.pendingRewards === 'bigint' ? stake.pendingRewards : BigInt(stake.pendingRewards);
+      return totalBig + rewardsBig;
+    }, BigInt(0));
   };
 
   const getUserTier = (): number => {

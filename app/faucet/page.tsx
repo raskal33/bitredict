@@ -23,7 +23,8 @@ import {
   FaTrophy,
   FaShieldAlt,
   FaTimesCircle,
-  FaExclamationTriangle
+  FaExclamationTriangle,
+  FaGift
 } from "react-icons/fa";
 import { 
   BeakerIcon as BeakerSolid,
@@ -128,17 +129,28 @@ export default function FaucetPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 p-6">
-      <div className="max-w-6xl mx-auto">
-        <AnimatedTitle>
-          <div className="text-4xl md:text-6xl font-bold text-center mb-4 bg-gradient-to-r from-blue-400 to-green-400 bg-clip-text text-transparent">
-            Testnet Faucet
-          </div>
-        </AnimatedTitle>
-        
-        <p className="text-center text-gray-300 mb-12 text-lg max-w-3xl mx-auto">
-          Claim your free testnet BITR tokens to start participating in prediction markets and staking.
-        </p>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="space-y-8"
+    >
+      {/* Header */}
+      <AnimatedTitle 
+        size="md"
+        leftIcon={BeakerSolid}
+        rightIcon={FaGift}
+      >
+        Testnet Faucet
+      </AnimatedTitle>
+      
+      <motion.p 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.5 }}
+        className="text-base text-text-secondary max-w-2xl mx-auto text-center mb-6"
+      >
+        Claim your free testnet BITR tokens to start participating in prediction markets and staking.
+      </motion.p>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Claim Panel */}
@@ -386,7 +398,6 @@ export default function FaucetPage() {
             </motion.div>
           </div>
         </div>
-      </div>
-    </div>
+    </motion.div>
   );
 }

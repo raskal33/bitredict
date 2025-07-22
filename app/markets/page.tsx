@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import AnimatedTitle from "@/components/AnimatedTitle";
 import { 
   FaChartLine, 
@@ -78,18 +79,29 @@ export default function MarketsPage() {
 
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 p-4 sm:p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <AnimatedTitle className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-            Prediction Markets
-          </AnimatedTitle>
-          <p className="text-lg sm:text-xl text-gray-300 max-w-3xl mx-auto">
-            Discover and participate in prediction markets across sports, crypto, and more. 
-            Put your knowledge to the test and earn rewards for accurate predictions.
-          </p>
-        </div>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="space-y-8"
+    >
+      {/* Header */}
+      <AnimatedTitle 
+        size="md"
+        leftIcon={FaChartLine}
+        rightIcon={FaTrophy}
+      >
+        Prediction Markets
+      </AnimatedTitle>
+      
+      <motion.p 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.5 }}
+        className="text-base text-text-secondary max-w-2xl mx-auto text-center mb-6"
+      >
+        Discover and participate in prediction markets across sports, crypto, and more. 
+        Put your knowledge to the test and earn rewards for accurate predictions.
+      </motion.p>
 
         {/* Filters & Search */}
         <div className="mb-8">
@@ -285,7 +297,6 @@ export default function MarketsPage() {
             </div>
           </div>
         </div>
-      </div>
-    </div>
+    </motion.div>
   );
 }
