@@ -6,7 +6,7 @@ import { useAccount } from "wagmi";
 import AnimatedTitle from "@/components/AnimatedTitle";
 import MarketsList from "@/components/MarketsList";
 import { Pool, ComboPool } from "@/hooks/usePools";
-import { FaLock, FaKey, FaUserPlus } from "react-icons/fa";
+import { FaLock, FaKey, FaUserPlus, FaUsers } from "react-icons/fa";
 
 export default function PrivateMarketsPage() {
   const router = useRouter();
@@ -29,6 +29,39 @@ export default function PrivateMarketsPage() {
           Exclusive prediction markets accessible only to whitelisted participants. 
           These markets offer privacy and exclusivity for specialized communities.
         </p>
+        
+        {/* Duel Explanation */}
+        <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/20 rounded-xl p-6 mt-8 max-w-4xl mx-auto">
+          <div className="flex items-center gap-3 justify-center mb-4">
+            <FaUsers className="h-6 w-6 text-purple-400" />
+            <h3 className="text-xl font-bold text-white">Perfect for Duels & Challenges</h3>
+          </div>
+          <p className="text-gray-300 text-lg">
+            Create private 1v1 prediction duels where two people bet against each other on any topic. 
+            Whether it&apos;s sports outcomes, market predictions, or personal challenges - settle debates 
+            with skin in the game in a private, controlled environment.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+            <div className="bg-black/20 rounded-lg p-4">
+              <h4 className="text-purple-400 font-semibold mb-2">Example Use Cases</h4>
+              <ul className="text-gray-300 text-sm space-y-1">
+                <li>• Sports predictions between friends</li>
+                <li>• Stock market price bets</li>
+                <li>• Personal achievement challenges</li>
+                <li>• Academic or work performance wagers</li>
+              </ul>
+            </div>
+            <div className="bg-black/20 rounded-lg p-4">
+              <h4 className="text-blue-400 font-semibold mb-2">Benefits</h4>
+              <ul className="text-gray-300 text-sm space-y-1">
+                <li>• Complete privacy and control</li>
+                <li>• Custom participant whitelisting</li>
+                <li>• Secure smart contract settlement</li>
+                <li>• Transparent and immutable results</li>
+              </ul>
+            </div>
+          </div>
+        </div>
       </div>
 
       {!isConnected && (

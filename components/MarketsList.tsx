@@ -185,18 +185,18 @@ export default function MarketsList({
   const showPoolTypeToggle = poolType === "both" && marketType !== "combo";
 
   return (
-    <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20">
-      <div className="flex items-center justify-between mb-6">
+    <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-4 sm:p-8 border border-white/20">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div className="flex items-center gap-3">
           {getPoolTypeIcon()}
-          <h2 className="text-2xl font-bold text-white">{title}</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-white">{title}</h2>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
           {showPoolTypeToggle && (
-            <div className="flex space-x-1 bg-black/20 rounded-lg p-1">
+            <div className="flex space-x-1 bg-black/20 rounded-lg p-1 w-full sm:w-auto">
               <button
                 onClick={() => setSelectedPoolType("regular")}
-                className={`py-2 px-4 rounded-md text-sm font-medium transition-all ${
+                className={`py-2 px-3 sm:px-4 rounded-md text-xs sm:text-sm font-medium transition-all flex-1 sm:flex-none ${
                   selectedPoolType === "regular"
                     ? "bg-blue-500 text-white"
                     : "text-gray-300 hover:text-white"
@@ -206,7 +206,7 @@ export default function MarketsList({
               </button>
               <button
                 onClick={() => setSelectedPoolType("combo")}
-                className={`py-2 px-4 rounded-md text-sm font-medium transition-all ${
+                className={`py-2 px-3 sm:px-4 rounded-md text-xs sm:text-sm font-medium transition-all flex-1 sm:flex-none ${
                   selectedPoolType === "combo"
                     ? "bg-blue-500 text-white"
                     : "text-gray-300 hover:text-white"
@@ -216,9 +216,9 @@ export default function MarketsList({
               </button>
             </div>
           )}
-          <div className="flex items-center gap-2 text-gray-300">
+          <div className="flex items-center gap-2 text-gray-300 justify-center sm:justify-start">
             <FaUsers className="h-4 w-4" />
-            <span>{currentPools.length} Markets</span>
+            <span className="text-sm sm:text-base">{currentPools.length} Markets</span>
           </div>
         </div>
       </div>

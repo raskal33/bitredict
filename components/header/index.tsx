@@ -567,6 +567,12 @@ const bitredictorLinks = [
 
 const marketsLinks = [
   {
+    label: "All Markets",
+    href: "/markets",
+    segment: "markets",
+    icon: ChartBarIcon,
+  },
+  {
     label: "Boosted Markets",
     href: "/markets/boosted",
     segment: "boosted",
@@ -576,7 +582,7 @@ const marketsLinks = [
     label: "Trending",
     href: "/markets/trending", 
     segment: "trending",
-              icon: ArrowTrendingUpIcon,
+    icon: ArrowTrendingUpIcon,
   },
   {
     label: "Private (Whitelist)",

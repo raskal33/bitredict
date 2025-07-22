@@ -179,7 +179,7 @@ export default function OddysseyPage() {
       <div className="max-w-7xl mx-auto">
         <AnimatedTitle>
           <div className="text-4xl md:text-6xl font-bold text-center mb-4 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-            Oddyssey
+            Daily Oddyssey
           </div>
         </AnimatedTitle>
         

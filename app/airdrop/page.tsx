@@ -137,13 +137,13 @@ export default function AirdropPage() {
         </p>
 
         {/* Tab Navigation */}
-        <div className="flex justify-center mb-8">
-          <div className="flex space-x-1 bg-black/20 rounded-xl p-1">
+        <div className="flex justify-center mb-8 px-4">
+          <div className="flex flex-col sm:flex-row space-y-1 sm:space-y-0 sm:space-x-1 bg-black/20 rounded-xl p-1 w-full max-w-md sm:max-w-none sm:w-auto">
             {["eligibility", "leaderboard", "statistics"].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`py-3 px-6 rounded-lg font-medium transition-all capitalize ${
+                className={`py-3 px-4 sm:px-6 rounded-lg font-medium transition-all capitalize text-sm sm:text-base ${
                   activeTab === tab
                     ? "bg-purple-500 text-white"
                     : "text-gray-300 hover:text-white hover:bg-white/10"

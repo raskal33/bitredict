@@ -181,9 +181,163 @@ export default function StakingPage() {
           </div>
         </AnimatedTitle>
         
-        <p className="text-center text-gray-300 mb-12 text-lg max-w-3xl mx-auto">
+        <p className="text-center text-gray-300 mb-8 text-lg max-w-3xl mx-auto">
           Stake your BITR tokens to earn rewards and unlock exclusive tiers. Higher tiers provide better rewards and platform benefits.
         </p>
+
+        {/* Staking Information Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+          {/* Tiers Information */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-gradient-to-br from-orange-500/10 to-yellow-500/10 border border-orange-500/20 rounded-2xl p-6"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <FaTrophy className="h-6 w-6 text-orange-400" />
+              <h3 className="text-xl font-bold text-white">Staking Tiers</h3>
+            </div>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-orange-400 font-medium">🥉 Bronze</span>
+                <div className="text-right">
+                  <div className="text-white font-semibold">6% APY</div>
+                  <div className="text-gray-400 text-sm">1,000+ BITR</div>
+                </div>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-300 font-medium">🥈 Silver</span>
+                <div className="text-right">
+                  <div className="text-white font-semibold">12% APY</div>
+                  <div className="text-gray-400 text-sm">3,000+ BITR</div>
+                </div>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-yellow-400 font-medium">🥇 Gold</span>
+                <div className="text-right">
+                  <div className="text-white font-semibold">18% APY</div>
+                  <div className="text-gray-400 text-sm">10,000+ BITR</div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Duration Bonuses */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-gradient-to-br from-blue-500/10 to-purple-500/10 border border-blue-500/20 rounded-2xl p-6"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <FaClock className="h-6 w-6 text-blue-400" />
+              <h3 className="text-xl font-bold text-white">Duration Bonuses</h3>
+            </div>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-blue-300">30 Days</span>
+                <span className="text-white font-semibold">+0% Bonus</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-blue-300">60 Days</span>
+                <span className="text-white font-semibold">+2% Bonus</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-blue-300">90 Days</span>
+                <span className="text-white font-semibold">+4% Bonus</span>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Revenue Sharing */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-gradient-to-br from-green-500/10 to-teal-500/10 border border-green-500/20 rounded-2xl p-6"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <FaMoneyBillWave className="h-6 w-6 text-green-400" />
+              <h3 className="text-xl font-bold text-white">Revenue Share</h3>
+            </div>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-orange-400">Bronze</span>
+                <span className="text-white font-semibold">10% Share</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-300">Silver</span>
+                <span className="text-white font-semibold">30% Share</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-yellow-400">Gold</span>
+                <span className="text-white font-semibold">60% Share</span>
+              </div>
+            </div>
+            <p className="text-xs text-gray-400 mt-3">
+              Monthly distribution of platform revenue in BITR + STT
+            </p>
+          </motion.div>
+        </div>
+
+        {/* How It Works Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 border border-gray-600/20 rounded-2xl p-8 mb-12"
+        >
+          <h3 className="text-2xl font-bold text-white mb-6 text-center">How Staking Works</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="text-center">
+              <div className="bg-blue-500/20 rounded-xl p-4 mb-4">
+                <FaCoins className="h-8 w-8 text-blue-400 mx-auto" />
+              </div>
+              <h4 className="text-lg font-semibold text-white mb-2">1. Stake BITR</h4>
+              <p className="text-gray-300 text-sm">
+                Choose your amount, tier, and lock duration. Higher amounts and longer durations yield better rewards.
+              </p>
+            </div>
+            <div className="text-center">
+              <div className="bg-green-500/20 rounded-xl p-4 mb-4">
+                <FaChartLine className="h-8 w-8 text-green-400 mx-auto" />
+              </div>
+              <h4 className="text-lg font-semibold text-white mb-2">2. Earn Rewards</h4>
+              <p className="text-gray-300 text-sm">
+                Receive daily BITR rewards based on your tier&apos;s APY plus duration bonuses. Claim anytime.
+              </p>
+            </div>
+            <div className="text-center">
+              <div className="bg-purple-500/20 rounded-xl p-4 mb-4">
+                <FaMoneyBillWave className="h-8 w-8 text-purple-400 mx-auto" />
+              </div>
+              <h4 className="text-lg font-semibold text-white mb-2">3. Revenue Share</h4>
+              <p className="text-gray-300 text-sm">
+                Monthly distribution of platform fees (BITR + STT) proportional to your tier and stake size.
+              </p>
+            </div>
+            <div className="text-center">
+              <div className="bg-orange-500/20 rounded-xl p-4 mb-4">
+                <IoMdLock className="h-8 w-8 text-orange-400 mx-auto" />
+              </div>
+              <h4 className="text-lg font-semibold text-white mb-2">4. Unstake</h4>
+              <p className="text-gray-300 text-sm">
+                Withdraw your principal + unclaimed rewards after the lock period ends. Early unstaking forfeits rewards.
+              </p>
+            </div>
+          </div>
+          
+          <div className="mt-8 p-6 bg-yellow-500/10 border border-yellow-500/20 rounded-xl">
+            <h4 className="text-lg font-semibold text-yellow-400 mb-3">📋 Important Notes</h4>
+            <ul className="text-gray-300 space-y-2 text-sm">
+              <li>• <strong>Claiming:</strong> Rewards can be claimed at any time without penalty</li>
+              <li>• <strong>Revenue Share:</strong> Distributed monthly on the 1st, claim when available</li>
+              <li>• <strong>Unstaking:</strong> Only possible after lock period expires, includes all unclaimed rewards</li>
+              <li>• <strong>Early Exit:</strong> Unstaking before expiry forfeits all pending rewards</li>
+              <li>• <strong>Gas Fees:</strong> All transactions require STT for gas on Somnia Network</li>
+            </ul>
+          </div>
+        </motion.div>
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
           {/* Main Staking Panel */}
