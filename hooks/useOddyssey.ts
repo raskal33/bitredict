@@ -5,6 +5,7 @@ import { formatUnits, parseUnits } from 'viem';
 import { useQuery } from '@tanstack/react-query';
 import { API_CONFIG } from '@/config/api';
 import { oddysseyService, type OddysseyCycle, type OddysseyMatch } from '@/services/oddysseyService';
+import { sanitizeForSerialization, bigIntToNumber } from '@/utils/bigint-helpers';
 
 export enum BetType {
   MONEYLINE = 0,
@@ -218,14 +219,17 @@ export function useOddyssey() {
     try {
       if (!matches || matches.length === 0) return {};
 
+      // Sanitize matches data to handle BigInt serialization
+      const sanitizedData = sanitizeForSerialization({
+        matchIds: matches.map(m => bigIntToNumber(m.id))
+      });
+
       const response = await fetch(`${API_CONFIG.baseURL}/api/oddyssey/live-matches`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          matchIds: matches.map(m => Number(m.id))
-        })
+        body: JSON.stringify(sanitizedData)
       });
 
       if (!response.ok) {
@@ -249,9 +253,9 @@ export function useOddyssey() {
       
       return matches.map((match: any) => ({
         ...match,
-        liveData: liveData[Number(match.id)] || null,
-        isLive: liveData[Number(match.id)]?.status === 'LIVE' || false,
-        currentScore: liveData[Number(match.id)]?.score || null
+        liveData: liveData[bigIntToNumber(match.id)] || null,
+        isLive: liveData[bigIntToNumber(match.id)]?.status === 'LIVE' || false,
+        currentScore: liveData[bigIntToNumber(match.id)]?.score || null
       }));
     },
     enabled: !!dailyMatches && Array.isArray(dailyMatches) && dailyMatches.length > 0,

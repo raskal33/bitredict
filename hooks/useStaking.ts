@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { CONTRACTS } from '@/contracts';
 import { formatUnits, parseUnits } from 'viem';
+import { safeAdd, bigIntGreaterThan, bigIntLessThan, bigIntToNumber } from '@/utils/bigint-helpers';
 
 export interface Tier {
   baseAPY: number;
@@ -168,8 +169,8 @@ export function useStaking() {
       const currentAPY = (tier.baseAPY + durationBonus * 100) / 100; // Convert from basis points
       
       // Calculate if can unstake
-      const durationInSeconds = durationOptions ? Number((durationOptions as bigint[])[stake.durationOption]) : 0;
-      const unlockTime = Number(stake.startTime) + durationInSeconds;
+      const durationInSeconds = durationOptions ? bigIntToNumber((durationOptions as bigint[])[stake.durationOption]) : 0;
+      const unlockTime = bigIntToNumber(stake.startTime) + durationInSeconds;
       const canUnstake = Date.now() / 1000 >= unlockTime;
       
       // Get pending rewards for this stake
@@ -188,16 +189,14 @@ export function useStaking() {
 
   const getTotalStakedAmount = (): bigint => {
     if (!userStakes) return BigInt(0);
-    return (userStakes as Stake[]).reduce((total, stake) => total + stake.amount, BigInt(0));
+    return (userStakes as Stake[]).reduce((total, stake) => safeAdd(total, stake.amount), BigInt(0));
   };
 
   const getTotalPendingRewards = (): bigint => {
     const stakesWithRewards = getUserStakesWithRewards();
     return stakesWithRewards.reduce((total, stake) => {
-      // Ensure both values are BigInt
-      const totalBig = typeof total === 'bigint' ? total : BigInt(total);
-      const rewardsBig = typeof stake.pendingRewards === 'bigint' ? stake.pendingRewards : BigInt(stake.pendingRewards);
-      return totalBig + rewardsBig;
+      // Use safe arithmetic to avoid BigInt mixing
+      return safeAdd(total, stake.pendingRewards);
     }, BigInt(0));
   };
 
@@ -206,7 +205,7 @@ export function useStaking() {
     if (!tiers) return 0;
     
     for (let i = (tiers as Tier[]).length - 1; i >= 0; i--) {
-      if (totalStaked >= (tiers as Tier[])[i].minStake) {
+      if (bigIntGreaterThan(totalStaked, (tiers as Tier[])[i].minStake) || totalStaked === (tiers as Tier[])[i].minStake) {
         return i;
       }
     }
@@ -221,8 +220,12 @@ export function useStaking() {
 
   const canStakeInTier = (tierId: number, amount: string): boolean => {
     if (!tiers || tierId >= (tiers as Tier[]).length) return false;
-    const amountWei = parseUnits(amount, 18);
-    return amountWei >= (tiers as Tier[])[tierId].minStake;
+    try {
+      const amountWei = parseUnits(amount, 18);
+      return bigIntGreaterThan(amountWei, (tiers as Tier[])[tierId].minStake) || amountWei === (tiers as Tier[])[tierId].minStake;
+    } catch {
+      return false;
+    }
   };
 
   const refetchAll = () => {

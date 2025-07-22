@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { CONTRACTS } from '@/contracts';
 import { formatUnits, parseUnits } from 'viem';
+import { bigIntToNumber } from '@/utils/bigint-helpers';
 
 export function useBITRToken() {
   const { address } = useAccount();
@@ -79,12 +80,12 @@ export function useBITRToken() {
   // Helper functions
   const formatBalance = (rawBalance?: bigint): string => {
     if (!rawBalance || !decimals) return '0';
-    return formatUnits(rawBalance, Number(decimals));
+    return formatUnits(rawBalance, bigIntToNumber(decimals as bigint));
   };
 
   const formatTotalSupply = (): string => {
     if (!totalSupply || !decimals) return '0';
-    return formatUnits(totalSupply as bigint, Number(decimals));
+    return formatUnits(totalSupply as bigint, bigIntToNumber(decimals as bigint));
   };
 
   return {

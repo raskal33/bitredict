@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { setupBigIntSerialization } from "@/utils/client-bigint-setup";
 import { CurrencyDollarIcon as CurrencySolid } from "@heroicons/react/24/solid";
 import { useAccount } from "wagmi";
 import { toast } from "react-hot-toast";
@@ -13,7 +14,7 @@ import { useBITRToken } from "@/hooks/useBITRToken";
 import { CONTRACTS } from "@/contracts";
 import { parseUnits } from "viem";
 import { IoMdLock } from "react-icons/io";
-import { isBigIntZero } from "@/utils/bigint-helpers";
+import { isBigIntZero, safeSubtract, bigIntLessThan } from "@/utils/bigint-helpers";
 import { 
   FaTrophy, 
   FaChartLine, 
@@ -36,6 +37,9 @@ const TIER_COLORS = [
 ];
 
 export default function StakingPage() {
+  // Setup BigInt serialization
+  setupBigIntSerialization();
+  
   const { isConnected } = useAccount();
   // const [activeTab, setActiveTab] = useState("stake"); // TODO: Implement tabs
   const [stakeAmount, setStakeAmount] = useState("");
@@ -52,7 +56,7 @@ export default function StakingPage() {
     if (stakeAmount && token.balance) {
       const allowance = token.getAllowance(CONTRACTS.BITREDICT_STAKING.address);
       const stakeAmountWei = parseUnits(stakeAmount, 18);
-      setNeedsApproval(!allowance || (allowance as bigint) < stakeAmountWei);
+      setNeedsApproval(!allowance || bigIntLessThan(allowance as bigint, stakeAmountWei));
     }
   }, [stakeAmount, token, token.balance]);
 
@@ -138,9 +142,13 @@ export default function StakingPage() {
     const nextThreshold = staking.tiers[staking.userTier + 1].minStake;
     const currentStaked = parseUnits(staking.totalUserStaked, 18);
     
-    if (currentStaked <= currentThreshold) return 0;
+    if (bigIntLessThan(currentStaked, currentThreshold) || currentStaked === currentThreshold) return 0;
     
-    const progress = Number(currentStaked - currentThreshold) / Number(nextThreshold - currentThreshold);
+    // Use safe arithmetic for BigInt operations
+    const progressNumerator = safeSubtract(currentStaked, currentThreshold);
+    const progressDenominator = safeSubtract(nextThreshold, currentThreshold);
+    
+    const progress = Number(progressNumerator) / Number(progressDenominator);
     return Math.min(100, progress * 100);
   };
 

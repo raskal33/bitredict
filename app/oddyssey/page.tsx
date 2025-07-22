@@ -2,12 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { setupBigIntSerialization } from "@/utils/client-bigint-setup";
 import { useAccount } from "wagmi";
 import { toast } from "react-hot-toast";
 import Button from "@/components/button";
 import AnimatedTitle from "@/components/AnimatedTitle";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import { useOddyssey, Match, UserPrediction, BetType, LeaderboardEntry } from "@/hooks/useOddyssey";
+import { bigIntToNumber, sanitizeForSerialization } from "@/utils/bigint-helpers";
 
 interface MatchWithLiveData extends Match {
   isLive?: boolean;
@@ -39,6 +41,9 @@ interface MatchPrediction {
 }
 
 export default function OddysseyPage() {
+  // Setup BigInt serialization
+  setupBigIntSerialization();
+  
   const { address, isConnected } = useAccount();
   const [activeTab, setActiveTab] = useState("play");
   const [predictions, setPredictions] = useState<MatchPrediction[]>([]);
@@ -103,7 +108,10 @@ export default function OddysseyPage() {
         selectedOdd: p.selectedOdd
       }));
 
-      await oddyssey.placeSlip(userPredictions);
+      // Sanitize predictions to handle BigInt serialization before sending to contract
+      const sanitizedPredictions = sanitizeForSerialization(userPredictions);
+
+      await oddyssey.placeSlip(sanitizedPredictions);
       toast.success("Slip placed successfully!");
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Failed to place slip";
@@ -114,7 +122,7 @@ export default function OddysseyPage() {
   // Handle prize claim
   const handleClaimPrize = async () => {
     try {
-      await oddyssey.claimPrize(oddyssey.dailyCycleId);
+      await oddyssey.claimPrize(bigIntToNumber(oddyssey.dailyCycleId));
       toast.success("Prize claim transaction submitted!");
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : "Failed to claim prize";
@@ -282,12 +290,12 @@ export default function OddysseyPage() {
                 ) : (
                   <div className="space-y-4">
                     {Array.isArray(oddyssey.dailyMatches) && oddyssey.dailyMatches.map((match: Match, index: number) => (
-                      <div key={Number(match.id)} className="bg-black/20 rounded-xl p-6">
+                      <div key={bigIntToNumber(match.id)} className="bg-black/20 rounded-xl p-6">
                         <div className="flex items-center justify-between mb-4">
                           <div className="flex-1">
                             <h3 className="text-lg font-bold text-white">Match #{index + 1}</h3>
                             <p className="text-gray-400 text-sm">
-                              {new Date(Number(match.startTime) * 1000).toLocaleString()}
+                              {new Date(bigIntToNumber(match.startTime) * 1000).toLocaleString()}
                             </p>
                             
                             {/* Live Score Display */}
@@ -530,7 +538,7 @@ export default function OddysseyPage() {
                     
                     return (
                       <div
-                        key={Number(entry.slipId)}
+                        key={bigIntToNumber(entry.slipId)}
                         className={`p-6 rounded-xl border ${
                           isCurrentUser
                             ? "bg-purple-500/20 border-purple-500/50"
@@ -559,7 +567,7 @@ export default function OddysseyPage() {
                           </div>
                           <div className="text-right">
                             <p className="text-white font-bold text-lg">
-                              {Number(entry.finalScore).toLocaleString()}
+                              {bigIntToNumber(entry.finalScore).toLocaleString()}
                             </p>
                             <p className="text-gray-400 text-sm">points</p>
                           </div>

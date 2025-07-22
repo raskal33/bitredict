@@ -32,7 +32,7 @@ const networks = [somniaNetwork, mainnet, sepolia] as [AppKitNetwork, ...AppKitN
 export const wagmiAdapter = new WagmiAdapter({
   networks,
   projectId,
-  ssr: true
+  ssr: false
 })
 
 // Create AppKit instance

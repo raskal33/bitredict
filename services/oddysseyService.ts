@@ -1,4 +1,5 @@
 import { apiRequest, API_CONFIG } from '@/config/api';
+import { safeJsonStringify } from '@/utils/bigint-helpers';
 
 export interface OddysseyCycle {
   cycle_id: number;
@@ -100,7 +101,7 @@ class OddysseyService {
       matches: Record<number, OddysseyMatch>;
     }>(`${this.baseEndpoint}/live-matches`, {
       method: 'POST',
-      body: JSON.stringify({ matchIds }),
+      body: safeJsonStringify({ matchIds }),
     });
   }
 
