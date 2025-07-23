@@ -31,39 +31,47 @@ export function useGlobalStats(options: UseAnalyticsOptions = {}) {
     enabled,
     refetchInterval, // Refetch every 30 seconds
     staleTime: 20000, // Consider data stale after 20 seconds
-    cacheTime: 300000, // Keep in cache for 5 minutes
+    gcTime: 300000, // Keep in cache for 5 minutes
   });
 }
 
 /**
  * Hook for volume history data for charts
  */
-export function useVolumeHistory(options: UseAnalyticsOptions = {}) {
-  const { timeframe = '7d', enabled = true, refetchInterval = 60000 } = options;
+export function useVolumeHistory(options: { 
+  timeframe?: '24h' | '7d' | '30d'; 
+  enabled?: boolean; 
+  refetchInterval?: number | false; 
+} = {}) {
+  const { timeframe = '7d', enabled = true, refetchInterval = 300000 } = options; // 5 minutes
 
   return useQuery({
     queryKey: ['analytics', 'volume-history', timeframe],
     queryFn: () => AnalyticsService.getVolumeHistory(timeframe),
     enabled,
-    refetchInterval, // Refetch every minute
-    staleTime: 30000,
-    cacheTime: 300000,
+    refetchInterval,
+    staleTime: 120000,
+    gcTime: 300000,
   });
 }
 
 /**
  * Hook for category statistics and distribution
  */
-export function useCategoryStats(options: UseAnalyticsOptions = {}) {
-  const { timeframe = '7d', enabled = true, refetchInterval = 120000 } = options;
+export function useCategoryStats(options: { 
+  timeframe?: '24h' | '7d' | '30d' | 'all'; 
+  enabled?: boolean; 
+  refetchInterval?: number | false; 
+} = {}) {
+  const { timeframe = '7d', enabled = true, refetchInterval = 300000 } = options; // 5 minutes
 
   return useQuery({
-    queryKey: ['analytics', 'categories', timeframe],
+    queryKey: ['analytics', 'category-stats', timeframe],
     queryFn: () => AnalyticsService.getCategoryStats(timeframe),
     enabled,
-    refetchInterval, // Refetch every 2 minutes
-    staleTime: 60000,
-    cacheTime: 300000,
+    refetchInterval,
+    staleTime: 120000,
+    gcTime: 300000,
   });
 }
 
@@ -79,7 +87,7 @@ export function useUserActivity(options: Pick<UseAnalyticsOptions, 'enabled' | '
     enabled,
     refetchInterval, // Refetch every 5 minutes
     staleTime: 120000,
-    cacheTime: 600000,
+    gcTime: 600000,
   });
 }
 
@@ -100,7 +108,7 @@ export function useTopCreators(options: {
     enabled,
     refetchInterval, // Refetch every 2 minutes
     staleTime: 60000,
-    cacheTime: 300000,
+    gcTime: 300000,
   });
 }
 
@@ -121,7 +129,7 @@ export function useTopBettors(options: {
     enabled,
     refetchInterval, // Refetch every 2 minutes
     staleTime: 60000,
-    cacheTime: 300000,
+    gcTime: 300000,
   });
 }
 
@@ -142,8 +150,8 @@ export function useAnalyticsDashboard(options: UseAnalyticsOptions = {}) {
     // Individual queries
     globalStats: globalStats.data,
     volumeHistory: volumeHistory.data || [],
-    categoryDistribution: categoryStats.data?.distribution || {},
-    categoryDetails: categoryStats.data?.detailed || [],
+    categoryDistribution: (categoryStats.data as any)?.distribution || {},
+    categoryDetails: (categoryStats.data as any)?.detailed || [],
     userActivity: userActivity.data || [],
     topCreators: topCreators.data || [],
     topBettors: topBettors.data || [],
@@ -187,7 +195,7 @@ export function usePlatformOverview(timeframe: '24h' | '7d' | '30d' | 'all' = '7
     queryFn: () => AnalyticsService.getPlatformOverview(timeframe),
     refetchInterval: 30000, // Every 30 seconds for overview
     staleTime: 15000, // Consider stale after 15 seconds
-    cacheTime: 300000,
+    gcTime: 300000,
   });
 }
 
@@ -200,6 +208,6 @@ export function useLeaderboards() {
     queryFn: () => AnalyticsService.getLeaderboards(),
     refetchInterval: 120000, // Every 2 minutes for leaderboards
     staleTime: 60000,
-    cacheTime: 300000,
+    gcTime: 300000,
   });
 } 

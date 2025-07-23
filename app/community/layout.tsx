@@ -33,7 +33,7 @@ export default function Layout({
       try {
         setIsLoading(true);
         const data = await fetchThreads();
-        setThreads(data.threads);
+        setThreads(data);
         setIsLoading(false);
       } catch (err) {
         console.error("Failed to load threads:", err);

@@ -22,7 +22,7 @@ export function useAllPools(options: UseMarketsOptions = {}) {
     enabled,
     refetchInterval, // Refetch every 30 seconds
     staleTime: 20000,
-    cacheTime: 300000,
+    gcTime: 300000,
   });
 }
 
@@ -38,7 +38,7 @@ export function useBoostedPools(options: Omit<UseMarketsOptions, 'sortBy'> = {})
     enabled,
     refetchInterval, // Refetch every minute
     staleTime: 30000,
-    cacheTime: 300000,
+    gcTime: 300000,
   });
 }
 
@@ -54,7 +54,7 @@ export function useTrendingPools(options: Omit<UseMarketsOptions, 'sortBy'> = {}
     enabled,
     refetchInterval, // Refetch every 30 seconds (trending changes fast)
     staleTime: 15000,
-    cacheTime: 300000,
+    gcTime: 300000,
   });
 }
 
@@ -70,7 +70,7 @@ export function usePrivatePools(options: Omit<UseMarketsOptions, 'isPrivate'> = 
     enabled,
     refetchInterval, // Refetch every minute
     staleTime: 30000,
-    cacheTime: 300000,
+    gcTime: 300000,
   });
 }
 
@@ -86,7 +86,7 @@ export function useComboPools(options: UseMarketsOptions = {}) {
     enabled,
     refetchInterval, // Refetch every minute
     staleTime: 30000,
-    cacheTime: 300000,
+    gcTime: 300000,
   });
 }
 
@@ -102,7 +102,7 @@ export function usePool(poolId: string, options: { enabled?: boolean; refetchInt
     enabled: enabled && !!poolId,
     refetchInterval, // Refetch every 30 seconds
     staleTime: 15000,
-    cacheTime: 300000,
+    gcTime: 300000,
   });
 }
 
@@ -118,7 +118,7 @@ export function usePoolStats(poolId: string, options: { enabled?: boolean; refet
     enabled: enabled && !!poolId,
     refetchInterval, // Refetch every 15 seconds (stats change frequently)
     staleTime: 10000,
-    cacheTime: 300000,
+    gcTime: 300000,
   });
 }
 
@@ -134,7 +134,7 @@ export function usePoolsByCategory(category: string, options: Omit<UseMarketsOpt
     enabled: enabled && !!category,
     refetchInterval, // Refetch every minute
     staleTime: 30000,
-    cacheTime: 300000,
+    gcTime: 300000,
   });
 }
 
@@ -150,7 +150,7 @@ export function usePoolSearch(query: string, options: UseMarketsOptions = {}) {
     enabled: enabled && !!query && query.length > 2,
     refetchInterval, // Refetch every 2 minutes (search results change less frequently)
     staleTime: 60000,
-    cacheTime: 300000,
+    gcTime: 300000,
   });
 }
 
@@ -166,7 +166,7 @@ export function useMarketMetrics(options: { enabled?: boolean; refetchInterval?:
     enabled,
     refetchInterval, // Refetch every minute
     staleTime: 30000,
-    cacheTime: 300000,
+    gcTime: 300000,
   });
 }
 
@@ -184,7 +184,7 @@ export function useInfinitePools(filters: PoolFilters = {}) {
     },
     refetchInterval: 60000, // Refetch every minute
     staleTime: 30000,
-    cacheTime: 300000,
+    gcTime: 300000,
   });
 }
 
@@ -249,6 +249,6 @@ export function useActivePools(options: { enabled?: boolean; refetchInterval?: n
     enabled,
     refetchInterval, // Very frequent updates for active pools
     staleTime: 5000,
-    cacheTime: 180000, // Shorter cache for active data
+    gcTime: 180000, // Shorter cache for active data
   });
 } 

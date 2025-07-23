@@ -148,7 +148,7 @@ export class AnalyticsService {
     try {
       const [globalStats, volumeHistory, categoryStats, userActivity] = await Promise.all([
         this.getGlobalStats(timeframe),
-        this.getVolumeHistory(timeframe),
+        this.getVolumeHistory(timeframe === 'all' ? '30d' : timeframe),
         this.getCategoryStats(timeframe),
         this.getUserActivity()
       ]);

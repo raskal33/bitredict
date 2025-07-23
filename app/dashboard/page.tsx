@@ -74,16 +74,21 @@ export default function Page() {
 
   const categories = ["All", "Crypto", "Sports", "Politics", "Finance"];
   
-  const filteredPools = selectedCategory === "All" 
-    ? predictionPools 
-    : predictionPools.filter(pool => pool.category === selectedCategory);
+  // Ensure predictionPools is always an array for type safety
+  const poolsArray = Array.isArray(predictionPools) ? predictionPools : [];
 
-  const trendingPools = predictionPools.filter(pool => pool.trending);
+  const filteredPools = selectedCategory === "All" 
+    ? poolsArray 
+    : poolsArray.filter((pool: any) => pool.category === selectedCategory);
+
+  const trendingPools = poolsArray.filter((pool: any) => pool.trending);
 
   const stats = globalStats ? [
     {
       label: "Total Volume",
-      value: globalStats.totalVolume.toLocaleString(),
+      value: globalStats && typeof (globalStats as any).totalVolume === "number"
+        ? (globalStats as any).totalVolume.toLocaleString()
+        : "0",
       unit: "STT",
       change: "+23.5%", // Would need historical data to calculate real change
       positive: true,
@@ -91,7 +96,9 @@ export default function Page() {
     },
     {
       label: "Active Markets",
-      value: globalStats.activePools.toString(),
+      value: globalStats && typeof (globalStats as any).activePools === "number"
+        ? (globalStats as any).activePools.toLocaleString()
+        : "0",
       unit: "",
       change: "+8",
       positive: true,
@@ -99,7 +106,9 @@ export default function Page() {
     },
     {
       label: "Total Pools",
-      value: globalStats.totalPools.toLocaleString(),
+      value: globalStats && typeof (globalStats as any).totalPools === "number"
+        ? (globalStats as any).totalPools.toLocaleString()
+        : "0",
       unit: "",
       change: "+156",
       positive: true,
@@ -107,7 +116,9 @@ export default function Page() {
     },
     {
       label: "Total Bets",
-      value: globalStats.totalBets.toLocaleString(),
+      value: globalStats && typeof (globalStats as any).totalBets === "number"
+        ? (globalStats as any).totalBets.toLocaleString()
+        : "0",
       unit: "",
       change: "+2.1%",
       positive: true,

@@ -79,6 +79,19 @@ export class MarketsService {
   private static baseURL = API_CONFIG.endpoints.pools || '/api/pools';
 
   /**
+   * Helper to serialize filters to URLSearchParams
+   */
+  private static serializeFilters(filters: Record<string, any>): URLSearchParams {
+    return new URLSearchParams(
+      Object.fromEntries(
+        Object.entries(filters)
+          .filter(([_, value]) => value !== undefined && value !== null)
+          .map(([key, value]) => [key, String(value)])
+      )
+    );
+  }
+
+  /**
    * Get all pools with filtering and sorting
    */
   static async getAllPools(filters: PoolFilters = {}): Promise<{
@@ -111,10 +124,16 @@ export class MarketsService {
    */
   static async getBoostedPools(filters: Omit<PoolFilters, 'sortBy'> = {}): Promise<PoolWithMetadata[]> {
     const response = await apiRequest<PoolsResponse>(
-      `${this.baseURL}/boosted?` + new URLSearchParams({
-        ...filters,
-        limit: (filters.limit || 20).toString()
-      }).toString()
+      `${this.baseURL}/boosted?` + new URLSearchParams(
+        Object.fromEntries(
+          Object.entries({
+            ...filters,
+            limit: (filters.limit || 20).toString()
+          })
+          .filter(([_, value]) => value !== undefined && value !== null)
+          .map(([key, value]) => [key, String(value)])
+        )
+      ).toString()
     );
 
     return response.data.pools.map(pool => this.enrichPoolData(pool, { boosted: true }));
@@ -125,7 +144,7 @@ export class MarketsService {
    */
   static async getTrendingPools(filters: Omit<PoolFilters, 'sortBy'> = {}): Promise<PoolWithMetadata[]> {
     const response = await apiRequest<PoolsResponse>(
-      `${this.baseURL}/trending?` + new URLSearchParams({
+      `${this.baseURL}/trending?` + this.serializeFilters({
         ...filters,
         limit: (filters.limit || 20).toString()
       }).toString()
@@ -139,7 +158,7 @@ export class MarketsService {
    */
   static async getPrivatePools(filters: Omit<PoolFilters, 'isPrivate'> = {}): Promise<PoolWithMetadata[]> {
     const response = await apiRequest<PoolsResponse>(
-      `${this.baseURL}/private?` + new URLSearchParams({
+      `${this.baseURL}/private?` + this.serializeFilters({
         ...filters,
         limit: (filters.limit || 20).toString()
       }).toString()
@@ -153,7 +172,7 @@ export class MarketsService {
    */
   static async getComboPools(filters: PoolFilters = {}): Promise<PoolWithMetadata[]> {
     const response = await apiRequest<PoolsResponse>(
-      `${this.baseURL}/combo?` + new URLSearchParams({
+      `${this.baseURL}/combo?` + this.serializeFilters({
         ...filters,
         limit: (filters.limit || 20).toString()
       }).toString()
@@ -210,7 +229,7 @@ export class MarketsService {
    */
   static async getPoolsByCategory(category: string, filters: Omit<PoolFilters, 'category'> = {}): Promise<PoolWithMetadata[]> {
     const response = await apiRequest<PoolsResponse>(
-      `${this.baseURL}/category/${category}?` + new URLSearchParams({
+      `${this.baseURL}/category/${category}?` + this.serializeFilters({
         ...filters,
         limit: (filters.limit || 20).toString()
       }).toString()
@@ -224,7 +243,7 @@ export class MarketsService {
    */
   static async searchPools(query: string, filters: PoolFilters = {}): Promise<PoolWithMetadata[]> {
     const response = await apiRequest<PoolsResponse>(
-      `${this.baseURL}/search?` + new URLSearchParams({
+      `${this.baseURL}/search?` + this.serializeFilters({
         q: query,
         ...filters,
         limit: (filters.limit || 20).toString()
