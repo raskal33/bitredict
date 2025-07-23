@@ -70,11 +70,9 @@ export default function CommunityPage() {
   const fetchDiscussions = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/social/discussions?category=${selectedCategory}&sort=${sortBy}&limit=20`);
-      const data = await response.json();
-      if (data.success) {
-        setDiscussions(data.data);
-      }
+      const communityService = (await import('@/services/communityService')).default;
+      const discussionsData = await communityService.getDiscussions(selectedCategory, sortBy, 20);
+      setDiscussions(discussionsData);
     } catch (error) {
       console.error('Error fetching discussions:', error);
     } finally {
@@ -84,11 +82,9 @@ export default function CommunityPage() {
 
   const fetchCommunityStats = useCallback(async () => {
     try {
-      const response = await fetch('/api/social/community-stats');
-      const data = await response.json();
-      if (data.success) {
-        setStats(data.data);
-      }
+      const communityService = (await import('@/services/communityService')).default;
+      const statsData = await communityService.getCommunityStats();
+      setStats(statsData);
     } catch (error) {
       console.error('Error fetching community stats:', error);
     }
@@ -103,25 +99,19 @@ export default function CommunityPage() {
     if (!address || !newDiscussion.title.trim() || !newDiscussion.content.trim()) return;
 
     try {
-      const response = await fetch('/api/social/discussions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userAddress: address,
-          title: newDiscussion.title.trim(),
-          content: newDiscussion.content.trim(),
-          category: newDiscussion.category,
-          tags: newDiscussion.tags
-        })
-      });
-
-      const data = await response.json();
-      if (data.success) {
-        setNewDiscussion({ title: '', content: '', category: 'general', tags: [] });
-        setActiveSection('discussions');
-        fetchDiscussions();
-        fetchCommunityStats();
-      }
+      const communityService = (await import('@/services/communityService')).default;
+      await communityService.createDiscussion(
+        address,
+        newDiscussion.title.trim(),
+        newDiscussion.content.trim(),
+        newDiscussion.category,
+        newDiscussion.tags
+      );
+      
+      setNewDiscussion({ title: '', content: '', category: 'general', tags: [] });
+      setActiveSection('discussions');
+      fetchDiscussions();
+      fetchCommunityStats();
     } catch (error) {
       console.error('Error creating discussion:', error);
     }
@@ -131,18 +121,10 @@ export default function CommunityPage() {
     if (!address) return;
 
     try {
-      const response = await fetch('/api/social/reactions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userAddress: address,
-          targetType: 'discussion',
-          targetId: discussionId,
-          reactionType: 'like'
-        })
-      });
-
-      if (response.ok) {
+      const communityService = (await import('@/services/communityService')).default;
+      const success = await communityService.addReaction(address, 'discussion', discussionId, 'like');
+      
+      if (success) {
         fetchDiscussions(); // Refresh to show updated likes
       }
     } catch (error) {

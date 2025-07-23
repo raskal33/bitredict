@@ -33,7 +33,7 @@ import {
   StarIcon as StarSolid,
   FireIcon as FireSolid,
 } from "@heroicons/react/24/solid";
-import { useContractStats } from "@/hooks/useContractStats";
+import { useAnalyticsDashboard } from "@/hooks/useAnalytics";
 import AnimatedTitle from "@/components/AnimatedTitle";
 import { ChartBarIcon as ChartBarSolid, CurrencyDollarIcon as CurrencySolid } from "@heroicons/react/24/solid";
 
@@ -53,17 +53,17 @@ export default function StatsPage() {
   const [activeTab, setActiveTab] = useState<"overview" | "leaderboard" | "analytics">("overview");
   const [timeframe, setTimeframe] = useState<"24h" | "7d" | "30d" | "all">("7d");
   
-  // Use the contract stats hook
+  // Use the real-time analytics hook
   const { 
-    globalStats, 
-    topCreators, 
-    topBettors, 
-    categoryDistribution, 
-    volumeHistory, 
-    userActivity, 
+    globalStats = { totalVolume: 0, totalPools: 0, totalBets: 0, activePools: 0 }, 
+    topCreators = [], 
+    topBettors = [], 
+    categoryDistribution = {}, 
+    volumeHistory = [], 
+    userActivity = [], 
     isLoading,
     error 
-  } = useContractStats(timeframe);
+  } = useAnalyticsDashboard({ timeframe });
 
   const trendingStats = [
     { label: "Active Pools", value: globalStats.activePools, change: +12.5, icon: ChartBarIcon },

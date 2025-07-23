@@ -1,41 +1,31 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay, Pagination } from "swiper/modules";
 import Button from "@/components/button";
+import { useGlobalStats } from "@/hooks/useAnalytics";
+import { useTrendingPools } from "@/hooks/useMarkets";
 
 // Import Swiper styles
 import "swiper/css";
 import "swiper/css/pagination";
 
-interface PredictionPool {
-  id: string;
-  title: string;
-  description: string;
-  totalPool: number;
-  participants: number;
-  endDate: string;
-  category: string;
-  odds: {
-    yes: number;
-    no: number;
-  };
-  trending?: boolean;
-  featured?: boolean;
-}
+
 
 export default function Page() {
-  const [isLoading, setIsLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const [predictionPools, setPredictionPools] = useState<PredictionPool[]>([]);
-
-  // Simulate loading and data fetching
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setPredictionPools([
+  
+  // Real-time data from backend
+  const { data: globalStats, isLoading: statsLoading } = useGlobalStats({ timeframe: '7d' });
+  const { data: trendingData, isLoading: trendingLoading } = useTrendingPools({ limit: 8 });
+  
+  const isLoading = statsLoading || trendingLoading;
+  
+  // Use real trending pools or fallback data
+  const predictionPools = trendingData || [
         {
           id: "1",
           title: "Bitcoin will reach $100,000 by end of 2024",
@@ -80,12 +70,7 @@ export default function Page() {
           category: "Sports",
           odds: { yes: 2.30, no: 1.65 }
         }
-      ]);
-      setIsLoading(false);
-    }, 1500);
-
-    return () => clearTimeout(timer);
-  }, []);
+      ];
 
   const categories = ["All", "Crypto", "Sports", "Politics", "Finance"];
   
@@ -95,36 +80,69 @@ export default function Page() {
 
   const trendingPools = predictionPools.filter(pool => pool.trending);
 
-  const stats = [
+  const stats = globalStats ? [
     {
       label: "Total Volume",
-      value: "12,450",
-      unit: "SOL",
-      change: "+23.5%",
+      value: globalStats.totalVolume.toLocaleString(),
+      unit: "STT",
+      change: "+23.5%", // Would need historical data to calculate real change
       positive: true,
       icon: "💰"
     },
     {
       label: "Active Markets",
-      value: "156",
+      value: globalStats.activePools.toString(),
       unit: "",
       change: "+8",
       positive: true,
       icon: "📊"
     },
     {
-      label: "Total Users",
-      value: "8,234",
+      label: "Total Pools",
+      value: globalStats.totalPools.toLocaleString(),
       unit: "",
       change: "+156",
       positive: true,
       icon: "👥"
     },
     {
-      label: "Win Rate",
-      value: "68.2",
-      unit: "%",
+      label: "Total Bets",
+      value: globalStats.totalBets.toLocaleString(),
+      unit: "",
       change: "+2.1%",
+      positive: true,
+      icon: "🏆"
+    }
+  ] : [
+    {
+      label: "Total Volume",
+      value: "0",
+      unit: "STT",
+      change: "+0%",
+      positive: true,
+      icon: "💰"
+    },
+    {
+      label: "Active Markets",
+      value: "0",
+      unit: "",
+      change: "+0",
+      positive: true,
+      icon: "📊"
+    },
+    {
+      label: "Total Pools",
+      value: "0",
+      unit: "",
+      change: "+0",
+      positive: true,
+      icon: "👥"
+    },
+    {
+      label: "Total Bets",
+      value: "0",
+      unit: "",
+      change: "+0%",
       positive: true,
       icon: "🏆"
     }

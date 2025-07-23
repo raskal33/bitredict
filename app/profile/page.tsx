@@ -5,18 +5,16 @@ import { FaFire, FaChartLine, FaBolt } from "react-icons/fa";
 import { IoStatsChart } from "react-icons/io5";
 import { MdOutlineCategory } from "react-icons/md";
 import { BiSolidBadgeCheck } from "react-icons/bi";
-import { useAccount } from "wagmi";
-import { useReputationStore } from "@/stores/useReputationStore";
+import { useMyProfile, useUserBadges, useUserReputation, useCategoryPerformance } from "@/hooks/useUserProfile";
 import ReputationBadge from "@/components/ReputationBadge";
 import TrophyWall, { Trophy } from './TrophyWall';
 
 export default function ProfilePage() {
-  const { address } = useAccount();
-  const { getUserReputation, getAccessCapabilities } = useReputationStore();
-  
-  // Get user reputation data
-  const userReputation = address ? getUserReputation(address) : null;
-  const accessCapabilities = address ? getAccessCapabilities(address) : [];
+  // Get real-time user data
+  const { data: profile } = useMyProfile();
+  const { data: badgeData } = useUserBadges();
+  const { data: reputation } = useUserReputation();
+  const { data: categoryData } = useCategoryPerformance();
 
   // Define getRarityScore function before it's used
   const getRarityScore = (rarity: 'legendary' | 'epic' | 'rare' | 'uncommon' | 'common'): number => {
@@ -30,102 +28,71 @@ export default function ProfilePage() {
     }
   };
 
-  // Mock user data - in a real app this would come from an API
+  // Use real data from backend or fallback to defaults
   const userData = {
-    stats: {
-      totalBets: 120,
-      wonBets: 80,
-      winRate: "75%",
-      profitLoss: "+50 STT",
-      averageBetSize: "15 STT",
-      biggestWin: "100 STT",
-      totalVolume: "450 STT",
-      creatorVolume: "300 STT",
-      bettorVolume: "150 STT",
-      lastBetDate: "2024-11-15"
+    stats: profile?.stats ? {
+      totalBets: profile.stats.totalBets,
+      wonBets: profile.stats.wonBets,
+      winRate: profile.computedStats.winRateFormatted,
+      profitLoss: profile.computedStats.profitLossFormatted,
+      averageBetSize: profile.computedStats.averageBetSizeFormatted,
+      biggestWin: profile.stats.biggestWin.toFixed(2) + " STT",
+      totalVolume: profile.computedStats.totalVolumeFormatted,
+      creatorVolume: "N/A", // Could be calculated from category data
+      bettorVolume: profile.computedStats.totalVolumeFormatted,
+      lastBetDate: profile.stats.lastActive ? new Date(profile.stats.lastActive).toISOString().split('T')[0] : "N/A"
+    } : {
+      totalBets: 0,
+      wonBets: 0,
+      winRate: "0%",
+      profitLoss: "0 STT",
+      averageBetSize: "0 STT",
+      biggestWin: "0 STT",
+      totalVolume: "0 STT",
+      creatorVolume: "0 STT",
+      bettorVolume: "0 STT",
+      lastBetDate: "N/A"
     },
-    achievements: [
+    achievements: badgeData?.active ? badgeData.active.map(badge => ({
+      id: badge.id,
+      name: badge.title,
+      description: badge.description,
+      icon: badge.iconName,
+      date: new Date(badge.earnedAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+      rarity: badge.rarity,
+      category: badge.badgeCategory
+    })) : [
       { 
         id: 1, 
-        name: "First Blood", 
-        description: "Won first prediction", 
+        name: "Getting Started", 
+        description: "Welcome to BitRedict!", 
         icon: "FaBolt", 
-        date: "Jul 2024",
+        date: "Now",
         rarity: "common",
         category: "General"
-      },
-      { 
-        id: 2, 
-        name: "Winning Streak", 
-        description: "Won 5 predictions in a row", 
-        icon: "FaFire", 
-        date: "Aug 2024",
-        rarity: "uncommon",
-        category: "General"
-      },
-      { 
-        id: 3, 
-        name: "Market Maker", 
-        description: "Created a prediction market with over 100 participants", 
-        icon: "FaChartLine", 
-        date: "Sep 2024",
-        rarity: "rare",
-        category: "General"
-      },
-      { 
-        id: 4, 
-        name: "Crypto Oracle", 
-        description: "90% win rate in crypto predictions", 
-        icon: "BiSolidBadgeCheck", 
-        date: "Oct 2024",
-        rarity: "epic",
-        category: "Crypto"
-      },
-      { 
-        id: 5, 
-        name: "High Roller", 
-        description: "Placed a bet of 100+ STT", 
-        icon: "FaBolt", 
-        date: "Nov 2024",
-        rarity: "legendary",
-        category: "General"
       }
     ],
-    recentActivity: [
+    recentActivity: profile?.recentActivity ? profile.recentActivity.slice(0, 4).map(activity => ({
+      id: activity.id,
+      type: activity.type,
+      description: activity.description,
+      amount: activity.amount,
+      date: new Date(activity.timestamp).toLocaleDateString()
+    })) : [
       {
         id: 1,
-        type: "bet_won",
-        description: "Won bet on \"BTC will break $70,000\"",
-        amount: "+45 STT",
-        date: "2 hours ago"
-      },
-      {
-        id: 2,
-        type: "prediction_created",
-        description: "Created prediction \"ETH will hit $5,000 by Dec 2024\"",
-        amount: null,
-        date: "1 day ago"
-      },
-      {
-        id: 3,
         type: "bet_placed",
-        description: "Placed bet on \"STT will outperform ETH in Q4\"",
-        amount: "25 STT",
-        date: "3 days ago"
-      },
-      {
-        id: 4,
-        type: "bet_lost",
-        description: "Lost bet on \"DOGE will reach $1\"",
-        amount: "-15 STT",
-        date: "1 week ago"
+        description: "Welcome to BitRedict! Start predicting to see your activity here.",
+        amount: null,
+        date: "Now"
       }
     ],
-    categoryPerformance: [
-      { category: "Crypto", winRate: 82, volume: 250 },
-      { category: "Sports", winRate: 65, volume: 120 },
-      { category: "Politics", winRate: 70, volume: 50 },
-      { category: "Entertainment", winRate: 60, volume: 30 }
+    categoryPerformance: categoryData?.categories ? categoryData.categories.map(cat => ({
+      category: cat.category,
+      winRate: Math.round(cat.winRate),
+      volume: Math.round(cat.totalVolume)
+    })) : [
+      { category: "Getting Started", winRate: 0, volume: 0 }
     ]
   };
 
@@ -176,20 +143,37 @@ export default function ProfilePage() {
       {/* Left Column: Stats & Activity */}
       <div className="lg:col-span-1 space-y-8">
         {/* Reputation Badge */}
-        {userReputation && (
+        {reputation && (
           <div className="glass-card p-6">
             <h3 className="mb-4 flex items-center gap-2 text-xl font-semibold text-white">
               <BiSolidBadgeCheck className="text-primary" />
               Reputation
             </h3>
             <ReputationBadge 
-              reputation={userReputation}
+              reputation={reputation.reputation}
             />
-            {accessCapabilities.length > 0 && (
+            <div className="mt-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-text-muted">Level: {reputation.accessLevelName}</span>
+                <span className="text-sm text-primary">{reputation.reputation}/150</span>
+              </div>
+              <div className="w-full bg-gray-700 rounded-full h-2">
+                <div 
+                  className="bg-primary h-2 rounded-full transition-all"
+                  style={{ width: `${reputation.progressToNext}%` }}
+                />
+              </div>
+              {reputation.nextMilestone && (
+                <p className="text-xs text-text-muted mt-2">
+                  {reputation.nextMilestone.points - reputation.reputation} points to {reputation.nextMilestone.level}
+                </p>
+              )}
+            </div>
+            {reputation.capabilities && reputation.capabilities.length > 0 && (
               <div className="mt-4">
                 <h4 className="text-sm font-medium text-text-muted mb-2">Access Capabilities</h4>
                 <div className="flex flex-wrap gap-2">
-                  {accessCapabilities.map((capability, index) => (
+                  {reputation.capabilities.map((capability, index) => (
                     <span 
                       key={index}
                       className="px-2 py-1 rounded-full text-xs bg-primary/20 text-primary"

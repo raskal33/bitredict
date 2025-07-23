@@ -10,7 +10,10 @@ export const API_CONFIG = {
     crypto: '/api/crypto',
     fixtures: '/api/fixtures',
     oddyssey: '/api/oddyssey',
-    staking: '/api/staking'
+    staking: '/api/staking',
+    social: '/api/social',
+    users: '/api/users',
+    reputation: '/api/reputation'
   }
 } as const;
 

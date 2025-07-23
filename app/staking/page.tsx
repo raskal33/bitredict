@@ -8,6 +8,7 @@ import { toast } from "react-hot-toast";
 import Button from "@/components/button";
 import AnimatedTitle from "@/components/AnimatedTitle";
 import LoadingSpinner from "@/components/LoadingSpinner";
+import AmountInput from "@/components/AmountInput";
 import { useStaking, DurationOption, StakeWithRewards } from "@/hooks/useStaking";
 import { useBITRToken } from "@/hooks/useBITRToken";
 import { CONTRACTS } from "@/contracts";
@@ -562,27 +563,23 @@ export default function StakingPage() {
               <div className="space-y-6">
                 {/* Amount Input */}
                 <div>
-                  <label className="block text-white font-medium mb-3">
-                    Amount to Stake
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      value={stakeAmount}
-                      onChange={(e) => setStakeAmount(e.target.value)}
-                      placeholder="Enter BITR amount"
-                      className="w-full bg-black/30 border border-gray-600 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500"
-                    />
-                    <button
-                      onClick={() => setStakeAmount(token.balance)}
-                      className="absolute right-3 top-3 text-purple-400 hover:text-purple-300 text-sm font-medium"
-                    >
-                      MAX
-                    </button>
-                  </div>
-                  <p className="text-gray-400 text-sm mt-2">
-                    Available: {token.balance} BITR
-                  </p>
+                  <AmountInput
+                    label="Amount to Stake"
+                    value={stakeAmount}
+                    onChange={(value) => setStakeAmount(value)}
+                    onValueChange={(numValue) => setStakeAmount(numValue.toString())}
+                    placeholder="Enter BITR amount"
+                    currency="BITR"
+                    min={1}
+                    max={parseFloat(token.balance) || 0}
+                    decimals={18}
+                    size="md"
+                    showMaxButton={true}
+                    maxValue={parseFloat(token.balance) || 0}
+                    help={`Available: ${token.balance} BITR`}
+                    variant="filled"
+                    required
+                  />
                 </div>
 
                 {/* Tier Selection */}

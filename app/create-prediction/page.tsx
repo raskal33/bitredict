@@ -12,7 +12,7 @@ import {
   ShieldCheckIcon
 } from "@heroicons/react/24/outline";
 import Button from "@/components/button";
-import Input from "@/components/input";
+import AmountInput from "@/components/AmountInput";
 import Textarea from "@/components/textarea";
 import AnimatedTitle from "@/components/AnimatedTitle";
 import FixtureSelector from "@/components/FixtureSelector";
@@ -535,13 +535,19 @@ export default function CreateMarketPage() {
               </div>
 
               <div>
-                <Input
-                  label="Target Price ($)"
-                  type="number"
+                <AmountInput
+                  label="Target Price"
                   value={data.targetPrice?.toString() || ''}
-                  onChange={(e) => handleInputChange('targetPrice', parseFloat(e.target.value) || 0)}
+                  onChange={(value) => handleInputChange('targetPrice', parseFloat(value || '0'))}
+                  onValueChange={(numValue) => handleInputChange('targetPrice', numValue)}
                   placeholder={`Current: $${data.selectedCrypto.currentPrice.toFixed(2)}`}
                   error={errors.targetPrice}
+                  currency="USD"
+                  min={0.01}
+                  max={1000000}
+                  decimals={8}
+                  size="md"
+                  required
                 />
               </div>
 
@@ -584,29 +590,37 @@ export default function CreateMarketPage() {
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Input
+          <AmountInput
             label="Odds Multiplier"
-            type="number"
-            step="0.01"
-            min="1.10"
-            max="100.00"
             value={(data.odds / 100).toFixed(2)}
-            onChange={(e) => handleInputChange('odds', Math.round(parseFloat(e.target.value) * 100))}
+            onChange={(value) => handleInputChange('odds', Math.round(parseFloat(value || '0') * 100))}
+            onValueChange={(numValue) => handleInputChange('odds', Math.round(numValue * 100))}
             placeholder="2.00"
             error={errors.odds}
             help="How much bettors win if they're correct (e.g., 2.00 = 2x their stake)"
+            currency="x"
+            min={1.10}
+            max={100.00}
+            decimals={2}
+            size="md"
+            required
           />
 
-          <Input
-            label={`Creator Stake (${useBitr ? 'BITR' : 'STT'})`}
-            type="number"
-            step="0.1"
-            min="1"
+          <AmountInput
+            label="Creator Stake"
             value={data.creatorStake.toString()}
-            onChange={(e) => handleInputChange('creatorStake', parseFloat(e.target.value) || 0)}
+            onChange={(value) => handleInputChange('creatorStake', parseFloat(value || '0'))}
+            onValueChange={(numValue) => handleInputChange('creatorStake', numValue)}
             placeholder="10"
             error={errors.creatorStake}
             help="Your stake that acts as liquidity for the market"
+            currency={useBitr ? 'BITR' : 'STT'}
+            min={1}
+            max={1000000}
+            decimals={18}
+            size="md"
+            showMaxButton={false}
+            required
           />
         </div>
 

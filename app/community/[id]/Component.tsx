@@ -6,7 +6,7 @@ import { useCommunityStore } from "@/store/useCommunityStore";
 import { useStore } from "zustand";
 import { FiMessageCircle, FiThumbsUp, FiShare2, FiFlag, FiClock, FiLoader } from "react-icons/fi";
 import { formatDistanceToNow } from "date-fns";
-import { fetchThreadById, addComment, likeComment } from "@/services/communityService";
+import { fetchThreadById, addComment, likeComment, Discussion } from "@/services/communityService";
 import { Thread } from "@/types/community";
 
 export default function Component({ id }: { id: number }) {
@@ -14,7 +14,7 @@ export default function Component({ id }: { id: number }) {
 
   const [commentText, setCommentText] = useState("");
   const [replyingTo, setReplyingTo] = useState<number | null>(null);
-  const [thread, setThread] = useState<Thread | null>(null);
+  const [thread, setThread] = useState<(Discussion & { author: string; comments: any[] }) | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,8 +23,16 @@ export default function Component({ id }: { id: number }) {
     const loadThread = async () => {
       try {
         setIsLoading(true);
-        const threadData = await fetchThreadById(id);
-        setThread(threadData);
+        const discussionData = await fetchThreadById(id);
+        if (discussionData) {
+          // Convert Discussion to Thread-like structure for compatibility
+          const threadData: Discussion & { author: string; comments: any[] } = {
+            ...discussionData,
+            author: discussionData.userAddress,
+            comments: [] // TODO: Load actual replies when reply system is implemented
+          };
+          setThread(threadData);
+        }
         setIsLoading(false);
       } catch (err) {
         console.error(`Failed to load thread with ID ${id}:`, err);
@@ -59,9 +67,9 @@ export default function Component({ id }: { id: number }) {
     );
   }
 
-  const handlePostComment = async () => {
-    if (!commentText.trim()) return;
-
+    const handlePostComment = async () => {
+    if (!commentText.trim() || !thread) return;
+    
     try {
       setIsLoading(true);
       
@@ -74,13 +82,20 @@ export default function Component({ id }: { id: number }) {
       await addComment(thread.id, commentData);
       
       // Refresh the thread data
-      const updatedThread = await fetchThreadById(id);
-      setThread(updatedThread);
-      
-      // Update the local store as well
-      setThreads(
-        threads.map(t => t.id === id ? updatedThread : t)
-      );
+      const updatedDiscussion = await fetchThreadById(id);
+      if (updatedDiscussion) {
+        const updatedThread = {
+          ...updatedDiscussion,
+          author: updatedDiscussion.userAddress,
+          comments: []
+        };
+        setThread(updatedThread);
+        
+        // Update the local store as well
+        setThreads(
+          threads.map(t => t.id === id ? updatedThread : t)
+        );
+      }
       
       setCommentText("");
       setReplyingTo(null);
@@ -93,17 +108,26 @@ export default function Component({ id }: { id: number }) {
   };
 
   const handleLikeComment = async (commentId: number) => {
+    if (!thread) return;
+    
     try {
       await likeComment(thread.id, commentId);
       
       // Refresh the thread data
-      const updatedThread = await fetchThreadById(id);
-      setThread(updatedThread);
-      
-      // Update the local store as well
-      setThreads(
-        threads.map(t => t.id === id ? updatedThread : t)
-      );
+      const updatedDiscussion = await fetchThreadById(id);
+      if (updatedDiscussion) {
+        const updatedThread = {
+          ...updatedDiscussion,
+          author: updatedDiscussion.userAddress,
+          comments: []
+        };
+        setThread(updatedThread);
+        
+        // Update the local store as well
+        setThreads(
+          threads.map(t => t.id === id ? updatedThread : t)
+        );
+      }
     } catch (err) {
       console.error("Error liking comment:", err);
       setError("Failed to like comment. Please try again.");
@@ -111,8 +135,8 @@ export default function Component({ id }: { id: number }) {
   };
 
   // Group comments by parent/reply relationship
-  const topLevelComments = thread.comments.filter(comment => !comment.replyTo);
-  const replies = thread.comments.filter(comment => comment.replyTo);
+  const topLevelComments = thread?.comments?.filter(comment => !comment.replyTo) || [];
+  const replies = thread?.comments?.filter(comment => comment.replyTo) || [];
 
   // Function to get replies for a specific comment
   const getRepliesFor = (commentId: number) => {
@@ -127,6 +151,18 @@ export default function Component({ id }: { id: number }) {
       return "recently";
     }
   };
+
+  if (!thread) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
+        <div className="text-xl font-semibold">Discussion not found</div>
+        <p className="text-text-muted">This discussion may have been removed or doesn&apos;t exist.</p>
+        <Button variant="primary" size="sm" onClick={() => window.history.back()}>
+          Go Back
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -178,10 +214,10 @@ export default function Component({ id }: { id: number }) {
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-medium text-text-secondary">
             <FiMessageCircle className="mr-2 inline-block" />
-            Comments ({thread.comments.length})
+            Comments ({thread.comments?.length || 0})
           </h3>
           <div className="text-sm text-text-muted">
-            {thread.comments.length === 0 ? "Be the first to comment!" : "Join the conversation"}
+            {(thread.comments?.length || 0) === 0 ? "Be the first to comment!" : "Join the conversation"}
           </div>
         </div>
 
