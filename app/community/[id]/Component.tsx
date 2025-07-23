@@ -7,14 +7,13 @@ import { useStore } from "zustand";
 import { FiMessageCircle, FiThumbsUp, FiShare2, FiFlag, FiClock, FiLoader } from "react-icons/fi";
 import { formatDistanceToNow } from "date-fns";
 import { fetchThreadById, addComment, likeComment, Discussion } from "@/services/communityService";
-import { Thread } from "@/types/community";
 
 export default function Component({ id }: { id: number }) {
   const { threads, setThreads } = useStore(useCommunityStore);
 
   const [commentText, setCommentText] = useState("");
   const [replyingTo, setReplyingTo] = useState<number | null>(null);
-  const [thread, setThread] = useState<(Discussion & { author: string; comments: any[] }) | null>(null);
+  const [thread, setThread] = useState<(Discussion & { author: string; comments: Array<{ id: number; user: string; text: string; createdAt?: string; likes?: number; replyTo?: number }>; }) | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,7 +25,7 @@ export default function Component({ id }: { id: number }) {
         const discussionData = await fetchThreadById(id);
         if (discussionData) {
           // Convert Discussion to Thread-like structure for compatibility
-          const threadData: Discussion & { author: string; comments: any[] } = {
+          const threadData: Discussion & { author: string; comments: Array<{ id: number; user: string; text: string; createdAt?: string; likes?: number; replyTo?: number }>; } = {
             ...discussionData,
             author: discussionData.userAddress,
             comments: [] // TODO: Load actual replies when reply system is implemented
@@ -87,7 +86,7 @@ export default function Component({ id }: { id: number }) {
         const updatedThread = {
           ...updatedDiscussion,
           author: updatedDiscussion.userAddress,
-          comments: []
+          comments: [] as Array<{ id: number; user: string; text: string; createdAt?: string; likes?: number; replyTo?: number }>
         };
         setThread(updatedThread);
         
@@ -119,7 +118,7 @@ export default function Component({ id }: { id: number }) {
         const updatedThread = {
           ...updatedDiscussion,
           author: updatedDiscussion.userAddress,
-          comments: []
+          comments: [] as Array<{ id: number; user: string; text: string; createdAt?: string; likes?: number; replyTo?: number }>
         };
         setThread(updatedThread);
         
