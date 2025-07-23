@@ -73,18 +73,18 @@ export default function CommunityPage() {
       const communityService = (await import('@/services/communityService')).default;
       const discussionsData = await communityService.getDiscussions(selectedCategory, sortBy, 20);
     
-      const typedDiscussions: Discussion[] = discussionsData.map((discussion: any) => ({
+      const typedDiscussions: Discussion[] = discussionsData.map((discussion) => ({
         id: discussion.id,
         title: discussion.title,
         content: discussion.content,
-        user_address: discussion.user_address,
+        user_address: discussion.userAddress,
         category: discussion.category,
-        total_likes: discussion.total_likes,
-        reply_count: discussion.reply_count,
-        created_at: discussion.created_at,
-        last_activity: discussion.last_activity,
-        user_badge: discussion.user_badge,
-        badge_rarity: discussion.badge_rarity,
+        total_likes: discussion.totalLikes,
+        reply_count: discussion.replyCount,
+        created_at: discussion.createdAt,
+        last_activity: discussion.lastActivity,
+        user_badge: discussion.userBadge,
+        badge_rarity: discussion.badgeRarity,
         reputation: discussion.reputation
       }));
       setDiscussions(typedDiscussions);

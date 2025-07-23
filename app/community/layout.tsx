@@ -34,10 +34,13 @@ export default function Layout({
         setIsLoading(true);
         const data = await fetchThreads();
         // Ensure each item has the required Thread properties
-        const threadsWithDefaults = data.map((item: any) => ({
-          ...item,
-          author: item.author ?? "Anonymous",
-          comments: item.comments ?? [],
+        const threadsWithDefaults = data.map((discussion) => ({
+          id: discussion.id,
+          title: discussion.title,
+          author: discussion.userAddress ? discussion.userAddress.slice(0, 6) + '...' + discussion.userAddress.slice(-4) : "Anonymous",
+          category: discussion.category,
+          createdAt: discussion.createdAt,
+          comments: [], // Comments are loaded separately
         }));
         setThreads(threadsWithDefaults);
         setIsLoading(false);
@@ -75,13 +78,17 @@ export default function Layout({
       });
       
       // Update the local state with the new thread
-      // Ensure newThread has all required Thread properties
+      // Map the new discussion to the expected Thread format
+      const newThreadMapped = {
+        id: newThread.id,
+        title: newThread.title,
+        author: newThread.userAddress ? newThread.userAddress.slice(0, 6) + '...' + newThread.userAddress.slice(-4) : "Anonymous",
+        category: newThread.category,
+        createdAt: newThread.createdAt,
+        comments: [], // Comments are loaded separately
+      };
       setThreads([
-        {
-          ...newThread,
-          comments: Array.isArray((newThread as any)?.comments) ? (newThread as any).comments : [],
-          author: typeof (newThread as any)?.author === "string" ? (newThread as any).author : "Anonymous",
-        },
+        newThreadMapped,
         ...threads,
       ]);
       setNewDiscussion("");

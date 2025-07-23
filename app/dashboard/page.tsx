@@ -79,15 +79,15 @@ export default function Page() {
 
   const filteredPools = selectedCategory === "All" 
     ? poolsArray 
-    : poolsArray.filter((pool: any) => pool.category === selectedCategory);
+    : poolsArray.filter((pool) => pool.category === selectedCategory);
 
-  const trendingPools = poolsArray.filter((pool: any) => pool.trending);
+  const trendingPools = poolsArray.filter((pool) => pool.trending);
 
   const stats = globalStats ? [
     {
       label: "Total Volume",
-      value: globalStats && typeof (globalStats as any).totalVolume === "number"
-        ? (globalStats as any).totalVolume.toLocaleString()
+      value: globalStats && typeof globalStats.totalVolume === "number"
+        ? globalStats.totalVolume.toLocaleString()
         : "0",
       unit: "STT",
       change: "+23.5%", // Would need historical data to calculate real change
@@ -96,8 +96,8 @@ export default function Page() {
     },
     {
       label: "Active Markets",
-      value: globalStats && typeof (globalStats as any).activePools === "number"
-        ? (globalStats as any).activePools.toLocaleString()
+      value: globalStats && typeof globalStats.activePools === "number"
+        ? globalStats.activePools.toLocaleString()
         : "0",
       unit: "",
       change: "+8",
@@ -106,8 +106,8 @@ export default function Page() {
     },
     {
       label: "Total Pools",
-      value: globalStats && typeof (globalStats as any).totalPools === "number"
-        ? (globalStats as any).totalPools.toLocaleString()
+      value: globalStats && typeof globalStats.totalPools === "number"
+        ? globalStats.totalPools.toLocaleString()
         : "0",
       unit: "",
       change: "+156",
@@ -116,8 +116,8 @@ export default function Page() {
     },
     {
       label: "Total Bets",
-      value: globalStats && typeof (globalStats as any).totalBets === "number"
-        ? (globalStats as any).totalBets.toLocaleString()
+      value: globalStats && typeof globalStats.totalBets === "number"
+        ? globalStats.totalBets.toLocaleString()
         : "0",
       unit: "",
       change: "+2.1%",
@@ -311,32 +311,32 @@ export default function Page() {
                         {pool.category}
                       </span>
                       <span className="text-text-secondary text-xs">
-                        {"participants" in pool ? pool.participants : (pool as any).participants ?? 0} participants
+                        {"participantCount" in pool ? pool.participantCount : pool.participants ?? 0} participants
                       </span>
                     </div>
                     
                     <h3 className="text-sm font-semibold text-white mb-2 group-hover:text-brand-cyan transition-colors line-clamp-2 min-h-[2.5rem]">
-                      {"title" in pool ? pool.title : (pool as any).title ?? ""}
+                      {"title" in pool ? pool.title : `Pool ${pool.id.slice(0, 8)}...`}
                     </h3>
                     
                     <p className="text-text-secondary text-xs mb-3 line-clamp-2 min-h-[2rem] flex-1">
-                      {"description" in pool ? pool.description : (pool as any).description ?? ""}
+                      {"description" in pool ? pool.description : `Prediction pool created by ${pool.creator.slice(0, 6)}...`}
                     </p>
                   
                                       <div className="flex items-center justify-between mt-auto pt-2">
                       <div className="text-xs">
                         <span className="text-text-secondary">Pool: </span>
                         <span className="text-white font-semibold">
-                          {"totalPool" in pool ? pool.totalPool : (pool as any).totalPool ?? 0} SOL
+                          {"totalVolume" in pool ? pool.totalVolume : pool.totalPool ?? 0} SOL
                         </span>
                       </div>
                       <div className="flex gap-1">
-                        <span className="px-1 py-0.5 bg-green-500/20 text-green-400 rounded text-xs">
-                          Yes {typeof pool.odds === "object" && pool.odds !== null && "yes" in pool.odds ? pool.odds.yes : (pool as any).odds}x
-                        </span>
-                        <span className="px-1 py-0.5 bg-red-500/20 text-red-400 rounded text-xs">
-                          No {typeof pool.odds === "object" && pool.odds !== null && "no" in pool.odds ? pool.odds.no : pool.odds}x
-                        </span>
+                                                                            <span className="px-1 py-0.5 bg-green-500/20 text-green-400 rounded text-xs">
+                            Yes {typeof pool.odds === "object" && pool.odds !== null && "yes" in pool.odds ? pool.odds.yes : pool.odds}x
+                          </span>
+                          <span className="px-1 py-0.5 bg-red-500/20 text-red-400 rounded text-xs">
+                            No {typeof pool.odds === "object" && pool.odds !== null && "no" in pool.odds ? pool.odds.no : pool.odds}x
+                          </span>
                       </div>
                     </div>
                 </motion.div>
@@ -420,13 +420,13 @@ export default function Page() {
                   <div className="space-y-1">
                     <div className="text-xs text-text-secondary">Total Pool</div>
                     <div className="text-base font-bold text-white">
-                      {"totalPool" in pool && typeof pool.totalPool === "number" ? pool.totalPool : 0} SOL
+                      {"totalVolume" in pool && typeof pool.totalVolume === "number" ? pool.totalVolume : pool.totalPool ?? 0} SOL
                     </div>
                   </div>
                   <div className="space-y-1 text-right">
                     <div className="text-xs text-text-secondary">Participants</div>
                     <div className="text-base font-bold text-white">
-                      {"participants" in pool && typeof pool.participants === "number" ? pool.participants : 0}
+                      {"participantCount" in pool && typeof pool.participantCount === "number" ? pool.participantCount : pool.participants ?? 0}
                     </div>
                   </div>
                 </div>
