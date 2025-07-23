@@ -11,7 +11,6 @@ export const API_CONFIG = {
     fixtures: '/api/fixtures',
     oddyssey: '/api/oddyssey',
     staking: '/api/staking',
-    social: '/api/social',
     users: '/api/users',
     reputation: '/api/reputation'
   }

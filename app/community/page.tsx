@@ -72,7 +72,22 @@ export default function CommunityPage() {
       setLoading(true);
       const communityService = (await import('@/services/communityService')).default;
       const discussionsData = await communityService.getDiscussions(selectedCategory, sortBy, 20);
-      setDiscussions(discussionsData);
+    
+      const typedDiscussions: Discussion[] = discussionsData.map((discussion: any) => ({
+        id: discussion.id,
+        title: discussion.title,
+        content: discussion.content,
+        user_address: discussion.user_address,
+        category: discussion.category,
+        total_likes: discussion.total_likes,
+        reply_count: discussion.reply_count,
+        created_at: discussion.created_at,
+        last_activity: discussion.last_activity,
+        user_badge: discussion.user_badge,
+        badge_rarity: discussion.badge_rarity,
+        reputation: discussion.reputation
+      }));
+      setDiscussions(typedDiscussions);
     } catch (error) {
       console.error('Error fetching discussions:', error);
     } finally {

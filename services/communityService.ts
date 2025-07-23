@@ -102,8 +102,16 @@ class CommunityService {
     });
 
     const response = await apiRequest(`${API_CONFIG.endpoints.social}/discussions?${params}`);
-    
-    return response.data.map((discussion: any) => ({
+    if (
+      !response ||
+      typeof response !== 'object' ||
+      !('data' in response) ||
+      !Array.isArray((response as any).data)
+    ) {
+      throw new Error('Invalid response from discussions API');
+    }
+
+    return (response as any).data.map((discussion: any) => ({
       id: discussion.id,
       title: discussion.title,
       content: discussion.content,
@@ -144,21 +152,33 @@ class CommunityService {
       })
     });
 
+    if (
+      !response ||
+      typeof response !== 'object' ||
+      !('data' in response) ||
+      typeof (response as any).data !== 'object' ||
+      (response as any).data === null
+    ) {
+      throw new Error('Invalid response from createDiscussion API');
+    }
+
+    const data = (response as any).data;
+
     return {
-      id: response.data.id,
-      title: response.data.title,
-      content: response.data.content,
-      userAddress: response.data.user_address,
-      category: response.data.category,
+      id: data.id,
+      title: data.title,
+      content: data.content,
+      userAddress: data.user_address,
+      category: data.category,
       totalLikes: 0,
       replyCount: 0,
-      createdAt: response.data.created_at,
-      lastActivity: response.data.created_at,
+      createdAt: (response as any)?.data?.created_at,
+      lastActivity: (response as any)?.data?.created_at,
       reputation: 40,
       isPinned: false,
       isLocked: false,
       viewCount: 0,
-      tags: response.data.tags || []
+      tags: (response as any)?.data?.tags || []
     };
   }
 
@@ -167,8 +187,18 @@ class CommunityService {
    */
   async getDiscussionReplies(discussionId: number, limit: number = 50): Promise<DiscussionReply[]> {
     const response = await apiRequest(`${API_CONFIG.endpoints.social}/discussions/${discussionId}/replies?limit=${limit}`);
-    
-    return response.data.map((reply: any) => ({
+
+    if (
+      typeof response !== 'object' ||
+      response === null ||
+      typeof (response as any).data !== 'object' ||
+      (response as any).data === null ||
+      !Array.isArray((response as any).data)
+    ) {
+      throw new Error('Invalid response format from getDiscussionReplies API');
+    }
+
+    return (response as any).data.map((reply: any) => ({
       id: reply.id,
       discussionId: reply.discussion_id,
       authorAddress: reply.author_address,
@@ -215,12 +245,21 @@ class CommunityService {
   async getCommunityStats(): Promise<CommunityStats> {
     const response = await apiRequest(`${API_CONFIG.endpoints.social}/community-stats`);
     
+    if (
+      typeof response !== 'object' ||
+      response === null ||
+      typeof (response as any).data !== 'object' ||
+      (response as any).data === null
+    ) {
+      throw new Error('Invalid response format from community-stats API');
+    }
+    const data = (response as any).data;
     return {
-      activeDiscussions: response.data.activeDiscussions || 0,
-      communityMembers: response.data.communityMembers || 0,
-      totalComments: response.data.totalComments || 0,
-      totalLikes: response.data.totalLikes || 0,
-      weeklyActivity: response.data.weeklyActivity || 0
+      activeDiscussions: data.activeDiscussions || 0,
+      communityMembers: data.communityMembers || 0,
+      totalComments: data.totalComments || 0,
+      totalLikes: data.totalLikes || 0,
+      weeklyActivity: data.weeklyActivity || 0
     };
   }
 
@@ -229,8 +268,18 @@ class CommunityService {
    */
   async getPoolComments(poolId: string, limit: number = 50): Promise<PoolComment[]> {
     const response = await apiRequest(`${API_CONFIG.endpoints.social}/pools/${poolId}/comments?limit=${limit}`);
-    
-    return response.data.map((comment: any) => ({
+
+    if (
+      typeof response !== 'object' ||
+      response === null ||
+      typeof (response as any).data !== 'object' ||
+      (response as any).data === null ||
+      !Array.isArray((response as any).data)
+    ) {
+      throw new Error('Invalid response format from pool comments API');
+    }
+
+    return (response as any).data.map((comment: any) => ({
       id: comment.id,
       poolId: comment.pool_id,
       userAddress: comment.user_address,
@@ -268,20 +317,31 @@ class CommunityService {
       })
     });
 
+    // Ensure response is an object and response.data is an object
+    const data =
+      response &&
+      typeof response === 'object' &&
+      response !== null &&
+      'data' in response &&
+      typeof (response as any).data === 'object' &&
+      (response as any).data !== null
+        ? (response as any).data
+        : {};
+
     return {
-      id: response.data.id,
+      id: data.id,
       poolId,
       userAddress,
       content,
       parentCommentId,
       sentiment,
-      likesCount: 0,
-      dislikesCount: 0,
-      createdAt: response.data.created_at,
-      updatedAt: response.data.created_at,
-      isPinned: false,
-      isDeleted: false,
-      authorReputation: 40
+      likesCount: data.likes_count || 0,
+      dislikesCount: data.dislikes_count || 0,
+      createdAt: data.created_at,
+      updatedAt: data.updated_at,
+      isPinned: data.is_pinned || false,
+      isDeleted: data.is_deleted || false,
+      authorReputation: data.author_reputation || 40
     };
   }
 
@@ -291,17 +351,22 @@ class CommunityService {
   async getUserSocialStats(userAddress: string): Promise<UserSocialStats> {
     const response = await apiRequest(`${API_CONFIG.endpoints.social}/users/${userAddress}/social-stats`);
     
+    // Fix: Ensure response is typed and data is safely accessed
+    const data = response && typeof response === 'object' && 'data' in response && typeof response.data === 'object'
+      ? response.data as Record<string, any>
+      : {};
+
     return {
       userAddress,
-      totalComments: response.data.total_comments || 0,
-      totalDiscussions: response.data.total_discussions || 0,
-      totalLikesGiven: response.data.total_likes_given || 0,
-      totalLikesReceived: response.data.total_likes_received || 0,
-      totalReflections: response.data.total_reflections || 0,
-      communityInfluenceScore: response.data.community_influence_score || 0,
-      weeklyEngagementScore: response.data.weekly_engagement_score || 0,
-      favoriteDiscussionCategory: response.data.favorite_discussion_category || 'general',
-      lastSocialActivity: response.data.last_social_activity
+      totalComments: data.total_comments || 0,
+      totalDiscussions: data.total_discussions || 0,
+      totalLikesGiven: data.total_likes_given || 0,
+      totalLikesReceived: data.total_likes_received || 0,
+      totalReflections: data.total_reflections || 0,
+      communityInfluenceScore: data.community_influence_score || 0,
+      weeklyEngagementScore: data.weekly_engagement_score || 0,
+      favoriteDiscussionCategory: data.favorite_discussion_category || 'general',
+      lastSocialActivity: data.last_social_activity
     };
   }
 
@@ -310,8 +375,13 @@ class CommunityService {
    */
   async getTrendingDiscussions(timeframe: '24h' | '7d' | '30d' = '7d', limit: number = 10): Promise<Discussion[]> {
     const response = await apiRequest(`${API_CONFIG.endpoints.social}/discussions/trending?timeframe=${timeframe}&limit=${limit}`);
-    
-    return response.data.map((discussion: any) => ({
+
+    // Ensure response is an object and response.data is an array
+    const data = response && typeof response === 'object' && Array.isArray((response as any).data)
+      ? (response as any).data
+      : [];
+
+    return data.map((discussion: any) => ({
       id: discussion.id,
       title: discussion.title,
       content: discussion.content,
@@ -339,8 +409,12 @@ class CommunityService {
     limit: number = 50
   ) {
     const response = await apiRequest(`${API_CONFIG.endpoints.social}/leaderboard?metric=${metric}&limit=${limit}`);
-    
-    return response.data.map((user: any, index: number) => ({
+
+    if (!response || typeof response !== 'object' || !Array.isArray((response as any).data)) {
+      return [];
+    }
+
+    return (response as any).data.map((user: any, index: number) => ({
       rank: index + 1,
       address: user.user_address,
       shortAddress: `${user.user_address.slice(0, 6)}...${user.user_address.slice(-4)}`,
@@ -366,8 +440,10 @@ class CommunityService {
     });
 
     const response = await apiRequest(`${API_CONFIG.endpoints.social}/discussions/search?${params}`);
-    
-    return response.data.map((discussion: any) => ({
+    if (!response || typeof response !== 'object' || !Array.isArray((response as any).data)) {
+      return [];
+    }
+    return (response as any).data.map((discussion: any) => ({
       id: discussion.id,
       title: discussion.title,
       content: discussion.content,
@@ -448,7 +524,10 @@ class CommunityService {
   async canUserPost(userAddress: string): Promise<boolean> {
     try {
       const response = await apiRequest(`${API_CONFIG.endpoints.social}/users/${userAddress}/can-post`);
-      return response.canPost;
+      if (typeof response === 'object' && response !== null && 'canPost' in response) {
+        return Boolean((response as { canPost: unknown }).canPost);
+      }
+      return false;
     } catch (error) {
       return false;
     }

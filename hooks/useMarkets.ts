@@ -176,12 +176,13 @@ export function useMarketMetrics(options: { enabled?: boolean; refetchInterval?:
 export function useInfinitePools(filters: PoolFilters = {}) {
   return useInfiniteQuery({
     queryKey: ['markets', 'infinite-pools', filters],
-    queryFn: ({ pageParam = 1 }) => 
+    queryFn: ({ pageParam = 1 }) =>
       MarketsService.getAllPools({ ...filters, page: pageParam }),
-    getNextPageParam: (lastPage) => {
+    getNextPageParam: (lastPage: any) => {
       const { page, totalPages } = lastPage.pagination;
       return page < totalPages ? page + 1 : undefined;
     },
+    initialPageParam: 1,
     refetchInterval: 60000, // Refetch every minute
     staleTime: 30000,
     gcTime: 300000,

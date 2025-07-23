@@ -139,7 +139,7 @@ export default function StatsPage() {
           className="glass-card p-8 text-center"
         >
           <p className="text-red-400 text-xl font-medium mb-4">Error loading stats</p>
-          <p className="text-text-muted">{error}</p>
+          <p className="text-text-muted">{error instanceof Error ? error.message : String(error)}</p>
         </motion.div>
       </div>
     );
@@ -495,10 +495,18 @@ export default function StatsPage() {
                   icon: ClockIcon 
                 },
                 { 
-                  title: "Most Popular Category", 
-                  value: Object.keys(categoryDistribution).reduce((a, b) => categoryDistribution[a] > categoryDistribution[b] ? a : b, Object.keys(categoryDistribution)[0]), 
-                  subtitle: `${Math.max(...Object.values(categoryDistribution))}% of all pools`, 
-                  icon: TrophyIcon 
+                  title: "Most Popular Category",
+                  value: Object.keys(categoryDistribution).reduce(
+                    (a, b) =>
+                      Number(categoryDistribution[a] ?? 0) > Number(categoryDistribution[b] ?? 0)
+                        ? a
+                        : b,
+                    Object.keys(categoryDistribution)[0]
+                  ),
+                  subtitle: `${Math.max(
+                    ...Object.values(categoryDistribution).map(v => Number(v) || 0)
+                  )}% of all pools`,
+                  icon: TrophyIcon
                 },
                 { 
                   title: "Average Pool Size", 

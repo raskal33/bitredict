@@ -138,27 +138,37 @@ class UserService {
    */
   async getUserBasicStats(address: string): Promise<UserStats> {
     const response = await apiRequest(`${API_CONFIG.endpoints.users}/${address}`);
-    
+    // Type guard: ensure response is an object
+    if (typeof response !== 'object' || response === null) {
+      throw new Error('Invalid response from user stats API');
+    }
+
+    // Type assertions for expected fields
+    const totalBets = Number((response as any).total_bets) || 0;
+    const wonBets = Number((response as any).won_bets) || 0;
+    const profitLoss = parseFloat((response as any).profit_loss ?? '0');
+    const totalVolume = parseFloat((response as any).total_volume ?? '0');
+
     return {
-      totalBets: response.total_bets || 0,
-      wonBets: response.won_bets || 0,
-      winRate: response.total_bets > 0 ? (response.won_bets / response.total_bets) * 100 : 0,
-      profitLoss: parseFloat(response.profit_loss || '0'),
-      totalVolume: parseFloat(response.total_volume || '0'),
-      averageBetSize: parseFloat(response.avg_bet_size || '0'),
-      biggestWin: parseFloat(response.biggest_win || '0'),
-      biggestLoss: parseFloat(response.biggest_loss || '0'),
-      currentStreak: response.current_streak || 0,
-      maxWinStreak: response.max_win_streak || 0,
-      maxLossStreak: response.max_loss_streak || 0,
-      streakIsWin: response.streak_is_win || false,
-      favoriteCategory: response.favorite_category || 'General',
-      totalPoolsCreated: response.total_pools_created || 0,
-      poolsWon: response.pools_won || 0,
-      reputation: response.reputation || 40,
-      riskScore: response.risk_score || 500,
-      joinedAt: response.joined_at,
-      lastActive: response.last_active
+      totalBets,
+      wonBets,
+      winRate: totalBets > 0 ? (wonBets / totalBets) * 100 : 0,
+      profitLoss,
+      totalVolume,
+      averageBetSize: parseFloat((response as any).avg_bet_size ?? '0'),
+      biggestWin: parseFloat((response as any).biggest_win ?? '0'),
+      biggestLoss: parseFloat((response as any).biggest_loss ?? '0'),
+      currentStreak: (response as any).current_streak ?? 0,
+      maxWinStreak: (response as any).max_win_streak ?? 0,
+      maxLossStreak: (response as any).max_loss_streak ?? 0,
+      streakIsWin: (response as any).streak_is_win ?? false,
+      favoriteCategory: (response as any).favorite_category ?? 'General',
+      totalPoolsCreated: (response as any).total_pools_created ?? 0,
+      poolsWon: (response as any).pools_won ?? 0,
+      reputation: (response as any).reputation ?? 40,
+      riskScore: (response as any).risk_score ?? 500,
+      joinedAt: (response as any).joined_at ?? null,
+      lastActive: (response as any).last_active ?? null
     };
   }
 
@@ -167,7 +177,9 @@ class UserService {
    */
   async getUserBadges(address: string): Promise<UserBadge[]> {
     const response = await apiRequest(`${API_CONFIG.endpoints.users}/${address}/badges`);
-    
+    if (!Array.isArray(response)) {
+      throw new Error('Invalid response from user badges API');
+    }
     return response.map((badge: any) => ({
       id: badge.id,
       badgeType: badge.badge_type,
@@ -187,7 +199,11 @@ class UserService {
    */
   async getUserActivity(address: string, limit: number = 20): Promise<UserActivity[]> {
     const response = await apiRequest(`${API_CONFIG.endpoints.users}/${address}/activity?limit=${limit}`);
-    
+
+    if (!Array.isArray(response)) {
+      throw new Error('Invalid response from user activity API');
+    }
+
     return response.map((activity: any) => ({
       id: activity.id,
       type: activity.activity_type,
@@ -206,7 +222,9 @@ class UserService {
    */
   async getCategoryPerformance(address: string): Promise<CategoryPerformance[]> {
     const response = await apiRequest(`${API_CONFIG.endpoints.users}/${address}/category-performance`);
-    
+    if (!Array.isArray(response)) {
+      throw new Error('Invalid response from category performance API');
+    }
     return response.map((category: any) => ({
       category: category.category,
       totalBets: category.total_bets,
@@ -226,14 +244,14 @@ class UserService {
     const response = await apiRequest(`${API_CONFIG.endpoints.social}/users/${address}/social-stats`);
     
     return {
-      totalComments: response.total_comments || 0,
-      totalLikesGiven: response.total_likes_given || 0,
-      totalLikesReceived: response.total_likes_received || 0,
-      totalReflections: response.total_reflections || 0,
-      communityInfluenceScore: response.community_influence_score || 0,
-      weeklyEngagementScore: response.weekly_engagement_score || 0,
-      favoriteDiscussionCategory: response.favorite_discussion_category || 'general',
-      lastSocialActivity: response.last_social_activity
+      totalComments: typeof (response as any).total_comments === 'number' ? (response as any).total_comments : 0,
+      totalLikesGiven: typeof (response as any).total_likes_given === 'number' ? (response as any).total_likes_given : 0,
+      totalLikesReceived: typeof (response as any).total_likes_received === 'number' ? (response as any).total_likes_received : 0,
+      totalReflections: typeof (response as any).total_reflections === 'number' ? (response as any).total_reflections : 0,
+      communityInfluenceScore: typeof (response as any).community_influence_score === 'number' ? (response as any).community_influence_score : 0,
+      weeklyEngagementScore: typeof (response as any).weekly_engagement_score === 'number' ? (response as any).weekly_engagement_score : 0,
+      favoriteDiscussionCategory: typeof (response as any).favorite_discussion_category === 'string' ? (response as any).favorite_discussion_category : 'general',
+      lastSocialActivity: (response as any).last_social_activity ?? null
     };
   }
 
@@ -244,13 +262,26 @@ class UserService {
     try {
       const response = await apiRequest(`${API_CONFIG.endpoints.staking}/user/${address}`);
       
+      // Ensure response is typed to avoid 'unknown' errors
+      const stakingResponse = response as {
+        summary?: {
+          totalStaked?: string;
+          totalClaimedRewards?: string;
+          activeStakes?: number;
+        };
+      };
+
       return {
-        totalStaked: response.summary?.totalStaked || '0',
-        totalRewards: response.summary?.totalClaimedRewards || '0',
-        activeStakes: response.summary?.activeStakes || 0
+        totalStaked: stakingResponse.summary?.totalStaked ?? '0',
+        totalRewards: stakingResponse.summary?.totalClaimedRewards ?? '0',
+        activeStakes: stakingResponse.summary?.activeStakes ?? 0
+      };
+      return {
+        totalStaked: '0',
+        totalRewards: '0',
+        activeStakes: 0
       };
     } catch (error) {
-      // Staking data might not be available for all users
       return {
         totalStaked: '0',
         totalRewards: '0',
@@ -264,14 +295,23 @@ class UserService {
    */
   async getUserReputation(address: string) {
     const response = await apiRequest(`${API_CONFIG.endpoints.reputation}/user/${address}`);
-    
+    // Ensure response is typed to avoid 'unknown' errors
+    const repResponse = response as {
+      reputation?: number;
+      accessLevel?: number;
+      accessLevelName?: string;
+      capabilities?: any;
+      joinedAt?: string;
+      lastActive?: string;
+    };
+
     return {
-      reputation: response.reputation,
-      accessLevel: response.accessLevel,
-      accessLevelName: response.accessLevelName,
-      capabilities: response.capabilities,
-      joinedAt: response.joinedAt,
-      lastActive: response.lastActive
+      reputation: repResponse.reputation ?? 0,
+      accessLevel: repResponse.accessLevel ?? 0,
+      accessLevelName: repResponse.accessLevelName ?? '',
+      capabilities: repResponse.capabilities ?? {},
+      joinedAt: repResponse.joinedAt ?? '',
+      lastActive: repResponse.lastActive ?? ''
     };
   }
 
@@ -283,8 +323,14 @@ class UserService {
     limit: number = 100
   ): Promise<UserRanking[]> {
     const response = await apiRequest(`${API_CONFIG.endpoints.analytics}/leaderboard/users?sortBy=${metric}&limit=${limit}`);
-    
-    return response.map((user: any, index: number) => ({
+
+    // Explicitly type the response to avoid 'unknown' errors
+    const users = response as Array<{
+      address: string;
+      [key: string]: any;
+    }>;
+
+    return users.map((user, index) => ({
       address: user.address,
       shortAddress: `${user.address.slice(0, 6)}...${user.address.slice(-4)}`,
       rank: index + 1,
@@ -301,12 +347,21 @@ class UserService {
   async getUserPortfolio(address: string) {
     const response = await apiRequest(`${API_CONFIG.endpoints.users}/${address}/portfolio`);
     
+    // Explicitly type the response to avoid 'unknown' errors
+    const portfolio = response as {
+      activeBets?: any[];
+      activePoolsCreated?: any[];
+      totalValue?: string | number;
+      potentialWinnings?: string | number;
+      riskedAmount?: string | number;
+    };
+
     return {
-      activeBets: response.activeBets || [],
-      activePoolsCreated: response.activePoolsCreated || [],
-      totalValue: parseFloat(response.totalValue || '0'),
-      potentialWinnings: parseFloat(response.potentialWinnings || '0'),
-      riskedAmount: parseFloat(response.riskedAmount || '0')
+      activeBets: portfolio.activeBets ?? [],
+      activePoolsCreated: portfolio.activePoolsCreated ?? [],
+      totalValue: parseFloat(String(portfolio.totalValue ?? '0')),
+      potentialWinnings: parseFloat(String(portfolio.potentialWinnings ?? '0')),
+      riskedAmount: parseFloat(String(portfolio.riskedAmount ?? '0'))
     };
   }
 

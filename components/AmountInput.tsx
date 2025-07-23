@@ -206,9 +206,18 @@ const AmountInput: React.FC<AmountInputProps> = ({
         {/* Icon */}
         {icon && (
           <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-text-muted">
-            {React.cloneElement(icon as React.ReactElement, { 
-              className: currentSize.icon 
-            })}
+            {React.isValidElement(icon)
+              ? React.cloneElement(
+                  icon as React.ReactElement<any, any>,
+                  {
+                    ...(typeof (icon as any).props === 'object' ? (icon as any).props : {}),
+                    className: [
+                      (icon as any).props?.className,
+                      currentSize.icon
+                    ].filter(Boolean).join(' ')
+                  }
+                )
+              : icon}
           </div>
         )}
 

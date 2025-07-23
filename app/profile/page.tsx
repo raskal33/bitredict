@@ -150,7 +150,18 @@ export default function ProfilePage() {
               Reputation
             </h3>
             <ReputationBadge 
-              reputation={reputation.reputation}
+              reputation={{
+                actions: [],
+                score: reputation.reputation,
+                level: reputation.accessLevelName as "Limited" | "Elementary" | "Trusted" | "Verified",
+                address: "", // Adding the required address property
+                totalChallenges: 0,
+                successfulChallenges: 0,
+                marketsCreated: 0,
+                wonBets: 0,
+                totalOutcomeProposals: 0,
+                correctOutcomeProposals: 0
+              }}
             />
             <div className="mt-4">
               <div className="flex items-center justify-between mb-2">
@@ -173,7 +184,7 @@ export default function ProfilePage() {
               <div className="mt-4">
                 <h4 className="text-sm font-medium text-text-muted mb-2">Access Capabilities</h4>
                 <div className="flex flex-wrap gap-2">
-                  {reputation.capabilities.map((capability, index) => (
+                  {reputation.capabilities.map((capability: string, index: number) => (
                     <span 
                       key={index}
                       className="px-2 py-1 rounded-full text-xs bg-primary/20 text-primary"

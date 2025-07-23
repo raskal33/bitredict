@@ -33,7 +33,13 @@ export default function Layout({
       try {
         setIsLoading(true);
         const data = await fetchThreads();
-        setThreads(data);
+        // Ensure each item has the required Thread properties
+        const threadsWithDefaults = data.map((item: any) => ({
+          ...item,
+          author: item.author ?? "Anonymous",
+          comments: item.comments ?? [],
+        }));
+        setThreads(threadsWithDefaults);
         setIsLoading(false);
       } catch (err) {
         console.error("Failed to load threads:", err);
@@ -69,7 +75,15 @@ export default function Layout({
       });
       
       // Update the local state with the new thread
-      setThreads([newThread, ...threads]);
+      // Ensure newThread has all required Thread properties
+      setThreads([
+        {
+          ...newThread,
+          comments: Array.isArray((newThread as any)?.comments) ? (newThread as any).comments : [],
+          author: typeof (newThread as any)?.author === "string" ? (newThread as any).author : "Anonymous",
+        },
+        ...threads,
+      ]);
       setNewDiscussion("");
       setIsLoading(false);
     } catch (err) {

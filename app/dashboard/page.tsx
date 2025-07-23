@@ -311,29 +311,31 @@ export default function Page() {
                         {pool.category}
                       </span>
                       <span className="text-text-secondary text-xs">
-                        {pool.participants} participants
+                        {"participants" in pool ? pool.participants : (pool as any).participants ?? 0} participants
                       </span>
                     </div>
                     
                     <h3 className="text-sm font-semibold text-white mb-2 group-hover:text-brand-cyan transition-colors line-clamp-2 min-h-[2.5rem]">
-                      {pool.title}
+                      {"title" in pool ? pool.title : (pool as any).title ?? ""}
                     </h3>
                     
                     <p className="text-text-secondary text-xs mb-3 line-clamp-2 min-h-[2rem] flex-1">
-                      {pool.description}
+                      {"description" in pool ? pool.description : (pool as any).description ?? ""}
                     </p>
                   
                                       <div className="flex items-center justify-between mt-auto pt-2">
                       <div className="text-xs">
                         <span className="text-text-secondary">Pool: </span>
-                        <span className="text-white font-semibold">{pool.totalPool} SOL</span>
+                        <span className="text-white font-semibold">
+                          {"totalPool" in pool ? pool.totalPool : (pool as any).totalPool ?? 0} SOL
+                        </span>
                       </div>
                       <div className="flex gap-1">
                         <span className="px-1 py-0.5 bg-green-500/20 text-green-400 rounded text-xs">
-                          Yes {pool.odds.yes}x
+                          Yes {typeof pool.odds === "object" && pool.odds !== null && "yes" in pool.odds ? pool.odds.yes : (pool as any).odds}x
                         </span>
                         <span className="px-1 py-0.5 bg-red-500/20 text-red-400 rounded text-xs">
-                          No {pool.odds.no}x
+                          No {typeof pool.odds === "object" && pool.odds !== null && "no" in pool.odds ? pool.odds.no : pool.odds}x
                         </span>
                       </div>
                     </div>
@@ -393,42 +395,48 @@ export default function Page() {
                       <span className="px-2 py-0.5 bg-brand-violet/20 text-brand-violet rounded-full text-xs font-medium">
                         {pool.category}
                       </span>
-                      {pool.featured && (
+                      {"featured" in pool && pool.featured && (
                         <span className="px-1.5 py-0.5 bg-yellow-500/20 text-yellow-400 rounded-full text-xs">
                           ⭐ Featured
                         </span>
                       )}
                     </div>
-                    <span className="text-text-secondary text-xs">
-                      Ends {new Date(pool.endDate).toLocaleDateString()}
-                    </span>
+                    {"endDate" in pool && pool.endDate && (
+                      <span className="text-text-secondary text-xs">
+                        Ends {new Date(pool.endDate).toLocaleDateString()}
+                      </span>
+                    )}
                   </div>
                   
-                  <h3 className="text-base font-semibold text-white mb-2 group-hover:text-brand-cyan transition-colors line-clamp-2 min-h-[3rem]">
-                    {pool.title}
+                  <h3 className="text-sm font-semibold text-white mb-2 group-hover:text-brand-cyan transition-colors line-clamp-2 min-h-[2.5rem]">
+                    {"title" in pool && typeof pool.title === "string" ? pool.title : ""}
                   </h3>
                   
-                  <p className="text-text-secondary text-sm mb-3 line-clamp-2 min-h-[2.5rem] flex-1">
-                    {pool.description}
+                  <p className="text-text-secondary text-xs mb-3 line-clamp-2 min-h-[2rem] flex-1">
+                    {"description" in pool && typeof pool.description === "string" ? pool.description : ""}
                   </p>
                 
                 <div className="flex items-center justify-between mb-3 mt-auto">
                   <div className="space-y-1">
                     <div className="text-xs text-text-secondary">Total Pool</div>
-                    <div className="text-base font-bold text-white">{pool.totalPool} SOL</div>
+                    <div className="text-base font-bold text-white">
+                      {"totalPool" in pool && typeof pool.totalPool === "number" ? pool.totalPool : 0} SOL
+                    </div>
                   </div>
                   <div className="space-y-1 text-right">
                     <div className="text-xs text-text-secondary">Participants</div>
-                    <div className="text-base font-bold text-white">{pool.participants}</div>
+                    <div className="text-base font-bold text-white">
+                      {"participants" in pool && typeof pool.participants === "number" ? pool.participants : 0}
+                    </div>
                   </div>
                 </div>
                 
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" className="flex-1 text-xs py-1.5">
-                    Yes {pool.odds.yes}x
+                    Yes {typeof pool.odds === "object" && pool.odds !== null && "yes" in pool.odds ? pool.odds.yes : pool.odds}x
                   </Button>
                   <Button variant="outline" size="sm" className="flex-1 text-xs py-1.5">
-                    No {pool.odds.no}x
+                    No {typeof pool.odds === "object" && pool.odds !== null && "no" in pool.odds ? pool.odds.no : pool.odds}x
                   </Button>
                 </div>
               </motion.div>

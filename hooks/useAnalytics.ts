@@ -139,9 +139,15 @@ export function useTopBettors(options: {
 export function useAnalyticsDashboard(options: UseAnalyticsOptions = {}) {
   const { timeframe = '7d', enabled = true } = options;
 
-  const globalStats = useGlobalStats({ timeframe, enabled });
-  const volumeHistory = useVolumeHistory({ timeframe, enabled });
-  const categoryStats = useCategoryStats({ timeframe, enabled });
+  // Only pass 'timeframe' to hooks that accept 'all' as a valid value
+  // Fix type error: useGlobalStats, useVolumeHistory, useCategoryStats expect '24h' | '7d' | '30d' | undefined
+  // So if timeframe is 'all', pass undefined instead
+
+  const safeTimeframe = (['24h', '7d', '30d'].includes(timeframe) ? timeframe : undefined) as '24h' | '7d' | '30d' | undefined;
+
+  const globalStats = useGlobalStats({ timeframe: safeTimeframe, enabled });
+  const volumeHistory = useVolumeHistory({ timeframe: safeTimeframe, enabled });
+  const categoryStats = useCategoryStats({ timeframe: safeTimeframe, enabled });
   const userActivity = useUserActivity({ enabled });
   const topCreators = useTopCreators({ enabled });
   const topBettors = useTopBettors({ enabled });
