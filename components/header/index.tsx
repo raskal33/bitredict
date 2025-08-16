@@ -58,24 +58,24 @@ export default function Header() {
   useEffect(() => {
     if (address && isConnected) {
       setCurrentProfile(address);
-      // Auto-close mobile menu when wallet is connected
-      if (isMenuOpen) {
-        setTimeout(() => {
-          setIsMenuOpen(false);
-        }, 500);
-      }
+      // Remove auto-close behavior for mobile menu to prevent instability
       // Auto-close AppKit modal if it's open
       // Note: AppKit modal should close automatically when wallet connects
       console.log('Wallet connected, AppKit modal should close automatically');
     } else {
       setCurrentProfile(null);
     }
-  }, [address, isConnected, setCurrentProfile, isMenuOpen]);
+  }, [address, isConnected, setCurrentProfile]);
 
   const newY = y || 1;
   const isScrolled = newY > 100;
 
-  const handleClose = () => setIsMenuOpen(false);
+  const handleClose = () => {
+    // Add a small delay to prevent rapid state changes
+    if (isMenuOpen) {
+      setIsMenuOpen(false);
+    }
+  };
   const handleBitredictorToggle = () => setIsBitredictorOpen(!isBitredictorOpen);
   const handleBitredictorClose = () => setIsBitredictorOpen(false);
   const handleMarketsToggle = () => setIsMarketsOpen(!isMarketsOpen);
@@ -331,8 +331,16 @@ export default function Header() {
 
                 {/* Mobile Menu Toggle */}
                 <button
-                  onClick={() => setIsMenuOpen(!isMenuOpen)}
+                  onClick={() => {
+                    // Prevent rapid clicking
+                    if (!isMenuOpen) {
+                      setIsMenuOpen(true);
+                    } else {
+                      handleClose();
+                    }
+                  }}
                   className="lg:hidden relative z-50 p-2 rounded-button bg-bg-card text-text-secondary hover:bg-[rgba(255,255,255,0.05)] hover:text-text-primary transition-colors border border-border-card"
+                  aria-label={isMenuOpen ? "Close menu" : "Open menu"}
                 >
                   <AnimatePresence mode="wait">
                     {isMenuOpen ? (
@@ -375,7 +383,10 @@ export default function Header() {
               {/* Backdrop */}
               <div 
                 className="absolute inset-0 bg-bg-overlay backdrop-blur-modal"
-                onClick={handleClose}
+                onClick={() => {
+                  // Add a small delay to prevent rapid state changes
+                  setTimeout(handleClose, 50);
+                }}
               />
               
               {/* Menu Panel */}
@@ -391,7 +402,10 @@ export default function Header() {
                 <div className="flex flex-col h-full">
                   {/* Header */}
                   <div className="flex items-center justify-between p-4 border-b border-border-card">
-                    <Link href="/" className="flex items-center gap-2" onClick={handleClose}>
+                    <Link href="/" className="flex items-center gap-2" onClick={() => {
+                      // Ensure menu closes properly
+                      setTimeout(() => setIsMenuOpen(false), 100);
+                    }}>
                       <Image 
                         src="/logo.png" 
                         alt="BitRedict Logo" 
@@ -413,7 +427,10 @@ export default function Header() {
                           <Link
                             key={link.href}
                             href={link.href}
-                            onClick={handleClose}
+                            onClick={() => {
+                              // Ensure menu closes properly
+                              setTimeout(() => setIsMenuOpen(false), 100);
+                            }}
                             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                               segment === link.segment
                                 ? "bg-gradient-primary text-black"
@@ -435,7 +452,10 @@ export default function Header() {
                           <Link
                             key={link.href}
                             href={link.href}
-                            onClick={handleClose}
+                            onClick={() => {
+                              // Ensure menu closes properly
+                              setTimeout(() => setIsMenuOpen(false), 100);
+                            }}
                             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                               segment === link.segment
                                 ? "bg-gradient-primary text-black"
@@ -457,7 +477,10 @@ export default function Header() {
                           <Link
                             key={link.href}
                             href={link.href}
-                            onClick={handleClose}
+                            onClick={() => {
+                              // Ensure menu closes properly
+                              setTimeout(() => setIsMenuOpen(false), 100);
+                            }}
                             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                               segment === link.segment
                                 ? "bg-gradient-primary text-black"
@@ -473,7 +496,10 @@ export default function Header() {
 
                     {/* Action Buttons */}
                     <div className="space-y-2">
-                      <Link href="/create-prediction" onClick={handleClose}>
+                      <Link href="/create-prediction" onClick={() => {
+                        // Ensure menu closes properly
+                        setTimeout(() => setIsMenuOpen(false), 100);
+                      }}>
                         <Button fullWidth variant="primary" size="sm">
                           Create Market
                         </Button>
@@ -490,14 +516,20 @@ export default function Header() {
                             </div>
                             {!isOnSomnia && (
                               <button
-                                onClick={switchToSomnia}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  switchToSomnia();
+                                }}
                                 className="w-full px-3 py-2.5 rounded-lg text-sm font-medium text-orange-400 hover:text-orange-300 hover:bg-bg-card border border-orange-500 transition-colors"
                               >
                                 Switch Network
                               </button>
                             )}
                             <button
-                              onClick={disconnectWallet}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                disconnectWallet();
+                              }}
                               className="w-full px-3 py-2.5 rounded-lg text-sm font-medium text-text-muted hover:text-text-secondary hover:bg-bg-card border border-border-input transition-colors"
                             >
                               Disconnect
@@ -505,7 +537,10 @@ export default function Header() {
                           </div>
                         ) : (
                           <button
-                            onClick={connectWallet}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              connectWallet();
+                            }}
                             disabled={isConnecting}
                             className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 border-2 border-primary text-primary hover:bg-primary hover:text-black disabled:opacity-50 disabled:cursor-not-allowed"
                             style={{

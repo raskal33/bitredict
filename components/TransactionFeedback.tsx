@@ -34,8 +34,7 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
       // Auto-close for success/error messages (but not for pending transactions)
       if (autoClose && (status.type === 'success' || status.type === 'error')) {
         const timer = setTimeout(() => {
-          setIsVisible(false);
-          setTimeout(onClose, 300); // Wait for exit animation
+          handleClose();
         }, autoCloseDelay);
         
         return () => clearTimeout(timer);
@@ -43,18 +42,23 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
     } else {
       setIsVisible(false);
     }
-  }, [status, autoClose, autoCloseDelay, onClose]);
+  }, [status, autoClose, autoCloseDelay]);
+
+  const handleClose = () => {
+    setIsVisible(false);
+    setTimeout(onClose, 300); // Wait for exit animation
+  };
 
   const getIcon = () => {
     switch (status?.type) {
       case 'success':
-        return <FaCheckCircle className={`h-6 w-6 ${getIconColor()}`} />;
+        return <FaCheckCircle className={`h-5 w-5 sm:h-6 sm:w-6 ${getIconColor()}`} />;
       case 'error':
-        return <FaTimesCircle className={`h-6 w-6 ${getIconColor()}`} />;
+        return <FaTimesCircle className={`h-5 w-5 sm:h-6 sm:w-6 ${getIconColor()}`} />;
       case 'warning':
-        return <FaExclamationTriangle className={`h-6 w-6 ${getIconColor()}`} />;
+        return <FaExclamationTriangle className={`h-5 w-5 sm:h-6 sm:w-6 ${getIconColor()}`} />;
       default:
-        return <FaSpinner className={`h-6 w-6 ${getIconColor()} animate-spin`} />;
+        return <FaSpinner className={`h-5 w-5 sm:h-6 sm:w-6 ${getIconColor()} animate-spin`} />;
     }
   };
 
@@ -109,10 +113,7 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
-            onClick={() => {
-              setIsVisible(false);
-              setTimeout(onClose, 300);
-            }}
+            onClick={handleClose}
           />
           
           {/* Modal */}
@@ -121,42 +122,40 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -50, scale: 0.9 }}
             transition={{ duration: 0.3, ease: 'easeOut' }}
-            className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 w-[90vw] max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl ${getBackgroundColor()} backdrop-blur-lg rounded-2xl p-4 sm:p-6 border shadow-2xl`}
+            className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 w-[95vw] max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl ${getBackgroundColor()} backdrop-blur-lg rounded-2xl p-4 sm:p-6 border shadow-2xl`}
             onClick={(e) => e.stopPropagation()}
-            style={{ maxHeight: '90vh', overflowY: 'auto' }}
+            style={{ maxHeight: '85vh', overflowY: 'auto' }}
           >
             {/* Close button - positioned absolutely */}
             <button
-              onClick={() => {
-                setIsVisible(false);
-                setTimeout(onClose, 300);
-              }}
-              className="absolute top-3 right-3 sm:top-4 sm:right-4 p-1 text-gray-400 hover:text-white transition-colors rounded-full hover:bg-white/10"
+              onClick={handleClose}
+              className="absolute top-2 right-2 sm:top-3 sm:right-3 p-1.5 sm:p-2 text-gray-400 hover:text-white transition-colors rounded-full hover:bg-white/10 z-10"
               title="Close"
+              aria-label="Close modal"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
 
             <div className="flex items-start gap-3 sm:gap-4 pr-8 sm:pr-10">
-              <div className="flex-shrink-0">
+              <div className="flex-shrink-0 mt-0.5">
                 {getIcon()}
               </div>
               
               <div className="flex-1 min-w-0">
-                <h3 className="text-base sm:text-lg font-semibold text-white mb-1 pr-4">
+                <h3 className="text-sm sm:text-base lg:text-lg font-semibold text-white mb-1 pr-4">
                   {status.title}
                 </h3>
-                <p className="text-gray-300 text-sm mb-3 leading-relaxed pr-4">
+                <p className="text-gray-300 text-xs sm:text-sm mb-3 leading-relaxed pr-4">
                   {status.message}
                 </p>
                 
                 {status.hash && (
-                  <div className="mb-4 p-3 bg-black/20 rounded-xl border border-white/10">
+                  <div className="mb-4 p-2 sm:p-3 bg-black/20 rounded-xl border border-white/10">
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-gray-400 text-xs font-medium">Transaction Hash:</p>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1 sm:gap-2">
                         <button
                           onClick={() => copyToClipboard(status.hash!)}
                           className="p-1 text-gray-400 hover:text-white transition-colors"
@@ -185,17 +184,14 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
                   {status.action && status.onAction && (
                     <button
                       onClick={status.onAction}
-                      className="px-3 py-2 text-xs sm:text-sm bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200 hover:scale-105"
+                      className="px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200 hover:scale-105"
                     >
                       {status.action}
                     </button>
                   )}
                   <button
-                    onClick={() => {
-                      setIsVisible(false);
-                      setTimeout(onClose, 300);
-                    }}
-                    className="px-3 py-2 text-xs sm:text-sm bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200 hover:scale-105"
+                    onClick={handleClose}
+                    className="px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200 hover:scale-105"
                   >
                     Close
                   </button>
