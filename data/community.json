@@ -1,0 +1,96 @@
+{
+  "threads": [
+    {
+      "id": 1,
+      "title": "Will Bitcoin cross $100,000 in 2025?",
+      "author": "CryptoFan123",
+      "category": "Crypto",
+      "createdAt": "2023-11-15T14:48:00.000Z",
+      "comments": [
+        { 
+          "id": 1, 
+          "user": "JohnDoe", 
+          "text": "I think it will happen soon! The market indicators are showing positive trends, especially with the recent institutional adoption.",
+          "likes": 5,
+          "createdAt": "2023-11-15T15:22:00.000Z"
+        },
+        {
+          "id": 2,
+          "user": "JaneSmith",
+          "text": "I doubt it, the market is too volatile. We've seen these patterns before.",
+          "likes": 2,
+          "createdAt": "2023-11-15T16:05:00.000Z"
+        },
+        {
+          "id": 3,
+          "user": "CryptoExpert",
+          "text": "The halving event in 2024 will be a major catalyst. Historically, we've seen significant price increases 12-18 months after each halving.",
+          "likes": 8,
+          "createdAt": "2023-11-16T09:30:00.000Z"
+        },
+        {
+          "id": 4,
+          "user": "TechGuru",
+          "text": "I agree with CryptoExpert. The technical analysis supports this prediction.",
+          "likes": 3,
+          "createdAt": "2023-11-16T10:15:00.000Z",
+          "replyTo": 3
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Best EPL team of all time?",
+      "author": "SportsGuru",
+      "category": "Sports",
+      "createdAt": "2023-11-14T09:22:00.000Z",
+      "comments": [
+        { 
+          "id": 1, 
+          "user": "Fanatic", 
+          "text": "Liverpool, hands down! Their 2019-2020 season was incredible.", 
+          "likes": 4,
+          "createdAt": "2023-11-14T10:05:00.000Z"
+        },
+        {
+          "id": 2,
+          "user": "FootballExpert",
+          "text": "Manchester United under Sir Alex Ferguson in the 1998-99 season. They won the treble!",
+          "likes": 7,
+          "createdAt": "2023-11-14T11:30:00.000Z"
+        },
+        {
+          "id": 3,
+          "user": "SoccerFan",
+          "text": "I'd argue for Arsenal's Invincibles. Going unbeaten for an entire season is unmatched.",
+          "likes": 6,
+          "createdAt": "2023-11-14T13:45:00.000Z"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "What's your favorite AI tool for productivity?",
+      "author": "TechEnthusiast",
+      "category": "Technology",
+      "createdAt": "2023-11-16T08:15:00.000Z",
+      "comments": [
+        {
+          "id": 1,
+          "user": "AIFan",
+          "text": "I've been using Claude for writing assistance and it's been a game-changer for my workflow!",
+          "likes": 3,
+          "createdAt": "2023-11-16T09:20:00.000Z"
+        },
+        {
+          "id": 2,
+          "user": "ProductivityGuru",
+          "text": "Notion AI has been incredible for summarizing meeting notes and generating content ideas.",
+          "likes": 2,
+          "createdAt": "2023-11-16T10:45:00.000Z"
+        }
+      ]
+    }
+  ],
+  "categories": ["General", "Crypto", "Sports", "Technology", "Finance", "Entertainment", "Health", "Education"]
+} 

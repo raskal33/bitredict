@@ -1,0 +1,1584 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_devWallet",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_initialEntryFee",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "BettingClosed",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ClaimingNotAvailable",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "CycleNotResolved",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "DuplicateMatchId",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "GameNotActive",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InsufficientPayment",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidFee",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidMatchData",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidPredictionCount",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidSelection",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidStartTime",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "NotOnLeaderboard",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "OddsMismatch",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "OddsNotSet",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      }
+    ],
+    "name": "OwnableInvalidOwner",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "OwnableUnauthorizedAccount",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PrizeAlreadyClaimed",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ReentrancyGuardReentrantCall",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "SlipAlreadyEvaluated",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "TransferFailed",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "Unauthorized",
+    "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "cycleId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "prizePool",
+        "type": "uint256"
+      }
+    ],
+    "name": "CycleResolved",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "cycleId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "endTime",
+        "type": "uint256"
+      }
+    ],
+    "name": "CycleStarted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "newFee",
+        "type": "uint256"
+      }
+    ],
+    "name": "EntryFeeSet",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "pointsEarned",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "correctPredictions",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "totalReputation",
+        "type": "uint256"
+      }
+    ],
+    "name": "OddysseyReputationUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "newOracle",
+        "type": "address"
+      }
+    ],
+    "name": "OracleSet",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "previousOwner",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "OwnershipTransferred",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "cycleId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "player",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "rank",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "PrizeClaimed",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "fromCycleId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "toCycleId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "PrizeRollover",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "cycleId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "player",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "slipId",
+        "type": "uint256"
+      }
+    ],
+    "name": "SlipPlaced",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "totalSlips",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "totalWins",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "bestScore",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "winRate",
+        "type": "uint256"
+      }
+    ],
+    "name": "UserStatsUpdated",
+    "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "DAILY_LEADERBOARD_SIZE",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "DEV_FEE_PERCENTAGE",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "MATCH_COUNT",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "MIN_CORRECT_PREDICTIONS",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "ODDS_SCALING_FACTOR",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "PRIZE_ROLLOVER_FEE_PERCENTAGE",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "_cycleIds",
+        "type": "uint256[]"
+      }
+    ],
+    "name": "claimMultiplePrizes",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_cycleId",
+        "type": "uint256"
+      }
+    ],
+    "name": "claimPrize",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "claimableStartTimes",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "cycleStats",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "volume",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint32",
+        "name": "slips",
+        "type": "uint32"
+      },
+      {
+        "internalType": "uint32",
+        "name": "evaluatedSlips",
+        "type": "uint32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "dailyCycleEndTimes",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "dailyCycleId",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "dailyLeaderboards",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "player",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "slipId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "finalScore",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint8",
+        "name": "correctCount",
+        "type": "uint8"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "dailyMatches",
+    "outputs": [
+      {
+        "internalType": "uint64",
+        "name": "id",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "startTime",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint32",
+        "name": "oddsHome",
+        "type": "uint32"
+      },
+      {
+        "internalType": "uint32",
+        "name": "oddsDraw",
+        "type": "uint32"
+      },
+      {
+        "internalType": "uint32",
+        "name": "oddsAway",
+        "type": "uint32"
+      },
+      {
+        "internalType": "uint32",
+        "name": "oddsOver",
+        "type": "uint32"
+      },
+      {
+        "internalType": "uint32",
+        "name": "oddsUnder",
+        "type": "uint32"
+      },
+      {
+        "components": [
+          {
+            "internalType": "enum Oddyssey.MoneylineResult",
+            "name": "moneyline",
+            "type": "uint8"
+          },
+          {
+            "internalType": "enum Oddyssey.OverUnderResult",
+            "name": "overUnder",
+            "type": "uint8"
+          }
+        ],
+        "internalType": "struct Oddyssey.Result",
+        "name": "result",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "dailyPrizePools",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "devWallet",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "entryFee",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "_slipIds",
+        "type": "uint256[]"
+      }
+    ],
+    "name": "evaluateMultipleSlips",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_slipId",
+        "type": "uint256"
+      }
+    ],
+    "name": "evaluateSlip",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getCurrentCycle",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_cycleId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getCycleMatches",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint64",
+            "name": "id",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "startTime",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint32",
+            "name": "oddsHome",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "oddsDraw",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "oddsAway",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "oddsOver",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "oddsUnder",
+            "type": "uint32"
+          },
+          {
+            "components": [
+              {
+                "internalType": "enum Oddyssey.MoneylineResult",
+                "name": "moneyline",
+                "type": "uint8"
+              },
+              {
+                "internalType": "enum Oddyssey.OverUnderResult",
+                "name": "overUnder",
+                "type": "uint8"
+              }
+            ],
+            "internalType": "struct Oddyssey.Result",
+            "name": "result",
+            "type": "tuple"
+          }
+        ],
+        "internalType": "struct Oddyssey.Match[10]",
+        "name": "",
+        "type": "tuple[10]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_cycleId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getCycleStatus",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "exists",
+        "type": "bool"
+      },
+      {
+        "internalType": "uint256",
+        "name": "endTime",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "prizePool",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bool",
+        "name": "isResolved",
+        "type": "bool"
+      },
+      {
+        "internalType": "uint256",
+        "name": "cycleSlipCount",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_cycleId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getDailyLeaderboard",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "player",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "slipId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "finalScore",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint8",
+            "name": "correctCount",
+            "type": "uint8"
+          }
+        ],
+        "internalType": "struct Oddyssey.LeaderboardEntry[5]",
+        "name": "",
+        "type": "tuple[5]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_cycleId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getDailyMatches",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint64",
+            "name": "id",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "startTime",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint32",
+            "name": "oddsHome",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "oddsDraw",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "oddsAway",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "oddsOver",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "oddsUnder",
+            "type": "uint32"
+          },
+          {
+            "components": [
+              {
+                "internalType": "enum Oddyssey.MoneylineResult",
+                "name": "moneyline",
+                "type": "uint8"
+              },
+              {
+                "internalType": "enum Oddyssey.OverUnderResult",
+                "name": "overUnder",
+                "type": "uint8"
+              }
+            ],
+            "internalType": "struct Oddyssey.Result",
+            "name": "result",
+            "type": "tuple"
+          }
+        ],
+        "internalType": "struct Oddyssey.Match[10]",
+        "name": "",
+        "type": "tuple[10]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_user",
+        "type": "address"
+      }
+    ],
+    "name": "getOddysseyReputation",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "totalReputation",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "totalCorrectPredictions",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_slipId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getSlip",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "player",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "cycleId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "placedAt",
+            "type": "uint256"
+          },
+          {
+            "components": [
+              {
+                "internalType": "uint64",
+                "name": "matchId",
+                "type": "uint64"
+              },
+              {
+                "internalType": "enum Oddyssey.BetType",
+                "name": "betType",
+                "type": "uint8"
+              },
+              {
+                "internalType": "bytes32",
+                "name": "selection",
+                "type": "bytes32"
+              },
+              {
+                "internalType": "uint32",
+                "name": "selectedOdd",
+                "type": "uint32"
+              }
+            ],
+            "internalType": "struct Oddyssey.UserPrediction[10]",
+            "name": "predictions",
+            "type": "tuple[10]"
+          },
+          {
+            "internalType": "uint256",
+            "name": "finalScore",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint8",
+            "name": "correctCount",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bool",
+            "name": "isEvaluated",
+            "type": "bool"
+          }
+        ],
+        "internalType": "struct Oddyssey.Slip",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_user",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_cycleId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getUserSlipsForCycle",
+    "outputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "",
+        "type": "uint256[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_user",
+        "type": "address"
+      }
+    ],
+    "name": "getUserStats",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "totalSlips",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "totalWins",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "bestScore",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "averageScore",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "winRate",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "currentStreak",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "bestStreak",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "lastActiveCycle",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_cycleId",
+        "type": "uint256"
+      }
+    ],
+    "name": "isCycleInitialized",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "isCycleResolved",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "oracle",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "owner",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint64",
+            "name": "matchId",
+            "type": "uint64"
+          },
+          {
+            "internalType": "enum Oddyssey.BetType",
+            "name": "betType",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "selection",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "selectedOdd",
+            "type": "uint32"
+          }
+        ],
+        "internalType": "struct Oddyssey.UserPrediction[10]",
+        "name": "_predictions",
+        "type": "tuple[10]"
+      }
+    ],
+    "name": "placeSlip",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint8",
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "name": "prizeClaimed",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "renounceOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "enum Oddyssey.MoneylineResult",
+            "name": "moneyline",
+            "type": "uint8"
+          },
+          {
+            "internalType": "enum Oddyssey.OverUnderResult",
+            "name": "overUnder",
+            "type": "uint8"
+          }
+        ],
+        "internalType": "struct Oddyssey.Result[10]",
+        "name": "_results",
+        "type": "tuple[10]"
+      }
+    ],
+    "name": "resolveDailyCycle",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_newFee",
+        "type": "uint256"
+      }
+    ],
+    "name": "setEntryFee",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_newOracle",
+        "type": "address"
+      }
+    ],
+    "name": "setOracle",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "slipCount",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "slips",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "player",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "cycleId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "placedAt",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "finalScore",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint8",
+        "name": "correctCount",
+        "type": "uint8"
+      },
+      {
+        "internalType": "bool",
+        "name": "isEvaluated",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint64",
+            "name": "id",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "startTime",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint32",
+            "name": "oddsHome",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "oddsDraw",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "oddsAway",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "oddsOver",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "oddsUnder",
+            "type": "uint32"
+          },
+          {
+            "components": [
+              {
+                "internalType": "enum Oddyssey.MoneylineResult",
+                "name": "moneyline",
+                "type": "uint8"
+              },
+              {
+                "internalType": "enum Oddyssey.OverUnderResult",
+                "name": "overUnder",
+                "type": "uint8"
+              }
+            ],
+            "internalType": "struct Oddyssey.Result",
+            "name": "result",
+            "type": "tuple"
+          }
+        ],
+        "internalType": "struct Oddyssey.Match[10]",
+        "name": "_matches",
+        "type": "tuple[10]"
+      }
+    ],
+    "name": "startDailyCycle",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "stats",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "totalVolume",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint32",
+        "name": "totalSlips",
+        "type": "uint32"
+      },
+      {
+        "internalType": "uint256",
+        "name": "highestOdd",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "transferOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "userOddysseyCorrectPredictions",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "userOddysseyReputation",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "userStats",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "totalSlips",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "totalWins",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "bestScore",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "averageScore",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "winRate",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "currentStreak",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "bestStreak",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "lastActiveCycle",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]

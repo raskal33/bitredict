@@ -1,0 +1,121 @@
+{
+  "cryptocurrencies": [
+    {
+      "id": "bitcoin",
+      "symbol": "BTC",
+      "name": "Bitcoin",
+      "currentPrice": 43250.50,
+      "logo": "https://coin-images.coingecko.com/coins/images/1/large/bitcoin.png",
+      "coingeckoId": "bitcoin"
+    },
+    {
+      "id": "ethereum",
+      "symbol": "ETH",
+      "name": "Ethereum",
+      "currentPrice": 2650.25,
+      "logo": "https://coin-images.coingecko.com/coins/images/279/large/ethereum.png",
+      "coingeckoId": "ethereum"
+    },
+    {
+      "id": "solana",
+      "symbol": "SOL", 
+      "name": "Solana",
+      "currentPrice": 105.80,
+      "logo": "https://coin-images.coingecko.com/coins/images/4128/large/solana.png",
+      "coingeckoId": "solana"
+    },
+    {
+      "id": "cardano",
+      "symbol": "ADA",
+      "name": "Cardano", 
+      "currentPrice": 0.85,
+      "logo": "https://coin-images.coingecko.com/coins/images/975/large/cardano.png",
+      "coingeckoId": "cardano"
+    },
+    {
+      "id": "polygon",
+      "symbol": "MATIC",
+      "name": "Polygon",
+      "currentPrice": 1.15,
+      "logo": "https://coin-images.coingecko.com/coins/images/4713/large/matic-token-icon.png",
+      "coingeckoId": "matic-network"
+    },
+    {
+      "id": "avalanche",
+      "symbol": "AVAX",
+      "name": "Avalanche",
+      "currentPrice": 42.30,
+      "logo": "🔺",
+      "coingeckoId": "avalanche-2"
+    },
+    {
+      "id": "chainlink",
+      "symbol": "LINK",
+      "name": "Chainlink",
+      "currentPrice": 15.75,
+      "logo": "🔗",
+      "coingeckoId": "chainlink"
+    },
+    {
+      "id": "polkadot",
+      "symbol": "DOT",
+      "name": "Polkadot",
+      "currentPrice": 8.90,
+      "logo": "●",
+      "coingeckoId": "polkadot"
+    },
+    {
+      "id": "dogecoin",
+      "symbol": "DOGE",
+      "name": "Dogecoin",
+      "currentPrice": 0.095,
+      "logo": "🐕",
+      "coingeckoId": "dogecoin"
+    },
+    {
+      "id": "shiba-inu",
+      "symbol": "SHIB",
+      "name": "Shiba Inu",
+      "currentPrice": 0.0000095,
+      "logo": "🐕‍🦺",
+      "coingeckoId": "shiba-inu"
+    }
+  ],
+  "timeOptions": [
+    {
+      "value": "1D",
+      "label": "1 Day",
+      "days": 1
+    },
+    {
+      "value": "2D",
+      "label": "2 Days",
+      "days": 2
+    },
+    {
+      "value": "3D",
+      "label": "3 Days",
+      "days": 3
+    },
+    {
+      "value": "4D",
+      "label": "4 Days",
+      "days": 4
+    },
+    {
+      "value": "5D",
+      "label": "5 Days",
+      "days": 5
+    },
+    {
+      "value": "1W",
+      "label": "1 Week",
+      "days": 7
+    },
+    {
+      "value": "1M",
+      "label": "1 Month",
+      "days": 30
+    }
+  ]
+} 

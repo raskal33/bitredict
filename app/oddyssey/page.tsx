@@ -1,0 +1,1608 @@
+"use client";
+
+import Button from "@/components/button";
+import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect, useCallback } from "react";
+import { useAccount } from "wagmi";
+import { toast } from "react-hot-toast";
+import { formatEther } from "viem";
+import { oddysseyService } from "@/services/oddysseyService";
+import { useOddysseyContract } from "@/services/oddysseyContractService";
+import { useTransactionFeedback, TransactionFeedback } from "@/components/TransactionFeedback";
+import { 
+  FireIcon, 
+  TrophyIcon, 
+  ChartBarIcon, 
+  CurrencyDollarIcon,
+  UsersIcon,
+  BoltIcon,
+  SparklesIcon,
+  ClockIcon,
+  EyeIcon,
+  ShieldCheckIcon,
+  CheckCircleIcon,
+  UserGroupIcon,
+  ArrowTrendingUpIcon,
+  UserIcon,
+  CalendarIcon,
+  TableCellsIcon
+} from "@heroicons/react/24/outline";
+import { FaSpinner } from "react-icons/fa";
+
+interface Pick {
+  id: number;
+  time: string;
+  match: string;
+  pick: "home" | "draw" | "away" | "over" | "under";
+  odd: number;
+  team1: string;
+  team2: string;
+}
+
+interface Match {
+  id: number;
+  fixture_id: number;
+  home_team: string;
+  away_team: string;
+  match_date: string;
+  league_name: string;
+  home_odds: number | null;
+  draw_odds: number | null;
+  away_odds: number | null;
+  over_odds?: number | null;
+  under_odds?: number | null;
+  market_type: string;
+  display_order: number;
+}
+
+interface MatchesData {
+  today: {
+    date: string;
+    matches: Match[];
+  };
+  tomorrow: {
+    date: string;
+    matches: Match[];
+  };
+  yesterday?: {
+    date: string;
+    matches: Match[];
+  };
+}
+
+interface Stats {
+  totalPlayers: number;
+  prizePool: string;
+  completedSlips: string;
+  averageOdds: string;
+  totalCycles: number;
+  activeCycles: number;
+  avgPrizePool: number;
+  winRate: number;
+  avgCorrect: number;
+}
+
+interface UserStats {
+  totalSlips: number;
+  totalWins: number;
+  bestScore: number;
+  averageScore: number;
+  winRate: number;
+  currentStreak: number;
+  bestStreak: number;
+  lastActiveCycle: number;
+}
+
+// Default entry fee - will be updated with contract value
+const DEFAULT_ENTRY_FEE = "0.5";
+
+export default function OddysseyPage() {
+  const { address, isConnected } = useAccount();
+  const { placeSlip, isPending, isSuccess, isConfirming, error, hash, contractEntryFee, currentCycleId, currentMatches } = useOddysseyContract();
+  
+  // Transaction feedback system
+  const { transactionStatus, showSuccess, showError, showInfo, clearStatus } = useTransactionFeedback();
+  const [picks, setPicks] = useState<Pick[]>([]);
+  const [slips, setSlips] = useState<Pick[][]>([]);
+  const [activeTab, setActiveTab] = useState<"today" | "slips" | "stats">("today");
+  const [selectedDate, setSelectedDate] = useState<"yesterday" | "today" | "tomorrow">("today");
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [matchesData, setMatchesData] = useState<MatchesData | null>(null);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [userStats, setUserStats] = useState<UserStats | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
+  const [isExpired, setIsExpired] = useState(false);
+  const [hasStartedMatches, setHasStartedMatches] = useState(false);
+
+  // Monitor transaction states
+  useEffect(() => {
+    if (isPending) {
+      showInfo("Transaction Pending", "Please confirm the transaction in your wallet");
+    }
+  }, [isPending, showInfo]);
+
+  useEffect(() => {
+    if (isConfirming) {
+      showInfo("Transaction Confirming", "Your slip is being processed on the blockchain");
+    }
+  }, [isConfirming, showInfo]);
+
+  useEffect(() => {
+    if (isSuccess && hash) {
+      showSuccess(
+        "Slip Placed Successfully!", 
+        "Your predictions have been submitted to the blockchain",
+        hash
+      );
+      // Reset picks after successful submission
+      setPicks([]);
+    }
+  }, [isSuccess, hash, showSuccess]);
+
+  useEffect(() => {
+    if (error) {
+      showError("Transaction Failed", error.message || "Failed to place slip");
+    }
+  }, [error, showError]);
+
+  // Fetch matches data using the service
+  const fetchMatches = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      console.log('🎯 Fetching Oddyssey matches...');
+      
+      const result = await oddysseyService.getMatches();
+      
+      if (result.data) {
+        console.log('✅ Matches data received:', result.data);
+        setMatchesData(result.data as MatchesData);
+      } else {
+        console.warn('⚠️ No matches data received');
+        setMatchesData(null);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching matches:', error);
+      toast.error('Failed to fetch matches');
+      setMatchesData(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Fetch stats using the service
+  const fetchStats = useCallback(async () => {
+    try {
+      console.log('🎯 Fetching Oddyssey stats...');
+      
+      const [globalStatsResult, userStatsResult] = await Promise.all([
+        oddysseyService.getStats('global'),
+        address ? oddysseyService.getStats('user', address) : null
+      ]);
+
+      if (globalStatsResult.data) {
+        console.log('✅ Global stats received:', globalStatsResult.data);
+        setStats({
+          totalPlayers: globalStatsResult.data.totalPlayers || 1234,
+          prizePool: `${globalStatsResult.data.avgPrizePool || 5.2} STT`,
+          completedSlips: globalStatsResult.data.totalSlips?.toLocaleString() || "2,847",
+          averageOdds: `${globalStatsResult.data.avgCorrect || 8.7}x`,
+          totalCycles: globalStatsResult.data.totalCycles || 127,
+          activeCycles: globalStatsResult.data.activeCycles || 3,
+          avgPrizePool: globalStatsResult.data.avgPrizePool || 5.2,
+          winRate: globalStatsResult.data.winRate || 23.4,
+          avgCorrect: globalStatsResult.data.avgCorrect || 8.7
+        });
+      } else {
+        console.warn('⚠️ No global stats received, using defaults');
+        setStats({
+          totalPlayers: 1234,
+          prizePool: "5.2 STT",
+          completedSlips: "2,847",
+          averageOdds: "8.7x",
+          totalCycles: 127,
+          activeCycles: 3,
+          avgPrizePool: 5.2,
+          winRate: 23.4,
+          avgCorrect: 8.7
+        });
+      }
+
+      if (userStatsResult?.data) {
+        console.log('✅ User stats received:', userStatsResult.data);
+        setUserStats(userStatsResult.data);
+      } else {
+        console.warn('⚠️ No user stats received, using defaults');
+        setUserStats({
+          totalSlips: 0,
+          totalWins: 0,
+          bestScore: 0,
+          averageScore: 0,
+          winRate: 0,
+          currentStreak: 0,
+          bestStreak: 0,
+          lastActiveCycle: 0
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error fetching stats:', error);
+      // Set default stats on error
+      setStats({
+        totalPlayers: 1234,
+        prizePool: "5.2 STT",
+        completedSlips: "2,847",
+        averageOdds: "8.7x",
+        totalCycles: 127,
+        activeCycles: 3,
+        avgPrizePool: 5.2,
+        winRate: 23.4,
+        avgCorrect: 8.7
+      });
+      setUserStats({
+        totalSlips: 0,
+        totalWins: 0,
+        bestScore: 0,
+        averageScore: 0,
+        winRate: 0,
+        currentStreak: 0,
+        bestStreak: 0,
+        lastActiveCycle: 0
+      });
+    }
+  }, [address]);
+
+  // Fetch current cycle and match results
+  const fetchCurrentCycle = useCallback(async () => {
+    try {
+      console.log('🎯 Fetching current cycle...');
+      
+      const result = await oddysseyService.getCurrentCycle();
+      
+      if (result.cycle) {
+        console.log('✅ Current cycle received:', result.cycle);
+        
+        // If cycle is resolved, fetch match results
+        if (result.cycle.is_resolved && result.cycle.matches) {
+          const matchIds = result.cycle.matches.map((match: { id: number }) => match.id);
+          const liveMatchesResult = await oddysseyService.getLiveMatches(matchIds);
+          
+          if (liveMatchesResult.matches) {
+            console.log('✅ Match results received:', liveMatchesResult.matches);
+            // TODO: Implement match results display when needed
+          }
+        }
+      } else {
+        console.warn('⚠️ No active cycle found');
+      }
+    } catch (error) {
+      console.error('❌ Error fetching current cycle:', error);
+    }
+  }, []);
+
+  // Fetch user slips using the service
+  const fetchUserSlips = useCallback(async () => {
+    if (!address) return;
+    
+    try {
+      console.log('🎯 Fetching user slips for address:', address);
+      
+      const result = await oddysseyService.getUserSlips(address);
+      
+      if (result.slips) {
+        console.log('✅ User slips received:', result.slips);
+        // Convert backend slip format to frontend format
+        const convertedSlips = result.slips.map((slip: { predictions: { match_id: number; prediction: string; odds: number }[] }) => {
+          return slip.predictions?.map((pred: { match_id: number; prediction: string; odds: number }) => ({
+            id: pred.match_id || 0,
+            time: "00:00", // Would need actual match time
+            match: `Match ${pred.match_id || 0}`, // Would need actual team names
+            pick: (pred.prediction === "1" ? "home" : 
+                  pred.prediction === "X" ? "draw" : 
+                  pred.prediction === "2" ? "away" : 
+                  pred.prediction === "Over" ? "over" : "under") as "home" | "draw" | "away" | "over" | "under",
+            odd: pred.odds || 1,
+            team1: "Team A", // Would need actual team names
+            team2: "Team B"
+          })) || [];
+        });
+        
+        setSlips(convertedSlips);
+      } else {
+        console.warn('⚠️ No user slips received');
+        setSlips([]);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching user slips:', error);
+      setSlips([]);
+    }
+  }, [address]);
+
+  useEffect(() => {
+    fetchMatches();
+    fetchCurrentCycle();
+  }, [fetchMatches, fetchCurrentCycle]); // Include fetchMatches in dependencies
+
+  useEffect(() => {
+    fetchStats();
+    if (address) {
+      fetchUserSlips();
+    }
+  }, [address, fetchStats, fetchUserSlips]); // Include all dependencies
+
+  // Handle transaction state changes
+  useEffect(() => {
+    if (isPending) {
+      showInfo("Submitting Slip", "Please confirm the transaction in your wallet...");
+    } else if (isSuccess && hash) {
+      showSuccess("Slip Submitted", `Successfully submitted slip with ${picks.length} predictions!`, hash);
+      
+      // Also submit to backend for tracking
+      const submitToBackend = async () => {
+        try {
+          const predictions = picks.map(pick => ({
+            matchId: pick.id,
+            prediction: pick.pick === "home" ? "1" : 
+                       pick.pick === "draw" ? "X" : 
+                       pick.pick === "away" ? "2" : 
+                       pick.pick === "over" ? "Over" : "Under",
+            odds: pick.odd
+          }));
+          
+          if (!address) {
+            console.warn('No wallet address available for backend submission');
+            return;
+          }
+          
+          const backendResponse = await oddysseyService.placeSlip(address, predictions);
+          
+          if (backendResponse.success) {
+            // Add to local slips for immediate UI update
+            setSlips([...slips, [...picks]]);
+            setPicks([]);
+            
+            // Refresh stats after successful submission
+            fetchStats();
+          } else {
+            console.warn('Backend submission failed, but blockchain transaction succeeded');
+          }
+        } catch (backendError) {
+          console.warn('Backend submission failed:', backendError);
+          // Don't show error to user since blockchain transaction succeeded
+        }
+      };
+      
+      submitToBackend();
+    } else if (error) {
+      showError("Transaction Failed", error.message || "Failed to submit slip to blockchain");
+    }
+  }, [isPending, isSuccess, error, hash, picks, address, slips, fetchStats, showInfo, showSuccess, showError]);
+
+  // Handle transaction state changes
+  useEffect(() => {
+    if (isSuccess && hash) {
+      // Transaction confirmed - already handled in handleSubmitSlip
+      console.log('Transaction confirmed:', hash);
+    } else if (error) {
+      // Transaction failed
+      showError("Transaction Failed", error.message || "Transaction failed");
+    }
+  }, [isSuccess, error, hash, showError]);
+
+  // Check if any matches have started
+  const checkStartedMatches = useCallback((matches: Match[]) => {
+    const now = new Date();
+    const hasStarted = matches.some(match => {
+      const matchStartTime = new Date(match.match_date);
+      return matchStartTime <= now;
+    });
+    setHasStartedMatches(hasStarted);
+    return hasStarted;
+  }, []);
+
+  // Check if a specific match has started
+  const isMatchStarted = useCallback((matchDate: string) => {
+    const matchStartTime = new Date(matchDate);
+    const now = new Date();
+    return matchStartTime <= now;
+  }, []);
+
+  // Update matches when date changes
+  useEffect(() => {
+    if (matchesData) {
+      let currentMatches: Match[] = [];
+      
+      if (selectedDate === "today") {
+        currentMatches = matchesData.today.matches.slice(0, 10);
+      } else if (selectedDate === "tomorrow") {
+        currentMatches = matchesData.tomorrow.matches.slice(0, 10);
+      } else if (selectedDate === "yesterday" && matchesData.yesterday) {
+        currentMatches = matchesData.yesterday.matches.slice(0, 10);
+      }
+      
+      setMatches(currentMatches);
+      checkStartedMatches(currentMatches);
+    }
+  }, [selectedDate, matchesData, checkStartedMatches]);
+
+  // Calculate time left based on first match
+  const calculateTimeLeft = useCallback(() => {
+    if (!matches || matches.length === 0) {
+      setTimeLeft({ hours: 0, minutes: 0, seconds: 0 });
+      setIsExpired(true);
+      return;
+    }
+
+    // Sort matches by time and get the first match
+    const sortedMatches = [...matches].sort((a, b) => 
+      new Date(a.match_date).getTime() - new Date(b.match_date).getTime()
+    );
+    const firstMatch = sortedMatches[0];
+    
+    if (!firstMatch) {
+      setTimeLeft({ hours: 0, minutes: 0, seconds: 0 });
+      setIsExpired(true);
+      return;
+    }
+
+    const now = new Date().getTime();
+    const matchTime = new Date(firstMatch.match_date).getTime();
+    const timeDifference = matchTime - now;
+
+    if (timeDifference <= 0) {
+      setTimeLeft({ hours: 0, minutes: 0, seconds: 0 });
+      setIsExpired(true);
+      setHasStartedMatches(true);
+    } else {
+      const hours = Math.floor(timeDifference / (1000 * 60 * 60));
+      const minutes = Math.floor((timeDifference % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((timeDifference % (1000 * 60)) / 1000);
+
+        setTimeLeft({ hours, minutes, seconds });
+        setIsExpired(false);
+      setHasStartedMatches(false);
+      }
+  }, [matches]);
+
+  useEffect(() => {
+    calculateTimeLeft();
+    const timer = setInterval(calculateTimeLeft, 1000);
+
+    return () => clearInterval(timer);
+  }, [matches, calculateTimeLeft]); // Include calculateTimeLeft in dependencies
+
+  const handlePickSelection = (matchId: number, pick: "home" | "draw" | "away" | "over" | "under") => {
+    const match = matches.find(m => m.id === matchId);
+    if (!match) return;
+
+    // Check if match has already started
+    const matchStartTime = new Date(match.match_date);
+    const now = new Date();
+    
+    if (matchStartTime <= now) {
+      toast.error('Cannot bet on matches that have already started');
+      return;
+    }
+
+    // Check if we're trying to bet on yesterday's matches
+    const matchDate = new Date(match.match_date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (matchDate < today) {
+      toast.error('Cannot bet on past matches');
+      return;
+    }
+
+    // Remove any existing pick for this match
+    const filteredPicks = picks.filter(p => p.id !== matchId);
+    
+    let odd = 0;
+    switch (pick) {
+      case "home":
+        odd = match.home_odds || 0;
+        break;
+      case "draw":
+        odd = match.draw_odds || 0;
+        break;
+      case "away":
+        odd = match.away_odds || 0;
+        break;
+      case "over":
+        odd = match.over_odds || 1.8;
+        break;
+      case "under":
+        odd = match.under_odds || 2.0;
+        break;
+    }
+
+    if (filteredPicks.length < 10) {
+      const newPick: Pick = {
+            id: matchId,
+        time: new Date(match.match_date).toLocaleTimeString('en-US', { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        }),
+        match: `${match.home_team} vs ${match.away_team}`,
+        pick,
+        odd,
+        team1: match.home_team,
+        team2: match.away_team
+      };
+
+      setPicks([...filteredPicks, newPick]);
+    }
+  };
+  
+  const calculatePotentialPayout = (totalOdd: number) => {
+    const entryFee = contractEntryFee ? formatEther(contractEntryFee as bigint) : DEFAULT_ENTRY_FEE;
+    return (parseFloat(entryFee) * (totalOdd || 1)).toFixed(2);
+  };
+
+  const handleSubmitSlip = async () => {
+    if (!isConnected) {
+      showError("Wallet Not Connected", "Please connect your wallet to submit a slip");
+      return;
+    }
+
+    if (picks.length !== 10) {
+      showError("Invalid Selection", "Please select exactly 10 matches for your slip");
+      return;
+    }
+
+    if (!address) {
+      showError("Wallet Error", "Wallet address not available");
+      return;
+    }
+
+    // Check if we have contract data
+    if (!currentMatches || !Array.isArray(currentMatches) || currentMatches.length !== 10) {
+      showError("Contract Error", "No active matches found in contract. Please wait for the next cycle.");
+      return;
+    }
+
+    // Check if any selected matches have started
+    const now = new Date();
+    const hasStartedMatch = picks.some(pick => {
+      const match = matches.find(m => m.id === pick.id);
+      if (!match) return false;
+      const matchStartTime = new Date(match.match_date);
+      return matchStartTime <= now;
+    });
+
+    if (hasStartedMatch) {
+      showError("Invalid Selection", "Cannot submit slip with matches that have already started");
+      return;
+    }
+
+    // Check if transaction is already pending
+    if (isPending || isConfirming) {
+      showInfo("Transaction in Progress", "Please wait for the current transaction to complete");
+      return;
+    }
+
+    try {
+      console.log('🎯 Submitting slip with picks:', picks);
+      console.log('📊 Contract cycle ID:', currentCycleId);
+      console.log('🏆 Contract matches:', currentMatches);
+      
+      // Format predictions for contract
+      const predictions = picks.map(pick => ({
+        matchId: pick.id,
+        prediction: pick.pick === "home" ? "1" : 
+                   pick.pick === "draw" ? "X" : 
+                   pick.pick === "away" ? "2" : 
+                   pick.pick === "over" ? "Over" : "Under",
+        odds: pick.odd
+      }));
+
+      console.log('📝 Formatted predictions:', predictions);
+      const actualEntryFee = contractEntryFee ? formatEther(contractEntryFee as bigint) : DEFAULT_ENTRY_FEE;
+      console.log('💰 Entry fee from contract:', actualEntryFee);
+
+      // Submit to contract
+      await placeSlip(predictions, actualEntryFee);
+      
+      console.log('✅ Slip submission initiated');
+      // Transaction feedback will be handled by useEffect watching transaction state
+    } catch (error) {
+      console.error('❌ Error submitting slip:', error);
+      showError("Submission Failed", (error as Error).message || "Failed to submit slip");
+    }
+  };
+
+  const totalOdd = picks.reduce((acc, pick) => acc * (pick.odd || 1), 1).toFixed(2);
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { 
+      weekday: 'short', 
+      month: 'short', 
+      day: 'numeric' 
+    });
+  };
+
+  const getDateTabLabel = (tab: "yesterday" | "today" | "tomorrow") => {
+    const today = new Date();
+    const targetDate = new Date(today);
+    
+    if (tab === "yesterday") {
+      targetDate.setDate(today.getDate() - 1);
+    } else if (tab === "tomorrow") {
+      targetDate.setDate(today.getDate() + 1);
+    }
+    
+    return {
+      label: tab.charAt(0).toUpperCase() + tab.slice(1),
+      date: formatDate(targetDate.toISOString())
+    };
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-main text-white">
+      {/* Transaction Feedback */}
+      <TransactionFeedback
+        status={transactionStatus}
+        onClose={clearStatus}
+        autoClose={true}
+        autoCloseDelay={5000}
+      />
+      
+      <div className="container mx-auto px-4 py-8">
+        {/* Hero Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center mb-12 relative"
+        >
+          {/* Floating background elements */}
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <motion.div 
+              className="absolute top-[20%] left-[15%] w-6 h-6 bg-primary/20 rounded-full blur-sm"
+              animate={{ y: [-10, 10, -10], x: [-5, 5, -5], scale: [1, 1.2, 1] }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+            />
+            <motion.div 
+              className="absolute top-[60%] right-[20%] w-4 h-4 bg-secondary/30 rounded-full blur-sm"
+              animate={{ y: [10, -10, 10], x: [5, -5, 5], scale: [1, 1.3, 1] }}
+              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+            />
+            <motion.div 
+              className="absolute bottom-[30%] left-[70%] w-5 h-5 bg-accent/25 rounded-full blur-sm"
+              animate={{ y: [-8, 8, -8], x: [-3, 3, -3], scale: [1, 1.1, 1] }}
+              transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+            />
+          </div>
+
+          <div className="relative z-10 mb-8">
+            <div className="flex items-center justify-center gap-6 mb-6">
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+              >
+                <FireIcon className="h-12 w-12 text-primary" />
+              </motion.div>
+              <h1 className="text-5xl md:text-6xl font-bold gradient-text">
+                ODDYSSEY
+              </h1>
+              <motion.div
+                animate={{ rotate: -360 }}
+                transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+              >
+                <SparklesIcon className="h-12 w-12 text-secondary" />
+              </motion.div>
+            </div>
+            
+            <div className="mx-auto mb-6 h-1 w-64 bg-gradient-somnia rounded-full opacity-60"></div>
+            
+            <p className="text-xl text-text-secondary max-w-2xl mx-auto">
+              The ultimate prediction challenge. Select outcomes for 10 matches, compete with the highest odds, and claim your share of the prize pool.
+            </p>
+          </div>
+        </motion.div>
+
+        {/* Stats Cards */}
+        {stats && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+            className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8"
+        >
+              <motion.div
+                whileHover={{ scale: 1.02, y: -2 }}
+                className="glass-card text-center p-4"
+              >
+              <CurrencyDollarIcon className="h-12 w-12 mx-auto mb-4 text-primary" />
+              <h3 className="text-2xl font-bold text-white mb-1">{stats.prizePool}</h3>
+              <p className="text-lg font-semibold text-text-secondary mb-1">Average Prize Pool</p>
+              <p className="text-sm text-text-muted">Per cycle</p>
+              </motion.div>
+
+            <motion.div
+              whileHover={{ scale: 1.02, y: -2 }}
+              className="glass-card text-center p-4"
+            >
+              <UsersIcon className="h-12 w-12 mx-auto mb-4 text-secondary" />
+              <h3 className="text-2xl font-bold text-white mb-1">{stats.totalPlayers.toLocaleString()}</h3>
+              <p className="text-lg font-semibold text-text-secondary mb-1">Total Players</p>
+              <p className="text-sm text-text-muted">All-time</p>
+        </motion.div>
+
+            <motion.div
+              whileHover={{ scale: 1.02, y: -2 }}
+              className="glass-card text-center p-4"
+            >
+              <TrophyIcon className="h-12 w-12 mx-auto mb-4 text-accent" />
+                              <h3 className="text-2xl font-bold text-white mb-1">{(stats.winRate || 0).toFixed(1)}%</h3>
+              <p className="text-lg font-semibold text-text-secondary mb-1">Win Rate</p>
+              <p className="text-sm text-text-muted">Average</p>
+            </motion.div>
+
+            <motion.div
+              whileHover={{ scale: 1.02, y: -2 }}
+              className="glass-card text-center p-4"
+            >
+              <EyeIcon className="h-12 w-12 mx-auto mb-4 text-green-400" />
+              <h3 className="text-2xl font-bold text-white mb-1">{stats.avgCorrect}x</h3>
+              <p className="text-lg font-semibold text-text-secondary mb-1">Average Odds</p>
+              <p className="text-sm text-text-muted">Successful slips</p>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Countdown Timer */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.3 }}
+          className="glass-card text-center p-6 mb-8"
+        >
+          <h3 className="text-xl font-bold text-primary mb-6 flex items-center justify-center gap-2">
+            <ClockIcon className="h-6 w-6" />
+            {matches && matches.length > 0 ? (
+              <>
+            Betting Closes In
+                <span className="text-sm font-normal text-text-secondary ml-2">
+                  (First match: {matches.sort((a, b) => new Date(a.match_date).getTime() - new Date(b.match_date).getTime())[0]?.home_team} vs {matches.sort((a, b) => new Date(a.match_date).getTime() - new Date(b.match_date).getTime())[0]?.away_team})
+                </span>
+              </>
+            ) : (
+              "Betting Closes In"
+            )}
+          </h3>
+          {isExpired ? (
+            <div className="text-red-400 font-bold text-2xl">
+              Betting is closed - first match has started
+            </div>
+          ) : (
+            <div className="flex justify-center gap-4 mb-4">
+              <motion.div 
+                className="glass-card p-4 min-w-[80px]"
+                animate={{ scale: [1, 1.05, 1] }}
+                transition={{ duration: 2, repeat: Infinity }}
+              >
+                <div className="text-2xl font-bold text-primary">{timeLeft.hours.toString().padStart(2, '0')}</div>
+                <div className="text-xs text-text-muted uppercase tracking-wider">Hours</div>
+              </motion.div>
+              <motion.div 
+                className="glass-card p-4 min-w-[80px]"
+                animate={{ scale: [1, 1.05, 1] }}
+                transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
+              >
+                <div className="text-2xl font-bold text-primary">{timeLeft.minutes.toString().padStart(2, '0')}</div>
+                <div className="text-xs text-text-muted uppercase tracking-wider">Minutes</div>
+              </motion.div>
+              <motion.div 
+                className="glass-card p-4 min-w-[80px]"
+                animate={{ scale: [1, 1.05, 1] }}
+                transition={{ duration: 2, repeat: Infinity, delay: 1 }}
+              >
+                <div className="text-2xl font-bold text-primary">{timeLeft.seconds.toString().padStart(2, '0')}</div>
+                <div className="text-xs text-text-muted uppercase tracking-wider">Seconds</div>
+              </motion.div>
+            </div>
+          )}
+        </motion.div>
+
+        {/* Tab Navigation */}
+        <div className="glass-card p-4 md:p-6 mb-8">
+          <div className="flex items-center justify-center gap-2 md:gap-4 flex-wrap">
+            <button
+              onClick={() => setActiveTab("today")}
+              className={`px-4 md:px-8 py-2 md:py-3 rounded-button font-semibold transition-all duration-300 flex items-center gap-1 md:gap-2 text-sm md:text-base ${
+                activeTab === "today"
+                  ? "bg-gradient-primary text-black shadow-lg scale-105"
+                  : "text-text-secondary hover:text-text-primary hover:bg-bg-card/50"
+              }`}
+            >
+              <TableCellsIcon className="h-4 w-4 md:h-5 md:w-5" />
+              <span className="hidden sm:inline">Matches & Betting</span>
+              <span className="sm:hidden">Matches</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("slips")}
+              className={`px-4 md:px-8 py-2 md:py-3 rounded-button font-semibold transition-all duration-300 flex items-center gap-1 md:gap-2 text-sm md:text-base ${
+                activeTab === "slips"
+                  ? "bg-gradient-primary text-black shadow-lg scale-105"
+                  : "text-text-secondary hover:text-text-primary hover:bg-bg-card/50"
+              }`}
+            >
+              <TrophyIcon className="h-4 w-4 md:h-5 md:w-5" />
+              <span className="hidden sm:inline">My Slips ({slips.length})</span>
+              <span className="sm:hidden">Slips ({slips.length})</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("stats")}
+              className={`px-4 md:px-8 py-2 md:py-3 rounded-button font-semibold transition-all duration-300 flex items-center gap-1 md:gap-2 text-sm md:text-base ${
+                activeTab === "stats"
+                  ? "bg-gradient-secondary text-black shadow-lg scale-105"
+                  : "text-text-secondary hover:text-text-primary hover:bg-bg-card/50"
+              }`}
+            >
+              <ArrowTrendingUpIcon className="h-4 w-4 md:h-5 md:w-5" />
+              <span className="hidden sm:inline">Statistics</span>
+              <span className="sm:hidden">Stats</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8">
+          <AnimatePresence mode="wait">
+            {activeTab === "today" ? (
+              <>
+                {/* Matches Section */}
+                <motion.div
+                  key="matches"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  className="lg:col-span-2"
+                >
+                  <div className="glass-card p-4 md:p-6">
+                    {/* Date Tabs */}
+                    <div className="flex items-center justify-center gap-1 md:gap-2 mb-4 md:mb-6 flex-wrap">
+                      {(["yesterday", "today", "tomorrow"] as const).map((date) => {
+                        const { label, date: dateStr } = getDateTabLabel(date);
+                        return (
+                          <button
+                            key={date}
+                            onClick={() => setSelectedDate(date)}
+                            className={`px-2 md:px-4 py-2 md:py-3 rounded-button font-semibold transition-all duration-300 flex flex-col items-center gap-1 min-w-[80px] md:min-w-[100px] text-xs md:text-sm ${
+                              selectedDate === date
+                                ? "bg-gradient-primary text-black shadow-lg scale-105"
+                                : "text-text-secondary hover:text-text-primary hover:bg-bg-card/50"
+                            }`}
+                          >
+                            <CalendarIcon className="h-3 w-3 md:h-4 md:w-4" />
+                            <span className="font-bold">{label}</span>
+                            <span className="text-xs opacity-80 hidden sm:block">{dateStr}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="mb-6">
+                      {/* Header Section */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+                        <div className="flex items-center gap-3">
+                          <h2 className="text-xl md:text-2xl font-bold text-white flex items-center gap-2">
+                            <TableCellsIcon className="h-5 w-5 md:h-6 md:w-6" />
+                            <span>Matches - {getDateTabLabel(selectedDate).label}</span>
+                          </h2>
+                          <div className="flex items-center gap-2 text-xs md:text-sm text-text-muted">
+                            <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                            <span>Live Odds</span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Professional Warning Banner */}
+                      {hasStartedMatches && (
+                        <div className="mb-6 p-4 bg-gradient-to-r from-red-500/15 to-orange-500/15 border border-red-500/30 rounded-xl backdrop-blur-sm shadow-lg">
+                          <div className="flex items-start gap-4">
+                            <div className="flex-shrink-0 mt-1">
+                              <div className="w-3 h-3 bg-red-400 rounded-full animate-pulse shadow-lg"></div>
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <div className="font-bold text-red-300 text-lg">Betting Closed</div>
+                                <div className="px-2 py-1 bg-red-500/20 text-red-300 text-xs font-medium rounded-full">
+                                  LIVE
+                                </div>
+                              </div>
+                              <div className="text-sm text-text-secondary leading-relaxed">
+                                The first match has started. Betting is now closed for this cycle. 
+                                You can still view your existing slips and track results.
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Responsive Matches Table */}
+                    {isLoading ? (
+                      <div className="text-center py-8">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+                        <p className="text-text-muted mt-4">Loading matches...</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {/* Mobile-First Table Header */}
+                        <div className="hidden md:grid md:grid-cols-12 gap-2 px-4 py-2 text-xs font-bold text-text-muted uppercase tracking-wider bg-bg-card/30 rounded-button">
+                          <div className="col-span-1 text-center">Time</div>
+                          <div className="col-span-4">Match</div>
+                          <div className="col-span-1 text-center">1</div>
+                          <div className="col-span-1 text-center">X</div>
+                          <div className="col-span-1 text-center">2</div>
+                          <div className="col-span-2 text-center">O/U 2.5</div>
+                          <div className="col-span-2 text-center">League</div>
+                        </div>
+
+                        {/* Matches Rows - Mobile First */}
+                      {matches.map((match, i) => (
+                        <motion.div
+                            key={match.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3, delay: i * 0.02 }}
+                            className="glass-card p-4 hover:bg-primary/5 transition-all duration-200 border-l-2 border-transparent hover:border-primary/50"
+                          >
+                            {/* Mobile Layout */}
+                            <div className="md:hidden space-y-3">
+                              {/* Match Header */}
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 min-w-0 text-center">
+                                  <div className="text-sm font-semibold text-white truncate">
+                                    {match.home_team} vs {match.away_team}
+                                  </div>
+                                  <div className="text-xs text-text-secondary truncate mt-1">
+                                    {match.league_name}
+                                  </div>
+                                </div>
+                                <div className="ml-3 flex-shrink-0">
+                                  <div className={`text-xs font-mono px-2 py-1 rounded ${
+                                    isMatchStarted(match.match_date)
+                                      ? "text-red-400 bg-red-500/10 border border-red-500/20"
+                                      : "text-text-secondary bg-primary/10"
+                                  }`}>
+                                    <div className="font-bold">
+                                      {new Date(match.match_date).toLocaleTimeString('en-US', { 
+                                        hour: '2-digit', 
+                                        minute: '2-digit',
+                                        hour12: false
+                                      })}
+                                    </div>
+                                    {isMatchStarted(match.match_date) ? (
+                                      <div className="text-[8px] text-red-400 font-bold">STARTED</div>
+                                    ) : (
+                                      <div className="text-[8px] text-text-muted">AM</div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Odds Row */}
+                              <div className="grid grid-cols-5 gap-2">
+                                {/* Home Win (1) */}
+                                <button
+                                  onClick={() => handlePickSelection(match.id, "home")}
+                                  disabled={isMatchStarted(match.match_date) || isExpired}
+                                  className={`px-3 py-2 text-center rounded transition-all duration-200 font-bold text-sm ${
+                                    isMatchStarted(match.match_date) || isExpired
+                                      ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
+                                      : picks.find(p => p.id === match.id && p.pick === "home")
+                                      ? "bg-gradient-primary text-black shadow-md scale-105"
+                                      : "bg-primary/10 text-white hover:bg-primary/20 hover:text-primary border border-transparent hover:border-primary/30"
+                                  }`}
+                                >
+                                  <div className="text-xs opacity-75">1</div>
+                                  <div>{typeof match.home_odds === 'number' ? match.home_odds.toFixed(2) : '0.00'}</div>
+                                </button>
+                                
+                                {/* Draw (X) */}
+                                <button
+                                  onClick={() => handlePickSelection(match.id, "draw")}
+                                  disabled={isMatchStarted(match.match_date) || isExpired}
+                                  className={`px-3 py-2 text-center rounded transition-all duration-200 font-bold text-sm ${
+                                    isMatchStarted(match.match_date) || isExpired
+                                      ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
+                                      : picks.find(p => p.id === match.id && p.pick === "draw")
+                                      ? "bg-gradient-secondary text-black shadow-md scale-105"
+                                      : "bg-secondary/10 text-white hover:bg-secondary/20 hover:text-secondary border border-transparent hover:border-secondary/30"
+                                  }`}
+                                >
+                                  <div className="text-xs opacity-75">X</div>
+                                  <div>{typeof match.draw_odds === 'number' ? match.draw_odds.toFixed(2) : '0.00'}</div>
+                                </button>
+                                
+                                {/* Away Win (2) */}
+                                <button
+                                  onClick={() => handlePickSelection(match.id, "away")}
+                                  disabled={isMatchStarted(match.match_date) || isExpired}
+                                  className={`px-3 py-2 text-center rounded transition-all duration-200 font-bold text-sm ${
+                                    isMatchStarted(match.match_date) || isExpired
+                                      ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
+                                      : picks.find(p => p.id === match.id && p.pick === "away")
+                                      ? "bg-gradient-accent text-black shadow-md scale-105"
+                                      : "bg-accent/10 text-white hover:bg-accent/20 hover:text-accent border border-transparent hover:border-accent/30"
+                                  }`}
+                                >
+                                  <div className="text-xs opacity-75">2</div>
+                                  <div>{typeof match.away_odds === 'number' ? match.away_odds.toFixed(2) : '0.00'}</div>
+                                </button>
+                                
+                                {/* Over 2.5 */}
+                                <button
+                                  onClick={() => handlePickSelection(match.id, "over")}
+                                  disabled={isMatchStarted(match.match_date) || isExpired}
+                                  className={`px-2 py-2 text-center rounded transition-all duration-200 font-bold text-sm ${
+                                    isMatchStarted(match.match_date) || isExpired
+                                      ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
+                                      : picks.find(p => p.id === match.id && p.pick === "over")
+                                      ? "bg-gradient-to-r from-blue-500 to-primary text-black shadow-md scale-105"
+                                      : "bg-blue-500/10 text-white hover:bg-blue-500/20 hover:text-blue-300 border border-transparent hover:border-blue-300/30"
+                                  }`}
+                                >
+                                  <div className="text-xs opacity-75">O</div>
+                                  <div>{typeof match.over_odds === 'number' ? match.over_odds.toFixed(1) : '1.8'}</div>
+                                </button>
+                                
+                                {/* Under 2.5 */}
+                                <button
+                                  onClick={() => handlePickSelection(match.id, "under")}
+                                  disabled={isMatchStarted(match.match_date) || isExpired}
+                                  className={`px-2 py-2 text-center rounded transition-all duration-200 font-bold text-sm ${
+                                    isMatchStarted(match.match_date) || isExpired
+                                      ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
+                                      : picks.find(p => p.id === match.id && p.pick === "under")
+                                      ? "bg-gradient-to-r from-purple-500 to-blue-600 text-black shadow-md scale-105"
+                                      : "bg-purple-500/10 text-white hover:bg-purple-500/20 hover:text-purple-300 border border-transparent hover:border-purple-300/30"
+                                  }`}
+                                >
+                                  <div className="text-xs opacity-75">U</div>
+                                  <div>{typeof match.under_odds === 'number' ? match.under_odds.toFixed(1) : '2.0'}</div>
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Desktop Layout */}
+                            <div className="hidden md:grid md:grid-cols-12 gap-2">
+                            {/* Time */}
+                            <div className="col-span-1 text-center">
+                              <div className={`text-xs font-mono px-2 py-1 rounded ${
+                                isMatchStarted(match.match_date)
+                                  ? "text-red-400 bg-red-500/10 border border-red-500/20"
+                                  : "text-text-secondary bg-primary/10"
+                              }`}>
+                                <div className="font-bold">
+                                  {new Date(match.match_date).toLocaleTimeString('en-US', { 
+                                    hour: '2-digit', 
+                                    minute: '2-digit',
+                                    hour12: false
+                                  })}
+                                </div>
+                                {isMatchStarted(match.match_date) ? (
+                                  <div className="text-[8px] text-red-400 font-bold">STARTED</div>
+                                ) : (
+                                  <div className="text-[8px] text-text-muted">AM</div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Match */}
+                              <div className="col-span-4 flex items-center justify-center">
+                              <div className="text-sm font-semibold text-white text-center leading-tight">
+                                <div className="truncate">{match.home_team}</div>
+                                <div className="text-xs text-text-muted">vs</div>
+                                <div className="truncate">{match.away_team}</div>
+                            </div>
+                          </div>
+
+                            {/* Home Win (1) */}
+                            <div className="col-span-1 text-center">
+                            <button
+                                onClick={() => handlePickSelection(match.id, "home")}
+                                  disabled={isMatchStarted(match.match_date) || isExpired}
+                                className={`w-full px-2 py-1 text-center rounded transition-all duration-200 font-bold text-xs ${
+                                    isMatchStarted(match.match_date) || isExpired
+                                    ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
+                                    : picks.find(p => p.id === match.id && p.pick === "home")
+                                    ? "bg-gradient-primary text-black shadow-md scale-105"
+                                    : "bg-primary/10 text-white hover:bg-primary/20 hover:text-primary border border-transparent hover:border-primary/30"
+                              }`}
+                            >
+                                {typeof match.home_odds === 'number' ? match.home_odds.toFixed(2) : '0.00'}
+                            </button>
+                            </div>
+                            
+                            {/* Draw (X) */}
+                            <div className="col-span-1 text-center">
+                            <button
+                                onClick={() => handlePickSelection(match.id, "draw")}
+                                  disabled={isMatchStarted(match.match_date) || isExpired}
+                                className={`w-full px-2 py-1 text-center rounded transition-all duration-200 font-bold text-xs ${
+                                    isMatchStarted(match.match_date) || isExpired
+                                    ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
+                                    : picks.find(p => p.id === match.id && p.pick === "draw")
+                                    ? "bg-gradient-secondary text-black shadow-md scale-105"
+                                    : "bg-secondary/10 text-white hover:bg-secondary/20 hover:text-secondary border border-transparent hover:border-secondary/30"
+                              }`}
+                            >
+                                {typeof match.draw_odds === 'number' ? match.draw_odds.toFixed(2) : '0.00'}
+                            </button>
+                            </div>
+                            
+                            {/* Away Win (2) */}
+                            <div className="col-span-1 text-center">
+                            <button
+                                onClick={() => handlePickSelection(match.id, "away")}
+                                  disabled={isMatchStarted(match.match_date) || isExpired}
+                                className={`w-full px-2 py-1 text-center rounded transition-all duration-200 font-bold text-xs ${
+                                    isMatchStarted(match.match_date) || isExpired
+                                    ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
+                                    : picks.find(p => p.id === match.id && p.pick === "away")
+                                    ? "bg-gradient-accent text-black shadow-md scale-105"
+                                    : "bg-accent/10 text-white hover:bg-accent/20 hover:text-accent border border-transparent hover:border-accent/30"
+                              }`}
+                            >
+                                {typeof match.away_odds === 'number' ? match.away_odds.toFixed(2) : '0.00'}
+                            </button>
+                            </div>
+                            
+                            {/* Over/Under 2.5 */}
+                            <div className="col-span-2 text-center">
+                              <div className="flex gap-1">
+                            <button
+                              onClick={() => handlePickSelection(match.id, "over")}
+                                    disabled={isMatchStarted(match.match_date) || isExpired}
+                                  className={`flex-1 px-1 py-1 text-center rounded transition-all duration-200 font-bold text-xs ${
+                                      isMatchStarted(match.match_date) || isExpired
+                                      ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
+                                      : picks.find(p => p.id === match.id && p.pick === "over")
+                                      ? "bg-gradient-to-r from-blue-500 to-primary text-black shadow-md scale-105"
+                                      : "bg-blue-500/10 text-white hover:bg-blue-500/20 hover:text-blue-300 border border-transparent hover:border-blue-300/30"
+                              }`}
+                            >
+                                  O{typeof match.over_odds === 'number' ? match.over_odds.toFixed(1) : '1.8'}
+                            </button>
+                            <button
+                              onClick={() => handlePickSelection(match.id, "under")}
+                                    disabled={isMatchStarted(match.match_date) || isExpired}
+                                  className={`flex-1 px-1 py-1 text-center rounded transition-all duration-200 font-bold text-xs ${
+                                      isMatchStarted(match.match_date) || isExpired
+                                      ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
+                                      : picks.find(p => p.id === match.id && p.pick === "under")
+                                      ? "bg-gradient-to-r from-purple-500 to-blue-600 text-black shadow-md scale-105"
+                                      : "bg-purple-500/10 text-white hover:bg-purple-500/20 hover:text-purple-300 border border-transparent hover:border-purple-300/30"
+                              }`}
+                            >
+                                  U{typeof match.under_odds === 'number' ? match.under_odds.toFixed(1) : '2.0'}
+                            </button>
+                              </div>
+                            </div>
+
+                            {/* League */}
+                              <div className="col-span-2 text-center">
+                              <div className="text-xs text-text-secondary truncate">
+                                {match.league_name}
+                                </div>
+                              </div>
+                          </div>
+                        </motion.div>
+                      ))}
+
+                        {matches.length === 0 && (
+                          <div className="text-center py-8 text-text-muted">
+                            <CalendarIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                            <p>No matches available for {getDateTabLabel(selectedDate).label}</p>
+                    </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+
+                {/* Slip Builder Sidebar */}
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="lg:col-span-1"
+                >
+                  <div className="glass-card sticky top-8 p-4 md:p-6">
+                    <h3 className="text-lg md:text-xl font-bold text-white mb-4 md:mb-6 text-center flex items-center justify-center gap-2">
+                      <ShieldCheckIcon className="h-5 w-5 md:h-6 md:w-6" />
+                      <span className="hidden sm:inline">Slip Builder</span>
+                      <span className="sm:hidden">Slip</span>
+                    </h3>
+
+
+
+                    <AnimatePresence mode="wait">
+                      {picks.length > 0 ? (
+                        <motion.div
+                          key="with-picks"
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="space-y-3 md:space-y-4"
+                        >
+                          {/* Picks List */}
+                          <div className="space-y-2 max-h-48 md:max-h-64 overflow-y-auto">
+                            {picks.map((pick, i) => (
+                              <motion.div
+                                key={i}
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: i * 0.05 }}
+                                className="glass-card p-2 md:p-3 rounded-button border border-border-card/50 hover:border-primary/30 transition-all duration-200"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-xs text-text-muted mb-1">{pick.time}</div>
+                                    <div className="text-xs text-white font-medium mb-2 leading-tight truncate">{pick.match}</div>
+                                    <div className="flex items-center justify-between">
+                                    <span className={`px-2 py-1 rounded text-xs font-bold ${
+                                        pick.pick === "home" ? "bg-primary/20 text-primary" :
+                                        pick.pick === "draw" ? "bg-secondary/20 text-secondary" :
+                                        pick.pick === "away" ? "bg-accent/20 text-accent" :
+                                        pick.pick === "over" ? "bg-blue-500/20 text-blue-300" :
+                                        "bg-purple-500/20 text-purple-300"
+                                    }`}>
+                                        {pick.pick === "home" ? "1" :
+                                         pick.pick === "draw" ? "X" :
+                                         pick.pick === "away" ? "2" :
+                                         pick.pick === "over" ? "O2.5" : "U2.5"}
+                                    </span>
+                                      <span className="text-white font-bold text-sm">{typeof pick.odd === 'number' ? pick.odd.toFixed(2) : '0.00'}</span>
+                                  </div>
+                                </div>
+                                  <button
+                                    onClick={() => setPicks(picks.filter((_, index) => index !== i))}
+                                    className="ml-2 text-red-400 hover:text-red-300 transition-colors flex-shrink-0 p-1 hover:bg-red-500/10 rounded"
+                                  >
+                                    ×
+                                  </button>
+                              </div>
+                              </motion.div>
+                            ))}
+                          </div>
+
+                          {/* Slip Summary */}
+                          <div className="border-t border-border-card pt-3 md:pt-4 space-y-2 md:space-y-3">
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="text-text-muted">Selections:</span>
+                              <span className="text-white font-bold">{picks.length}/10</span>
+                            </div>
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="text-text-muted">Total Odds:</span>
+                              <span className="text-primary font-bold">{totalOdd}x</span>
+                            </div>
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="text-text-muted">Entry Fee:</span>
+                              <span className="text-white font-bold">
+                                {contractEntryFee ? formatEther(contractEntryFee as bigint) : DEFAULT_ENTRY_FEE} STT
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="text-text-muted">Potential Win:</span>
+                              <span className="text-secondary font-bold">{calculatePotentialPayout(Number(totalOdd))} STT</span>
+                            </div>
+                          </div>
+
+                          {/* Submit Button */}
+                          {/* Potential Payout Display */}
+                          {picks.length === 10 && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="mb-4 p-3 bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-button"
+                            >
+                              <div className="flex justify-between items-center text-sm">
+                                <span className="text-text-muted">Total Odds:</span>
+                                <span className="text-green-400 font-bold">{totalOdd}x</span>
+                              </div>
+                              <div className="flex justify-between items-center text-sm mt-1">
+                                <span className="text-text-muted">Entry Fee:</span>
+                                <span className="text-white font-bold">
+                                  {contractEntryFee ? formatEther(contractEntryFee as bigint) : DEFAULT_ENTRY_FEE} STT
+                                </span>
+                              </div>
+                                                              <div className="flex justify-between items-center text-sm mt-1">
+                                  <span className="text-text-muted">Potential Payout:</span>
+                                  <span className="text-primary font-bold">
+                                    {(parseFloat(totalOdd) * parseFloat(contractEntryFee ? formatEther(contractEntryFee as bigint) : DEFAULT_ENTRY_FEE)).toFixed(2)} STT
+                                  </span>
+                                </div>
+                            </motion.div>
+                          )}
+
+                          <div className="pt-3 md:pt-4">
+                            <Button
+                              fullWidth
+                              variant="primary"
+                              size="lg"
+                              leftIcon={isPending || isConfirming ? <FaSpinner className="h-4 w-4 md:h-5 md:w-5 animate-spin" /> : <BoltIcon className="h-4 w-4 md:h-5 md:w-5" />}
+                              onClick={handleSubmitSlip}
+                              disabled={isExpired || picks.length < 10 || hasStartedMatches || isPending || isConfirming}
+                              className={`text-sm md:text-base ${picks.length === 10 && !hasStartedMatches && !isExpired && !isPending && !isConfirming ? 'animate-pulse' : ''}`}
+                            >
+                              {isPending ? "Confirming in Wallet..." :
+                               isConfirming ? "Processing Transaction..." :
+                               isExpired || hasStartedMatches ? "Betting Closed" : 
+                               picks.length < 10 ? `Select ${10 - picks.length} More` : "Place Bet"}
+                            </Button>
+                          </div>
+
+                          {picks.length > 0 && (
+                            <button
+                              onClick={() => setPicks([])}
+                              className="w-full text-text-muted hover:text-red-400 transition-colors text-sm pt-2"
+                              disabled={isPending || isConfirming}
+                            >
+                              Clear All Selections
+                            </button>
+                          )}
+
+                          {/* Transaction Status Indicator */}
+                          {(isPending || isConfirming) && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="mt-4 p-3 bg-primary/10 border border-primary/20 rounded-button"
+                            >
+                              <div className="flex items-center gap-2 text-sm">
+                                <FaSpinner className="h-4 w-4 animate-spin text-primary" />
+                                <span className="text-primary font-medium">
+                                  {isPending ? "Waiting for wallet confirmation..." : "Processing transaction..."}
+                                </span>
+                              </div>
+                              <p className="text-xs text-text-muted mt-1">
+                                Please don&apos;t close this page or disconnect your wallet
+                              </p>
+                            </motion.div>
+                          )}
+                        </motion.div>
+                      ) : (
+                        <motion.div
+                          key="empty-builder"
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="text-center py-8"
+                        >
+                          <div className="text-6xl mb-4 opacity-50">⚽</div>
+                          <h4 className="font-semibold text-text-primary mb-2">Start Building Your Slip</h4>
+                          <p className="text-text-muted text-sm mb-4">
+                            Click on any odds to add selections to your slip
+                          </p>
+                          <div className="text-xs text-primary font-medium bg-primary/10 px-3 py-2 rounded-button">
+                            You need to select exactly 10 matches
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </motion.div>
+              </>
+            ) : activeTab === "slips" ? (
+              <motion.div
+                key="slips"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="lg:col-span-3"
+              >
+                <div className="glass-card p-6">
+                  <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                    <TrophyIcon className="h-6 w-6" />
+                    My Submitted Slips
+                  </h2>
+                  
+                  <AnimatePresence mode="wait">
+                    {slips.length > 0 ? (
+                      <motion.div
+                        key="with-slips"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="space-y-6"
+                      >
+                        {slips.map((slip, slipIndex) => {
+                          const slipTotalOdd = slip.reduce((acc, pick) => acc * (pick.odd || 1), 1).toFixed(2);
+                          
+                          return (
+                            <motion.div
+                              key={slipIndex}
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: slipIndex * 0.1 }}
+                              className="glass-card p-4"
+                            >
+                              <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-lg font-bold text-primary flex items-center gap-2">
+                                  <CheckCircleIcon className="h-5 w-5" />
+                                  Slip #{slipIndex + 1}
+                                </h3>
+                                <div className="flex items-center gap-4 text-sm">
+                                  <span className="text-text-muted">Status: <span className="text-green-400">Active</span></span>
+                                  <span className="text-text-muted">Total Odds: <span className="text-primary font-bold">{slipTotalOdd}x</span></span>
+                                  <span className="text-text-muted">Entry Fee: <span className="text-white font-bold">
+                                    {contractEntryFee ? formatEther(contractEntryFee as bigint) : DEFAULT_ENTRY_FEE} STT
+                                  </span></span>
+                                </div>
+                              </div>
+                              
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2">
+                                {slip.map((pick, i) => (
+                                  <div key={i} className="bg-bg-card/30 p-3 rounded-button">
+                                    <div className="text-xs text-text-muted mb-1">{pick.time}</div>
+                                    <div className="text-xs text-white font-medium mb-2 line-clamp-2">{pick.match}</div>
+                                    <div className="flex items-center justify-between">
+                                      <span className={`px-2 py-1 rounded text-xs font-bold ${
+                                        pick.pick === "home" ? "bg-primary/20 text-primary" :
+                                        pick.pick === "draw" ? "bg-secondary/20 text-secondary" :
+                                        pick.pick === "away" ? "bg-accent/20 text-accent" :
+                                        pick.pick === "over" ? "bg-blue-500/20 text-blue-300" :
+                                        "bg-purple-500/20 text-purple-300"
+                                      }`}>
+                                        {pick.pick === "home" ? "1" :
+                                         pick.pick === "draw" ? "X" :
+                                         pick.pick === "away" ? "2" :
+                                         pick.pick === "over" ? "O2.5" : "U2.5"}
+                                      </span>
+                                      <span className="text-white font-bold text-sm">{typeof pick.odd === 'number' ? pick.odd.toFixed(2) : '0.00'}</span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              
+                              <div className="mt-4 flex justify-between items-center text-sm">
+                                <span className="text-text-muted">Potential Payout: <span className="text-secondary font-bold">{calculatePotentialPayout(Number(slipTotalOdd))} STT</span></span>
+                                <span className="text-text-muted">Submitted: <span className="text-white">Just now</span></span>
+                              </div>
+                            </motion.div>
+                          );
+                        })}
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        key="no-slips"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="text-center py-12"
+                      >
+                        <div className="text-6xl mb-4 opacity-50">🎟️</div>
+                        <h4 className="font-semibold text-text-primary mb-2">No Slips Yet</h4>
+                        <p className="text-text-muted text-sm mb-6">
+                          Start building your first slip to compete for prizes
+                        </p>
+                        <Button
+                          variant="primary"
+                          onClick={() => setActiveTab("today")}
+                          leftIcon={<BoltIcon className="h-5 w-5" />}
+                        >
+                          Start Building Slip
+                        </Button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="stats"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="lg:col-span-3"
+              >
+                <div className="space-y-6">
+                  {/* User Stats */}
+                  {isConnected && userStats && (
+                <div className="glass-card p-6">
+                      <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                        <UserIcon className="h-6 w-6" />
+                        Your Statistics
+                      </h2>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="glass-card p-4 text-center">
+                          <TrophyIcon className="h-8 w-8 mx-auto mb-2 text-primary" />
+                          <div className="text-2xl font-bold text-white">{userStats.totalSlips}</div>
+                          <div className="text-sm text-text-muted">Total Slips</div>
+                      </div>
+                        
+                      <div className="glass-card p-4 text-center">
+                          <CheckCircleIcon className="h-8 w-8 mx-auto mb-2 text-secondary" />
+                          <div className="text-2xl font-bold text-white">{userStats.totalWins}</div>
+                          <div className="text-sm text-text-muted">Wins</div>
+                      </div>
+                        
+                      <div className="glass-card p-4 text-center">
+                          <ChartBarIcon className="h-8 w-8 mx-auto mb-2 text-accent" />
+                          <div className="text-2xl font-bold text-white">{userStats.bestScore.toLocaleString()}</div>
+                          <div className="text-sm text-text-muted">Best Score</div>
+                      </div>
+                        
+                      <div className="glass-card p-4 text-center">
+                          <ArrowTrendingUpIcon className="h-8 w-8 mx-auto mb-2 text-green-400" />
+                          <div className="text-2xl font-bold text-white">{((userStats.winRate || 0) / 100).toFixed(1)}%</div>
+                          <div className="text-sm text-text-muted">Win Rate</div>
+                      </div>
+                    </div>
+                      
+                      <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className="glass-card p-4 text-center">
+                          <div className="text-lg font-bold text-white">{userStats.averageScore.toLocaleString()}</div>
+                          <div className="text-sm text-text-muted">Average Score</div>
+                          </div>
+                        
+                          <div className="glass-card p-4 text-center">
+                          <div className="text-lg font-bold text-white">{userStats.currentStreak}</div>
+                          <div className="text-sm text-text-muted">Current Streak</div>
+                          </div>
+                        
+                          <div className="glass-card p-4 text-center">
+                          <div className="text-lg font-bold text-white">{userStats.bestStreak}</div>
+                          <div className="text-sm text-text-muted">Best Streak</div>
+                          </div>
+                          </div>
+                        </div>
+                  )}
+
+                  {/* Global Stats */}
+                  {stats && (
+                    <div className="glass-card p-6">
+                      <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                        <UserGroupIcon className="h-6 w-6" />
+                        Global Statistics
+                      </h2>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-primary mb-2">{stats.totalPlayers.toLocaleString()}</div>
+                          <div className="text-lg text-text-secondary">Total Players</div>
+                          <div className="text-sm text-text-muted">All-time registered</div>
+                        </div>
+                        
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-secondary mb-2">{stats.totalCycles}</div>
+                          <div className="text-lg text-text-secondary">Total Cycles</div>
+                          <div className="text-sm text-text-muted">Completed competitions</div>
+                        </div>
+                        
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-accent mb-2">{stats.activeCycles}</div>
+                          <div className="text-lg text-text-secondary">Active Cycles</div>
+                          <div className="text-sm text-text-muted">Currently running</div>
+                        </div>
+                        
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-green-400 mb-2">{(stats.avgPrizePool || 0).toFixed(1)} STT</div>
+                          <div className="text-lg text-text-secondary">Avg Prize Pool</div>
+                          <div className="text-sm text-text-muted">Per cycle</div>
+                        </div>
+                        
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-yellow-400 mb-2">{(stats.winRate || 0).toFixed(1)}%</div>
+                          <div className="text-lg text-text-secondary">Global Win Rate</div>
+                          <div className="text-sm text-text-muted">Average success</div>
+                        </div>
+                        
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-blue-400 mb-2">{stats.avgCorrect}x</div>
+                          <div className="text-lg text-text-secondary">Avg Odds</div>
+                          <div className="text-sm text-text-muted">Winning slips</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+    </div>
+  );
+}

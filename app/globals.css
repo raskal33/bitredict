@@ -1,0 +1,608 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Dark Theme Design System - CSS Custom Properties */
+:root {
+  /* Background Colors */
+  --bg-main: #0A0A1A;
+  --bg-card: rgba(22, 24, 48, 0.6);
+  --bg-overlay: rgba(0, 0, 0, 0.5);
+  
+  /* Border Colors */
+  --border-card: rgba(255, 255, 255, 0.1);
+  --border-input: rgba(255, 255, 255, 0.1);
+  
+  /* Text Colors */
+  --text-primary: #FFFFFF;
+  --text-secondary: #E4E4FA;
+  --text-muted: #C2C2D6;
+  --text-accent: #22C7FF;
+  
+  /* Somnia Brand Colors */
+  --somnia-cyan: #22C7FF;
+  --somnia-blue: #007BFF;
+  --somnia-violet: #8C00FF;
+  --somnia-magenta: #FF0080;
+  --somnia-indigo: #3C00A5;
+  
+  /* Semantic Colors */
+  --color-accent: #22C7FF;
+  --color-accent-2: #FF0080;
+  --color-success: #00D9A5;
+  --color-warning: #FFB800;
+  --color-error: #FF4757;
+  
+  /* Alias for easier access */
+  --primary: var(--color-accent);
+  --secondary: var(--color-accent-2);
+  --accent: var(--somnia-violet);
+  
+  /* Gradients */
+  --gradient-main: radial-gradient(circle at top left, #0C0C23, #000015);
+  --gradient-somnia: linear-gradient(135deg, var(--somnia-cyan) 0%, var(--somnia-blue) 25%, var(--somnia-violet) 50%, var(--somnia-magenta) 75%, var(--somnia-indigo) 100%);
+  --gradient-primary: linear-gradient(135deg, var(--somnia-cyan) 0%, var(--somnia-blue) 100%);
+  --gradient-secondary: linear-gradient(135deg, var(--somnia-magenta) 0%, var(--somnia-violet) 100%);
+  
+  /* Spacing */
+  --section-padding: clamp(2rem, 5vw, 4rem);
+  --container-padding: clamp(1rem, 3vw, 2rem);
+}
+
+/* Base Styles */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: var(--gradient-main);
+  min-height: 100vh;
+  color: var(--text-secondary);
+}
+
+/* Component Base Classes */
+@layer components {
+  .container {
+    @apply max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-16 2xl:px-20;
+  }
+
+  .container-wide {
+    @apply max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-16 2xl:px-20;
+  }
+
+  /* Ensure consistent container alignment */
+  .container-nav {
+    @apply mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-8 xl:px-16 2xl:px-20;
+  }
+
+  .section-padding {
+    @apply py-16 sm:py-20 lg:py-24;
+  }
+
+  /* Glassmorphism Card */
+  .glass-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    backdrop-filter: blur(12px);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+  }
+
+  .glass-card:hover {
+    background: rgba(22, 24, 48, 0.8);
+    border-color: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+    transform: translateY(-2px);
+  }
+
+  /* Modern Buttons */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-6 py-3 border border-transparent text-base font-medium rounded-button transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-primary {
+    background: var(--color-accent);
+    color: #000;
+    box-shadow: 0 4px 16px rgba(34, 199, 255, 0.2);
+    font-weight: 600;
+  }
+
+  .btn-primary:hover {
+    filter: brightness(1.1);
+    transform: scale(1.02);
+    box-shadow: 0 6px 20px rgba(34, 199, 255, 0.4);
+  }
+
+  .btn-secondary {
+    background: var(--color-accent-2);
+    color: #fff;
+    box-shadow: 0 4px 16px rgba(255, 0, 128, 0.2);
+    font-weight: 600;
+  }
+
+  .btn-secondary:hover {
+    filter: brightness(1.1);
+    transform: scale(1.02);
+    box-shadow: 0 6px 20px rgba(255, 0, 128, 0.4);
+  }
+
+  .btn-outline {
+    background: transparent;
+    border: 2px solid var(--color-accent);
+    color: var(--color-accent);
+  }
+
+  .btn-outline:hover {
+    background: var(--color-accent);
+    color: #000;
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text-muted);
+  }
+
+  .btn-ghost:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+  }
+
+  /* Gradient Text */
+  .gradient-text {
+    background: var(--gradient-somnia);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-size: 200% 200%;
+    animation: gradient-flow 3s ease infinite;
+  }
+
+  /* Navigation Header */
+  .nav-glass {
+    background: rgba(10, 10, 26, 0.8);
+    border-bottom: 1px solid var(--border-card);
+    backdrop-filter: blur(16px);
+  }
+
+  /* Stats Cards */
+  .stats-card {
+    @apply glass-card text-center;
+  }
+
+  .stats-card .stat-value {
+    @apply text-2xl font-bold gradient-text mb-1;
+  }
+
+  .stats-card .stat-label {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+  }
+
+  /* Pool Cards */
+  .pool-card {
+    @apply glass-card cursor-pointer overflow-hidden;
+    transition: all 0.3s ease;
+  }
+
+  .pool-card:hover {
+    transform: translateY(-5px);
+  }
+
+  .trending-badge {
+    background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+    color: white;
+    font-size: 0.75rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .category-badge {
+    background: var(--gradient-primary);
+    color: #000;
+    font-size: 0.75rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-weight: 600;
+  }
+
+  /* Enhanced Card Designs */
+  .prediction-card {
+    position: relative;
+    overflow: hidden;
+    border-radius: 16px;
+    backdrop-filter: blur(20px);
+    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .prediction-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  }
+
+  .prediction-card:hover {
+    transform: translateY(-8px) scale(1.02);
+  }
+
+  /* Gradient Radial Background */
+  .bg-gradient-radial {
+    background: radial-gradient(circle, var(--tw-gradient-stops));
+  }
+
+  /* Line Clamp Utility */
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+/* Utilities */
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .animate-shimmer {
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.1),
+      transparent
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+  }
+
+  /* Enhanced Shimmer Effect */
+  .shimmer-effect {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .shimmer-effect::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.2),
+      transparent
+    );
+    animation: shimmer-slide 2s infinite;
+  }
+
+  @keyframes shimmer-slide {
+    0% {
+      left: -100%;
+    }
+    100% {
+      left: 100%;
+    }
+  }
+
+  /* Glow Effects */
+  .glow-cyan {
+    box-shadow: 0 0 20px rgba(34, 199, 255, 0.3);
+  }
+
+  .glow-magenta {
+    box-shadow: 0 0 20px rgba(255, 0, 128, 0.3);
+  }
+
+  .glow-violet {
+    box-shadow: 0 0 20px rgba(140, 0, 255, 0.3);
+  }
+
+  /* Somnia Color Utilities */
+  .text-somnia-cyan { color: var(--somnia-cyan); }
+  .text-somnia-blue { color: var(--somnia-blue); }
+  .text-somnia-violet { color: var(--somnia-violet); }
+  .text-somnia-magenta { color: var(--somnia-magenta); }
+  .text-somnia-indigo { color: var(--somnia-indigo); }
+  
+  .bg-somnia-cyan { background-color: var(--somnia-cyan); }
+  .bg-somnia-blue { background-color: var(--somnia-blue); }
+  .bg-somnia-violet { background-color: var(--somnia-violet); }
+  .bg-somnia-magenta { background-color: var(--somnia-magenta); }
+  .bg-somnia-indigo { background-color: var(--somnia-indigo); }
+  
+  .from-somnia-cyan { --tw-gradient-from: var(--somnia-cyan); }
+  .to-somnia-blue { --tw-gradient-to: var(--somnia-blue); }
+  .from-somnia-magenta { --tw-gradient-from: var(--somnia-magenta); }
+  .to-somnia-violet { --tw-gradient-to: var(--somnia-violet); }
+  .from-somnia-blue { --tw-gradient-from: var(--somnia-blue); }
+  .to-somnia-indigo { --tw-gradient-to: var(--somnia-indigo); }
+
+  /* Animated Gradient Borders */
+  .gradient-border {
+    position: relative;
+    background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    background-size: 200% 200%;
+    animation: gradient-border-flow 3s ease infinite;
+  }
+
+  @keyframes gradient-border-flow {
+    0%, 100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+}
+
+/* Animation Improvements */
+@media (prefers-reduced-motion: no-preference) {
+  .animate-on-scroll {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+  }
+
+  .animate-on-scroll.in-view {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* Floating Animation */
+  .float-animation {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+}
+
+/* Focus Styles */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Selection Styles */
+::selection {
+  background-color: rgba(34, 199, 255, 0.3);
+  color: var(--text-primary);
+}
+
+/* Custom Swiper Styles */
+.swiper-button-next,
+.swiper-button-prev {
+  color: var(--color-accent) !important;
+}
+
+.swiper-pagination-bullet {
+  background: rgba(255, 255, 255, 0.3) !important;
+}
+
+.swiper-pagination-bullet-active {
+  background: var(--color-accent) !important;
+}
+
+/* Wallet Button Custom Styling */
+.wallet-adapter-button {
+  @apply btn-outline !important;
+  font-family: var(--font-onest) !important;
+  border-radius: 12px !important;
+}
+
+.wallet-adapter-button:not([disabled]):hover {
+  box-shadow: 0 0 20px rgba(34, 199, 255, 0.3) !important;
+}
+
+/* Swiper Pagination Styles */
+.trending-swiper .swiper-pagination {
+  position: static !important;
+  margin-top: 1.5rem;
+}
+
+.trending-swiper .swiper-pagination-bullet {
+  background: rgba(34, 199, 255, 0.3) !important;
+  opacity: 1 !important;
+  width: 12px !important;
+  height: 12px !important;
+  margin: 0 6px !important;
+  transition: all 0.3s ease !important;
+}
+
+.trending-swiper .swiper-pagination-bullet-active {
+  background: #22C7FF !important;
+  transform: scale(1.2) !important;
+}
+
+/* Line clamp utilities */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-wrap: break-word;
+  hyphens: auto;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-wrap: break-word;
+  hyphens: auto;
+}
+
+/* Enhanced animations */
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-in-up {
+  animation: slideInUp 0.6s ease-out;
+}
+
+/* Loading spinner */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes gradient-flow {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+/* Reown AppKit Custom Styling */
+w3m-modal,
+w3m-network-button,
+w3m-connect-button,
+w3m-account-button {
+  --w3m-font-family: var(--font-onest), system-ui, sans-serif !important;
+  --w3m-accent: #22C7FF !important;
+  --w3m-color-mix: #22C7FF !important;
+  --w3m-color-mix-strength: 20 !important;
+  --w3m-border-radius-master: 12px !important;
+  
+  /* Background colors to match Somnia design */
+  --w3m-background-color: #0A0A1A !important;
+  --w3m-foreground-color: rgba(22, 24, 48, 0.95) !important;
+  
+  /* Text colors */
+  --w3m-text-primary-color: #FFFFFF !important;
+  --w3m-text-secondary-color: #C2C2D6 !important;
+  --w3m-text-tertiary-color: #8A8AA8 !important;
+  
+  /* Button colors */
+  --w3m-button-primary-color: #22C7FF !important;
+  --w3m-button-secondary-color: rgba(255, 255, 255, 0.05) !important;
+  
+  /* Border colors */
+  --w3m-border-color: rgba(255, 255, 255, 0.1) !important;
+  --w3m-overlay-background-color: rgba(0, 0, 0, 0.8) !important;
+}
+
+/* Ensure AppKit buttons are compact and minimal */
+w3m-connect-button,
+w3m-account-button,
+w3m-network-button {
+  --w3m-button-size: 40px !important;
+  --w3m-button-border-radius: 12px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+}
+
+/* Custom styling for wallet modal */
+w3m-modal::part(modal) {
+  backdrop-filter: blur(20px) !important;
+  background: rgba(10, 10, 26, 0.95) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+}
+
+w3m-modal::part(overlay) {
+  background: rgba(0, 0, 0, 0.8) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+/* Style wallet buttons in the modal */
+w3m-modal .w3m-wallet-button {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 12px !important;
+  transition: all 0.2s ease !important;
+}
+
+w3m-modal .w3m-wallet-button:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(34, 199, 255, 0.3) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Ensure proper z-index */
+w3m-modal {
+  z-index: 9999 !important;
+}
+
+.nav-glass {
+  background-color: rgba(10, 10, 26, 0.8);
+}
+
+/* Logo color shifting animation */
+.logo-color-shift {
+  animation: somnia-color-cycle 8s linear infinite;
+}
+
+@keyframes somnia-color-cycle {
+  0% {
+    filter: hue-rotate(0deg);
+  }
+  25% {
+    filter: hue-rotate(90deg);
+  }
+  50% {
+    filter: hue-rotate(180deg);
+  }
+  75% {
+    filter: hue-rotate(270deg);
+  }
+  100% {
+    filter: hue-rotate(360deg);
+  }
+}
+
+
