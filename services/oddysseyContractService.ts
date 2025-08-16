@@ -172,12 +172,13 @@ export function useOddysseyContract() {
       throw new Error('Oddyssey contract address not configured');
     }
 
-    // Validate that we have current matches from contract (optional validation)
+    // Validate that we have current matches from contract
     if (!currentMatches || !Array.isArray(currentMatches) || currentMatches.length !== 10) {
-      console.warn('⚠️ Contract matches not available, proceeding with backend data validation');
+      throw new Error('No active matches found in contract. Please wait for the next cycle.');
     }
 
-    // Validate matches using new contract validation endpoint (no redundant API calls)
+    // Get contract matches for proper ordering
+    let contractMatchesData;
     try {
       const response = await apiRequest<{
         success: boolean;
@@ -186,31 +187,43 @@ export function useOddysseyContract() {
           matchCount: number;
           expectedCount: number;
           isValid: boolean;
+          contractMatches: any[];
         };
       }>('/api/oddyssey/contract-validation');
 
       if (!response.success || !response.validation?.isValid) {
-        throw new Error('No active matches found. Please wait for the next cycle.');
+        throw new Error('No active matches found in contract. Please wait for the next cycle.');
       }
 
+      contractMatchesData = response.validation.contractMatches;
       console.log('✅ Contract validation successful - matches available');
     } catch (error) {
       console.error('❌ Contract validation failed:', error);
-      // Don't throw error here, just log it and continue
-      // The OddysseyService already validates matches successfully
-      console.log('⚠️ Contract validation failed, but OddysseyService validation passed - proceeding with slip placement');
+      throw new Error('No active matches found in contract. Please wait for the next cycle.');
     }
 
-    // Convert predictions to contract format
-    const contractPredictions = predictions.map((pred, index) => {
-      // Optional validation against contract data if available
-      if (currentMatches && Array.isArray(currentMatches) && currentMatches[index]) {
-        const contractMatch = currentMatches[index];
-        if (contractMatch && typeof contractMatch === 'object' && 'id' in contractMatch) {
-          if (contractMatch.id !== BigInt(pred.id)) {
-            console.warn(`⚠️ Match ID mismatch for index ${index}: contract=${contractMatch.id}, prediction=${pred.id}`);
-          }
-        }
+    // CRITICAL FIX: Reorder predictions to match contract order
+    const orderedPredictions = contractMatchesData.map((contractMatch: any, index: number) => {
+      // Find the user's prediction for this contract match
+      const userPrediction = predictions.find(pred => 
+        // Use fixture_id for matching since that's what the contract uses
+        pred.matchId.toString() === contractMatch.id.toString()
+      );
+      
+      if (!userPrediction) {
+        throw new Error(`Missing prediction for match ${contractMatch.id} at position ${index + 1}`);
+      }
+      
+      console.log(`✅ Match ${index + 1}: Contract ID ${contractMatch.id} -> User prediction for ${userPrediction.matchId}`);
+      return userPrediction;
+    });
+
+    // Convert predictions to contract format in the correct order
+    const contractPredictions = orderedPredictions.map((pred, index) => {
+      // Validate against contract data
+      const contractMatch = contractMatchesData[index];
+      if (contractMatch && pred.matchId.toString() !== contractMatch.id.toString()) {
+        throw new Error(`Match order mismatch at position ${index + 1}: expected ${contractMatch.id}, got ${pred.matchId}`);
       }
       
       return OddysseyContractService.formatPredictionForContract(pred);

@@ -340,7 +340,7 @@ export default function OddysseyPage() {
       const submitToBackend = async () => {
         try {
           const predictions = picks.map(pick => ({
-            matchId: pick.id,
+            matchId: pick.id, // This is now fixture_id
             prediction: pick.pick === "home" ? "1" : 
                        pick.pick === "draw" ? "X" : 
                        pick.pick === "away" ? "2" : 
@@ -471,7 +471,7 @@ export default function OddysseyPage() {
   }, [matches, calculateTimeLeft]); // Include calculateTimeLeft in dependencies
 
   const handlePickSelection = (matchId: number, pick: "home" | "draw" | "away" | "over" | "under") => {
-    const match = matches.find(m => m.id === matchId);
+    const match = matches.find(m => m.fixture_id === matchId);
     if (!match) return;
 
     // Check if match has already started
@@ -517,7 +517,7 @@ export default function OddysseyPage() {
 
     if (filteredPicks.length < 10) {
       const newPick: Pick = {
-            id: matchId,
+            id: matchId, // matchId is now fixture_id
         time: new Date(match.match_date).toLocaleTimeString('en-US', { 
           hour: '2-digit', 
           minute: '2-digit' 
@@ -563,7 +563,7 @@ export default function OddysseyPage() {
     // Check if any selected matches have started
     const now = new Date();
     const hasStartedMatch = picks.some(pick => {
-      const match = matches.find(m => m.id === pick.id);
+      const match = matches.find(m => m.fixture_id === pick.id);
       if (!match) return false;
       const matchStartTime = new Date(match.match_date);
       return matchStartTime <= now;
@@ -587,7 +587,7 @@ export default function OddysseyPage() {
       
       // Format predictions for contract
       const predictions = picks.map(pick => ({
-        matchId: pick.id,
+        matchId: pick.id, // This is now fixture_id
         prediction: pick.pick === "home" ? "1" : 
                    pick.pick === "draw" ? "X" : 
                    pick.pick === "away" ? "2" : 
@@ -987,12 +987,12 @@ export default function OddysseyPage() {
                               <div className="grid grid-cols-5 gap-2">
                                 {/* Home Win (1) */}
                                 <button
-                                  onClick={() => handlePickSelection(match.id, "home")}
+                                  onClick={() => handlePickSelection(match.fixture_id, "home")}
                                   disabled={isMatchStarted(match.match_date) || isExpired}
                                   className={`px-3 py-2 text-center rounded transition-all duration-200 font-bold text-sm ${
                                     isMatchStarted(match.match_date) || isExpired
                                       ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
-                                      : picks.find(p => p.id === match.id && p.pick === "home")
+                                      : picks.find(p => p.id === match.fixture_id && p.pick === "home")
                                       ? "bg-gradient-primary text-black shadow-md scale-105"
                                       : "bg-primary/10 text-white hover:bg-primary/20 hover:text-primary border border-transparent hover:border-primary/30"
                                   }`}
@@ -1003,12 +1003,12 @@ export default function OddysseyPage() {
                                 
                                 {/* Draw (X) */}
                                 <button
-                                  onClick={() => handlePickSelection(match.id, "draw")}
+                                  onClick={() => handlePickSelection(match.fixture_id, "draw")}
                                   disabled={isMatchStarted(match.match_date) || isExpired}
                                   className={`px-3 py-2 text-center rounded transition-all duration-200 font-bold text-sm ${
                                     isMatchStarted(match.match_date) || isExpired
                                       ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
-                                      : picks.find(p => p.id === match.id && p.pick === "draw")
+                                      : picks.find(p => p.id === match.fixture_id && p.pick === "draw")
                                       ? "bg-gradient-secondary text-black shadow-md scale-105"
                                       : "bg-secondary/10 text-white hover:bg-secondary/20 hover:text-secondary border border-transparent hover:border-secondary/30"
                                   }`}
@@ -1019,12 +1019,12 @@ export default function OddysseyPage() {
                                 
                                 {/* Away Win (2) */}
                                 <button
-                                  onClick={() => handlePickSelection(match.id, "away")}
+                                  onClick={() => handlePickSelection(match.fixture_id, "away")}
                                   disabled={isMatchStarted(match.match_date) || isExpired}
                                   className={`px-3 py-2 text-center rounded transition-all duration-200 font-bold text-sm ${
                                     isMatchStarted(match.match_date) || isExpired
                                       ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
-                                      : picks.find(p => p.id === match.id && p.pick === "away")
+                                      : picks.find(p => p.id === match.fixture_id && p.pick === "away")
                                       ? "bg-gradient-accent text-black shadow-md scale-105"
                                       : "bg-accent/10 text-white hover:bg-accent/20 hover:text-accent border border-transparent hover:border-accent/30"
                                   }`}
@@ -1035,12 +1035,12 @@ export default function OddysseyPage() {
                                 
                                 {/* Over 2.5 */}
                                 <button
-                                  onClick={() => handlePickSelection(match.id, "over")}
+                                  onClick={() => handlePickSelection(match.fixture_id, "over")}
                                   disabled={isMatchStarted(match.match_date) || isExpired}
                                   className={`px-2 py-2 text-center rounded transition-all duration-200 font-bold text-sm ${
                                     isMatchStarted(match.match_date) || isExpired
                                       ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
-                                      : picks.find(p => p.id === match.id && p.pick === "over")
+                                      : picks.find(p => p.id === match.fixture_id && p.pick === "over")
                                       ? "bg-gradient-to-r from-blue-500 to-primary text-black shadow-md scale-105"
                                       : "bg-blue-500/10 text-white hover:bg-blue-500/20 hover:text-blue-300 border border-transparent hover:border-blue-300/30"
                                   }`}
@@ -1051,12 +1051,12 @@ export default function OddysseyPage() {
                                 
                                 {/* Under 2.5 */}
                                 <button
-                                  onClick={() => handlePickSelection(match.id, "under")}
+                                  onClick={() => handlePickSelection(match.fixture_id, "under")}
                                   disabled={isMatchStarted(match.match_date) || isExpired}
                                   className={`px-2 py-2 text-center rounded transition-all duration-200 font-bold text-sm ${
                                     isMatchStarted(match.match_date) || isExpired
                                       ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
-                                      : picks.find(p => p.id === match.id && p.pick === "under")
+                                      : picks.find(p => p.id === match.fixture_id && p.pick === "under")
                                       ? "bg-gradient-to-r from-purple-500 to-blue-600 text-black shadow-md scale-105"
                                       : "bg-purple-500/10 text-white hover:bg-purple-500/20 hover:text-purple-300 border border-transparent hover:border-purple-300/30"
                                   }`}
@@ -1103,12 +1103,12 @@ export default function OddysseyPage() {
                             {/* Home Win (1) */}
                             <div className="col-span-1 text-center">
                             <button
-                                onClick={() => handlePickSelection(match.id, "home")}
+                                onClick={() => handlePickSelection(match.fixture_id, "home")}
                                   disabled={isMatchStarted(match.match_date) || isExpired}
                                 className={`w-full px-2 py-1 text-center rounded transition-all duration-200 font-bold text-xs ${
                                     isMatchStarted(match.match_date) || isExpired
                                     ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
-                                    : picks.find(p => p.id === match.id && p.pick === "home")
+                                    : picks.find(p => p.id === match.fixture_id && p.pick === "home")
                                     ? "bg-gradient-primary text-black shadow-md scale-105"
                                     : "bg-primary/10 text-white hover:bg-primary/20 hover:text-primary border border-transparent hover:border-primary/30"
                               }`}
@@ -1120,12 +1120,12 @@ export default function OddysseyPage() {
                             {/* Draw (X) */}
                             <div className="col-span-1 text-center">
                             <button
-                                onClick={() => handlePickSelection(match.id, "draw")}
+                                onClick={() => handlePickSelection(match.fixture_id, "draw")}
                                   disabled={isMatchStarted(match.match_date) || isExpired}
                                 className={`w-full px-2 py-1 text-center rounded transition-all duration-200 font-bold text-xs ${
                                     isMatchStarted(match.match_date) || isExpired
                                     ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
-                                    : picks.find(p => p.id === match.id && p.pick === "draw")
+                                    : picks.find(p => p.id === match.fixture_id && p.pick === "draw")
                                     ? "bg-gradient-secondary text-black shadow-md scale-105"
                                     : "bg-secondary/10 text-white hover:bg-secondary/20 hover:text-secondary border border-transparent hover:border-secondary/30"
                               }`}
@@ -1137,12 +1137,12 @@ export default function OddysseyPage() {
                             {/* Away Win (2) */}
                             <div className="col-span-1 text-center">
                             <button
-                                onClick={() => handlePickSelection(match.id, "away")}
+                                onClick={() => handlePickSelection(match.fixture_id, "away")}
                                   disabled={isMatchStarted(match.match_date) || isExpired}
                                 className={`w-full px-2 py-1 text-center rounded transition-all duration-200 font-bold text-xs ${
                                     isMatchStarted(match.match_date) || isExpired
                                     ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
-                                    : picks.find(p => p.id === match.id && p.pick === "away")
+                                    : picks.find(p => p.id === match.fixture_id && p.pick === "away")
                                     ? "bg-gradient-accent text-black shadow-md scale-105"
                                     : "bg-accent/10 text-white hover:bg-accent/20 hover:text-accent border border-transparent hover:border-accent/30"
                               }`}
@@ -1155,12 +1155,12 @@ export default function OddysseyPage() {
                             <div className="col-span-2 text-center">
                               <div className="flex gap-1">
                             <button
-                              onClick={() => handlePickSelection(match.id, "over")}
+                              onClick={() => handlePickSelection(match.fixture_id, "over")}
                                     disabled={isMatchStarted(match.match_date) || isExpired}
                                   className={`flex-1 px-1 py-1 text-center rounded transition-all duration-200 font-bold text-xs ${
                                       isMatchStarted(match.match_date) || isExpired
                                       ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
-                                      : picks.find(p => p.id === match.id && p.pick === "over")
+                                      : picks.find(p => p.id === match.fixture_id && p.pick === "over")
                                       ? "bg-gradient-to-r from-blue-500 to-primary text-black shadow-md scale-105"
                                       : "bg-blue-500/10 text-white hover:bg-blue-500/20 hover:text-blue-300 border border-transparent hover:border-blue-300/30"
                               }`}
@@ -1168,12 +1168,12 @@ export default function OddysseyPage() {
                                   O{typeof match.over_odds === 'number' ? match.over_odds.toFixed(1) : '1.8'}
                             </button>
                             <button
-                              onClick={() => handlePickSelection(match.id, "under")}
+                              onClick={() => handlePickSelection(match.fixture_id, "under")}
                                     disabled={isMatchStarted(match.match_date) || isExpired}
                                   className={`flex-1 px-1 py-1 text-center rounded transition-all duration-200 font-bold text-xs ${
                                       isMatchStarted(match.match_date) || isExpired
                                       ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
-                                      : picks.find(p => p.id === match.id && p.pick === "under")
+                                      : picks.find(p => p.id === match.fixture_id && p.pick === "under")
                                       ? "bg-gradient-to-r from-purple-500 to-blue-600 text-black shadow-md scale-105"
                                       : "bg-purple-500/10 text-white hover:bg-purple-500/20 hover:text-purple-300 border border-transparent hover:border-purple-300/30"
                               }`}
