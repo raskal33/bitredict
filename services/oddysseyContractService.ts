@@ -201,10 +201,12 @@ export function useOddysseyContract() {
     // Convert predictions to contract format
     const contractPredictions = predictions.map((pred, index) => {
       // Optional validation against contract data if available
-      if (currentMatches && currentMatches[index]) {
+      if (currentMatches && Array.isArray(currentMatches) && currentMatches[index]) {
         const contractMatch = currentMatches[index];
-        if (contractMatch.id !== BigInt(pred.id)) {
-          console.warn(`⚠️ Match ID mismatch for index ${index}: contract=${contractMatch.id}, prediction=${pred.id}`);
+        if (contractMatch && typeof contractMatch === 'object' && 'id' in contractMatch) {
+          if (contractMatch.id !== BigInt(pred.id)) {
+            console.warn(`⚠️ Match ID mismatch for index ${index}: contract=${contractMatch.id}, prediction=${pred.id}`);
+          }
         }
       }
       

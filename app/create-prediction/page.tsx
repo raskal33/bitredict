@@ -35,7 +35,7 @@ const BITREDICT_POOL_ABI = [
     inputs: [
       { name: "_predictedOutcome", type: "bytes32" },
       { name: "_odds", type: "uint256" },
-      { name: "_creatorStake", type: "uint256" },
+      { name: "_creatorStake", type: "uint250" },
       { name: "_eventStartTime", type: "uint256" },
       { name: "_eventEndTime", type: "uint256" },
       { name: "_league", type: "string" },
@@ -85,8 +85,6 @@ interface Fixture {
     away: number | null;
     over25: number | null;
     under25: number | null;
-    over35: number | null;
-    under35: number | null;
     bttsYes: number | null;
     bttsNo: number | null;
     updatedAt: string;
@@ -103,7 +101,7 @@ interface GuidedMarketData {
   
   // Football specific (updated for SportMonks)
   selectedFixture?: Fixture;
-  outcome?: 'home' | 'away' | 'draw' | 'over25' | 'under25' | 'over35' | 'under35' | 'bttsYes' | 'bttsNo';
+  outcome?: 'home' | 'away' | 'draw' | 'over25' | 'under25' | 'bttsYes' | 'bttsNo';
   fixtures?: { fixtures: Fixture[] };
   
   // Cryptocurrency specific
@@ -245,8 +243,6 @@ export default function CreateMarketPage() {
                 away: typeof fixture.odds.away === 'number' ? fixture.odds.away : null,
                 over25: typeof fixture.odds.over25 === 'number' ? fixture.odds.over25 : null,
                 under25: typeof fixture.odds.under25 === 'number' ? fixture.odds.under25 : null,
-                over35: typeof fixture.odds.over35 === 'number' ? fixture.odds.over35 : null,
-                under35: typeof fixture.odds.under35 === 'number' ? fixture.odds.under35 : null,
                 bttsYes: typeof fixture.odds.bttsYes === 'number' ? fixture.odds.bttsYes : null,
                 bttsNo: typeof fixture.odds.bttsNo === 'number' ? fixture.odds.bttsNo : null,
                 updatedAt: fixture.odds.updatedAt || new Date().toISOString()
@@ -509,10 +505,10 @@ export default function CreateMarketPage() {
           return `under_25_goals`; // Predict under 2.5 goals (over won't happen)
         case 'under25':
           return `over_25_goals`; // Predict over 2.5 goals (under won't happen)
-        case 'over35':
-          return `over_35_goals`; // Predict over 3.5 goals (over won't happen)
-        case 'under35':
-          return `under_35_goals`; // Predict under 3.5 goals (under won't happen)
+        case 'bttsYes':
+          return `both_teams_to_score_yes`; // Predict both teams to score - Yes
+        case 'bttsNo':
+          return `both_teams_to_score_no`; // Predict both teams to score - No
         default:
           return `${fixture.homeTeam.name}_vs_${fixture.awayTeam.name}`;
       }
@@ -793,17 +789,16 @@ export default function CreateMarketPage() {
                   { key: 'draw', label: 'Draw', color: 'yellow' },
                   { key: 'away', label: `${data.selectedFixture.awayTeam.name} Wins`, color: 'red' },
                   { key: 'over25', label: 'Over 2.5 Goals', color: 'orange' },
-                  { key: 'under25', label: 'Under 2.5 Goals', color: 'blue' },
-                  { key: 'over35', label: 'Over 3.5 Goals', color: 'purple' },
-                  { key: 'under35', label: 'Under 3.5 Goals', color: 'indigo' },
-                  { key: 'bttsYes', label: 'Both Teams to Score - Yes', color: 'pink' },
-                  { key: 'bttsNo', label: 'Both Teams to Score - No', color: 'gray' }
-                ].map(outcome => (
+                  { key: 'under25', label: 'Under 2.5 Goals', color: 'blue' }
+                ].filter(outcome => {
+                  const oddsKey = `${outcome.key}_odds` as keyof typeof data.selectedFixture.odds;
+                  return data.selectedFixture.odds?.[oddsKey] !== null && data.selectedFixture.odds?.[oddsKey] !== undefined;
+                }).map((outcome) => (
                   <motion.button
                     key={outcome.key}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => handleInputChange('outcome', outcome.key as 'home' | 'away' | 'draw' | 'over25' | 'under25' | 'over35' | 'under35' | 'bttsYes' | 'bttsNo')}
+                    onClick={() => handleInputChange('outcome', outcome.key as 'home' | 'away' | 'draw' | 'over25' | 'under25' | 'bttsYes' | 'bttsNo')}
                     className={`p-3 rounded-lg border text-sm font-medium transition-all ${
                       data.outcome === outcome.key
                         ? 'border-cyan-500 bg-cyan-500/10 text-cyan-400'
@@ -818,8 +813,6 @@ export default function CreateMarketPage() {
                         {outcome.key === 'away' && data.selectedFixture.odds.away !== null && `${data.selectedFixture.odds.away.toFixed(2)}`}
                         {outcome.key === 'over25' && data.selectedFixture.odds.over25 !== null && `${data.selectedFixture.odds.over25.toFixed(2)}`}
                         {outcome.key === 'under25' && data.selectedFixture.odds.under25 !== null && `${data.selectedFixture.odds.under25.toFixed(2)}`}
-                        {outcome.key === 'over35' && data.selectedFixture.odds.over35 !== null && `${data.selectedFixture.odds.over35.toFixed(2)}`}
-                        {outcome.key === 'under35' && data.selectedFixture.odds.under35 !== null && `${data.selectedFixture.odds.under35.toFixed(2)}`}
                         {outcome.key === 'bttsYes' && data.selectedFixture.odds.bttsYes !== null && `${data.selectedFixture.odds.bttsYes.toFixed(2)}`}
                         {outcome.key === 'bttsNo' && data.selectedFixture.odds.bttsNo !== null && `${data.selectedFixture.odds.bttsNo.toFixed(2)}`}
                       </div>
@@ -1063,8 +1056,6 @@ export default function CreateMarketPage() {
                   case 'draw': return data.selectedFixture.odds.draw;
                   case 'over25': return data.selectedFixture.odds.over25;
                   case 'under25': return data.selectedFixture.odds.under25;
-                  case 'over35': return data.selectedFixture.odds.over35;
-                  case 'under35': return data.selectedFixture.odds.under35;
                   case 'bttsYes': return data.selectedFixture.odds.bttsYes;
                   case 'bttsNo': return data.selectedFixture.odds.bttsNo;
                   default: return null;
@@ -1086,8 +1077,6 @@ export default function CreateMarketPage() {
                           case 'draw': return 'Draw';
                           case 'over25': return 'Over 2.5 Goals';
                           case 'under25': return 'Under 2.5 Goals';
-                          case 'over35': return 'Over 3.5 Goals';
-                          case 'under35': return 'Under 3.5 Goals';
                           case 'bttsYes': return 'Both Teams to Score - Yes';
                           case 'bttsNo': return 'Both Teams to Score - No';
                           default: return '';
@@ -1600,8 +1589,6 @@ export default function CreateMarketPage() {
                     {data.outcome === 'draw' && 'Match to end in draw'}
                     {data.outcome === 'over25' && 'Over 2.5 goals'}
                     {data.outcome === 'under25' && 'Under 2.5 goals'}
-                    {data.outcome === 'over35' && 'Over 3.5 goals'}
-                    {data.outcome === 'under35' && 'Under 3.5 goals'}
                     {data.outcome === 'bttsYes' && 'Both teams to score - Yes'}
                     {data.outcome === 'bttsNo' && 'Both teams to score - No'}
                   </span>
@@ -1616,8 +1603,6 @@ export default function CreateMarketPage() {
                     {data.outcome === 'draw' && data.selectedFixture.odds.draw && `${data.selectedFixture.odds.draw.toFixed(2)}x`}
                     {data.outcome === 'over25' && data.selectedFixture.odds.over25 && `${data.selectedFixture.odds.over25.toFixed(2)}x`}
                     {data.outcome === 'under25' && data.selectedFixture.odds.under25 && `${data.selectedFixture.odds.under25.toFixed(2)}x`}
-                    {data.outcome === 'over35' && data.selectedFixture.odds.over35 && `${data.selectedFixture.odds.over35.toFixed(2)}x`}
-                    {data.outcome === 'under35' && data.selectedFixture.odds.under35 && `${data.selectedFixture.odds.under35.toFixed(2)}x`}
                     {data.outcome === 'bttsYes' && data.selectedFixture.odds.bttsYes && `${data.selectedFixture.odds.bttsYes.toFixed(2)}x`}
                     {data.outcome === 'bttsNo' && data.selectedFixture.odds.bttsNo && `${data.selectedFixture.odds.bttsNo.toFixed(2)}x`}
                   </span>
