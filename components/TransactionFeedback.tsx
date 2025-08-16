@@ -105,101 +105,102 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
 
   return (
     <AnimatePresence>
-      {isVisible && (
-        <>
-          {/* Backdrop */}
+      {isVisible && status && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={handleClose}
+        >
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
-            onClick={handleClose}
-          />
-          
-          {/* Modal */}
-          <motion.div
-            initial={{ opacity: 0, y: -50, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -50, scale: 0.9 }}
-            transition={{ duration: 0.3, ease: 'easeOut' }}
-            className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 w-[95vw] max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl ${getBackgroundColor()} backdrop-blur-lg rounded-2xl p-4 sm:p-6 border shadow-2xl`}
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+            className="relative w-full max-w-md mx-auto bg-bg-card border border-border-card rounded-xl shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
-            style={{ maxHeight: '85vh', overflowY: 'auto' }}
           >
-            {/* Close button - positioned absolutely */}
-            <button
-              onClick={handleClose}
-              className="absolute top-2 right-2 sm:top-3 sm:right-3 p-1.5 sm:p-2 text-gray-400 hover:text-white transition-colors rounded-full hover:bg-white/10 z-10"
-              title="Close"
-              aria-label="Close modal"
-            >
-              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-
-            <div className="flex items-start gap-3 sm:gap-4 pr-8 sm:pr-10">
-              <div className="flex-shrink-0 mt-0.5">
+            {/* Header */}
+            <div className={`px-4 py-3 flex items-center gap-3 ${
+              status.type === 'success' ? 'bg-green-500/10 border-b border-green-500/20' :
+              status.type === 'error' ? 'bg-red-500/10 border-b border-red-500/20' :
+              status.type === 'warning' ? 'bg-yellow-500/10 border-b border-yellow-500/20' :
+              'bg-blue-500/10 border-b border-blue-500/20'
+            }`}>
+              <div className={`p-2 rounded-full ${
+                status.type === 'success' ? 'bg-green-500/20 text-green-400' :
+                status.type === 'error' ? 'bg-red-500/20 text-red-400' :
+                status.type === 'warning' ? 'bg-yellow-500/20 text-yellow-400' :
+                'bg-blue-500/20 text-blue-400'
+              }`}>
                 {getIcon()}
               </div>
-              
-              <div className="flex-1 min-w-0">
-                <h3 className="text-sm sm:text-base lg:text-lg font-semibold text-white mb-1 pr-4">
+              <div className="flex-1">
+                <h3 className="text-sm sm:text-base font-semibold text-text-primary">
                   {status.title}
                 </h3>
-                <p className="text-gray-300 text-xs sm:text-sm mb-3 leading-relaxed pr-4">
-                  {status.message}
-                </p>
-                
-                {status.hash && (
-                  <div className="mb-4 p-2 sm:p-3 bg-black/20 rounded-xl border border-white/10">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-gray-400 text-xs font-medium">Transaction Hash:</p>
-                      <div className="flex items-center gap-1 sm:gap-2">
-                        <button
-                          onClick={() => copyToClipboard(status.hash!)}
-                          className="p-1 text-gray-400 hover:text-white transition-colors"
-                          title="Copy to clipboard"
-                        >
-                          <FaCopy className="h-3 w-3" />
-                        </button>
-                        <a
-                          href={getExplorerUrl(status.hash)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-1 text-gray-400 hover:text-white transition-colors"
-                          title="View on explorer"
-                        >
-                          <FaExternalLinkAlt className="h-3 w-3" />
-                        </a>
-                      </div>
-                    </div>
-                    <code className="text-xs text-blue-300 break-all font-mono bg-black/30 px-2 py-1 rounded block">
+              </div>
+              <button
+                onClick={handleClose}
+                className="p-1 rounded-full hover:bg-bg-overlay transition-colors"
+              >
+                <FaTimesCircle className="h-4 w-4 text-text-secondary hover:text-text-primary" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="px-4 py-4 space-y-3">
+              <p className="text-xs sm:text-sm text-text-secondary leading-relaxed">
+                {status.message}
+              </p>
+
+              {/* Transaction Hash */}
+              {status.hash && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-text-secondary">Transaction Hash:</span>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(status.hash!);
+                        toast.success('Hash copied to clipboard!');
+                      }}
+                      className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
+                    >
+                      <FaCopy className="h-3 w-3" />
+                      Copy
+                    </button>
+                  </div>
+                  <div className="bg-bg-overlay rounded-lg p-2">
+                    <code className="text-xs text-text-secondary break-all font-mono">
                       {status.hash}
                     </code>
                   </div>
-                )}
-                
-                <div className="flex flex-wrap gap-2">
-                  {status.action && status.onAction && (
-                    <button
-                      onClick={status.onAction}
-                      className="px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200 hover:scale-105"
-                    >
-                      {status.action}
-                    </button>
-                  )}
-                  <button
-                    onClick={handleClose}
-                    className="px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all duration-200 hover:scale-105"
-                  >
-                    Close
-                  </button>
                 </div>
-              </div>
+              )}
+
+              {/* Action Button */}
+              {status.action && status.onAction && (
+                <button
+                  onClick={status.onAction}
+                  className="w-full px-3 py-2 text-xs sm:text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-lg transition-colors flex items-center justify-center gap-2"
+                >
+                  <FaExternalLinkAlt className="h-3 w-3" />
+                  {status.action}
+                </button>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-4 py-3 border-t border-border-card">
+              <button
+                onClick={handleClose}
+                className="w-full px-3 py-2 text-xs sm:text-sm font-medium text-text-primary bg-bg-overlay hover:bg-bg-overlay/80 rounded-lg transition-colors"
+              >
+                Close
+              </button>
             </div>
           </motion.div>
-        </>
+        </motion.div>
       )}
     </AnimatePresence>
   );
