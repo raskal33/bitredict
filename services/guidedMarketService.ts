@@ -33,8 +33,13 @@ export interface FootballMatch {
     away: number;
     over25: number;
     under25: number;
+    over35: number;
+    under35: number;
     bttsYes: number;
     bttsNo: number;
+    htHome: number;
+    htDraw: number;
+    htAway: number;
     updatedAt: string;
   };
 }
@@ -112,8 +117,13 @@ export class GuidedMarketService {
               away: typeof match.odds?.away === 'number' && match.odds.away > 1.0 ? match.odds.away : null,
               over25: typeof match.odds?.over25 === 'number' && match.odds.over25 > 1.0 ? match.odds.over25 : null,
               under25: typeof match.odds?.under25 === 'number' && match.odds.under25 > 1.0 ? match.odds.under25 : null,
+              over35: typeof match.odds?.over35 === 'number' && match.odds.over35 > 1.0 ? match.odds.over35 : null,
+              under35: typeof match.odds?.under35 === 'number' && match.odds.under35 > 1.0 ? match.odds.under35 : null,
               bttsYes: typeof match.odds?.bttsYes === 'number' && match.odds.bttsYes > 1.0 ? match.odds.bttsYes : null,
               bttsNo: typeof match.odds?.bttsNo === 'number' && match.odds.bttsNo > 1.0 ? match.odds.bttsNo : null,
+              htHome: typeof match.odds?.htHome === 'number' && match.odds.htHome > 1.0 ? match.odds.htHome : null,
+              htDraw: typeof match.odds?.htDraw === 'number' && match.odds.htDraw > 1.0 ? match.odds.htDraw : null,
+              htAway: typeof match.odds?.htAway === 'number' && match.odds.htAway > 1.0 ? match.odds.htAway : null,
               updatedAt: new Date().toISOString()
             }
         })).filter((match: FootballMatch) => {

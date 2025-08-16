@@ -31,14 +31,19 @@ interface Fixture {
   };
   status: string;
   odds?: {
-    home?: number | null;
-    draw?: number | null;
-    away?: number | null;
-    over25?: number | null;
-    under25?: number | null;
-    bttsYes?: number | null;
-    bttsNo?: number | null;
-    updatedAt?: string;
+    home: number | null;
+    draw: number | null;
+    away: number | null;
+    over25: number | null;
+    under25: number | null;
+    over35: number | null;
+    under35: number | null;
+    bttsYes: number | null;
+    bttsNo: number | null;
+    htHome: number | null;
+    htDraw: number | null;
+    htAway: number | null;
+    updatedAt: string;
   };
 }
 
