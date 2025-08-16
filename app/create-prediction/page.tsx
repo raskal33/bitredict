@@ -83,6 +83,8 @@ interface Fixture {
     home: number | null;
     draw: number | null;
     away: number | null;
+    over15: number | null;
+    under15: number | null;
     over25: number | null;
     under25: number | null;
     over35: number | null;
@@ -92,6 +94,10 @@ interface Fixture {
     htHome: number | null;
     htDraw: number | null;
     htAway: number | null;
+    ht_over_05: number | null;
+    ht_under_05: number | null;
+    ht_over_15: number | null;
+    ht_under_15: number | null;
     updatedAt: string;
   };
 }
@@ -106,7 +112,7 @@ interface GuidedMarketData {
   
   // Football specific (updated for SportMonks)
   selectedFixture?: Fixture;
-  outcome?: 'home' | 'away' | 'draw' | 'over25' | 'under25' | 'over35' | 'under35' | 'bttsYes' | 'bttsNo' | 'htHome' | 'htDraw' | 'htAway';
+  outcome?: 'home' | 'away' | 'draw' | 'over15' | 'under15' | 'over25' | 'under25' | 'over35' | 'under35' | 'bttsYes' | 'bttsNo' | 'htHome' | 'htDraw' | 'htAway';
   fixtures?: { fixtures: Fixture[] };
   
   // Cryptocurrency specific
@@ -808,25 +814,27 @@ export default function CreateMarketPage() {
                   { key: 'home', label: `${data.selectedFixture.homeTeam.name} Wins`, color: 'green' },
                   { key: 'draw', label: 'Draw', color: 'yellow' },
                   { key: 'away', label: `${data.selectedFixture.awayTeam.name} Wins`, color: 'red' },
+                  { key: 'over15', label: 'Over 1.5 Goals', color: 'cyan' },
+                  { key: 'under15', label: 'Under 1.5 Goals', color: 'indigo' },
                   { key: 'over25', label: 'Over 2.5 Goals', color: 'orange' },
                   { key: 'under25', label: 'Under 2.5 Goals', color: 'blue' },
                   { key: 'over35', label: 'Over 3.5 Goals', color: 'purple' },
                   { key: 'under35', label: 'Under 3.5 Goals', color: 'pink' },
                   { key: 'bttsYes', label: 'Both Teams to Score - Yes', color: 'green' },
                   { key: 'bttsNo', label: 'Both Teams to Score - No', color: 'red' },
-                  { key: 'htHome', label: 'Home Team Wins', color: 'blue' },
-                  { key: 'htDraw', label: 'Draw and Home Team Wins', color: 'yellow' },
-                  { key: 'htAway', label: 'Away Team Wins', color: 'orange' }
+                  { key: 'htHome', label: 'HT: Home Wins', color: 'blue' },
+                  { key: 'htDraw', label: 'HT: Draw', color: 'yellow' },
+                  { key: 'htAway', label: 'HT: Away Wins', color: 'orange' }
                 ].filter(outcome => {
                   if (!data.selectedFixture?.odds) return false;
-                  const oddsKey = `${outcome.key}_odds` as keyof typeof data.selectedFixture.odds;
+                  const oddsKey = outcome.key as keyof typeof data.selectedFixture.odds;
                   return data.selectedFixture.odds[oddsKey] !== null && data.selectedFixture.odds[oddsKey] !== undefined;
                 }).map((outcome) => (
                   <motion.button
                     key={outcome.key}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => handleInputChange('outcome', outcome.key as 'home' | 'away' | 'draw' | 'over25' | 'under25' | 'over35' | 'under35' | 'bttsYes' | 'bttsNo' | 'htHome' | 'htDraw' | 'htAway')}
+                    onClick={() => handleInputChange('outcome', outcome.key as 'home' | 'away' | 'draw' | 'over15' | 'under15' | 'over25' | 'under25' | 'over35' | 'under35' | 'bttsYes' | 'bttsNo' | 'htHome' | 'htDraw' | 'htAway')}
                     className={`p-3 rounded-lg border text-sm font-medium transition-all ${
                       data.outcome === outcome.key
                         ? 'border-cyan-500 bg-cyan-500/10 text-cyan-400'
@@ -839,6 +847,8 @@ export default function CreateMarketPage() {
                         {outcome.key === 'home' && data.selectedFixture.odds.home !== null && `${data.selectedFixture.odds.home.toFixed(2)}`}
                         {outcome.key === 'draw' && data.selectedFixture.odds.draw !== null && `${data.selectedFixture.odds.draw.toFixed(2)}`}
                         {outcome.key === 'away' && data.selectedFixture.odds.away !== null && `${data.selectedFixture.odds.away.toFixed(2)}`}
+                        {outcome.key === 'over15' && data.selectedFixture.odds.over15 !== null && `${data.selectedFixture.odds.over15.toFixed(2)}`}
+                        {outcome.key === 'under15' && data.selectedFixture.odds.under15 !== null && `${data.selectedFixture.odds.under15.toFixed(2)}`}
                         {outcome.key === 'over25' && data.selectedFixture.odds.over25 !== null && `${data.selectedFixture.odds.over25.toFixed(2)}`}
                         {outcome.key === 'under25' && data.selectedFixture.odds.under25 !== null && `${data.selectedFixture.odds.under25.toFixed(2)}`}
                         {outcome.key === 'over35' && data.selectedFixture.odds.over35 !== null && `${data.selectedFixture.odds.over35.toFixed(2)}`}

@@ -62,18 +62,18 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
     }
   };
 
-  const getBackgroundColor = () => {
-    switch (status?.type) {
-      case 'success':
-        return 'bg-gradient-to-r from-green-500/15 to-emerald-500/15 border-green-500/30';
-      case 'error':
-        return 'bg-gradient-to-r from-red-500/15 to-rose-500/15 border-red-500/30';
-      case 'warning':
-        return 'bg-gradient-to-r from-yellow-500/15 to-orange-500/15 border-yellow-500/30';
-      default:
-        return 'bg-gradient-to-r from-blue-500/15 to-cyan-500/15 border-blue-500/30';
-    }
-  };
+  // const getBackgroundColor = () => {
+  //   switch (status?.type) {
+  //     case 'success':
+  //       return 'bg-gradient-to-r from-green-500/15 to-emerald-500/15 border-green-500/30';
+  //     case 'error':
+  //       return 'bg-gradient-to-r from-red-500/15 to-rose-500/15 border-red-500/30';
+  //     case 'warning':
+  //       return 'bg-gradient-to-r from-yellow-500/15 to-orange-500/15 border-yellow-500/30';
+  //     default:
+  //       return 'bg-gradient-to-r from-blue-500/15 to-cyan-500/15 border-blue-500/30';
+  //   }
+  // };
 
   const getIconColor = () => {
     switch (status?.type) {
@@ -88,18 +88,18 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
     }
   };
 
-  const copyToClipboard = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      toast.success('Transaction hash copied to clipboard!');
-    } catch {
-      toast.error('Failed to copy to clipboard');
-    }
-  };
+  // const copyToClipboard = async (text: string) => {
+  //   try {
+  //     await navigator.clipboard.writeText(text);
+  //     toast.success('Transaction hash copied to clipboard!');
+  //   } catch {
+  //     toast.error('Failed to copy to clipboard');
+  //   }
+  // };
 
-  const getExplorerUrl = (hash: string) => {
-    return `https://somnia-testnet.explorer.caldera.xyz/tx/${hash}`;
-  };
+  // const getExplorerUrl = (hash: string) => {
+  //   return `https://somnia-testnet.explorer.caldera.xyz/tx/${hash}`;
+  // };
 
   if (!status) return null;
 

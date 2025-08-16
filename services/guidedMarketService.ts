@@ -31,6 +31,8 @@ export interface FootballMatch {
     home: number;
     draw: number;
     away: number;
+    over15: number;
+    under15: number;
     over25: number;
     under25: number;
     over35: number;
@@ -40,6 +42,10 @@ export interface FootballMatch {
     htHome: number;
     htDraw: number;
     htAway: number;
+    ht_over_05: number;
+    ht_under_05: number;
+    ht_over_15: number;
+    ht_under_15: number;
     updatedAt: string;
   };
 }
@@ -115,6 +121,8 @@ export class GuidedMarketService {
               home: typeof match.odds?.home === 'number' && match.odds.home > 1.0 ? match.odds.home : null,
               draw: typeof match.odds?.draw === 'number' && match.odds.draw > 1.0 ? match.odds.draw : null,
               away: typeof match.odds?.away === 'number' && match.odds.away > 1.0 ? match.odds.away : null,
+              over15: typeof match.odds?.over15 === 'number' && match.odds.over15 > 1.0 ? match.odds.over15 : null,
+              under15: typeof match.odds?.under15 === 'number' && match.odds.under15 > 1.0 ? match.odds.under15 : null,
               over25: typeof match.odds?.over25 === 'number' && match.odds.over25 > 1.0 ? match.odds.over25 : null,
               under25: typeof match.odds?.under25 === 'number' && match.odds.under25 > 1.0 ? match.odds.under25 : null,
               over35: typeof match.odds?.over35 === 'number' && match.odds.over35 > 1.0 ? match.odds.over35 : null,
@@ -124,6 +132,10 @@ export class GuidedMarketService {
               htHome: typeof match.odds?.htHome === 'number' && match.odds.htHome > 1.0 ? match.odds.htHome : null,
               htDraw: typeof match.odds?.htDraw === 'number' && match.odds.htDraw > 1.0 ? match.odds.htDraw : null,
               htAway: typeof match.odds?.htAway === 'number' && match.odds.htAway > 1.0 ? match.odds.htAway : null,
+              ht_over_05: typeof match.odds?.ht_over_05 === 'number' && match.odds.ht_over_05 > 1.0 ? match.odds.ht_over_05 : null,
+              ht_under_05: typeof match.odds?.ht_under_05 === 'number' && match.odds.ht_under_05 > 1.0 ? match.odds.ht_under_05 : null,
+              ht_over_15: typeof match.odds?.ht_over_15 === 'number' && match.odds.ht_over_15 > 1.0 ? match.odds.ht_over_15 : null,
+              ht_under_15: typeof match.odds?.ht_under_15 === 'number' && match.odds.ht_under_15 > 1.0 ? match.odds.ht_under_15 : null,
               updatedAt: new Date().toISOString()
             }
         })).filter((match: FootballMatch) => {

@@ -1,0 +1,205 @@
+[
+  {
+    "inputs": [],
+    "name": "dailyCycleId",
+    "outputs": [
+      {
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "type": "uint256",
+        "name": "_cycleId"
+      }
+    ],
+    "name": "getDailyMatches",
+    "outputs": [
+      {
+        "type": "tuple[10]",
+        "components": [
+          {
+            "type": "uint64",
+            "name": "id"
+          },
+          {
+            "type": "uint64",
+            "name": "startTime"
+          },
+          {
+            "type": "uint32",
+            "name": "oddsHome"
+          },
+          {
+            "type": "uint32",
+            "name": "oddsDraw"
+          },
+          {
+            "type": "uint32",
+            "name": "oddsAway"
+          },
+          {
+            "type": "uint32",
+            "name": "oddsOver"
+          },
+          {
+            "type": "uint32",
+            "name": "oddsUnder"
+          },
+          {
+            "type": "tuple",
+            "name": "result",
+            "components": [
+              {
+                "type": "uint8",
+                "name": "moneyline"
+              },
+              {
+                "type": "uint8",
+                "name": "overUnder"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "type": "uint256",
+        "name": "_cycleId"
+      }
+    ],
+    "name": "getCycleStatus",
+    "outputs": [
+      {
+        "type": "bool",
+        "name": "exists"
+      },
+      {
+        "type": "uint256",
+        "name": "endTime"
+      },
+      {
+        "type": "uint256",
+        "name": "prizePool"
+      },
+      {
+        "type": "bool",
+        "name": "isResolved"
+      },
+      {
+        "type": "uint256",
+        "name": "slipCount"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "type": "address",
+        "name": "_user"
+      }
+    ],
+    "name": "getUserStats",
+    "outputs": [
+      {
+        "type": "uint256",
+        "name": "totalSlips"
+      },
+      {
+        "type": "uint256",
+        "name": "totalWins"
+      },
+      {
+        "type": "uint256",
+        "name": "bestScore"
+      },
+      {
+        "type": "uint256",
+        "name": "averageScore"
+      },
+      {
+        "type": "uint256",
+        "name": "winRate"
+      },
+      {
+        "type": "uint256",
+        "name": "currentStreak"
+      },
+      {
+        "type": "uint256",
+        "name": "bestStreak"
+      },
+      {
+        "type": "uint256",
+        "name": "lastActiveCycle"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "type": "tuple[10]",
+        "name": "_predictions",
+        "components": [
+          {
+            "type": "uint64",
+            "name": "matchId"
+          },
+          {
+            "type": "uint8",
+            "name": "betType"
+          },
+          {
+            "type": "bytes32",
+            "name": "selection"
+          },
+          {
+            "type": "uint32",
+            "name": "selectedOdd"
+          }
+        ]
+      }
+    ],
+    "name": "placeSlip",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "type": "uint256",
+        "name": "_slipId"
+      }
+    ],
+    "name": "evaluateSlip",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "type": "uint256",
+        "name": "_cycleId"
+      }
+    ],
+    "name": "claimPrize",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]

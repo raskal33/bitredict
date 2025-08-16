@@ -34,6 +34,8 @@ interface Fixture {
     home: number | null;
     draw: number | null;
     away: number | null;
+    over15: number | null;
+    under15: number | null;
     over25: number | null;
     under25: number | null;
     over35: number | null;
@@ -43,6 +45,10 @@ interface Fixture {
     htHome: number | null;
     htDraw: number | null;
     htAway: number | null;
+    ht_over_05: number | null;
+    ht_under_05: number | null;
+    ht_over_15: number | null;
+    ht_under_15: number | null;
     updatedAt: string;
   };
 }
