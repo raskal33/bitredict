@@ -818,8 +818,9 @@ export default function CreateMarketPage() {
                   { key: 'htDraw', label: 'Draw and Home Team Wins', color: 'yellow' },
                   { key: 'htAway', label: 'Away Team Wins', color: 'orange' }
                 ].filter(outcome => {
+                  if (!data.selectedFixture?.odds) return false;
                   const oddsKey = `${outcome.key}_odds` as keyof typeof data.selectedFixture.odds;
-                  return data.selectedFixture.odds?.[oddsKey] !== null && data.selectedFixture.odds?.[oddsKey] !== undefined;
+                  return data.selectedFixture.odds[oddsKey] !== null && data.selectedFixture.odds[oddsKey] !== undefined;
                 }).map((outcome) => (
                   <motion.button
                     key={outcome.key}

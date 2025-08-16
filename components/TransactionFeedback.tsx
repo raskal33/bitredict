@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaCheckCircle, FaTimesCircle, FaExclamationTriangle, FaSpinner, FaExternalLinkAlt, FaCopy } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
@@ -27,6 +27,11 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
 }) => {
   const [isVisible, setIsVisible] = useState(false);
 
+  const handleClose = useCallback(() => {
+    setIsVisible(false);
+    onClose();
+  }, [onClose]);
+
   useEffect(() => {
     if (status) {
       setIsVisible(true);
@@ -42,12 +47,7 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
     } else {
       setIsVisible(false);
     }
-  }, [status, autoClose, autoCloseDelay]);
-
-  const handleClose = () => {
-    setIsVisible(false);
-    setTimeout(onClose, 300); // Wait for exit animation
-  };
+  }, [status, autoClose, autoCloseDelay, handleClose]);
 
   const getIcon = () => {
     switch (status?.type) {
