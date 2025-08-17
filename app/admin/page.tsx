@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import React from "react";
 import {
@@ -293,7 +293,7 @@ export default function AdminPage() {
   ];
 
   // Fetch system status
-  const fetchSystemStatus = async () => {
+  const fetchSystemStatus = useCallback(async () => {
     try {
       const response = await fetch(`${backendUrl}/api/monitoring/status`);
       const data = await response.json();
@@ -303,10 +303,10 @@ export default function AdminPage() {
     } catch (error) {
       console.error('Failed to fetch system status:', error);
     }
-  };
+  }, [backendUrl]);
 
   // Fetch alerts
-  const fetchAlerts = async () => {
+  const fetchAlerts = useCallback(async () => {
     try {
       const response = await fetch(`${backendUrl}/api/monitoring/alerts?resolved=false`);
       const data = await response.json();
@@ -316,10 +316,10 @@ export default function AdminPage() {
     } catch (error) {
       console.error('Failed to fetch alerts:', error);
     }
-  };
+  }, [backendUrl]);
 
   // Fetch metrics
-  const fetchMetrics = async () => {
+  const fetchMetrics = useCallback(async () => {
     try {
       const response = await fetch(`${backendUrl}/api/monitoring/metrics?period=24h`);
       const data = await response.json();
@@ -329,10 +329,10 @@ export default function AdminPage() {
     } catch (error) {
       console.error('Failed to fetch metrics:', error);
     }
-  };
+  }, [backendUrl]);
 
   // Fetch logs
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     try {
       const response = await fetch(`${backendUrl}/api/monitoring/logs?limit=50`);
       const data = await response.json();
@@ -343,10 +343,10 @@ export default function AdminPage() {
     } catch (error) {
       console.error('Failed to fetch logs:', error);
     }
-  };
+  }, [backendUrl]);
 
   // Fetch sync status
-  const fetchSyncStatus = async () => {
+  const fetchSyncStatus = useCallback(async () => {
     try {
       const response = await fetch(`${backendUrl}/api/admin/sync-status`);
       const data = await response.json();
@@ -356,10 +356,10 @@ export default function AdminPage() {
     } catch (error) {
       console.error('Failed to fetch sync status:', error);
     }
-  };
+  }, [backendUrl]);
 
   // Fetch table status
-  const fetchTableStatus = async () => {
+  const fetchTableStatus = useCallback(async () => {
     try {
       const response = await fetch(`${backendUrl}/api/admin/check-tables`);
       const data = await response.json();
@@ -369,7 +369,7 @@ export default function AdminPage() {
     } catch (error) {
       console.error('Failed to fetch table status:', error);
     }
-  };
+  }, [backendUrl]);
 
   // Execute admin action
   const executeAdminAction = async (action: AdminAction) => {

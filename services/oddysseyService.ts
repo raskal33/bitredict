@@ -92,20 +92,20 @@ class OddysseyService {
     data: MatchesData;
   }> {
     try {
-      // Use current-cycle endpoint since /matches needs server restart
-      const endpoint = `${this.baseEndpoint}/current-cycle`;
+      // Use matches endpoint which includes team names from fixtures
+      const endpoint = `${this.baseEndpoint}/matches`;
       
       console.log('🎯 OddysseyService: Fetching matches from:', endpoint);
       
       const response = await apiRequest<{
         success: boolean;
-        data: OddysseyCycle;
+        data: MatchesData;
       }>(endpoint);
       
-      console.log('✅ OddysseyService: Current cycle result:', response);
+      console.log('✅ OddysseyService: Matches result:', response);
       
-      if (!response.data || !response.data.matches_data) {
-        console.warn('⚠️ No cycle data or matches found');
+      if (!response.data) {
+        console.warn('⚠️ No matches data found');
         return {
           data: {
             today: { date: '', matches: [] },
@@ -115,44 +115,9 @@ class OddysseyService {
         };
       }
 
-      // Transform cycle data to match frontend expectations
-      const matchesData = Array.isArray(response.data.matches_data) ? response.data.matches_data : [];
-      const today = new Date().toISOString().split('T')[0];
-      
-      // Transform matches to the expected format
-      const transformedMatches = matchesData.map((match: any, index: number) => ({
-        id: match.id,
-        fixture_id: match.id,
-        home_team: 'Team A', // Will be populated from fixtures if needed
-        away_team: 'Team B', // Will be populated from fixtures if needed
-        league_name: 'League', // Will be populated from fixtures if needed
-        match_date: new Date(match.startTime * 1000).toISOString(),
-        home_odds: match.oddsHome / 1000, // Convert from integer format
-        draw_odds: match.oddsDraw / 1000, // Convert from integer format
-        away_odds: match.oddsAway / 1000, // Convert from integer format
-        over_odds: match.oddsOver / 1000, // Convert from integer format
-        under_odds: match.oddsUnder / 1000, // Convert from integer format
-        market_type: "1x2_ou25",
-        display_order: index + 1
-      }));
-      
-      const transformedData: MatchesData = {
-        today: {
-          date: today,
-          matches: transformedMatches
-        },
-        tomorrow: {
-          date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          matches: []
-        },
-        yesterday: {
-          date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          matches: []
-        }
-      };
-      
+      // The backend already provides properly formatted data with team names
       return {
-        data: transformedData
+        data: response.data
       };
     } catch (error) {
       console.error('❌ OddysseyService: Error fetching matches:', error);
@@ -167,42 +132,105 @@ class OddysseyService {
     cycle: OddysseyCycle | null;
     status: 'active' | 'no_active_cycle';
   }> {
-    const response = await apiRequest<{
-      success: boolean;
-      data: OddysseyCycle | null;
-      message?: string;
-    }>(`${this.baseEndpoint}/current-cycle`);
-    
-    // Transform the API response to match the expected interface
-    if (response.data) {
-      // Parse matches_data if it's a string and populate the matches field
-      let matches: OddysseyMatch[] = [];
-      if (response.data.matches_data) {
-        try {
-          const matchesData = typeof response.data.matches_data === 'string' 
-            ? JSON.parse(response.data.matches_data) 
-            : response.data.matches_data;
-          
-          matches = Array.isArray(matchesData) ? matchesData : [];
-        } catch (error) {
-          console.error('❌ Error parsing matches_data:', error);
-          matches = [];
+    try {
+      const response = await apiRequest<{
+        success: boolean;
+        data: OddysseyCycle | null;
+        message?: string;
+      }>(`${this.baseEndpoint}/current-cycle`);
+      
+      // Transform the API response to match the expected interface
+      if (response.data) {
+        // Parse matches_data if it's a string and populate the matches field
+        let matches: OddysseyMatch[] = [];
+        if (response.data.matches_data) {
+          try {
+            const matchesData = typeof response.data.matches_data === 'string' 
+              ? JSON.parse(response.data.matches_data) 
+              : response.data.matches_data;
+            
+            // Get team names from fixtures for each match
+            if (Array.isArray(matchesData)) {
+              // Fetch team names for the matches
+              const matchesWithTeams = await this.enrichMatchesWithTeamNames(matchesData);
+              matches = matchesWithTeams;
+            }
+          } catch (error) {
+            console.error('❌ Error parsing matches_data:', error);
+            matches = [];
+          }
         }
+        
+        return {
+          cycle: {
+            ...response.data,
+            matches: matches
+          },
+          status: 'active'
+        };
       }
       
       return {
-        cycle: {
-          ...response.data,
-          matches: matches
-        },
-        status: 'active'
+        cycle: null,
+        status: 'no_active_cycle'
+      };
+    } catch (error) {
+      console.error('❌ Error fetching current cycle:', error);
+      return {
+        cycle: null,
+        status: 'no_active_cycle'
       };
     }
-    
-    return {
-      cycle: null,
-      status: 'no_active_cycle'
-    };
+  }
+
+  /**
+   * Enrich match data with team names from fixtures
+   */
+  private async enrichMatchesWithTeamNames(matchesData: any[]): Promise<OddysseyMatch[]> {
+    try {
+      // Use the matches endpoint to get enriched data
+      const matchesResponse = await this.getMatches();
+      const enrichedMatches = matchesResponse.data.today.matches;
+      
+      // Map the contract matches to enriched matches
+      return matchesData.map((match: any, index: number) => {
+        const enrichedMatch = enrichedMatches.find(em => em.id.toString() === match.id.toString());
+        
+        return {
+          id: match.id,
+          fixture_id: match.id,
+          home_team: enrichedMatch?.home_team || `Team ${match.id}`,
+          away_team: enrichedMatch?.away_team || `Team ${match.id}`,
+          league_name: enrichedMatch?.league_name || 'Unknown League',
+          match_date: new Date(match.startTime * 1000).toISOString(),
+          home_odds: match.oddsHome / 1000,
+          draw_odds: match.oddsDraw / 1000,
+          away_odds: match.oddsAway / 1000,
+          over_odds: match.oddsOver / 1000,
+          under_odds: match.oddsUnder / 1000,
+          market_type: "1x2_ou25",
+          display_order: index + 1
+        };
+      });
+    } catch (error) {
+      console.error('❌ Error enriching matches with team names:', error);
+      // Fallback to basic format
+      return matchesData.map((match: any, index: number) => ({
+        id: match.id,
+        fixture_id: match.id,
+        home_team: `Team ${match.id}`,
+        away_team: `Team ${match.id}`,
+        league_name: 'Unknown League',
+        match_date: new Date(match.startTime * 1000).toISOString(),
+        home_odds: match.oddsHome / 1000,
+        draw_odds: match.oddsDraw / 1000,
+        away_odds: match.oddsAway / 1000,
+        over_odds: match.oddsOver / 1000,
+        under_odds: match.oddsUnder / 1000,
+        market_type: "1x2_ou25",
+        display_order: index + 1
+      }));
+    }
   }
 
   /**
