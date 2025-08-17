@@ -158,7 +158,7 @@ export function useOddysseyContract() {
   const { data: currentMatches } = useReadContract({
     address: CONTRACTS.ODDYSSEY?.address as `0x${string}`,
     abi: ODDYSSEY_ABI,
-    functionName: 'dailyMatches',
+    functionName: 'getDailyMatches',
     args: currentCycleId ? [currentCycleId] : undefined,
     query: { enabled: !!currentCycleId }
   });

@@ -71,10 +71,7 @@ export default function Header() {
   const isScrolled = newY > 100;
 
   const handleClose = () => {
-    // Add a small delay to prevent rapid state changes
-    if (isMenuOpen) {
-      setIsMenuOpen(false);
-    }
+    setIsMenuOpen(false);
   };
   const handleBitredictorToggle = () => setIsBitredictorOpen(!isBitredictorOpen);
   const handleBitredictorClose = () => setIsBitredictorOpen(false);
@@ -383,10 +380,7 @@ export default function Header() {
               {/* Backdrop */}
               <div 
                 className="absolute inset-0 bg-bg-overlay backdrop-blur-modal"
-                onClick={() => {
-                  // Add a small delay to prevent rapid state changes
-                  setTimeout(handleClose, 50);
-                }}
+                onClick={handleClose}
               />
               
               {/* Menu Panel */}
@@ -402,10 +396,7 @@ export default function Header() {
                 <div className="flex flex-col h-full">
                   {/* Header */}
                   <div className="flex items-center justify-between p-4 border-b border-border-card">
-                    <Link href="/" className="flex items-center gap-2" onClick={() => {
-                      // Ensure menu closes properly
-                      setTimeout(() => setIsMenuOpen(false), 100);
-                    }}>
+                    <Link href="/" className="flex items-center gap-2" onClick={handleClose}>
                       <Image 
                         src="/logo.png" 
                         alt="BitRedict Logo" 
@@ -427,10 +418,7 @@ export default function Header() {
                           <Link
                             key={link.href}
                             href={link.href}
-                            onClick={() => {
-                              // Ensure menu closes properly
-                              setTimeout(() => setIsMenuOpen(false), 100);
-                            }}
+                            onClick={handleClose}
                             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                               segment === link.segment
                                 ? "bg-gradient-primary text-black"
@@ -452,10 +440,7 @@ export default function Header() {
                           <Link
                             key={link.href}
                             href={link.href}
-                            onClick={() => {
-                              // Ensure menu closes properly
-                              setTimeout(() => setIsMenuOpen(false), 100);
-                            }}
+                            onClick={handleClose}
                             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                               segment === link.segment
                                 ? "bg-gradient-primary text-black"
@@ -477,10 +462,7 @@ export default function Header() {
                           <Link
                             key={link.href}
                             href={link.href}
-                            onClick={() => {
-                              // Ensure menu closes properly
-                              setTimeout(() => setIsMenuOpen(false), 100);
-                            }}
+                            onClick={handleClose}
                             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                               segment === link.segment
                                 ? "bg-gradient-primary text-black"
@@ -496,10 +478,7 @@ export default function Header() {
 
                     {/* Action Buttons */}
                     <div className="space-y-2">
-                      <Link href="/create-prediction" onClick={() => {
-                        // Ensure menu closes properly
-                        setTimeout(() => setIsMenuOpen(false), 100);
-                      }}>
+                      <Link href="/create-prediction" onClick={handleClose}>
                         <Button fullWidth variant="primary" size="sm">
                           Create Market
                         </Button>

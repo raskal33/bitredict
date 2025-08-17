@@ -92,58 +92,63 @@ class OddysseyService {
     data: MatchesData;
   }> {
     try {
-      const endpoint = date 
-        ? `${this.baseEndpoint}/matches?date=${date}`
-        : `${this.baseEndpoint}/matches`;
+      // Use current-cycle endpoint since /matches needs server restart
+      const endpoint = `${this.baseEndpoint}/current-cycle`;
       
       console.log('🎯 OddysseyService: Fetching matches from:', endpoint);
       
       const response = await apiRequest<{
         success: boolean;
-        data: MatchesData;
+        data: OddysseyCycle;
       }>(endpoint);
       
-      console.log('✅ OddysseyService: Matches result:', response);
+      console.log('✅ OddysseyService: Current cycle result:', response);
       
-      // Extract the data from the API response - backend now returns individual odds fields directly
-      const transformedData = {
-        ...response.data,
-        today: response.data.today ? {
-          ...response.data.today,
-          matches: response.data.today.matches.map((match: any) => ({
-            ...match,
-            // Convert string odds to numbers
-            home_odds: typeof match.home_odds === 'string' ? parseFloat(match.home_odds) : (match.home_odds || 0),
-            draw_odds: typeof match.draw_odds === 'string' ? parseFloat(match.draw_odds) : (match.draw_odds || 0),
-            away_odds: typeof match.away_odds === 'string' ? parseFloat(match.away_odds) : (match.away_odds || 0),
-            over_odds: typeof match.over_odds === 'string' ? parseFloat(match.over_odds) : (match.over_odds || 0),
-            under_odds: typeof match.under_odds === 'string' ? parseFloat(match.under_odds) : (match.under_odds || 0)
-          }))
-        } : { date: '', matches: [] },
-        tomorrow: response.data.tomorrow ? {
-          ...response.data.tomorrow,
-          matches: response.data.tomorrow.matches.map((match: any) => ({
-            ...match,
-            // Convert string odds to numbers
-            home_odds: typeof match.home_odds === 'string' ? parseFloat(match.home_odds) : (match.home_odds || 0),
-            draw_odds: typeof match.draw_odds === 'string' ? parseFloat(match.draw_odds) : (match.draw_odds || 0),
-            away_odds: typeof match.away_odds === 'string' ? parseFloat(match.away_odds) : (match.away_odds || 0),
-            over_odds: typeof match.over_odds === 'string' ? parseFloat(match.over_odds) : (match.over_odds || 0),
-            under_odds: typeof match.under_odds === 'string' ? parseFloat(match.under_odds) : (match.under_odds || 0)
-          }))
-        } : { date: '', matches: [] },
-        yesterday: response.data.yesterday ? {
-          ...response.data.yesterday,
-          matches: response.data.yesterday.matches.map((match: any) => ({
-            ...match,
-            // Convert string odds to numbers
-            home_odds: typeof match.home_odds === 'string' ? parseFloat(match.home_odds) : (match.home_odds || 0),
-            draw_odds: typeof match.draw_odds === 'string' ? parseFloat(match.draw_odds) : (match.draw_odds || 0),
-            away_odds: typeof match.away_odds === 'string' ? parseFloat(match.away_odds) : (match.away_odds || 0),
-            over_odds: typeof match.over_odds === 'string' ? parseFloat(match.over_odds) : (match.over_odds || 0),
-            under_odds: typeof match.under_odds === 'string' ? parseFloat(match.under_odds) : (match.under_odds || 0)
-          }))
-        } : { date: '', matches: [] }
+      if (!response.data || !response.data.matches_data) {
+        console.warn('⚠️ No cycle data or matches found');
+        return {
+          data: {
+            today: { date: '', matches: [] },
+            tomorrow: { date: '', matches: [] },
+            yesterday: { date: '', matches: [] }
+          }
+        };
+      }
+
+      // Transform cycle data to match frontend expectations
+      const matchesData = Array.isArray(response.data.matches_data) ? response.data.matches_data : [];
+      const today = new Date().toISOString().split('T')[0];
+      
+      // Transform matches to the expected format
+      const transformedMatches = matchesData.map((match: any, index: number) => ({
+        id: match.id,
+        fixture_id: match.id,
+        home_team: 'Team A', // Will be populated from fixtures if needed
+        away_team: 'Team B', // Will be populated from fixtures if needed
+        league_name: 'League', // Will be populated from fixtures if needed
+        match_date: new Date(match.startTime * 1000).toISOString(),
+        home_odds: match.oddsHome / 1000, // Convert from integer format
+        draw_odds: match.oddsDraw / 1000, // Convert from integer format
+        away_odds: match.oddsAway / 1000, // Convert from integer format
+        over_odds: match.oddsOver / 1000, // Convert from integer format
+        under_odds: match.oddsUnder / 1000, // Convert from integer format
+        market_type: "1x2_ou25",
+        display_order: index + 1
+      }));
+      
+      const transformedData: MatchesData = {
+        today: {
+          date: today,
+          matches: transformedMatches
+        },
+        tomorrow: {
+          date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          matches: []
+        },
+        yesterday: {
+          date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          matches: []
+        }
       };
       
       return {
