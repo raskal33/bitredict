@@ -151,7 +151,7 @@
   {
     "inputs": [
       {
-        "type": "tuple[10]",
+        "type": "tuple[]",
         "name": "_predictions",
         "components": [
           {

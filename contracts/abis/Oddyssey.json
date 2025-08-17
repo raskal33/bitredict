@@ -1237,9 +1237,9 @@
             "type": "uint32"
           }
         ],
-        "internalType": "struct Oddyssey.UserPrediction[10]",
+        "internalType": "struct Oddyssey.UserPrediction[]",
         "name": "_predictions",
-        "type": "tuple[10]"
+        "type": "tuple[]"
       }
     ],
     "name": "placeSlip",
