@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaCheckCircle, FaTimesCircle, FaExclamationTriangle, FaSpinner, FaExternalLinkAlt, FaCopy } from 'react-icons/fa';
+import { FaTimesCircle, FaExclamationTriangle, FaSpinner, FaExternalLinkAlt, FaCopy, FaWallet, FaClock, FaCheckDouble } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
 
 export interface TransactionStatus {
-  type: 'success' | 'error' | 'warning' | 'info';
+  type: 'success' | 'error' | 'warning' | 'info' | 'pending' | 'confirming';
   title: string;
   message: string;
   hash?: string;
   action?: string;
   onAction?: () => void;
+  progress?: number; // For progress tracking
+  estimatedTime?: number; // Estimated completion time in seconds
 }
 
 interface TransactionFeedbackProps {
@@ -17,20 +19,53 @@ interface TransactionFeedbackProps {
   onClose: () => void;
   autoClose?: boolean;
   autoCloseDelay?: number;
+  showProgress?: boolean;
 }
 
 export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
   status,
   onClose,
   autoClose = true,
-  autoCloseDelay = 5000
+  autoCloseDelay = 5000,
+  showProgress = true
 }) => {
   const [isVisible, setIsVisible] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [timeElapsed, setTimeElapsed] = useState(0);
 
   const handleClose = useCallback(() => {
     setIsVisible(false);
     onClose();
   }, [onClose]);
+
+  // Progress simulation for pending transactions
+  useEffect(() => {
+    if (status?.type === 'pending' || status?.type === 'confirming') {
+      setProgress(0);
+      setTimeElapsed(0);
+      
+      const progressInterval = setInterval(() => {
+        setProgress(prev => {
+          if (prev >= 90) return prev; // Don't go to 100% until confirmed
+          return prev + Math.random() * 10;
+        });
+      }, 1000);
+
+      const timeInterval = setInterval(() => {
+        setTimeElapsed(prev => prev + 1);
+      }, 1000);
+
+      return () => {
+        clearInterval(progressInterval);
+        clearInterval(timeInterval);
+      };
+    } else if (status?.type === 'success') {
+      setProgress(100);
+    } else {
+      setProgress(0);
+      setTimeElapsed(0);
+    }
+  }, [status?.type]);
 
   useEffect(() => {
     if (status) {
@@ -52,28 +87,19 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
   const getIcon = () => {
     switch (status?.type) {
       case 'success':
-        return <FaCheckCircle className={`h-5 w-5 sm:h-6 sm:w-6 ${getIconColor()}`} />;
+        return <FaCheckDouble className={`h-5 w-5 sm:h-6 sm:w-6 ${getIconColor()}`} />;
       case 'error':
         return <FaTimesCircle className={`h-5 w-5 sm:h-6 sm:w-6 ${getIconColor()}`} />;
       case 'warning':
         return <FaExclamationTriangle className={`h-5 w-5 sm:h-6 sm:w-6 ${getIconColor()}`} />;
-      default:
+      case 'pending':
+        return <FaWallet className={`h-5 w-5 sm:h-6 sm:w-6 ${getIconColor()}`} />;
+      case 'confirming':
         return <FaSpinner className={`h-5 w-5 sm:h-6 sm:w-6 ${getIconColor()} animate-spin`} />;
+      default:
+        return <FaClock className={`h-5 w-5 sm:h-6 sm:w-6 ${getIconColor()}`} />;
     }
   };
-
-  // const getBackgroundColor = () => {
-  //   switch (status?.type) {
-  //     case 'success':
-  //       return 'bg-gradient-to-r from-green-500/15 to-emerald-500/15 border-green-500/30';
-  //     case 'error':
-  //       return 'bg-gradient-to-r from-red-500/15 to-rose-500/15 border-red-500/30';
-  //     case 'warning':
-  //       return 'bg-gradient-to-r from-yellow-500/15 to-orange-500/15 border-yellow-500/30';
-  //     default:
-  //       return 'bg-gradient-to-r from-blue-500/15 to-cyan-500/15 border-blue-500/30';
-  //   }
-  // };
 
   const getIconColor = () => {
     switch (status?.type) {
@@ -83,23 +109,53 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
         return 'text-red-400';
       case 'warning':
         return 'text-yellow-400';
+      case 'pending':
+        return 'text-blue-400';
+      case 'confirming':
+        return 'text-purple-400';
       default:
         return 'text-blue-400';
     }
   };
 
-  // const copyToClipboard = async (text: string) => {
-  //   try {
-  //     await navigator.clipboard.writeText(text);
-  //     toast.success('Transaction hash copied to clipboard!');
-  //   } catch {
-  //     toast.error('Failed to copy to clipboard');
-  //   }
-  // };
+  const getStatusColor = () => {
+    switch (status?.type) {
+      case 'success':
+        return 'bg-green-500/10 border-green-500/20';
+      case 'error':
+        return 'bg-red-500/10 border-red-500/20';
+      case 'warning':
+        return 'bg-yellow-500/10 border-yellow-500/20';
+      case 'pending':
+        return 'bg-blue-500/10 border-blue-500/20';
+      case 'confirming':
+        return 'bg-purple-500/10 border-purple-500/20';
+      default:
+        return 'bg-blue-500/10 border-blue-500/20';
+    }
+  };
 
-  // const getExplorerUrl = (hash: string) => {
-  //   return `https://somnia-testnet.explorer.caldera.xyz/tx/${hash}`;
-  // };
+  const getProgressColor = () => {
+    switch (status?.type) {
+      case 'success':
+        return 'bg-green-400';
+      case 'error':
+        return 'bg-red-400';
+      case 'pending':
+        return 'bg-blue-400';
+      case 'confirming':
+        return 'bg-purple-400';
+      default:
+        return 'bg-blue-400';
+    }
+  };
+
+  const formatTime = (seconds: number) => {
+    if (seconds < 60) return `${seconds}s`;
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}m ${remainingSeconds}s`;
+  };
 
   if (!status) return null;
 
@@ -121,16 +177,13 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className={`px-4 py-3 flex items-center gap-3 ${
-              status.type === 'success' ? 'bg-green-500/10 border-b border-green-500/20' :
-              status.type === 'error' ? 'bg-red-500/10 border-b border-red-500/20' :
-              status.type === 'warning' ? 'bg-yellow-500/10 border-b border-yellow-500/20' :
-              'bg-blue-500/10 border-b border-blue-500/20'
-            }`}>
+            <div className={`px-4 py-3 flex items-center gap-3 ${getStatusColor()}`}>
               <div className={`p-2 rounded-full ${
                 status.type === 'success' ? 'bg-green-500/20 text-green-400' :
                 status.type === 'error' ? 'bg-red-500/20 text-red-400' :
                 status.type === 'warning' ? 'bg-yellow-500/20 text-yellow-400' :
+                status.type === 'pending' ? 'bg-blue-500/20 text-blue-400' :
+                status.type === 'confirming' ? 'bg-purple-500/20 text-purple-400' :
                 'bg-blue-500/20 text-blue-400'
               }`}>
                 {getIcon()}
@@ -139,6 +192,11 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
                 <h3 className="text-sm sm:text-base font-semibold text-text-primary">
                   {status.title}
                 </h3>
+                {(status.type === 'pending' || status.type === 'confirming') && (
+                  <p className="text-xs text-text-secondary mt-1">
+                    {formatTime(timeElapsed)} elapsed
+                  </p>
+                )}
               </div>
               <button
                 onClick={handleClose}
@@ -147,6 +205,24 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
                 <FaTimesCircle className="h-4 w-4 text-text-secondary hover:text-text-primary" />
               </button>
             </div>
+
+            {/* Progress Bar for Pending/Confirming Transactions */}
+            {(status.type === 'pending' || status.type === 'confirming') && showProgress && (
+              <div className="px-4 py-2 bg-bg-overlay/50">
+                <div className="flex items-center justify-between text-xs text-text-secondary mb-1">
+                  <span>Progress</span>
+                  <span>{Math.round(progress)}%</span>
+                </div>
+                <div className="w-full bg-bg-card/30 rounded-full h-2">
+                  <motion.div 
+                    className={`h-2 rounded-full ${getProgressColor()}`}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${progress}%` }}
+                    transition={{ duration: 0.5, ease: "easeOut" }}
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Content */}
             <div className="px-4 py-4 space-y-3">
@@ -244,6 +320,23 @@ export const useTransactionFeedback = () => {
     });
   };
 
+  const showPending = (title: string, message: string) => {
+    setTransactionStatus({
+      type: 'pending',
+      title,
+      message
+    });
+  };
+
+  const showConfirming = (title: string, message: string, hash?: string) => {
+    setTransactionStatus({
+      type: 'confirming',
+      title,
+      message,
+      hash
+    });
+  };
+
   const clearStatus = () => {
     setTransactionStatus(null);
   };
@@ -254,6 +347,8 @@ export const useTransactionFeedback = () => {
     showError,
     showWarning,
     showInfo,
+    showPending,
+    showConfirming,
     clearStatus
   };
 };
@@ -289,6 +384,24 @@ export const showTransactionToast = {
     duration: 3000,
     style: {
       background: '#3B82F6',
+      color: '#fff',
+    },
+  }),
+
+  pending: (message: string) => toast(message, {
+    duration: 0, // Don't auto-dismiss
+    icon: '⏳',
+    style: {
+      background: '#3B82F6',
+      color: '#fff',
+    },
+  }),
+
+  confirming: (message: string) => toast(message, {
+    duration: 0, // Don't auto-dismiss
+    icon: '🔄',
+    style: {
+      background: '#8B5CF6',
       color: '#fff',
     },
   })

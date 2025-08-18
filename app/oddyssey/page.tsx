@@ -100,8 +100,8 @@ export default function OddysseyPage() {
   const { address, isConnected } = useAccount();
   const { placeSlip, isPending, isSuccess, isConfirming, error, hash, contractEntryFee, currentCycleId, currentMatches } = useOddysseyContract();
   
-  // Transaction feedback system
-  const { transactionStatus, showSuccess, showError, showInfo, clearStatus } = useTransactionFeedback();
+  // Enhanced transaction feedback system
+  const { transactionStatus, showSuccess, showError, showInfo, showPending, showConfirming, clearStatus } = useTransactionFeedback();
   const [picks, setPicks] = useState<Pick[]>([]);
   const [slips, setSlips] = useState<Pick[][]>([]);
   const [activeTab, setActiveTab] = useState<"today" | "slips" | "stats">("today");
@@ -115,24 +115,24 @@ export default function OddysseyPage() {
   const [isExpired, setIsExpired] = useState(false);
   const [hasStartedMatches, setHasStartedMatches] = useState(false);
 
-  // Monitor transaction states
+  // Enhanced transaction state monitoring with better feedback
   useEffect(() => {
     if (isPending) {
-      showInfo("Transaction Pending", "Please confirm the transaction in your wallet");
+      showPending("Wallet Confirmation Required", "Please open your wallet and confirm the transaction to place your slip");
     }
-  }, [isPending, showInfo]);
+  }, [isPending, showPending]);
 
   useEffect(() => {
     if (isConfirming) {
-      showInfo("Transaction Confirming", "Your slip is being processed on the blockchain");
+      showConfirming("Processing Transaction", "Your slip is being processed on the blockchain. This may take a few moments...", hash);
     }
-  }, [isConfirming, showInfo]);
+  }, [isConfirming, showConfirming, hash]);
 
   useEffect(() => {
     if (isSuccess && hash) {
       showSuccess(
         "Slip Placed Successfully!", 
-        "Your predictions have been submitted to the blockchain",
+        "Your predictions have been submitted to the blockchain and are now active in the competition",
         hash
       );
       // Reset picks after successful submission
@@ -142,7 +142,7 @@ export default function OddysseyPage() {
 
   useEffect(() => {
     if (error) {
-      showError("Transaction Failed", error.message || "Failed to place slip");
+      showError("Transaction Failed", error.message || "Failed to place slip. Please try again or check your wallet connection.");
     }
   }, [error, showError]);
 
@@ -329,14 +329,10 @@ export default function OddysseyPage() {
     }
   }, [address, fetchStats, fetchUserSlips]); // Include all dependencies
 
-  // Handle transaction state changes
+  // Enhanced transaction handling with backend synchronization
   useEffect(() => {
-    if (isPending) {
-      showInfo("Submitting Slip", "Please confirm the transaction in your wallet...");
-    } else if (isSuccess && hash) {
-      showSuccess("Slip Submitted", `Successfully submitted slip with ${picks.length} predictions!`, hash);
-      
-      // Also submit to backend for tracking
+    if (isSuccess && hash) {
+      // Transaction confirmed - submit to backend for tracking
       const submitToBackend = async () => {
         try {
           const predictions = picks.map(pick => ({
@@ -357,11 +353,11 @@ export default function OddysseyPage() {
           
           if (backendResponse.success) {
             // Add to local slips for immediate UI update
-            setSlips([...slips, [...picks]]);
-            setPicks([]);
+            setSlips(prevSlips => [...prevSlips, [...picks]]);
             
             // Refresh stats after successful submission
             fetchStats();
+            fetchUserSlips();
           } else {
             console.warn('Backend submission failed, but blockchain transaction succeeded');
           }
@@ -372,21 +368,8 @@ export default function OddysseyPage() {
       };
       
       submitToBackend();
-    } else if (error) {
-      showError("Transaction Failed", error.message || "Failed to submit slip to blockchain");
     }
-  }, [isPending, isSuccess, error, hash, picks, address, slips, fetchStats, showInfo, showSuccess, showError]);
-
-  // Handle transaction state changes
-  useEffect(() => {
-    if (isSuccess && hash) {
-      // Transaction confirmed - already handled in handleSubmitSlip
-      console.log('Transaction confirmed:', hash);
-    } else if (error) {
-      // Transaction failed
-      showError("Transaction Failed", error.message || "Transaction failed");
-    }
-  }, [isSuccess, error, hash, showError]);
+  }, [isSuccess, hash, picks, address, fetchStats, fetchUserSlips]);
 
   // Check if any matches have started
   const checkStartedMatches = useCallback((matches: Match[]) => {
@@ -517,7 +500,7 @@ export default function OddysseyPage() {
 
     if (filteredPicks.length < 10) {
       const newPick: Pick = {
-            id: matchId, // matchId is now fixture_id
+        id: matchId, // matchId is now fixture_id
         time: new Date(match.match_date).toLocaleTimeString('en-US', { 
           hour: '2-digit', 
           minute: '2-digit' 
@@ -530,6 +513,21 @@ export default function OddysseyPage() {
       };
 
       setPicks([...filteredPicks, newPick]);
+      
+      // Provide feedback for selection
+      const pickLabel = pick === "home" ? "1" : 
+                       pick === "draw" ? "X" : 
+                       pick === "away" ? "2" : 
+                       pick === "over" ? "Over 2.5" : "Under 2.5";
+      
+      const remaining = 9 - filteredPicks.length;
+      if (remaining > 0) {
+        toast.success(`${pickLabel} selected for ${match.home_team} vs ${match.away_team}. ${remaining} more prediction${remaining !== 1 ? 's' : ''} needed.`);
+      } else {
+        toast.success(`${pickLabel} selected! Your slip is now complete and ready to submit.`);
+      }
+    } else {
+      toast.error('You have already selected 10 predictions. Please remove one to add another.');
     }
   };
   
@@ -539,31 +537,33 @@ export default function OddysseyPage() {
   };
 
   const handleSubmitSlip = async () => {
+    // Enhanced validation with better user feedback
     if (!isConnected) {
       showError("Wallet Not Connected", "Please connect your wallet to submit a slip");
       return;
     }
 
-    // CRITICAL: Strict validation for exactly 10 predictions
-    if (!picks || picks.length !== 10) {
-      showError("Incomplete Slip", `You must make predictions for ALL 10 matches. Currently selected: ${picks?.length || 0}/10`);
+    if (!address) {
+      showError("Wallet Error", "Wallet address not available. Please reconnect your wallet.");
       return;
     }
 
-    if (!address) {
-      showError("Wallet Error", "Wallet address not available");
+    // CRITICAL: Strict validation for exactly 10 predictions
+    if (!picks || picks.length !== 10) {
+      const missing = 10 - (picks?.length || 0);
+      showError("Incomplete Slip", `You must make predictions for ALL 10 matches. Currently selected: ${picks?.length || 0}/10. Please select ${missing} more prediction${missing !== 1 ? 's' : ''}.`);
       return;
     }
 
     // Check if we have contract data
     if (!currentMatches || !Array.isArray(currentMatches) || currentMatches.length !== 10) {
-      showError("Contract Error", "No active matches found in contract. Please wait for the next cycle.");
+      showError("Contract Error", "No active matches found in contract. Please wait for the next cycle or refresh the page.");
       return;
     }
 
     // CRITICAL: Validate that we have predictions for ALL available matches
     if (!matches || matches.length < 10) {
-      showError("Insufficient Matches", `Only ${matches?.length || 0} matches available. Need exactly 10 matches to place a slip.`);
+      showError("Insufficient Matches", `Only ${matches?.length || 0} matches available. Need exactly 10 matches to place a slip. Please try refreshing the page.`);
       return;
     }
 
@@ -573,7 +573,7 @@ export default function OddysseyPage() {
     const missingPredictions = matchIds.filter(id => !predictionMatchIds.includes(id));
     
     if (missingPredictions.length > 0) {
-      showError("Missing Predictions", `You must make predictions for ALL 10 matches. Missing predictions for ${missingPredictions.length} matches.`);
+      showError("Missing Predictions", `You must make predictions for ALL 10 matches. Missing predictions for ${missingPredictions.length} match${missingPredictions.length !== 1 ? 'es' : ''}.`);
       return;
     }
 
@@ -587,15 +587,18 @@ export default function OddysseyPage() {
     });
 
     if (hasStartedMatch) {
-      showError("Invalid Selection", "Cannot submit slip with matches that have already started");
+      showError("Invalid Selection", "Cannot submit slip with matches that have already started. Please refresh and select only upcoming matches.");
       return;
     }
 
     // Check if transaction is already pending
     if (isPending || isConfirming) {
-      showInfo("Transaction in Progress", "Please wait for the current transaction to complete");
+      showInfo("Transaction in Progress", "Please wait for the current transaction to complete before submitting another slip.");
       return;
     }
+
+    // Show initial feedback
+    showInfo("Preparing Transaction", "Validating your slip and preparing the transaction...");
 
     try {
       console.log('🎯 Submitting slip with picks:', picks);
@@ -623,7 +626,18 @@ export default function OddysseyPage() {
       // Transaction feedback will be handled by useEffect watching transaction state
     } catch (error) {
       console.error('❌ Error submitting slip:', error);
-      showError("Submission Failed", (error as Error).message || "Failed to submit slip");
+      const errorMessage = (error as Error).message || "Failed to submit slip";
+      
+      // Provide more specific error messages
+      if (errorMessage.includes("insufficient funds")) {
+        showError("Insufficient Funds", "You don't have enough STT tokens to place this slip. Please check your wallet balance.");
+      } else if (errorMessage.includes("user rejected")) {
+        showError("Transaction Cancelled", "You cancelled the transaction in your wallet. No charges were made.");
+      } else if (errorMessage.includes("gas")) {
+        showError("Gas Error", "There was an issue with gas estimation. Please try again or check your wallet settings.");
+      } else {
+        showError("Submission Failed", errorMessage);
+      }
     }
   };
 
@@ -656,12 +670,13 @@ export default function OddysseyPage() {
 
   return (
     <div className="min-h-screen bg-gradient-main text-white">
-      {/* Transaction Feedback */}
+      {/* Enhanced Transaction Feedback */}
       <TransactionFeedback
         status={transactionStatus}
         onClose={clearStatus}
         autoClose={true}
         autoCloseDelay={5000}
+        showProgress={true}
       />
       
       <div className="container mx-auto px-4 py-8">
@@ -1304,7 +1319,14 @@ export default function OddysseyPage() {
                                   </div>
                                 </div>
                                   <button
-                                    onClick={() => setPicks(picks.filter((_, index) => index !== i))}
+                                    onClick={() => {
+                                      const removedPick = picks[i];
+                                      setPicks(picks.filter((_, index) => index !== i));
+                                      toast.success(`Removed ${removedPick.pick === "home" ? "1" : 
+                                                      removedPick.pick === "draw" ? "X" : 
+                                                      removedPick.pick === "away" ? "2" : 
+                                                      removedPick.pick === "over" ? "Over 2.5" : "Under 2.5"} from ${removedPick.team1} vs ${removedPick.team2}`);
+                                    }}
                                     className="ml-2 text-red-400 hover:text-red-300 transition-colors flex-shrink-0 p-1 hover:bg-red-500/10 rounded"
                                   >
                                     ×
@@ -1336,14 +1358,17 @@ export default function OddysseyPage() {
                             </div>
                           </div>
 
-                          {/* Submit Button */}
-                          {/* Potential Payout Display */}
+                          {/* Enhanced Submit Section */}
                           {picks.length === 10 && (
                             <motion.div
                               initial={{ opacity: 0, y: 10 }}
                               animate={{ opacity: 1, y: 0 }}
                               className="mb-4 p-3 bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-button"
                             >
+                              <div className="flex items-center gap-2 mb-2">
+                                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                                <span className="text-green-400 font-semibold text-sm">Ready to Submit!</span>
+                              </div>
                               <div className="flex justify-between items-center text-sm">
                                 <span className="text-text-muted">Total Odds:</span>
                                 <span className="text-green-400 font-bold">{totalOdd}x</span>
@@ -1354,12 +1379,12 @@ export default function OddysseyPage() {
                                   {contractEntryFee ? formatEther(contractEntryFee as bigint) : DEFAULT_ENTRY_FEE} STT
                                 </span>
                               </div>
-                                                              <div className="flex justify-between items-center text-sm mt-1">
-                                  <span className="text-text-muted">Potential Payout:</span>
-                                  <span className="text-primary font-bold">
-                                    {(parseFloat(totalOdd) * parseFloat(contractEntryFee ? formatEther(contractEntryFee as bigint) : DEFAULT_ENTRY_FEE)).toFixed(2)} STT
-                                  </span>
-                                </div>
+                              <div className="flex justify-between items-center text-sm mt-1">
+                                <span className="text-text-muted">Potential Payout:</span>
+                                <span className="text-primary font-bold">
+                                  {(parseFloat(totalOdd) * parseFloat(contractEntryFee ? formatEther(contractEntryFee as bigint) : DEFAULT_ENTRY_FEE)).toFixed(2)} STT
+                                </span>
+                              </div>
                             </motion.div>
                           )}
 
@@ -1371,7 +1396,11 @@ export default function OddysseyPage() {
                               leftIcon={isPending || isConfirming ? <FaSpinner className="h-4 w-4 md:h-5 md:w-5 animate-spin" /> : <BoltIcon className="h-4 w-4 md:h-5 md:w-5" />}
                               onClick={handleSubmitSlip}
                               disabled={isExpired || picks.length !== 10 || hasStartedMatches || isPending || isConfirming}
-                              className={`text-sm md:text-base ${picks.length === 10 && !hasStartedMatches && !isExpired && !isPending && !isConfirming ? 'animate-pulse' : ''}`}
+                              className={`text-sm md:text-base transition-all duration-300 ${
+                                picks.length === 10 && !hasStartedMatches && !isExpired && !isPending && !isConfirming 
+                                  ? 'animate-pulse shadow-lg shadow-primary/25' 
+                                  : ''
+                              }`}
                             >
                               {isPending ? "Confirming in Wallet..." :
                                isConfirming ? "Processing Transaction..." :
@@ -1380,11 +1409,33 @@ export default function OddysseyPage() {
                                picks.length < 10 ? `Need ${10 - picks.length} More Predictions` : 
                                "Place Slip (10/10)"}
                             </Button>
+                            
+                            {/* Enhanced Status Indicators */}
+                            {(isPending || isConfirming) && (
+                              <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="mt-3 p-3 bg-primary/10 border border-primary/20 rounded-button"
+                              >
+                                <div className="flex items-center gap-2 text-sm">
+                                  <FaSpinner className="h-4 w-4 animate-spin text-primary" />
+                                  <span className="text-primary font-medium">
+                                    {isPending ? "Waiting for wallet confirmation..." : "Processing transaction..."}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-text-muted mt-1">
+                                  Please don&apos;t close this page or disconnect your wallet
+                                </p>
+                              </motion.div>
+                            )}
                           </div>
 
                           {picks.length > 0 && (
                             <button
-                              onClick={() => setPicks([])}
+                              onClick={() => {
+                                setPicks([]);
+                                toast.success('All selections cleared. You can start building a new slip.');
+                              }}
                               className="w-full text-text-muted hover:text-red-400 transition-colors text-sm pt-2"
                               disabled={isPending || isConfirming}
                             >
@@ -1392,24 +1443,7 @@ export default function OddysseyPage() {
                             </button>
                           )}
 
-                          {/* Transaction Status Indicator */}
-                          {(isPending || isConfirming) && (
-                            <motion.div
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              className="mt-4 p-3 bg-primary/10 border border-primary/20 rounded-button"
-                            >
-                              <div className="flex items-center gap-2 text-sm">
-                                <FaSpinner className="h-4 w-4 animate-spin text-primary" />
-                                <span className="text-primary font-medium">
-                                  {isPending ? "Waiting for wallet confirmation..." : "Processing transaction..."}
-                                </span>
-                              </div>
-                              <p className="text-xs text-text-muted mt-1">
-                                Please don&apos;t close this page or disconnect your wallet
-                              </p>
-                            </motion.div>
-                          )}
+
                         </motion.div>
                       ) : (
                         <motion.div
