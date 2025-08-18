@@ -241,13 +241,6 @@ export class OddysseyContractService {
   }
 
   /**
-   * Wait for transaction receipt
-   */
-  static async waitForTransactionReceipt({ hash }: { hash: `0x${string}` }) {
-    return await this.client.waitForTransactionReceipt({ hash });
-  }
-
-  /**
    * Convert frontend prediction to contract format with proper validation
    * This matches the exact logic from the working backend script
    */
@@ -484,49 +477,21 @@ export class OddysseyContractService {
 }
 
 import { useAccount, useWalletClient } from 'wagmi';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect } from 'react';
 
 // React hook for contract interactions (updated to use the fixed service)
 export function useOddysseyContract() {
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
   
-  // Transaction state management
-  const [isPending, setIsPending] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [isConfirming, setIsConfirming] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  const [hash, setHash] = useState<`0x${string}` | null>(null);
-  const [contractEntryFee, setContractEntryFee] = useState<string>('0.5');
-  const [currentCycleId, setCurrentCycleId] = useState<number>(0);
-  const [currentMatches, setCurrentMatches] = useState<any[]>([]);
-  
   // Initialize the service when wallet is connected
   useEffect(() => {
     if (isConnected && address && walletClient) {
       OddysseyContractService.initialize(walletClient, address);
-      // Fetch initial data
-      fetchInitialData();
     }
   }, [isConnected, address, walletClient]);
 
-  const fetchInitialData = useCallback(async () => {
-    try {
-      const [entryFee, cycleId, matches] = await Promise.all([
-        OddysseyContractService.getEntryFee(),
-        OddysseyContractService.getCurrentCycleId(),
-        OddysseyContractService.getCurrentMatches()
-      ]);
-      
-      setContractEntryFee(entryFee);
-      setCurrentCycleId(cycleId);
-      setCurrentMatches(matches);
-    } catch (err) {
-      console.error('Error fetching initial data:', err);
-    }
-  }, []);
-
-  const placeSlip = useCallback(async (predictions: any[], entryFee: string) => {
+  const placeSlip = async (predictions: any[], entryFee: string) => {
     if (!isConnected || !address) {
       throw new Error('Wallet not connected');
     }
@@ -535,46 +500,20 @@ export function useOddysseyContract() {
       throw new Error('Wallet client not available');
     }
 
-    // Reset state
-    setIsPending(true);
-    setIsSuccess(false);
-    setIsConfirming(false);
-    setError(null);
-    setHash(null);
+    return await OddysseyContractService.placeSlip(predictions, entryFee);
+  };
 
-    try {
-      // Start transaction
-      const result = await OddysseyContractService.placeSlip(predictions, entryFee);
-      setHash(result.hash);
-      setIsPending(false);
-      setIsConfirming(true);
-
-      // Wait for transaction receipt
-      await OddysseyContractService.waitForTransactionReceipt({ hash: result.hash });
-      
-      setIsConfirming(false);
-      setIsSuccess(true);
-      
-      return result;
-    } catch (err) {
-      setIsPending(false);
-      setIsConfirming(false);
-      setError(err as Error);
-      throw err;
-    }
-  }, [isConnected, address, walletClient]);
-
-  const getEntryFee = useCallback(async () => {
+  const getEntryFee = async () => {
     return await OddysseyContractService.getEntryFee();
-  }, []);
+  };
 
-  const getCurrentCycleId = useCallback(async () => {
+  const getCurrentCycleId = async () => {
     return await OddysseyContractService.getCurrentCycleId();
-  }, []);
+  };
 
-  const getCurrentMatches = useCallback(async () => {
+  const getCurrentMatches = async () => {
     return await OddysseyContractService.getCurrentMatches();
-  }, []);
+  };
 
   return {
     placeSlip,
@@ -582,15 +521,6 @@ export function useOddysseyContract() {
     getCurrentCycleId,
     getCurrentMatches,
     isConnected,
-    address,
-    // Wagmi-style properties
-    isPending,
-    isSuccess,
-    isConfirming,
-    error,
-    hash,
-    contractEntryFee,
-    currentCycleId,
-    currentMatches
+    address
   };
 }

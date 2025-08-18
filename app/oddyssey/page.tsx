@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect, useCallback } from "react";
 import { useAccount } from "wagmi";
 import { toast } from "react-hot-toast";
-import { formatEther } from "viem";
+
 import { oddysseyService } from "@/services/oddysseyService";
 import { useOddysseyContract } from "@/services/oddysseyContractService";
 import { useTransactionFeedback, TransactionFeedback } from "@/components/TransactionFeedback";
@@ -124,7 +124,7 @@ export default function OddysseyPage() {
 
   useEffect(() => {
     if (isConfirming) {
-      showConfirming("Processing Transaction", "Your slip is being processed on the blockchain. This may take a few moments...", hash);
+      showConfirming("Processing Transaction", "Your slip is being processed on the blockchain. This may take a few moments...", hash || undefined);
     }
   }, [isConfirming, showConfirming, hash]);
 
@@ -568,7 +568,7 @@ export default function OddysseyPage() {
   };
   
   const calculatePotentialPayout = (totalOdd: number) => {
-    const entryFee = contractEntryFee ? formatEther(contractEntryFee as bigint) : DEFAULT_ENTRY_FEE;
+    const entryFee = contractEntryFee || DEFAULT_ENTRY_FEE;
     return (parseFloat(entryFee) * (totalOdd || 1)).toFixed(2);
   };
 
@@ -678,7 +678,7 @@ export default function OddysseyPage() {
       });
 
       console.log('📝 Formatted predictions:', predictions);
-      const actualEntryFee = contractEntryFee ? formatEther(contractEntryFee as bigint) : DEFAULT_ENTRY_FEE;
+      const actualEntryFee = contractEntryFee || DEFAULT_ENTRY_FEE;
       console.log('💰 Entry fee from contract:', actualEntryFee);
 
       // Submit to contract with enhanced error handling
@@ -1425,7 +1425,7 @@ export default function OddysseyPage() {
                             <div className="flex justify-between items-center text-sm">
                               <span className="text-text-muted">Entry Fee:</span>
                               <span className="text-white font-bold">
-                                {contractEntryFee ? formatEther(contractEntryFee as bigint) : DEFAULT_ENTRY_FEE} STT
+                                {contractEntryFee || DEFAULT_ENTRY_FEE} STT
                               </span>
                             </div>
                             <div className="flex justify-between items-center text-sm">
@@ -1452,13 +1452,13 @@ export default function OddysseyPage() {
                               <div className="flex justify-between items-center text-sm mt-1">
                                 <span className="text-text-muted">Entry Fee:</span>
                                 <span className="text-white font-bold">
-                                  {contractEntryFee ? formatEther(contractEntryFee as bigint) : DEFAULT_ENTRY_FEE} STT
+                                  {contractEntryFee || DEFAULT_ENTRY_FEE} STT
                                 </span>
                               </div>
                               <div className="flex justify-between items-center text-sm mt-1">
                                 <span className="text-text-muted">Potential Payout:</span>
                                 <span className="text-primary font-bold">
-                                  {(parseFloat(totalOdd) * parseFloat(contractEntryFee ? formatEther(contractEntryFee as bigint) : DEFAULT_ENTRY_FEE)).toFixed(2)} STT
+                                  {(parseFloat(totalOdd) * parseFloat(contractEntryFee || DEFAULT_ENTRY_FEE)).toFixed(2)} STT
                                 </span>
                               </div>
                             </motion.div>
@@ -1584,7 +1584,7 @@ export default function OddysseyPage() {
                                   <span className="text-text-muted">Status: <span className="text-green-400">Active</span></span>
                                   <span className="text-text-muted">Total Odds: <span className="text-primary font-bold">{slipTotalOdd}x</span></span>
                                   <span className="text-text-muted">Entry Fee: <span className="text-white font-bold">
-                                    {contractEntryFee ? formatEther(contractEntryFee as bigint) : DEFAULT_ENTRY_FEE} STT
+                                    {contractEntryFee || DEFAULT_ENTRY_FEE} STT
                                   </span></span>
                                 </div>
                               </div>
