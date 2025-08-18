@@ -278,7 +278,52 @@ export default function CreateMarketPage() {
   // Handle transaction results
   useEffect(() => {
     if (writeError) {
-      showError('Transaction Failed', writeError.message || 'Failed to create market');
+      console.log('❌ Transaction failed - showing error feedback');
+      console.error('Transaction error:', writeError);
+      
+      // Parse specific error messages for better user feedback
+      let errorMessage = 'Failed to create market';
+      let errorTitle = 'Transaction Failed';
+      
+      if (writeError.message) {
+        const errorStr = writeError.message.toLowerCase();
+        
+        if (errorStr.includes('insufficient funds')) {
+          errorTitle = 'Insufficient Funds';
+          errorMessage = 'You don\'t have enough funds to complete this transaction';
+        } else if (errorStr.includes('user rejected')) {
+          errorTitle = 'Transaction Cancelled';
+          errorMessage = 'You cancelled the transaction in your wallet';
+        } else if (errorStr.includes('execution reverted')) {
+          errorTitle = 'Contract Error';
+          errorMessage = 'The transaction failed on the blockchain - check your parameters';
+        } else if (errorStr.includes('invalid odds')) {
+          errorTitle = 'Invalid Odds';
+          errorMessage = 'Odds must be between 1.01x and 100x';
+        } else if (errorStr.includes('stake below minimum')) {
+          errorTitle = 'Invalid Stake';
+          errorMessage = 'Creator stake must be at least 20 BITR';
+        } else if (errorStr.includes('event must be in future')) {
+          errorTitle = 'Invalid Timing';
+          errorMessage = 'Event must start in the future';
+        } else if (errorStr.includes('event too soon')) {
+          errorTitle = 'Invalid Timing';
+          errorMessage = 'Event must start at least 1 minute from now';
+        } else if (errorStr.includes('event too far')) {
+          errorTitle = 'Invalid Timing';
+          errorMessage = 'Event cannot be more than 365 days in the future';
+        } else if (errorStr.includes('bitr transfer failed')) {
+          errorTitle = 'Token Transfer Failed';
+          errorMessage = 'BITR token transfer failed - check your balance and allowance';
+        } else if (errorStr.includes('gas')) {
+          errorTitle = 'Gas Error';
+          errorMessage = 'Transaction failed due to gas issues - try again';
+        } else {
+          errorMessage = writeError.message;
+        }
+      }
+      
+      showError(errorTitle, errorMessage);
       setIsLoading(false);
     }
   }, [writeError, showError]);
@@ -286,18 +331,29 @@ export default function CreateMarketPage() {
   // Monitor transaction states for feedback
   useEffect(() => {
     if (isPending) {
+      console.log('🔄 Transaction pending - showing feedback');
       showInfo('Transaction Pending', 'Please confirm the transaction in your wallet...');
     }
   }, [isPending, showInfo]);
 
   useEffect(() => {
     if (isConfirming) {
+      console.log('⏳ Transaction confirming - showing feedback');
       showInfo('Transaction Confirming', 'Your market creation is being processed on the blockchain...');
     }
   }, [isConfirming, showInfo]);
 
+  // Clear loading state when transaction is no longer pending (user cancelled or error occurred)
+  useEffect(() => {
+    if (!isPending && !isConfirming && !isSuccess && !writeError && isLoading) {
+      // Transaction was cancelled or failed without triggering writeError
+      setIsLoading(false);
+    }
+  }, [isPending, isConfirming, isSuccess, writeError, isLoading]);
+
   useEffect(() => {
     if (isSuccess && hash) {
+      console.log('✅ Transaction successful - showing feedback with hash:', hash);
       showSuccess('Market Created Successfully!', 'Your market has been created and is now live on the blockchain', hash);
       setDeploymentHash(hash);
       setIsLoading(false);
@@ -314,6 +370,18 @@ export default function CreateMarketPage() {
 
       // Notify backend about the new pool creation for indexing
       notifyPoolCreation(hash);
+      
+      // Reset approval state for future transactions
+      setApprovalConfirmed(false);
+      
+      // Reset form data for next market creation
+      setData({
+        category: '',
+        odds: 200,
+        creatorStake: 20,
+        description: ''
+      });
+      setStep(1);
     }
   }, [isSuccess, hash, address, addReputationAction, notifyPoolCreation, showSuccess]);
 
@@ -325,12 +393,14 @@ export default function CreateMarketPage() {
   // Track token approval states for transaction feedback
   useEffect(() => {
     if (token.isPending) {
+      console.log('🔄 Token approval pending - showing feedback');
       showInfo('Approval Pending', 'Please confirm the BITR token approval in your wallet...');
     }
   }, [token.isPending, showInfo]);
 
   useEffect(() => {
     if (token.isConfirming) {
+      console.log('⏳ Token approval confirming - showing feedback');
       showInfo('Approval Confirming', 'Your BITR token approval is being processed on the blockchain...');
     }
   }, [token.isConfirming, showInfo]);
@@ -338,6 +408,7 @@ export default function CreateMarketPage() {
   // Track approval confirmation
   useEffect(() => {
     if (isApprovalSuccess && !approvalConfirmed) {
+      console.log('✅ Token approval successful - showing feedback with hash:', token.hash);
       setApprovalConfirmed(true);
       showSuccess('Approval Confirmed!', 'BITR token approval confirmed! You can now create the pool.', token.hash);
     }
@@ -346,6 +417,7 @@ export default function CreateMarketPage() {
   // Track token approval errors
   useEffect(() => {
     if (token.error) {
+      console.log('❌ Token approval failed - showing error feedback');
       showError('Approval Failed', token.error.message || 'Failed to approve BITR tokens');
     }
   }, [token.error, showError]);
@@ -839,40 +911,13 @@ export default function CreateMarketPage() {
         functionExists: BitredictPoolABI.abi?.find(fn => fn.name === 'createPool') ? 'Yes' : 'No'
       });
       
-      await writeContract(contractConfig);
+      // Execute the contract call - let wagmi hooks handle the transaction state
+      writeContract(contractConfig);
     } catch (error) {
-      console.error('Error creating market:', error);
+      console.error('Error in market creation setup:', error);
       
-      // Parse specific error messages
-      let errorMessage = 'Failed to create market';
-      
-      if (error instanceof Error) {
-        const errorStr = error.message.toLowerCase();
-        
-        if (errorStr.includes('insufficient funds')) {
-          errorMessage = 'Insufficient funds for transaction';
-        } else if (errorStr.includes('user rejected')) {
-          errorMessage = 'Transaction was rejected by user';
-        } else if (errorStr.includes('execution reverted')) {
-          errorMessage = 'Transaction failed - check your parameters';
-        } else if (errorStr.includes('invalid odds')) {
-          errorMessage = 'Invalid odds value (must be between 1.01x and 100x)';
-        } else if (errorStr.includes('stake below minimum')) {
-          errorMessage = 'Creator stake must be at least 20 BITR';
-        } else if (errorStr.includes('event must be in future')) {
-          errorMessage = 'Event must start in the future';
-        } else if (errorStr.includes('event too soon')) {
-          errorMessage = 'Event must start at least 1 minute from now';
-        } else if (errorStr.includes('event too far')) {
-          errorMessage = 'Event cannot be more than 365 days in the future';
-        } else if (errorStr.includes('bitr transfer failed')) {
-          errorMessage = 'BITR token transfer failed - check your balance and allowance';
-        } else {
-          errorMessage = error.message;
-        }
-      }
-      
-      showError('Market Creation Failed', errorMessage);
+      // This catch block is for setup errors, not transaction errors
+      showError('Setup Error', 'Failed to prepare market creation transaction');
       setIsLoading(false);
     }
   };
