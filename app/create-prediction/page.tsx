@@ -26,30 +26,8 @@ import { GuidedMarketService, Cryptocurrency } from "@/services/guidedMarketServ
 import { CONTRACTS } from "@/contracts";
 import { useBITRToken } from "@/hooks/useBITRToken";
 
-// Contract ABI for createPool function
-const BITREDICT_POOL_ABI = [
-  {
-    name: "createPool",
-    type: "function",
-    stateMutability: "payable",
-    inputs: [
-      { name: "_predictedOutcome", type: "bytes32" },
-      { name: "_odds", type: "uint256" },
-      { name: "_creatorStake", type: "uint256" },
-      { name: "_eventStartTime", type: "uint256" },
-      { name: "_eventEndTime", type: "uint256" },
-      { name: "_league", type: "string" },
-      { name: "_category", type: "string" },
-      { name: "_region", type: "string" },
-      { name: "_isPrivate", type: "bool" },
-      { name: "_maxBetPerUser", type: "uint256" },
-      { name: "_useBitr", type: "bool" },
-      { name: "_oracleType", type: "uint8" },
-      { name: "_marketId", type: "bytes32" }
-    ],
-    outputs: []
-  }
-] as const;
+// Import the full contract ABI
+import BitredictPoolABI from '@/contracts/abis/BitredictPool.json';
 
 const CONTRACT_ADDRESS = CONTRACTS.BITREDICT_POOL.address;
 
@@ -635,12 +613,22 @@ export default function CreateMarketPage() {
         } : 'NO FIXTURE SELECTED'
       });
 
+      // Properly encode bytes32 parameters using ethers-like encoding
+      const encodeBytes32 = (str: string): `0x${string}` => {
+        // Convert string to bytes32 format (32 bytes, right-padded with zeros)
+        const encoder = new TextEncoder();
+        const bytes = encoder.encode(str);
+        const padded = new Uint8Array(32);
+        padded.set(bytes);
+        return `0x${Array.from(padded).map(b => b.toString(16).padStart(2, '0')).join('')}` as `0x${string}`;
+      };
+
       const baseConfig = {
         address: CONTRACT_ADDRESS,
-        abi: BITREDICT_POOL_ABI,
+        abi: BitredictPoolABI.abi,
         functionName: 'createPool' as const,
         args: [
-          `0x${Buffer.from(predictedOutcome, 'utf8').toString('hex').padEnd(64, '0')}` as `0x${string}`,
+          encodeBytes32(predictedOutcome), // Properly encode as bytes32
           BigInt(data.odds), // Convert to bigint
           parseEther(data.creatorStake.toString()),
           BigInt(eventStartTime), // Convert to bigint
@@ -652,7 +640,7 @@ export default function CreateMarketPage() {
           parseEther('500'), // maxBetPerUser - use proper value instead of 0
           useBitr as boolean,
           0 as number, // oracleType (0 = GUIDED) - keep as number
-          `0x${Buffer.from(data.selectedFixture?.id?.toString() || '0', 'utf8').toString('hex').padEnd(64, '0')}` as `0x${string}` // marketId
+          encodeBytes32(data.selectedFixture?.id?.toString() || '0') // marketId - properly encoded
         ] as const
       };
 
