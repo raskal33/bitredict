@@ -7,6 +7,7 @@ import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagm
 import { parseEther, parseUnits, formatUnits } from "viem";
 import { GAS_SETTINGS } from "@/config/wagmi";
 import { toast } from "react-hot-toast";
+import { useTransactionFeedback, TransactionFeedback } from "@/components/TransactionFeedback";
 import { 
   ExclamationTriangleIcon,
   CheckCircleIcon,
@@ -118,6 +119,9 @@ export default function CreateMarketPage() {
   const { getUserReputation, canCreateMarket, addReputationAction } = useReputationStore();
   const { writeContract, data: hash, error: writeError, isPending } = useWriteContract();
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
+  
+  // Transaction feedback system
+  const { transactionStatus, showSuccess, showError, showInfo, clearStatus } = useTransactionFeedback();
   
   // BITR Token approval state
   const [approvalConfirmed, setApprovalConfirmed] = useState(false);
@@ -274,14 +278,27 @@ export default function CreateMarketPage() {
   // Handle transaction results
   useEffect(() => {
     if (writeError) {
-      toast.error(writeError.message || 'Transaction failed');
+      showError('Transaction Failed', writeError.message || 'Failed to create market');
       setIsLoading(false);
     }
-  }, [writeError]);
+  }, [writeError, showError]);
+
+  // Monitor transaction states for feedback
+  useEffect(() => {
+    if (isPending) {
+      showInfo('Transaction Pending', 'Please confirm the transaction in your wallet...');
+    }
+  }, [isPending, showInfo]);
+
+  useEffect(() => {
+    if (isConfirming) {
+      showInfo('Transaction Confirming', 'Your market creation is being processed on the blockchain...');
+    }
+  }, [isConfirming, showInfo]);
 
   useEffect(() => {
     if (isSuccess && hash) {
-      toast.success('Market created successfully!');
+      showSuccess('Market Created Successfully!', 'Your market has been created and is now live on the blockchain', hash);
       setDeploymentHash(hash);
       setIsLoading(false);
       
@@ -298,7 +315,7 @@ export default function CreateMarketPage() {
       // Notify backend about the new pool creation for indexing
       notifyPoolCreation(hash);
     }
-  }, [isSuccess, hash, address, addReputationAction, notifyPoolCreation]);
+  }, [isSuccess, hash, address, addReputationAction, notifyPoolCreation, showSuccess]);
 
   // Track approval transaction confirmation
   const { isSuccess: isApprovalSuccess } = useWaitForTransactionReceipt({ 
@@ -554,23 +571,23 @@ export default function CreateMarketPage() {
     console.log('Data:', data);
     
     if (!address) {
-      toast.error('Please connect your wallet first');
+      showError('Wallet Not Connected', 'Please connect your wallet first');
       return;
     }
     
     if (!isConnected) {
-      toast.error('Wallet not connected');
+      showError('Wallet Not Connected', 'Please connect your wallet to continue');
       return;
     }
     
     if (!validateStep(2)) {
-      toast.error('Please fix the validation errors');
+      showError('Validation Error', 'Please fix the validation errors before proceeding');
       return;
     }
 
     // Check if prediction outcome is selected
     if (!data.predictionOutcome) {
-      toast.error('Please select your prediction (YES or NO)');
+      showError('Prediction Required', 'Please select your prediction (YES or NO)');
       return;
     }
 
@@ -678,7 +695,7 @@ export default function CreateMarketPage() {
         
         // Check balance first
         if (!currentBalance || currentBalance < requiredAmountWei) {
-          toast.error(`Insufficient BITR balance. You need ${requiredAmount} BITR but have ${currentBalance ? formatUnits(currentBalance, 18) : '0'} BITR`);
+          showError('Insufficient Balance', `You need ${requiredAmount} BITR but have ${currentBalance ? formatUnits(currentBalance, 18) : '0'} BITR`);
           setIsLoading(false);
           return;
         }
@@ -691,23 +708,23 @@ export default function CreateMarketPage() {
               return;
             }
             // Wait for approval confirmation before proceeding
-            toast.success('Waiting for BITR approval confirmation...');
+            showInfo('Approval Pending', 'Waiting for BITR approval confirmation...');
             setIsLoading(false);
             return;
           }
         }
-        toast.success('BITR approval confirmed. Proceeding with market creation...');
+        showInfo('Approval Confirmed', 'BITR approval confirmed. Proceeding with market creation...');
       }
 
       // Final validation before contract call
       if (data.category === 'football' && !data.selectedFixture) {
-        toast.error('No fixture selected. Please select a football match.');
+        showError('Fixture Required', 'Please select a football match to continue.');
         setIsLoading(false);
         return;
       }
 
       if (data.category === 'football' && !data.outcome) {
-        toast.error('No outcome selected. Please select an outcome to predict.');
+        showError('Outcome Required', 'Please select an outcome to predict.');
         setIsLoading(false);
         return;
       }
@@ -719,19 +736,19 @@ export default function CreateMarketPage() {
       const maxOdds = 100; // 100x maximum (10000 in contract format)
       
       if (data.creatorStake < minStake) {
-        toast.error(`Creator stake must be at least ${minStake} BITR`);
+        showError('Invalid Stake', `Creator stake must be at least ${minStake} BITR`);
         setIsLoading(false);
         return;
       }
       
       if (data.creatorStake > maxStake) {
-        toast.error(`Creator stake cannot exceed ${maxStake} BITR`);
+        showError('Invalid Stake', `Creator stake cannot exceed ${maxStake} BITR`);
         setIsLoading(false);
         return;
       }
       
       if (data.odds < minOdds || data.odds > maxOdds) {
-        toast.error(`Odds must be between ${minOdds}x and ${maxOdds}x`);
+        showError('Invalid Odds', `Odds must be between ${minOdds}x and ${maxOdds}x`);
         setIsLoading(false);
         return;
       }
@@ -742,19 +759,19 @@ export default function CreateMarketPage() {
       const maxEventTime = 365 * 24 * 3600; // 365 days
       
       if (eventStartTime <= now + bettingGracePeriod) {
-        toast.error('Event must start at least 1 minute from now');
+        showError('Invalid Timing', 'Event must start at least 1 minute from now');
         setIsLoading(false);
         return;
       }
       
       if (eventStartTime > now + maxEventTime) {
-        toast.error('Event cannot be more than 365 days in the future');
+        showError('Invalid Timing', 'Event cannot be more than 365 days in the future');
         setIsLoading(false);
         return;
       }
       
       if (eventEndTime <= eventStartTime) {
-        toast.error('Event end time must be after start time');
+        showError('Invalid Timing', 'Event end time must be after start time');
         setIsLoading(false);
         return;
       }
@@ -828,7 +845,7 @@ export default function CreateMarketPage() {
         }
       }
       
-      toast.error(errorMessage);
+      showError('Market Creation Failed', errorMessage);
       setIsLoading(false);
     }
   };
@@ -1939,6 +1956,14 @@ export default function CreateMarketPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+      {/* Transaction Feedback */}
+      <TransactionFeedback
+        status={transactionStatus}
+        onClose={clearStatus}
+        autoClose={true}
+        autoCloseDelay={5000}
+      />
+      
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
