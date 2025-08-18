@@ -204,7 +204,7 @@ class OddysseyContract {
     return await this.client.readContract({
       address: CONTRACTS.ODDYSSEY.address as Address,
       abi: ODDYSSEY_ABI,
-      functionName: 'slips',
+      functionName: 'getSlip',
       args: [slipId]
     });
   }
@@ -380,8 +380,20 @@ export class OddysseyContractService {
     // Get contract validation data from contract directly (matching backend approach)
     let contractMatchesData;
     try {
-      const currentCycleId = await this.oddysseyContract.getCurrentCycleInfo();
-      const currentMatches = await this.oddysseyContract.getDailyMatches(currentCycleId as bigint);
+      const cycleInfo = await this.oddysseyContract.getCurrentCycleInfo() as [bigint, number, bigint, bigint, bigint];
+      
+      // Check if cycle exists and is active (matching backend validation)
+      if (!cycleInfo || cycleInfo[0] === BigInt(0)) {
+        throw new Error('No active cycle found in contract. Please wait for the next cycle.');
+      }
+
+      // Check if cycle is active (matching backend validation)
+      if (cycleInfo[1] !== 1) {
+        throw new Error('Cycle is not active. Please wait for the next active cycle.');
+      }
+
+      const currentCycleId = cycleInfo[0];
+      const currentMatches = await this.oddysseyContract.getDailyMatches(currentCycleId);
       
       if (!currentMatches || !Array.isArray(currentMatches) || currentMatches.length !== 10) {
         throw new Error('No active matches found in contract. Please wait for the next cycle.');
@@ -389,6 +401,8 @@ export class OddysseyContractService {
 
       contractMatchesData = currentMatches;
       console.log('✅ Contract validation successful - 10 matches available');
+      console.log(`✅ Current Cycle ID: ${currentCycleId}`);
+      console.log(`✅ Cycle State: ${cycleInfo[1]}`);
     } catch (error) {
       console.error('❌ Contract validation failed:', error);
       throw new Error('No active matches found in contract. Please wait for the next cycle.');
@@ -465,8 +479,8 @@ export class OddysseyContractService {
       throw new Error('OddysseyContractService not initialized. Call initialize() first.');
     }
     
-    const cycleId = await this.oddysseyContract.getCurrentCycleInfo();
-    return Number(cycleId);
+    const cycleInfo = await this.oddysseyContract.getCurrentCycleInfo() as [bigint, number, bigint, bigint, bigint];
+    return Number(cycleInfo[0]); // Return the cycle ID from the array
   }
 
   /**
