@@ -98,7 +98,19 @@ const DEFAULT_ENTRY_FEE = "0.5";
 
 export default function OddysseyPage() {
   const { address, isConnected } = useAccount();
-  const { placeSlip, isPending, isSuccess, isConfirming, error, hash, contractEntryFee, currentCycleId, currentMatches } = useOddysseyContract();
+  const { 
+    placeSlip, 
+    isPending, 
+    isSuccess, 
+    isConfirming, 
+    error, 
+    hash, 
+    contractEntryFee, 
+    currentCycleId, 
+    currentMatches,
+    isInitialized,
+    isInitializing
+  } = useOddysseyContract();
   
   // Enhanced transaction feedback system
   const { transactionStatus, showSuccess, showError, showInfo, showPending, showConfirming, clearStatus } = useTransactionFeedback();
@@ -573,70 +585,71 @@ export default function OddysseyPage() {
   };
 
   const handleSubmitSlip = async () => {
-    // Enhanced validation with better user feedback
-    if (!isConnected) {
-      showError("Wallet Not Connected", "Please connect your wallet to submit a slip");
-      return;
-    }
-
-    if (!address) {
-      showError("Wallet Error", "Wallet address not available. Please reconnect your wallet.");
-      return;
-    }
-
-    // CRITICAL: Strict validation for exactly 10 predictions
-    if (!picks || picks.length !== 10) {
-      const missing = 10 - (picks?.length || 0);
-      showError("Incomplete Slip", `You must make predictions for ALL 10 matches. Currently selected: ${picks?.length || 0}/10. Please select ${missing} more prediction${missing !== 1 ? 's' : ''}.`);
-      return;
-    }
-
-    // Check if we have contract data
-    if (!currentMatches || !Array.isArray(currentMatches) || currentMatches.length !== 10) {
-      showError("Contract Error", "No active matches found in contract. Please wait for the next cycle or refresh the page.");
-      return;
-    }
-
-    // CRITICAL: Validate that we have predictions for ALL available matches
-    if (!matches || matches.length < 10) {
-      showError("Insufficient Matches", `Only ${matches?.length || 0} matches available. Need exactly 10 matches to place a slip. Please try refreshing the page.`);
-      return;
-    }
-
-    // CRITICAL: Ensure each match has a prediction
-    const matchIds = matches.slice(0, 10).map(m => m.fixture_id);
-    const predictionMatchIds = picks.map(p => p.id);
-    const missingPredictions = matchIds.filter(id => !predictionMatchIds.includes(id));
-    
-    if (missingPredictions.length > 0) {
-      showError("Missing Predictions", `You must make predictions for ALL 10 matches. Missing predictions for ${missingPredictions.length} match${missingPredictions.length !== 1 ? 'es' : ''}.`);
-      return;
-    }
-
-    // Check if any selected matches have started
-    const now = new Date();
-    const hasStartedMatch = picks.some(pick => {
-      const match = matches.find(m => m.fixture_id === pick.id);
-      if (!match) return false;
-      const matchStartTime = new Date(match.match_date);
-      return matchStartTime <= now;
-    });
-
-    if (hasStartedMatch) {
-      showError("Invalid Selection", "Cannot submit slip with matches that have already started. Please refresh and select only upcoming matches.");
-      return;
-    }
-
-    // Check if transaction is already pending
-    if (isPending || isConfirming) {
-      showInfo("Transaction in Progress", "Please wait for the current transaction to complete before submitting another slip.");
-      return;
-    }
-
-    // Show initial feedback
-    showInfo("Preparing Transaction", "Validating your slip and preparing the transaction...");
-
     try {
+      // Check if contract service is initialized
+      if (!isInitialized) {
+        showError("Service Not Ready", "Contract service is not initialized. Please wait for initialization to complete.");
+        return;
+      }
+
+      // Validate wallet connection
+      if (!isConnected || !address) {
+        showError("Wallet Not Connected", "Please connect your wallet to place a slip.");
+        return;
+      }
+
+      // CRITICAL: Strict validation for exactly 10 predictions
+      if (!picks || picks.length !== 10) {
+        const missing = 10 - (picks?.length || 0);
+        showError("Incomplete Slip", `You must make predictions for ALL 10 matches. Currently selected: ${picks?.length || 0}/10. Please select ${missing} more prediction${missing !== 1 ? 's' : ''}.`);
+        return;
+      }
+
+      // Check if we have contract data
+      if (!currentMatches || !Array.isArray(currentMatches) || currentMatches.length !== 10) {
+        showError("Contract Error", "No active matches found in contract. Please wait for the next cycle or refresh the page.");
+        return;
+      }
+
+      // CRITICAL: Validate that we have predictions for ALL available matches
+      if (!matches || matches.length < 10) {
+        showError("Insufficient Matches", `Only ${matches?.length || 0} matches available. Need exactly 10 matches to place a slip. Please try refreshing the page.`);
+        return;
+      }
+
+      // CRITICAL: Ensure each match has a prediction
+      const matchIds = matches.slice(0, 10).map(m => m.fixture_id);
+      const predictionMatchIds = picks.map(p => p.id);
+      const missingPredictions = matchIds.filter(id => !predictionMatchIds.includes(id));
+      
+      if (missingPredictions.length > 0) {
+        showError("Missing Predictions", `You must make predictions for ALL 10 matches. Missing predictions for ${missingPredictions.length} match${missingPredictions.length !== 1 ? 'es' : ''}.`);
+        return;
+      }
+
+      // Check if any selected matches have started
+      const now = new Date();
+      const hasStartedMatch = picks.some(pick => {
+        const match = matches.find(m => m.fixture_id === pick.id);
+        if (!match) return false;
+        const matchStartTime = new Date(match.match_date);
+        return matchStartTime <= now;
+      });
+
+      if (hasStartedMatch) {
+        showError("Invalid Selection", "Cannot submit slip with matches that have already started. Please refresh and select only upcoming matches.");
+        return;
+      }
+
+      // Check if transaction is already pending
+      if (isPending || isConfirming) {
+        showInfo("Transaction in Progress", "Please wait for the current transaction to complete before submitting another slip.");
+        return;
+      }
+
+      // Show initial feedback
+      showInfo("Preparing Transaction", "Validating your slip and preparing the transaction...");
+
       console.log('🎯 Submitting slip with picks:', picks);
       console.log('📊 Contract cycle ID:', currentCycleId);
       console.log('🏆 Contract matches:', currentMatches);
@@ -807,6 +820,44 @@ export default function OddysseyPage() {
             </p>
           </div>
         </motion.div>
+
+        {/* Contract Initialization Status */}
+        {isConnected && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="mb-6"
+          >
+            {isInitializing && (
+              <div className="glass-card p-4 text-center">
+                <div className="flex items-center justify-center gap-3">
+                  <FaSpinner className="h-5 w-5 animate-spin text-primary" />
+                  <span className="text-lg font-semibold text-text-secondary">
+                    Initializing contract connection...
+                  </span>
+                </div>
+                <p className="text-sm text-text-muted mt-2">
+                  Please wait while we connect to the blockchain
+                </p>
+              </div>
+            )}
+            
+            {!isInitialized && !isInitializing && (
+              <div className="glass-card p-4 text-center border border-red-500/30">
+                <div className="flex items-center justify-center gap-3">
+                  <ShieldCheckIcon className="h-5 w-5 text-red-400" />
+                  <span className="text-lg font-semibold text-red-400">
+                    Contract connection failed
+                  </span>
+                </div>
+                <p className="text-sm text-text-muted mt-2">
+                  Please refresh the page or check your wallet connection
+                </p>
+              </div>
+            )}
+          </motion.div>
+        )}
 
         {/* Stats Cards */}
         {stats && (
@@ -1471,15 +1522,16 @@ export default function OddysseyPage() {
                               size="lg"
                               leftIcon={isPending || isConfirming ? <FaSpinner className="h-4 w-4 md:h-5 md:w-5 animate-spin" /> : <BoltIcon className="h-4 w-4 md:h-5 md:w-5" />}
                               onClick={handleSubmitSlip}
-                              disabled={isExpired || picks.length !== 10 || hasStartedMatches || isPending || isConfirming}
+                              disabled={isExpired || picks.length !== 10 || hasStartedMatches || isPending || isConfirming || !isInitialized}
                               className={`text-sm md:text-base transition-all duration-300 ${
-                                picks.length === 10 && !hasStartedMatches && !isExpired && !isPending && !isConfirming 
+                                picks.length === 10 && !hasStartedMatches && !isExpired && !isPending && !isConfirming && isInitialized
                                   ? 'animate-pulse shadow-lg shadow-primary/25' 
                                   : ''
                               }`}
                             >
                               {isPending ? "Confirming in Wallet..." :
                                isConfirming ? "Processing Transaction..." :
+                               !isInitialized ? "Initializing..." :
                                isExpired || hasStartedMatches ? "Betting Closed" : 
                                picks.length === 0 ? "Select 10 Matches" :
                                picks.length < 10 ? `Need ${10 - picks.length} More Predictions` : 

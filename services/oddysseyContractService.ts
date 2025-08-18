@@ -229,21 +229,54 @@ class OddysseyContract {
 export class OddysseyContractService {
   private static client = new WagmiStyleClient();
   private static oddysseyContract: OddysseyContract | null = null;
+  private static isInitialized = false;
+  private static initializationPromise: Promise<void> | null = null;
 
   /**
    * Initialize the service with wallet client
    */
   static async initialize(walletClient: WalletClient, address: Address) {
-    await this.client.initialize();
-    this.client.setWalletClient(walletClient, address);
-    this.oddysseyContract = new OddysseyContract(this.client);
-    console.log('✅ OddysseyContractService initialized');
+    // Prevent multiple simultaneous initializations
+    if (this.initializationPromise) {
+      return this.initializationPromise;
+    }
+
+    this.initializationPromise = this._initialize(walletClient, address);
+    return this.initializationPromise;
+  }
+
+  private static async _initialize(walletClient: WalletClient, address: Address) {
+    try {
+      console.log('🔧 Initializing OddysseyContractService...');
+      
+      await this.client.initialize();
+      this.client.setWalletClient(walletClient, address);
+      this.oddysseyContract = new OddysseyContract(this.client);
+      this.isInitialized = true;
+      
+      console.log('✅ OddysseyContractService initialized');
+    } catch (error) {
+      console.error('❌ Failed to initialize OddysseyContractService:', error);
+      this.isInitialized = false;
+      this.initializationPromise = null;
+      throw error;
+    }
+  }
+
+  /**
+   * Check if service is initialized
+   */
+  private static ensureInitialized() {
+    if (!this.isInitialized || !this.oddysseyContract) {
+      throw new Error('OddysseyContractService not initialized. Call initialize() first.');
+    }
   }
 
   /**
    * Wait for transaction receipt
    */
   static async waitForTransactionReceipt({ hash }: { hash: `0x${string}` }) {
+    this.ensureInitialized();
     return await this.client.waitForTransactionReceipt({ hash });
   }
 
@@ -368,9 +401,7 @@ export class OddysseyContractService {
    * Place slip using the working backend approach
    */
   static async placeSlip(predictions: any[], entryFee: string) {
-    if (!this.oddysseyContract) {
-      throw new Error('OddysseyContractService not initialized. Call initialize() first.');
-    }
+    this.ensureInitialized();
 
     // CRITICAL: Ensure exactly 10 predictions before any processing (matching backend validation)
     if (!predictions || predictions.length !== 10) {
@@ -380,7 +411,7 @@ export class OddysseyContractService {
     // Get contract validation data from contract directly (matching backend approach)
     let contractMatchesData;
     try {
-      const cycleInfo = await this.oddysseyContract.getCurrentCycleInfo() as [bigint, number, bigint, bigint, bigint];
+      const cycleInfo = await this.oddysseyContract!.getCurrentCycleInfo() as [bigint, number, bigint, bigint, bigint];
       
       // Check if cycle exists and is active (matching backend validation)
       if (!cycleInfo || cycleInfo[0] === BigInt(0)) {
@@ -393,7 +424,7 @@ export class OddysseyContractService {
       }
 
       const currentCycleId = cycleInfo[0];
-      const currentMatches = await this.oddysseyContract.getDailyMatches(currentCycleId);
+      const currentMatches = await this.oddysseyContract!.getDailyMatches(currentCycleId);
       
       if (!currentMatches || !Array.isArray(currentMatches) || currentMatches.length !== 10) {
         throw new Error('No active matches found in contract. Please wait for the next cycle.');
@@ -435,7 +466,7 @@ export class OddysseyContractService {
       console.log('⛽ Gas settings:', { gas: GAS_SETTINGS.gas.toString(), gasPrice: GAS_SETTINGS.gasPrice.toString() });
       
       // Use the working backend approach
-      const result = await this.oddysseyContract.placeSlip(contractPredictions, entryFee);
+      const result = await this.oddysseyContract!.placeSlip(contractPredictions, entryFee);
       
       console.log('✅ Slip placed successfully:', result.hash);
       return result;
@@ -463,11 +494,9 @@ export class OddysseyContractService {
    * Get entry fee from contract
    */
   static async getEntryFee(): Promise<string> {
-    if (!this.oddysseyContract) {
-      throw new Error('OddysseyContractService not initialized. Call initialize() first.');
-    }
+    this.ensureInitialized();
     
-    const entryFee = await this.oddysseyContract.getEntryFee();
+    const entryFee = await this.oddysseyContract!.getEntryFee();
     return formatEther(entryFee as bigint);
   }
 
@@ -475,11 +504,9 @@ export class OddysseyContractService {
    * Get current cycle ID
    */
   static async getCurrentCycleId(): Promise<number> {
-    if (!this.oddysseyContract) {
-      throw new Error('OddysseyContractService not initialized. Call initialize() first.');
-    }
+    this.ensureInitialized();
     
-    const cycleInfo = await this.oddysseyContract.getCurrentCycleInfo() as [bigint, number, bigint, bigint, bigint];
+    const cycleInfo = await this.oddysseyContract!.getCurrentCycleInfo() as [bigint, number, bigint, bigint, bigint];
     return Number(cycleInfo[0]); // Return the cycle ID from the array
   }
 
@@ -487,12 +514,10 @@ export class OddysseyContractService {
    * Get current matches from contract
    */
   static async getCurrentMatches(): Promise<any[]> {
-    if (!this.oddysseyContract) {
-      throw new Error('OddysseyContractService not initialized. Call initialize() first.');
-    }
+    this.ensureInitialized();
     
-    const cycleId = await this.oddysseyContract.getCurrentCycleInfo();
-    const matches = await this.oddysseyContract.getDailyMatches(cycleId as bigint);
+    const cycleId = await this.oddysseyContract!.getCurrentCycleInfo();
+    const matches = await this.oddysseyContract!.getDailyMatches(cycleId as bigint);
     return matches as any[];
   }
 }
@@ -514,18 +539,45 @@ export function useOddysseyContract() {
   const [contractEntryFee, setContractEntryFee] = useState<string>('0.5');
   const [currentCycleId, setCurrentCycleId] = useState<number>(0);
   const [currentMatches, setCurrentMatches] = useState<any[]>([]);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(false);
   
   // Initialize the service when wallet is connected
   useEffect(() => {
     if (isConnected && address && walletClient) {
-      OddysseyContractService.initialize(walletClient, address);
-      // Fetch initial data
-      fetchInitialData();
+      setIsInitializing(true);
+      setIsInitialized(false);
+      
+      OddysseyContractService.initialize(walletClient, address)
+        .then(() => {
+          setIsInitialized(true);
+          setIsInitializing(false);
+          // Fetch initial data after successful initialization
+          return fetchInitialData();
+        })
+        .catch(err => {
+          console.error('Error initializing OddysseyContractService:', err);
+          setIsInitialized(false);
+          setIsInitializing(false);
+        });
+    } else {
+      // Reset state when wallet is disconnected
+      setIsInitialized(false);
+      setIsInitializing(false);
+      setContractEntryFee('0.5');
+      setCurrentCycleId(0);
+      setCurrentMatches([]);
     }
   }, [isConnected, address, walletClient]);
 
   const fetchInitialData = useCallback(async () => {
+    if (!isInitialized) {
+      console.log('⏳ Skipping fetchInitialData - service not yet initialized');
+      return;
+    }
+    
     try {
+      console.log('🎯 Fetching initial contract data...');
       const [entryFee, cycleId, matches] = await Promise.all([
         OddysseyContractService.getEntryFee(),
         OddysseyContractService.getCurrentCycleId(),
@@ -535,10 +587,12 @@ export function useOddysseyContract() {
       setContractEntryFee(entryFee);
       setCurrentCycleId(cycleId);
       setCurrentMatches(matches);
+      console.log('✅ Initial contract data fetched successfully');
     } catch (err) {
       console.error('Error fetching initial data:', err);
+      // Don't throw here, just log the error
     }
-  }, []);
+  }, [isInitialized]);
 
   const placeSlip = useCallback(async (predictions: any[], entryFee: string) => {
     if (!isConnected || !address) {
@@ -547,6 +601,10 @@ export function useOddysseyContract() {
 
     if (!walletClient) {
       throw new Error('Wallet client not available');
+    }
+
+    if (!isInitialized) {
+      throw new Error('Contract service not initialized. Please wait for initialization to complete.');
     }
 
     // Reset state
@@ -576,19 +634,28 @@ export function useOddysseyContract() {
       setError(err as Error);
       throw err;
     }
-  }, [isConnected, address, walletClient]);
+  }, [isConnected, address, walletClient, isInitialized]);
 
   const getEntryFee = useCallback(async () => {
+    if (!isInitialized) {
+      throw new Error('Contract service not initialized. Please wait for initialization to complete.');
+    }
     return await OddysseyContractService.getEntryFee();
-  }, []);
+  }, [isInitialized]);
 
   const getCurrentCycleId = useCallback(async () => {
+    if (!isInitialized) {
+      throw new Error('Contract service not initialized. Please wait for initialization to complete.');
+    }
     return await OddysseyContractService.getCurrentCycleId();
-  }, []);
+  }, [isInitialized]);
 
   const getCurrentMatches = useCallback(async () => {
+    if (!isInitialized) {
+      throw new Error('Contract service not initialized. Please wait for initialization to complete.');
+    }
     return await OddysseyContractService.getCurrentMatches();
-  }, []);
+  }, [isInitialized]);
 
   return {
     placeSlip,
@@ -605,6 +672,9 @@ export function useOddysseyContract() {
     hash,
     contractEntryFee,
     currentCycleId,
-    currentMatches
+    currentMatches,
+    // Initialization state
+    isInitialized,
+    isInitializing
   };
 }
