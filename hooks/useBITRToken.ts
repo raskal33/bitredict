@@ -5,7 +5,7 @@ import { formatUnits, parseUnits } from 'viem';
 
 export function useBITRToken() {
   const { address } = useAccount();
-  const { writeContract, data: hash, isPending } = useWriteContract();
+  const { writeContract, data: hash, isPending, error: writeError } = useWriteContract();
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash });
 
   // Read contract functions
@@ -153,5 +153,6 @@ export function useBITRToken() {
     isConfirming,
     isConfirmed,
     hash,
+    error: writeError,
   };
 }

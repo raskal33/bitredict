@@ -322,13 +322,33 @@ export default function CreateMarketPage() {
     hash: token.hash 
   });
 
+  // Track token approval states for transaction feedback
+  useEffect(() => {
+    if (token.isPending) {
+      showInfo('Approval Pending', 'Please confirm the BITR token approval in your wallet...');
+    }
+  }, [token.isPending, showInfo]);
+
+  useEffect(() => {
+    if (token.isConfirming) {
+      showInfo('Approval Confirming', 'Your BITR token approval is being processed on the blockchain...');
+    }
+  }, [token.isConfirming, showInfo]);
+
   // Track approval confirmation
   useEffect(() => {
     if (isApprovalSuccess && !approvalConfirmed) {
       setApprovalConfirmed(true);
-      toast.success('BITR token approval confirmed! You can now create the pool.');
+      showSuccess('Approval Confirmed!', 'BITR token approval confirmed! You can now create the pool.', token.hash);
     }
-  }, [isApprovalSuccess, approvalConfirmed]);
+  }, [isApprovalSuccess, approvalConfirmed, showSuccess, token.hash]);
+
+  // Track token approval errors
+  useEffect(() => {
+    if (token.error) {
+      showError('Approval Failed', token.error.message || 'Failed to approve BITR tokens');
+    }
+  }, [token.error, showError]);
 
   const handleInputChange = <K extends keyof GuidedMarketData>(field: K, value: GuidedMarketData[K]) => {
     setData(prev => {
@@ -554,11 +574,10 @@ export default function CreateMarketPage() {
     try {
       // Use the BITR token hook for approval
       await token.approve(CONTRACTS.BITREDICT_POOL.address, amount);
-      toast.success('BITR token approval submitted. Please wait for confirmation.');
       return true;
     } catch (error) {
       console.error('BITR approval error:', error);
-      toast.error('BITR token approval failed: ' + (error as Error).message);
+      // Error will be handled by the useEffect hook monitoring token.error
       return false;
     }
   };
@@ -690,7 +709,8 @@ export default function CreateMarketPage() {
           currentAllowance: currentAllowance?.toString(),
           requiredAmountWei: requiredAmountWei.toString(),
           hasEnoughBalance: currentBalance && currentBalance >= requiredAmountWei,
-          hasEnoughAllowance: currentAllowance && currentAllowance >= requiredAmountWei
+          hasEnoughAllowance: currentAllowance && currentAllowance >= requiredAmountWei,
+          approvalConfirmed
         });
         
         // Check balance first
@@ -700,20 +720,27 @@ export default function CreateMarketPage() {
           return;
         }
         
-        if (!currentAllowance || currentAllowance < requiredAmountWei) {
-          if (!approvalConfirmed) {
-            const approvalSuccess = await approveBitrTokens(requiredAmount);
-            if (!approvalSuccess) {
-              setIsLoading(false);
-              return;
-            }
-            // Wait for approval confirmation before proceeding
-            showInfo('Approval Pending', 'Waiting for BITR approval confirmation...');
+        // Check if approval is needed
+        const needsApproval = !currentAllowance || currentAllowance < requiredAmountWei;
+        
+        if (needsApproval && !approvalConfirmed) {
+          console.log('Requesting BITR approval...');
+          const approvalSuccess = await approveBitrTokens(requiredAmount);
+          if (!approvalSuccess) {
             setIsLoading(false);
             return;
           }
+          // Wait for approval confirmation before proceeding
+          setIsLoading(false);
+          return;
         }
-        showInfo('Approval Confirmed', 'BITR approval confirmed. Proceeding with market creation...');
+        
+        // If we reach here, either approval is not needed or it's already confirmed
+        if (!needsApproval || approvalConfirmed) {
+          console.log('BITR approval sufficient, proceeding with market creation...');
+          // Clear any existing transaction feedback before proceeding
+          clearStatus();
+        }
       }
 
       // Final validation before contract call
