@@ -3,6 +3,7 @@ import { useAccount, useReadContract, useWriteContract, useWaitForTransactionRec
 import { CONTRACTS } from '@/contracts';
 import { formatUnits, parseUnits } from 'viem';
 import { toBigInt } from '@/utils/bigint-helpers';
+import { formatTokenAmount } from '@/utils/number-helpers';
 
 export interface Tier {
   baseAPY: number | bigint;
@@ -235,8 +236,7 @@ export function useStaking() {
 
   // Helper functions
   const formatAmount = (amount?: bigint): string => {
-    if (!amount) return '0';
-    return parseFloat(formatUnits(amount, 18)).toFixed(6);
+    return formatTokenAmount(amount, 18);
   };
 
   const getDurationName = (option: DurationOption): string => {

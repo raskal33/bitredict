@@ -16,6 +16,7 @@ import { CONTRACTS } from "@/contracts";
 import { parseUnits } from "viem";
 import { IoMdLock } from "react-icons/io";
 import { isBigIntZero } from "@/utils/bigint-helpers";
+import { formatPercentage } from "@/utils/number-helpers";
 import { 
   FaTrophy, 
   FaChartLine, 
@@ -525,7 +526,7 @@ export default function StakingPage() {
                 <div className="mt-8 p-6 bg-black/20 rounded-xl">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-white font-medium">Progress to {staking.getTierName(staking.userTier + 1)}</span>
-                    <span className="text-gray-300">{getProgressToNextTier().toFixed(1)}%</span>
+                    <span className="text-gray-300">{formatPercentage(getProgressToNextTier())}</span>
                   </div>
                   <div className="w-full bg-gray-700 rounded-full h-2">
                     <div
@@ -631,7 +632,7 @@ export default function StakingPage() {
                             </div>
                             <div>
                               <p className="text-gray-400">APY</p>
-                              <p className="text-green-400 font-medium">{stake.currentAPY.toFixed(2)}%</p>
+                              <p className="text-green-400 font-medium">{formatPercentage(stake.currentAPY, 2)}</p>
                             </div>
                           </div>
                         </div>
@@ -760,7 +761,7 @@ export default function StakingPage() {
                               <div>
                                 <p className="text-white font-medium">{staking.getTierName(index)}</p>
                                 <p className="text-gray-400 text-sm">
-                                  {(typeof tier.baseAPY === 'bigint' ? Number(tier.baseAPY) / 100 : tier.baseAPY / 100).toFixed(1)}% APY • Min: {staking.formatAmount(tier.minStake)} BITR
+                                  {formatPercentage((typeof tier.baseAPY === 'bigint' ? Number(tier.baseAPY) / 100 : tier.baseAPY / 100))} APY • Min: {staking.formatAmount(tier.minStake)} BITR
                                 </p>
                               </div>
                             </div>
@@ -869,7 +870,7 @@ export default function StakingPage() {
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span className="text-gray-400">Base APY:</span>
-                        <span className="text-white">{(Number(staking.tiers[selectedTier].baseAPY) / 100).toFixed(1)}%</span>
+                        <span className="text-white">{formatPercentage((Number(staking.tiers[selectedTier].baseAPY) / 100))}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-400">Duration Bonus:</span>
@@ -878,7 +879,7 @@ export default function StakingPage() {
                       <div className="flex justify-between border-t border-gray-600 pt-1">
                         <span className="text-gray-400">Total APY:</span>
                         <span className="text-white font-medium">
-                          {((Number(staking.tiers[selectedTier].baseAPY) / 100) + staking.getDurationBonus(selectedDuration)).toFixed(1)}%
+                          {formatPercentage(((Number(staking.tiers[selectedTier].baseAPY) / 100) + staking.getDurationBonus(selectedDuration)))}
                         </span>
                       </div>
                     </div>

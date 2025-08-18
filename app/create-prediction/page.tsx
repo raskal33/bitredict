@@ -456,7 +456,8 @@ export default function CreateMarketPage() {
     // Auto-populate some fields based on fixture
     if (fixture.odds && typeof fixture.odds.draw === 'number') {
       // Use the most balanced odd as default (often the draw)
-      const defaultOdds = Math.floor(fixture.odds.draw * 100) || 200;
+      // The odds from the API are already in the correct contract format
+      const defaultOdds = Math.floor(fixture.odds.draw) || 200;
       handleInputChange('odds', defaultOdds);
     } else {
       // Set default odds if no valid odds data
@@ -518,8 +519,8 @@ export default function CreateMarketPage() {
     }
 
     if (stepNumber === 2) {
-      if (!data.odds || data.odds < 110 || data.odds > 10000) {
-        newErrors.odds = 'Odds must be between 1.10x and 100.0x';
+      if (!data.odds || data.odds < 101 || data.odds > 10000) {
+        newErrors.odds = 'Odds must be between 1.01x and 100.0x';
       }
       
       // Contract minimum stake requirements
@@ -731,7 +732,8 @@ export default function CreateMarketPage() {
       };
 
       // Convert odds to contract format (200 = 2.0x, 150 = 1.5x)
-      const contractOdds = Math.round(data.odds * 100);
+      // The frontend already stores odds in the correct contract format, so no multiplication needed
+      const contractOdds = data.odds;
       
       // Create market ID from fixture ID for easy resolution
       const marketId = data.selectedFixture?.id?.toString() || '0';
@@ -831,8 +833,8 @@ export default function CreateMarketPage() {
       // Contract validation checks
       const minStake = 20; // 20 BITR minimum
       const maxStake = 1000000; // 1M BITR maximum
-      const minOdds = 1.01; // 1.01x minimum (101 in contract format)
-      const maxOdds = 100; // 100x maximum (10000 in contract format)
+      const minOdds = 101; // 1.01x minimum (101 in contract format)
+      const maxOdds = 10000; // 100x maximum (10000 in contract format)
       
       if (data.creatorStake < minStake) {
         showError('Invalid Stake', `Creator stake must be at least ${minStake} BITR`);
@@ -847,7 +849,7 @@ export default function CreateMarketPage() {
       }
       
       if (data.odds < minOdds || data.odds > maxOdds) {
-        showError('Invalid Odds', `Odds must be between ${minOdds}x and ${maxOdds}x`);
+        showError('Invalid Odds', `Odds must be between 1.01x and 100.0x`);
         setIsLoading(false);
         return;
       }

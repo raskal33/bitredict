@@ -94,20 +94,20 @@ export class GuidedMarketService {
       return fixtures.map((match: any) => ({
             id: match.id.toString(),
             homeTeam: {
-              id: null, // Not available in /upcoming response
+              id: match.homeTeam?.id || null,
               name: match.homeTeam?.name || 'Unknown',
-              logoUrl: null
+              logoUrl: match.homeTeam?.logoUrl || null
             },
             awayTeam: {
-              id: null, // Not available in /upcoming response
+              id: match.awayTeam?.id || null,
               name: match.awayTeam?.name || 'Unknown',
-              logoUrl: null
+              logoUrl: match.awayTeam?.logoUrl || null
             },
             league: {
               id: match.league?.id || 0,
               name: match.league?.name || null,
               season: match.league?.season || null,
-              logoUrl: null
+              logoUrl: match.league?.logoUrl || null
             },
             round: match.round || null,
             matchDate: match.matchDate,
@@ -165,16 +165,19 @@ export class GuidedMarketService {
         id: fixture.id.toString(),
         homeTeam: {
           id: fixture.homeTeam?.id || null,
-          name: fixture.homeTeam?.name || 'Unknown'
+          name: fixture.homeTeam?.name || 'Unknown',
+          logoUrl: fixture.homeTeam?.logoUrl || null
         },
         awayTeam: {
           id: fixture.awayTeam?.id || null,
-          name: fixture.awayTeam?.name || 'Unknown'
+          name: fixture.awayTeam?.name || 'Unknown',
+          logoUrl: fixture.awayTeam?.logoUrl || null
         },
         league: {
           id: fixture.league?.id || 0,
           name: fixture.league?.name || null,
-          season: fixture.league?.season || null
+          season: fixture.league?.season || null,
+          logoUrl: fixture.league?.logoUrl || null
         },
         round: fixture.round || null,
         matchDate: fixture.matchDate,
@@ -337,7 +340,7 @@ export class GuidedMarketService {
         name: crypto.name || '',
         currentPrice: crypto.price_usd || 0,
         price_usd: crypto.price_usd,
-        logo: this.getCryptoLogoUrl(crypto.id || crypto.symbol),
+        logo: crypto.logo_url || this.getCryptoLogoUrl(crypto.id || crypto.symbol),
         rank: crypto.rank || 999
       }));
     } catch (error) {
@@ -364,7 +367,7 @@ export class GuidedMarketService {
         name: crypto.name || '',
         currentPrice: crypto.price_usd || 0,
         price_usd: crypto.price_usd,
-        logo: this.getCryptoLogoUrl(crypto.id || crypto.symbol),
+        logo: crypto.logo_url || this.getCryptoLogoUrl(crypto.id || crypto.symbol),
         rank: crypto.rank || 999
       }));
     } catch (error) {
