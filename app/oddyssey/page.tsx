@@ -455,14 +455,17 @@ export default function OddysseyPage() {
 
   const handlePickSelection = (matchId: number, pick: "home" | "draw" | "away" | "over" | "under") => {
     const match = matches.find(m => m.fixture_id === matchId);
-    if (!match) return;
+    if (!match) {
+      toast.error('Match not found. Please refresh the page and try again.');
+      return;
+    }
 
-    // Check if match has already started
+    // Enhanced validation with better error messages
     const matchStartTime = new Date(match.match_date);
     const now = new Date();
     
     if (matchStartTime <= now) {
-      toast.error('Cannot bet on matches that have already started');
+      toast.error(`Cannot bet on ${match.home_team} vs ${match.away_team} - match has already started`);
       return;
     }
 
@@ -472,30 +475,63 @@ export default function OddysseyPage() {
     today.setHours(0, 0, 0, 0);
     
     if (matchDate < today) {
-      toast.error('Cannot bet on past matches');
+      toast.error(`Cannot bet on ${match.home_team} vs ${match.away_team} - match is in the past`);
       return;
     }
 
     // Remove any existing pick for this match
     const filteredPicks = picks.filter(p => p.id !== matchId);
     
+    // Validate odds availability
     let odd = 0;
+    let oddsAvailable = true;
+    
     switch (pick) {
       case "home":
         odd = match.home_odds || 0;
+        if (!match.home_odds) {
+          oddsAvailable = false;
+          toast.error(`Home win odds not available for ${match.home_team} vs ${match.away_team}`);
+        }
         break;
       case "draw":
         odd = match.draw_odds || 0;
+        if (!match.draw_odds) {
+          oddsAvailable = false;
+          toast.error(`Draw odds not available for ${match.home_team} vs ${match.away_team}`);
+        }
         break;
       case "away":
         odd = match.away_odds || 0;
+        if (!match.away_odds) {
+          oddsAvailable = false;
+          toast.error(`Away win odds not available for ${match.home_team} vs ${match.away_team}`);
+        }
         break;
       case "over":
-        odd = match.over_odds || 1.8;
+        odd = match.over_odds || 0;
+        if (!match.over_odds) {
+          oddsAvailable = false;
+          toast.error(`Over 2.5 odds not available for ${match.home_team} vs ${match.away_team}`);
+        }
         break;
       case "under":
-        odd = match.under_odds || 2.0;
+        odd = match.under_odds || 0;
+        if (!match.under_odds) {
+          oddsAvailable = false;
+          toast.error(`Under 2.5 odds not available for ${match.home_team} vs ${match.away_team}`);
+        }
         break;
+    }
+
+    if (!oddsAvailable) {
+      return;
+    }
+
+    // Validate odds value
+    if (odd <= 0) {
+      toast.error(`Invalid odds (${odd}) for ${pick} on ${match.home_team} vs ${match.away_team}`);
+      return;
     }
 
     if (filteredPicks.length < 10) {
@@ -514,17 +550,17 @@ export default function OddysseyPage() {
 
       setPicks([...filteredPicks, newPick]);
       
-      // Provide feedback for selection
-      const pickLabel = pick === "home" ? "1" : 
-                       pick === "draw" ? "X" : 
-                       pick === "away" ? "2" : 
+      // Enhanced feedback for selection
+      const pickLabel = pick === "home" ? "1 (Home Win)" : 
+                       pick === "draw" ? "X (Draw)" : 
+                       pick === "away" ? "2 (Away Win)" : 
                        pick === "over" ? "Over 2.5" : "Under 2.5";
       
       const remaining = 9 - filteredPicks.length;
       if (remaining > 0) {
-        toast.success(`${pickLabel} selected for ${match.home_team} vs ${match.away_team}. ${remaining} more prediction${remaining !== 1 ? 's' : ''} needed.`);
+        toast.success(`${pickLabel} selected for ${match.home_team} vs ${match.away_team} @ ${odd}. ${remaining} more prediction${remaining !== 1 ? 's' : ''} needed.`);
       } else {
-        toast.success(`${pickLabel} selected! Your slip is now complete and ready to submit.`);
+        toast.success(`${pickLabel} selected! Your slip is now complete with all 10 predictions and ready to submit.`);
       }
     } else {
       toast.error('You have already selected 10 predictions. Please remove one to add another.');
@@ -605,21 +641,47 @@ export default function OddysseyPage() {
       console.log('📊 Contract cycle ID:', currentCycleId);
       console.log('🏆 Contract matches:', currentMatches);
       
-      // Format predictions for contract
-      const predictions = picks.map(pick => ({
-        matchId: pick.id, // This is now fixture_id
-        prediction: pick.pick === "home" ? "1" : 
-                   pick.pick === "draw" ? "X" : 
-                   pick.pick === "away" ? "2" : 
-                   pick.pick === "over" ? "Over" : "Under",
-        odds: pick.odd
-      }));
+      // Format predictions for contract with proper validation
+      const predictions = picks.map((pick, index) => {
+        // Validate pick data
+        if (!pick.id || !pick.pick || !pick.odd) {
+          throw new Error(`Invalid pick data at position ${index + 1}`);
+        }
+
+        // Convert pick to contract format
+        let prediction: string;
+        switch (pick.pick) {
+          case "home":
+            prediction = "1";
+            break;
+          case "draw":
+            prediction = "X";
+            break;
+          case "away":
+            prediction = "2";
+            break;
+          case "over":
+            prediction = "Over";
+            break;
+          case "under":
+            prediction = "Under";
+            break;
+          default:
+            throw new Error(`Invalid pick type: ${pick.pick} at position ${index + 1}`);
+        }
+
+        return {
+          matchId: pick.id, // This is now fixture_id
+          prediction,
+          odds: pick.odd
+        };
+      });
 
       console.log('📝 Formatted predictions:', predictions);
       const actualEntryFee = contractEntryFee ? formatEther(contractEntryFee as bigint) : DEFAULT_ENTRY_FEE;
       console.log('💰 Entry fee from contract:', actualEntryFee);
 
-      // Submit to contract
+      // Submit to contract with enhanced error handling
       await placeSlip(predictions, actualEntryFee);
       
       console.log('✅ Slip submission initiated');
@@ -628,13 +690,25 @@ export default function OddysseyPage() {
       console.error('❌ Error submitting slip:', error);
       const errorMessage = (error as Error).message || "Failed to submit slip";
       
-      // Provide more specific error messages
+      // Provide more specific error messages based on the error type
       if (errorMessage.includes("insufficient funds")) {
         showError("Insufficient Funds", "You don't have enough STT tokens to place this slip. Please check your wallet balance.");
-      } else if (errorMessage.includes("user rejected")) {
+      } else if (errorMessage.includes("user rejected") || errorMessage.includes("cancelled")) {
         showError("Transaction Cancelled", "You cancelled the transaction in your wallet. No charges were made.");
       } else if (errorMessage.includes("gas")) {
         showError("Gas Error", "There was an issue with gas estimation. Please try again or check your wallet settings.");
+      } else if (errorMessage.includes("execution reverted")) {
+        showError("Contract Error", "The transaction failed on the blockchain. This might be due to invalid predictions or contract state. Please check your selections and try again.");
+      } else if (errorMessage.includes("validation failed")) {
+        showError("Validation Error", errorMessage);
+      } else if (errorMessage.includes("No active matches")) {
+        showError("No Active Cycle", "There are no active matches in the contract. Please wait for the next cycle to begin.");
+      } else if (errorMessage.includes("Missing prediction")) {
+        showError("Missing Predictions", errorMessage);
+      } else if (errorMessage.includes("Duplicate prediction")) {
+        showError("Duplicate Predictions", errorMessage);
+      } else if (errorMessage.includes("Invalid prediction")) {
+        showError("Invalid Prediction", errorMessage);
       } else {
         showError("Submission Failed", errorMessage);
       }
@@ -642,6 +716,8 @@ export default function OddysseyPage() {
   };
 
   const totalOdd = picks.reduce((acc, pick) => acc * (pick.odd || 1), 1).toFixed(2);
+
+
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);

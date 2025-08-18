@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
-import { parseEther, parseUnits, formatUnits, createPublicClient, http, defineChain } from "viem";
+import { parseEther, parseUnits, formatUnits } from "viem";
 import { GAS_SETTINGS } from "@/config/wagmi";
 import { toast } from "react-hot-toast";
 import { useTransactionFeedback, TransactionFeedback } from "@/components/TransactionFeedback";
@@ -893,86 +893,22 @@ export default function CreateMarketPage() {
         useBitr
       });
       
-             // Estimate gas like the working script
-       console.log('Estimating gas for pool creation...');
-       try {
-         // Create a temporary contract instance for gas estimation
-         const publicClient = createPublicClient({
-           chain: defineChain({
-             id: 50312,
-             name: 'Somnia Testnet',
-             nativeCurrency: {
-               decimals: 18,
-               name: 'STT',
-               symbol: 'STT',
-             },
-             rpcUrls: {
-               default: {
-                 http: ['https://dream-rpc.somnia.network/'],
-               },
-             },
-             blockExplorers: {
-               default: { name: 'Somnia Explorer', url: 'https://somnia-testnet.explorer.caldera.xyz' },
-             },
-             testnet: true,
-           }),
-           transport: http()
-         });
-        
-        const gasEstimate = await publicClient.estimateContractGas({
-          address: CONTRACT_ADDRESS,
-          abi: BitredictPoolABI.abi,
-          functionName: 'createPool',
-          args: baseConfig.args,
-          account: address,
-          value: useBitr ? BigInt(0) : parseEther((data.creatorStake + 1).toString())
-        });
-        
-        console.log(`Gas estimate: ${gasEstimate.toString()}`);
-        
-        // Update gas settings with estimate
-        const updatedGasSettings = {
-          gas: gasEstimate + BigInt(50000), // Add buffer like working script
-          gasPrice: GAS_SETTINGS.gasPrice
-        };
-        
-        const contractConfig = useBitr 
-          ? { 
-              ...baseConfig,
-              ...updatedGasSettings
-            }
-          : { 
-              ...baseConfig, 
-              value: parseEther((data.creatorStake + 1).toString()), // +1 for creation fee (only for STT)
-              ...updatedGasSettings
-            };
-        
-        console.log('Final contract config:', contractConfig);
-        
-        // Execute the contract call - let wagmi hooks handle the transaction state
-        writeContract(contractConfig);
-        
-      } catch (gasError) {
-        console.error('Gas estimation failed:', gasError);
-        console.log('Falling back to fixed gas settings...');
-        
-        // Fallback to fixed gas settings
-        const contractConfig = useBitr 
-          ? { 
-              ...baseConfig,
-              ...GAS_SETTINGS
-            }
-          : { 
-              ...baseConfig, 
-              value: parseEther((data.creatorStake + 1).toString()), // +1 for creation fee (only for STT)
-              ...GAS_SETTINGS
-            };
-        
-        console.log('Fallback contract config:', contractConfig);
-        
-        // Execute the contract call - let wagmi hooks handle the transaction state
-        writeContract(contractConfig);
-      }
+             // Use wagmi hooks properly - let the transaction feedback system handle everything
+       const contractConfig = useBitr 
+         ? { 
+             ...baseConfig,
+             ...GAS_SETTINGS
+           }
+         : { 
+             ...baseConfig, 
+             value: parseEther((data.creatorStake + 1).toString()), // +1 for creation fee (only for STT)
+             ...GAS_SETTINGS
+           };
+       
+       console.log('Contract config:', contractConfig);
+       
+       // Execute the contract call - let wagmi hooks handle the transaction state
+       writeContract(contractConfig);
     } catch (error) {
       console.error('Error in market creation setup:', error);
       

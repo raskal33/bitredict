@@ -1,11 +1,36 @@
 import { useWriteContract, useWaitForTransactionReceipt, useAccount, useReadContract } from 'wagmi';
-import { parseEther, formatEther, keccak256, toBytes } from 'viem';
+import { parseEther, formatEther, keccak256, stringToHex } from 'viem';
 import { CONTRACTS } from '@/contracts';
 import { GAS_SETTINGS } from '@/config/wagmi';
-import { apiRequest } from '@/config/api';
 
 // Use the actual Oddyssey ABI from the contract
 const ODDYSSEY_ABI = CONTRACTS.ODDYSSEY.abi;
+
+// Enums from contract (matching backend script)
+const BetType = {
+  MONEYLINE: 0,
+  OVER_UNDER: 1
+} as const;
+
+const CycleState = {
+  NotStarted: 0,
+  Active: 1,
+  Ended: 2,
+  Resolved: 3
+} as const;
+
+// Selection constants (matching contract exactly - same as backend script)
+const SELECTIONS = {
+  MONEYLINE: {
+    HOME_WIN: keccak256(stringToHex('1')),
+    DRAW: keccak256(stringToHex('X')),
+    AWAY_WIN: keccak256(stringToHex('2'))
+  },
+  OVER_UNDER: {
+    OVER: keccak256(stringToHex('Over')),
+    UNDER: keccak256(stringToHex('Under'))
+  }
+};
 
 export interface UserPrediction {
   matchId: bigint;
@@ -18,7 +43,8 @@ export class OddysseyContractService {
   private contractAddress = CONTRACTS.ODDYSSEY?.address;
 
   /**
-   * Convert frontend prediction to contract format
+   * Convert frontend prediction to contract format with proper validation
+   * This matches the exact logic from the working backend script
    */
   static formatPredictionForContract(prediction: {
     matchId: number;
@@ -28,29 +54,109 @@ export class OddysseyContractService {
     let betType: 0 | 1;
     let selection: `0x${string}`;
 
-    // Determine bet type and selection
+    // Determine bet type and selection with proper validation (matching backend script)
     if (['1', 'X', '2'].includes(prediction.prediction)) {
-      betType = 0; // MONEYLINE
-      selection = this.hashSelection(prediction.prediction);
+      betType = BetType.MONEYLINE;
+      switch (prediction.prediction) {
+        case '1':
+          selection = SELECTIONS.MONEYLINE.HOME_WIN;
+          break;
+        case 'X':
+          selection = SELECTIONS.MONEYLINE.DRAW;
+          break;
+        case '2':
+          selection = SELECTIONS.MONEYLINE.AWAY_WIN;
+          break;
+        default:
+          throw new Error(`Invalid moneyline prediction: ${prediction.prediction}`);
+      }
+    } else if (['Over', 'Under'].includes(prediction.prediction)) {
+      betType = BetType.OVER_UNDER;
+      switch (prediction.prediction) {
+        case 'Over':
+          selection = SELECTIONS.OVER_UNDER.OVER;
+          break;
+        case 'Under':
+          selection = SELECTIONS.OVER_UNDER.UNDER;
+          break;
+        default:
+          throw new Error(`Invalid over/under prediction: ${prediction.prediction}`);
+      }
     } else {
-      betType = 1; // OVER_UNDER
-      selection = this.hashSelection(prediction.prediction);
+      throw new Error(`Invalid prediction type: ${prediction.prediction}`);
+    }
+
+    // Validate odds (matching backend script validation)
+    if (!prediction.odds || prediction.odds <= 0) {
+      throw new Error(`Invalid odds: ${prediction.odds}`);
     }
 
     return {
       matchId: BigInt(prediction.matchId),
       betType,
       selection,
-      selectedOdd: Math.round(prediction.odds * 1000) // Contract uses 1000 scaling factor
+      selectedOdd: Math.round(prediction.odds * 1000) // Contract uses 1000 scaling factor (matching backend)
     };
   }
 
   /**
-   * Hash the selection string for contract compatibility using keccak256
+   * Validate predictions against contract data
+   * This matches the validation logic from the working backend script
    */
-  private static hashSelection(selection: string): `0x${string}` {
-    // Use proper keccak256 hashing as expected by the contract
-    return keccak256(toBytes(selection));
+  static validatePredictions(predictions: any[], contractMatches: any[]): {
+    isValid: boolean;
+    errors: string[];
+    orderedPredictions: any[];
+  } {
+    const errors: string[] = [];
+    
+    // Check if we have exactly 10 predictions (matching backend validation)
+    if (!predictions || predictions.length !== 10) {
+      errors.push(`Exactly 10 predictions required. You have ${predictions?.length || 0} predictions.`);
+      return { isValid: false, errors, orderedPredictions: [] };
+    }
+
+    // Check if we have exactly 10 contract matches (matching backend validation)
+    if (!contractMatches || contractMatches.length !== 10) {
+      errors.push(`Contract validation failed: expected 10 matches, got ${contractMatches?.length || 0}`);
+      return { isValid: false, errors, orderedPredictions: [] };
+    }
+
+    // Create ordered predictions matching contract order (matching backend logic)
+    const orderedPredictions: any[] = [];
+    const usedMatchIds = new Set<number>();
+
+    for (let i = 0; i < contractMatches.length; i++) {
+      const contractMatch = contractMatches[i];
+      const userPrediction = predictions.find(pred => 
+        pred.matchId.toString() === contractMatch.id.toString()
+      );
+
+      if (!userPrediction) {
+        errors.push(`Missing prediction for match ${contractMatch.id} at position ${i + 1}`);
+        continue;
+      }
+
+      if (usedMatchIds.has(userPrediction.matchId)) {
+        errors.push(`Duplicate prediction for match ${userPrediction.matchId}`);
+        continue;
+      }
+
+      usedMatchIds.add(userPrediction.matchId);
+      orderedPredictions.push(userPrediction);
+    }
+
+    // Check for unused predictions (matching backend validation)
+    const unusedPredictions = predictions.filter(pred => !usedMatchIds.has(pred.matchId));
+    if (unusedPredictions.length > 0) {
+      errors.push(`Unused predictions found for matches: ${unusedPredictions.map(p => p.matchId).join(', ')}`);
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      orderedPredictions
+    };
   }
 
   /**
@@ -172,92 +278,56 @@ export function useOddysseyContract() {
       throw new Error('Oddyssey contract address not configured');
     }
 
-    // CRITICAL: Ensure exactly 10 predictions before any processing
+    // CRITICAL: Ensure exactly 10 predictions before any processing (matching backend validation)
     if (!predictions || predictions.length !== 10) {
       throw new Error(`Exactly 10 predictions are required. You have ${predictions?.length || 0} predictions.`);
     }
 
-    // Validate that we have current matches from contract
-    if (!currentMatches || !Array.isArray(currentMatches) || currentMatches.length !== 10) {
-      throw new Error('No active matches found in contract. Please wait for the next cycle.');
-    }
-
-    // Get contract matches for proper ordering - CRITICAL for transaction success
+    // Get contract validation data from contract directly (matching backend approach)
     let contractMatchesData;
     try {
-      const response = await apiRequest<{
-        success: boolean;
-        validation: {
-          hasMatches: boolean;
-          matchCount: number;
-          expectedCount: number;
-          isValid: boolean;
-          contractMatches: any[];
-        };
-      }>('/api/oddyssey/contract-validation');
-
-      if (!response.success || !response.validation?.isValid) {
+      // Use contract data directly instead of backend API (matching backend script)
+      if (!currentMatches || !Array.isArray(currentMatches) || currentMatches.length !== 10) {
         throw new Error('No active matches found in contract. Please wait for the next cycle.');
       }
 
-      contractMatchesData = response.validation.contractMatches;
-      
-      // CRITICAL: Ensure we have exactly 10 contract matches
-      if (!contractMatchesData || contractMatchesData.length !== 10) {
-        throw new Error(`Contract validation failed: expected 10 matches, got ${contractMatchesData?.length || 0}`);
-      }
-      
+      contractMatchesData = currentMatches;
       console.log('✅ Contract validation successful - 10 matches available');
     } catch (error) {
       console.error('❌ Contract validation failed:', error);
       throw new Error('No active matches found in contract. Please wait for the next cycle.');
     }
 
-    // CRITICAL FIX: Reorder predictions to match exact contract order
-    const orderedPredictions = contractMatchesData.map((contractMatch: any, index: number) => {
-      // Find the user's prediction for this contract match
-      const userPrediction = predictions.find(pred => 
-        // Use fixture_id for matching since that's what the contract uses
-        pred.matchId.toString() === contractMatch.id.toString()
-      );
-      
-      if (!userPrediction) {
-        throw new Error(`Missing prediction for match ${contractMatch.id} at position ${index + 1}. You must make predictions for ALL 10 matches.`);
-      }
-      
-      console.log(`✅ Match ${index + 1}: Contract ID ${contractMatch.id} -> User prediction for ${userPrediction.matchId}`);
-      return userPrediction;
-    });
-
-    // CRITICAL: Double-check we have exactly 10 ordered predictions
-    if (orderedPredictions.length !== 10) {
-      throw new Error(`Failed to order predictions: expected 10, got ${orderedPredictions.length}`);
+    // Validate and order predictions (matching backend validation logic)
+    const validation = OddysseyContractService.validatePredictions(predictions, contractMatchesData);
+    
+    if (!validation.isValid) {
+      throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
     }
 
-    // Convert predictions to contract format in the correct order
-    const contractPredictions = orderedPredictions.map((pred, index) => {
-      // Validate against contract data
-      const contractMatch = contractMatchesData[index];
-      if (contractMatch && pred.matchId.toString() !== contractMatch.id.toString()) {
-        throw new Error(`Match order mismatch at position ${index + 1}: expected ${contractMatch.id}, got ${pred.matchId}`);
+    // Convert predictions to contract format in the correct order (matching backend format)
+    const contractPredictions = validation.orderedPredictions.map((pred, index) => {
+      try {
+        return OddysseyContractService.formatPredictionForContract(pred);
+      } catch (error) {
+        throw new Error(`Error formatting prediction ${index + 1}: ${(error as Error).message}`);
       }
-      
-      return OddysseyContractService.formatPredictionForContract(pred);
     });
 
-    // FINAL CRITICAL CHECK: Ensure we have exactly 10 predictions
+    // FINAL CRITICAL CHECK: Ensure we have exactly 10 predictions (matching backend validation)
     if (contractPredictions.length !== 10) {
       throw new Error(`Final validation failed: exactly 10 predictions required, got ${contractPredictions.length}`);
     }
 
-    // Use contract entry fee if available, otherwise use provided fee
+    // Use contract entry fee if available, otherwise use provided fee (matching backend logic)
     const actualEntryFee = contractEntryFee ? formatEther(contractEntryFee as bigint) : entryFee;
     
     try {
-      console.log('Placing slip with predictions:', contractPredictions);
-      console.log('Entry fee from contract:', actualEntryFee);
-      console.log('Gas settings:', { gas: GAS_SETTINGS.gas.toString(), gasPrice: GAS_SETTINGS.gasPrice.toString() });
+      console.log('🎯 Placing slip with predictions:', contractPredictions);
+      console.log('💰 Entry fee from contract:', actualEntryFee);
+      console.log('⛽ Gas settings:', { gas: GAS_SETTINGS.gas.toString(), gasPrice: GAS_SETTINGS.gasPrice.toString() });
       
+      // Call contract directly (matching backend script approach)
       await writeContract({
         address: CONTRACTS.ODDYSSEY.address as `0x${string}`,
         abi: ODDYSSEY_ABI,
@@ -268,8 +338,22 @@ export function useOddysseyContract() {
         gasPrice: GAS_SETTINGS.gasPrice
       });
     } catch (error) {
-      console.error('Error placing slip:', error);
-      throw error;
+      console.error('❌ Error placing slip:', error);
+      
+      // Provide more specific error messages (matching backend error handling)
+      const errorMessage = (error as Error).message || 'Unknown error';
+      
+      if (errorMessage.includes('insufficient funds')) {
+        throw new Error('Insufficient funds in wallet. Please check your STT balance.');
+      } else if (errorMessage.includes('user rejected')) {
+        throw new Error('Transaction was cancelled by user.');
+      } else if (errorMessage.includes('gas')) {
+        throw new Error('Gas estimation failed. Please try again.');
+      } else if (errorMessage.includes('execution reverted')) {
+        throw new Error('Transaction failed. Please check your predictions and try again.');
+      } else {
+        throw new Error(`Transaction failed: ${errorMessage}`);
+      }
     }
   };
 
