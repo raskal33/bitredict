@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
-import { parseEther, parseUnits, formatUnits } from "viem";
+import { parseEther, parseUnits, formatUnits, createPublicClient, http, defineChain } from "viem";
 import { GAS_SETTINGS } from "@/config/wagmi";
 import { toast } from "react-hot-toast";
 import { useTransactionFeedback, TransactionFeedback } from "@/components/TransactionFeedback";
@@ -722,8 +722,9 @@ export default function CreateMarketPage() {
         } : 'NO FIXTURE SELECTED'
       });
 
-      // Encode bytes32 parameters using ethers-like encoding
+      // Use proper ethers.js encoding for bytes32 strings
       const encodeBytes32String = (str: string): `0x${string}` => {
+        // Pad string to 32 bytes like ethers.js encodeBytes32String
         const encoder = new TextEncoder();
         const bytes = encoder.encode(str);
         const padded = new Uint8Array(32);
@@ -751,24 +752,13 @@ export default function CreateMarketPage() {
           league, // _league: string
           data.category, // _category: string
           region, // _region: string
-          false as boolean, // _isPrivate: bool
+          false, // _isPrivate: bool
           parseEther('500'), // _maxBetPerUser: uint256
-          useBitr as boolean, // _useBitr: bool
-          0 as number, // _oracleType: OracleType (0 = GUIDED)
+          useBitr, // _useBitr: bool
+          0, // _oracleType: OracleType (0 = GUIDED)
           encodeBytes32String(marketId) // _marketId: bytes32 (fixture ID for easy resolution)
         ] as const
       };
-
-      const contractConfig = useBitr 
-        ? { 
-            ...baseConfig,
-            ...GAS_SETTINGS
-          }
-        : { 
-            ...baseConfig, 
-            value: parseEther((data.creatorStake + 1).toString()), // +1 for creation fee
-            ...GAS_SETTINGS
-          };
 
       // For BITR pools, check and handle token approval
       if (useBitr) {
@@ -877,18 +867,15 @@ export default function CreateMarketPage() {
         return;
       }
 
-      console.log('Writing contract with config:', contractConfig);
+      console.log('Writing contract with config:', baseConfig);
       console.log('Contract call details:', {
-        address: contractConfig.address,
-        functionName: contractConfig.functionName,
-        args: contractConfig.args.map((arg, i) => ({
+        address: baseConfig.address,
+        functionName: baseConfig.functionName,
+        args: baseConfig.args.map((arg, i) => ({
           index: i,
           value: arg.toString(),
           type: typeof arg
-        })),
-        value: (contractConfig as { value?: bigint }).value?.toString(),
-        gas: contractConfig.gas?.toString(),
-        gasPrice: contractConfig.gasPrice?.toString()
+        }))
       });
       
       // Log specific parameter details for debugging
@@ -906,15 +893,86 @@ export default function CreateMarketPage() {
         useBitr
       });
       
-      // Final contract validation
-      console.log('Contract validation:', {
-        contractAddress: CONTRACT_ADDRESS,
-        contractABI: BitredictPoolABI.abi ? 'Loaded' : 'Missing',
-        functionExists: BitredictPoolABI.abi?.find(fn => fn.name === 'createPool') ? 'Yes' : 'No'
-      });
-      
-      // Execute the contract call - let wagmi hooks handle the transaction state
-      writeContract(contractConfig);
+             // Estimate gas like the working script
+       console.log('Estimating gas for pool creation...');
+       try {
+         // Create a temporary contract instance for gas estimation
+         const publicClient = createPublicClient({
+           chain: defineChain({
+             id: 50312,
+             name: 'Somnia Testnet',
+             nativeCurrency: {
+               decimals: 18,
+               name: 'STT',
+               symbol: 'STT',
+             },
+             rpcUrls: {
+               default: {
+                 http: ['https://dream-rpc.somnia.network/'],
+               },
+             },
+             blockExplorers: {
+               default: { name: 'Somnia Explorer', url: 'https://somnia-testnet.explorer.caldera.xyz' },
+             },
+             testnet: true,
+           }),
+           transport: http()
+         });
+        
+        const gasEstimate = await publicClient.estimateContractGas({
+          address: CONTRACT_ADDRESS,
+          abi: BitredictPoolABI.abi,
+          functionName: 'createPool',
+          args: baseConfig.args,
+          account: address,
+          value: useBitr ? BigInt(0) : parseEther((data.creatorStake + 1).toString())
+        });
+        
+        console.log(`Gas estimate: ${gasEstimate.toString()}`);
+        
+        // Update gas settings with estimate
+        const updatedGasSettings = {
+          gas: gasEstimate + BigInt(50000), // Add buffer like working script
+          gasPrice: GAS_SETTINGS.gasPrice
+        };
+        
+        const contractConfig = useBitr 
+          ? { 
+              ...baseConfig,
+              ...updatedGasSettings
+            }
+          : { 
+              ...baseConfig, 
+              value: parseEther((data.creatorStake + 1).toString()), // +1 for creation fee (only for STT)
+              ...updatedGasSettings
+            };
+        
+        console.log('Final contract config:', contractConfig);
+        
+        // Execute the contract call - let wagmi hooks handle the transaction state
+        writeContract(contractConfig);
+        
+      } catch (gasError) {
+        console.error('Gas estimation failed:', gasError);
+        console.log('Falling back to fixed gas settings...');
+        
+        // Fallback to fixed gas settings
+        const contractConfig = useBitr 
+          ? { 
+              ...baseConfig,
+              ...GAS_SETTINGS
+            }
+          : { 
+              ...baseConfig, 
+              value: parseEther((data.creatorStake + 1).toString()), // +1 for creation fee (only for STT)
+              ...GAS_SETTINGS
+            };
+        
+        console.log('Fallback contract config:', contractConfig);
+        
+        // Execute the contract call - let wagmi hooks handle the transaction state
+        writeContract(contractConfig);
+      }
     } catch (error) {
       console.error('Error in market creation setup:', error);
       
