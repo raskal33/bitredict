@@ -171,7 +171,7 @@ class OddysseyContract {
     return await this.client.readContract({
       address: CONTRACTS.ODDYSSEY.address as Address,
       abi: ODDYSSEY_ABI,
-      functionName: 'dailyCycleId'
+      functionName: 'getCurrentCycleInfo'
     });
   }
 
@@ -516,8 +516,9 @@ export class OddysseyContractService {
   static async getCurrentMatches(): Promise<any[]> {
     this.ensureInitialized();
     
-    const cycleId = await this.oddysseyContract!.getCurrentCycleInfo();
-    const matches = await this.oddysseyContract!.getDailyMatches(cycleId as bigint);
+    const cycleInfo = await this.oddysseyContract!.getCurrentCycleInfo() as [bigint, number, bigint, bigint, bigint];
+    const cycleId = cycleInfo[0];
+    const matches = await this.oddysseyContract!.getDailyMatches(cycleId);
     return matches as any[];
   }
 }
