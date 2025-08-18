@@ -35,7 +35,7 @@ const BITREDICT_POOL_ABI = [
     inputs: [
       { name: "_predictedOutcome", type: "bytes32" },
       { name: "_odds", type: "uint256" },
-      { name: "_creatorStake", type: "uint250" },
+      { name: "_creatorStake", type: "uint256" },
       { name: "_eventStartTime", type: "uint256" },
       { name: "_eventEndTime", type: "uint256" },
       { name: "_league", type: "string" },
@@ -641,17 +641,17 @@ export default function CreateMarketPage() {
         functionName: 'createPool' as const,
         args: [
           `0x${Buffer.from(predictedOutcome, 'utf8').toString('hex').padEnd(64, '0')}` as `0x${string}`,
-          BigInt(data.odds),
+          BigInt(data.odds), // Convert to bigint
           parseEther(data.creatorStake.toString()),
-          BigInt(eventStartTime),
-          BigInt(eventEndTime),
+          BigInt(eventStartTime), // Convert to bigint
+          BigInt(eventEndTime), // Convert to bigint
           league,
           data.category,
           region,
           false as boolean, // isPrivate
-          parseEther('0'), // maxBetPerUser (0 = no limit)
+          parseEther('500'), // maxBetPerUser - use proper value instead of 0
           useBitr as boolean,
-          0 as number, // oracleType (0 = GUIDED)
+          0 as number, // oracleType (0 = GUIDED) - keep as number
           `0x${Buffer.from(data.selectedFixture?.id?.toString() || '0', 'utf8').toString('hex').padEnd(64, '0')}` as `0x${string}` // marketId
         ] as const
       };

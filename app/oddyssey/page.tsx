@@ -544,8 +544,9 @@ export default function OddysseyPage() {
       return;
     }
 
-    if (picks.length !== 10) {
-      showError("Invalid Selection", "Please select exactly 10 matches for your slip");
+    // CRITICAL: Strict validation for exactly 10 predictions
+    if (!picks || picks.length !== 10) {
+      showError("Incomplete Slip", `You must make predictions for ALL 10 matches. Currently selected: ${picks?.length || 0}/10`);
       return;
     }
 
@@ -557,6 +558,22 @@ export default function OddysseyPage() {
     // Check if we have contract data
     if (!currentMatches || !Array.isArray(currentMatches) || currentMatches.length !== 10) {
       showError("Contract Error", "No active matches found in contract. Please wait for the next cycle.");
+      return;
+    }
+
+    // CRITICAL: Validate that we have predictions for ALL available matches
+    if (!matches || matches.length < 10) {
+      showError("Insufficient Matches", `Only ${matches?.length || 0} matches available. Need exactly 10 matches to place a slip.`);
+      return;
+    }
+
+    // CRITICAL: Ensure each match has a prediction
+    const matchIds = matches.slice(0, 10).map(m => m.fixture_id);
+    const predictionMatchIds = picks.map(p => p.id);
+    const missingPredictions = matchIds.filter(id => !predictionMatchIds.includes(id));
+    
+    if (missingPredictions.length > 0) {
+      showError("Missing Predictions", `You must make predictions for ALL 10 matches. Missing predictions for ${missingPredictions.length} matches.`);
       return;
     }
 
@@ -1218,6 +1235,34 @@ export default function OddysseyPage() {
                       <span className="sm:hidden">Slip</span>
                     </h3>
 
+                    {/* CRITICAL: Progress indicator for 10 predictions requirement */}
+                    <div className="mb-4 p-3 bg-primary/10 border border-primary/20 rounded-button">
+                      <div className="flex items-center justify-between text-sm mb-2">
+                        <span className="text-text-muted">Predictions Required:</span>
+                        <span className={`font-bold ${picks.length === 10 ? 'text-green-400' : 'text-primary'}`}>
+                          {picks.length}/10
+                        </span>
+                      </div>
+                      <div className="w-full bg-bg-card/30 rounded-full h-2">
+                        <div 
+                          className={`h-2 rounded-full transition-all duration-300 ${
+                            picks.length === 10 ? 'bg-green-400' : 'bg-primary'
+                          }`}
+                          style={{ width: `${(picks.length / 10) * 100}%` }}
+                        />
+                      </div>
+                      {picks.length < 10 && (
+                        <p className="text-xs text-text-muted mt-2">
+                          ⚠️ You must select ALL 10 matches to place a slip
+                        </p>
+                      )}
+                      {picks.length === 10 && (
+                        <p className="text-xs text-green-400 mt-2">
+                          ✅ Ready to place slip!
+                        </p>
+                      )}
+                    </div>
+
 
 
                     <AnimatePresence mode="wait">
@@ -1325,13 +1370,15 @@ export default function OddysseyPage() {
                               size="lg"
                               leftIcon={isPending || isConfirming ? <FaSpinner className="h-4 w-4 md:h-5 md:w-5 animate-spin" /> : <BoltIcon className="h-4 w-4 md:h-5 md:w-5" />}
                               onClick={handleSubmitSlip}
-                              disabled={isExpired || picks.length < 10 || hasStartedMatches || isPending || isConfirming}
+                              disabled={isExpired || picks.length !== 10 || hasStartedMatches || isPending || isConfirming}
                               className={`text-sm md:text-base ${picks.length === 10 && !hasStartedMatches && !isExpired && !isPending && !isConfirming ? 'animate-pulse' : ''}`}
                             >
                               {isPending ? "Confirming in Wallet..." :
                                isConfirming ? "Processing Transaction..." :
                                isExpired || hasStartedMatches ? "Betting Closed" : 
-                               picks.length < 10 ? `Select ${10 - picks.length} More` : "Place Bet"}
+                               picks.length === 0 ? "Select 10 Matches" :
+                               picks.length < 10 ? `Need ${10 - picks.length} More Predictions` : 
+                               "Place Slip (10/10)"}
                             </Button>
                           </div>
 

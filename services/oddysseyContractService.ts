@@ -172,12 +172,17 @@ export function useOddysseyContract() {
       throw new Error('Oddyssey contract address not configured');
     }
 
+    // CRITICAL: Ensure exactly 10 predictions before any processing
+    if (!predictions || predictions.length !== 10) {
+      throw new Error(`Exactly 10 predictions are required. You have ${predictions?.length || 0} predictions.`);
+    }
+
     // Validate that we have current matches from contract
     if (!currentMatches || !Array.isArray(currentMatches) || currentMatches.length !== 10) {
       throw new Error('No active matches found in contract. Please wait for the next cycle.');
     }
 
-    // Get contract matches for proper ordering
+    // Get contract matches for proper ordering - CRITICAL for transaction success
     let contractMatchesData;
     try {
       const response = await apiRequest<{
@@ -196,13 +201,19 @@ export function useOddysseyContract() {
       }
 
       contractMatchesData = response.validation.contractMatches;
-      console.log('✅ Contract validation successful - matches available');
+      
+      // CRITICAL: Ensure we have exactly 10 contract matches
+      if (!contractMatchesData || contractMatchesData.length !== 10) {
+        throw new Error(`Contract validation failed: expected 10 matches, got ${contractMatchesData?.length || 0}`);
+      }
+      
+      console.log('✅ Contract validation successful - 10 matches available');
     } catch (error) {
       console.error('❌ Contract validation failed:', error);
       throw new Error('No active matches found in contract. Please wait for the next cycle.');
     }
 
-    // CRITICAL FIX: Reorder predictions to match contract order
+    // CRITICAL FIX: Reorder predictions to match exact contract order
     const orderedPredictions = contractMatchesData.map((contractMatch: any, index: number) => {
       // Find the user's prediction for this contract match
       const userPrediction = predictions.find(pred => 
@@ -211,12 +222,17 @@ export function useOddysseyContract() {
       );
       
       if (!userPrediction) {
-        throw new Error(`Missing prediction for match ${contractMatch.id} at position ${index + 1}`);
+        throw new Error(`Missing prediction for match ${contractMatch.id} at position ${index + 1}. You must make predictions for ALL 10 matches.`);
       }
       
       console.log(`✅ Match ${index + 1}: Contract ID ${contractMatch.id} -> User prediction for ${userPrediction.matchId}`);
       return userPrediction;
     });
+
+    // CRITICAL: Double-check we have exactly 10 ordered predictions
+    if (orderedPredictions.length !== 10) {
+      throw new Error(`Failed to order predictions: expected 10, got ${orderedPredictions.length}`);
+    }
 
     // Convert predictions to contract format in the correct order
     const contractPredictions = orderedPredictions.map((pred, index) => {
@@ -229,9 +245,9 @@ export function useOddysseyContract() {
       return OddysseyContractService.formatPredictionForContract(pred);
     });
 
-    // Ensure we have exactly 10 predictions
+    // FINAL CRITICAL CHECK: Ensure we have exactly 10 predictions
     if (contractPredictions.length !== 10) {
-      throw new Error('Exactly 10 predictions are required');
+      throw new Error(`Final validation failed: exactly 10 predictions required, got ${contractPredictions.length}`);
     }
 
     // Use contract entry fee if available, otherwise use provided fee

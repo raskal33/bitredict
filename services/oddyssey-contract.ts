@@ -38,19 +38,19 @@ export function useOddysseyContract() {
   // Contract reads
   const { data: entryFee, refetch: refetchEntryFee } = useReadContract({
     address: CONTRACT_ADDRESSES.ODDYSSEY,
-    abi: ODDYSSEY_ABI,
+    abi: ODDYSSEY_ABI.abi,
     functionName: 'entryFee',
   });
 
   const { data: currentCycle, refetch: refetchCurrentCycle } = useReadContract({
     address: CONTRACT_ADDRESSES.ODDYSSEY,
-    abi: ODDYSSEY_ABI,
+    abi: ODDYSSEY_ABI.abi,
     functionName: 'getCurrentCycle',
   });
 
   const { data: userStats, refetch: refetchUserStats } = useReadContract({
     address: CONTRACT_ADDRESSES.ODDYSSEY,
-    abi: ODDYSSEY_ABI,
+    abi: ODDYSSEY_ABI.abi,
     functionName: 'getUserStats',
     args: address ? [address] : undefined,
     query: { enabled: !!address }
@@ -87,7 +87,7 @@ export function useOddysseyContract() {
 
     writeContract({
       address: CONTRACT_ADDRESSES.ODDYSSEY,
-      abi: ODDYSSEY_ABI,
+      abi: ODDYSSEY_ABI.abi,
       functionName: 'placeSlip',
       args: [slip.predictions],
       value: entryFee as bigint,

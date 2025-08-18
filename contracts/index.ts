@@ -32,7 +32,7 @@ export const CONTRACTS = {
   },
   ODDYSSEY: {
     address: CONTRACT_ADDRESSES.ODDYSSEY,
-    abi: OddysseyABI,
+    abi: OddysseyABI.abi,
   },
 } as const;
 
