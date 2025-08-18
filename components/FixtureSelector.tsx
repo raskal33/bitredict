@@ -141,18 +141,18 @@ const FixtureSelector: React.FC<FixtureSelectorProps> = ({
       return league.logoUrl;
     }
     
-    // Popular league mappings with better fallbacks
+    // Popular league mappings with SportMonks CDN
     const leagueLogos: { [key: string]: string } = {
-      'Premier League': 'https://media.api-sports.io/football/leagues/39.png',
-      'England Premier League': 'https://media.api-sports.io/football/leagues/39.png',
-      'La Liga': 'https://media.api-sports.io/football/leagues/140.png',
-      'Bundesliga': 'https://media.api-sports.io/football/leagues/78.png',
-      'Serie A': 'https://media.api-sports.io/football/leagues/135.png',
-      'Ligue 1': 'https://media.api-sports.io/football/leagues/61.png',
-      'Champions League': 'https://media.api-sports.io/football/leagues/2.png',
-      'Europa League': 'https://media.api-sports.io/football/leagues/3.png',
-      'UEFA Europa League': 'https://media.api-sports.io/football/leagues/3.png',
-      'UEFA Champions League': 'https://media.api-sports.io/football/leagues/2.png'
+      'Premier League': 'https://cdn.sportmonks.com/images/soccer/leagues/8.png',
+      'England Premier League': 'https://cdn.sportmonks.com/images/soccer/leagues/8.png',
+      'La Liga': 'https://cdn.sportmonks.com/images/soccer/leagues/564.png',
+      'Bundesliga': 'https://cdn.sportmonks.com/images/soccer/leagues/82.png',
+      'Serie A': 'https://cdn.sportmonks.com/images/soccer/leagues/301.png',
+      'Ligue 1': 'https://cdn.sportmonks.com/images/soccer/leagues/501.png',
+      'Champions League': 'https://cdn.sportmonks.com/images/soccer/leagues/2.png',
+      'Europa League': 'https://cdn.sportmonks.com/images/soccer/leagues/5.png',
+      'UEFA Europa League': 'https://cdn.sportmonks.com/images/soccer/leagues/5.png',
+      'UEFA Champions League': 'https://cdn.sportmonks.com/images/soccer/leagues/2.png'
     };
     
     // Try exact match first

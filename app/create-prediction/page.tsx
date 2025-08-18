@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
-import { parseEther, parseUnits } from "viem";
+import { parseEther, parseUnits, formatUnits } from "viem";
 import { GAS_SETTINGS } from "@/config/wagmi";
 import { toast } from "react-hot-toast";
 import { 
@@ -613,9 +613,8 @@ export default function CreateMarketPage() {
         } : 'NO FIXTURE SELECTED'
       });
 
-      // Properly encode bytes32 parameters using ethers-like encoding
-      const encodeBytes32 = (str: string): `0x${string}` => {
-        // Convert string to bytes32 format (32 bytes, right-padded with zeros)
+      // Encode bytes32 parameters using ethers-like encoding
+      const encodeBytes32String = (str: string): `0x${string}` => {
         const encoder = new TextEncoder();
         const bytes = encoder.encode(str);
         const padded = new Uint8Array(32);
@@ -623,24 +622,30 @@ export default function CreateMarketPage() {
         return `0x${Array.from(padded).map(b => b.toString(16).padStart(2, '0')).join('')}` as `0x${string}`;
       };
 
+      // Convert odds to contract format (200 = 2.0x, 150 = 1.5x)
+      const contractOdds = Math.round(data.odds * 100);
+      
+      // Create market ID from fixture ID for easy resolution
+      const marketId = data.selectedFixture?.id?.toString() || '0';
+      
       const baseConfig = {
         address: CONTRACT_ADDRESS,
         abi: BitredictPoolABI.abi,
         functionName: 'createPool' as const,
         args: [
-          encodeBytes32(predictedOutcome), // Properly encode as bytes32
-          BigInt(data.odds), // Convert to bigint
-          parseEther(data.creatorStake.toString()),
-          BigInt(eventStartTime), // Convert to bigint
-          BigInt(eventEndTime), // Convert to bigint
-          league,
-          data.category,
-          region,
-          false as boolean, // isPrivate
-          parseEther('500'), // maxBetPerUser - use proper value instead of 0
-          useBitr as boolean,
-          0 as number, // oracleType (0 = GUIDED) - keep as number
-          encodeBytes32(data.selectedFixture?.id?.toString() || '0') // marketId - properly encoded
+          encodeBytes32String(predictedOutcome), // _predictedOutcome: bytes32
+          BigInt(contractOdds), // _odds: uint256 (in contract format: 200 = 2.0x)
+          parseEther(data.creatorStake.toString()), // _creatorStake: uint256
+          BigInt(eventStartTime), // _eventStartTime: uint256
+          BigInt(eventEndTime), // _eventEndTime: uint256
+          league, // _league: string
+          data.category, // _category: string
+          region, // _region: string
+          false as boolean, // _isPrivate: bool
+          parseEther('500'), // _maxBetPerUser: uint256
+          useBitr as boolean, // _useBitr: bool
+          0 as number, // _oracleType: OracleType (0 = GUIDED)
+          encodeBytes32String(marketId) // _marketId: bytes32 (fixture ID for easy resolution)
         ] as const
       };
 
@@ -659,14 +664,24 @@ export default function CreateMarketPage() {
       if (useBitr) {
         const requiredAmount = (data.creatorStake + 1).toString(); // +1 for creation fee
         const currentAllowance = token.getAllowance(CONTRACTS.BITREDICT_POOL.address);
+        const currentBalance = token.rawBalance;
         const requiredAmountWei = parseUnits(requiredAmount, 18);
         
         console.log('BITR approval check:', {
           requiredAmount,
+          currentBalance: currentBalance?.toString(),
           currentAllowance: currentAllowance?.toString(),
           requiredAmountWei: requiredAmountWei.toString(),
+          hasEnoughBalance: currentBalance && currentBalance >= requiredAmountWei,
           hasEnoughAllowance: currentAllowance && currentAllowance >= requiredAmountWei
         });
+        
+        // Check balance first
+        if (!currentBalance || currentBalance < requiredAmountWei) {
+          toast.error(`Insufficient BITR balance. You need ${requiredAmount} BITR but have ${currentBalance ? formatUnits(currentBalance, 18) : '0'} BITR`);
+          setIsLoading(false);
+          return;
+        }
         
         if (!currentAllowance || currentAllowance < requiredAmountWei) {
           if (!approvalConfirmed) {
@@ -697,19 +712,123 @@ export default function CreateMarketPage() {
         return;
       }
 
+      // Contract validation checks
+      const minStake = 20; // 20 BITR minimum
+      const maxStake = 1000000; // 1M BITR maximum
+      const minOdds = 1.01; // 1.01x minimum (101 in contract format)
+      const maxOdds = 100; // 100x maximum (10000 in contract format)
+      
+      if (data.creatorStake < minStake) {
+        toast.error(`Creator stake must be at least ${minStake} BITR`);
+        setIsLoading(false);
+        return;
+      }
+      
+      if (data.creatorStake > maxStake) {
+        toast.error(`Creator stake cannot exceed ${maxStake} BITR`);
+        setIsLoading(false);
+        return;
+      }
+      
+      if (data.odds < minOdds || data.odds > maxOdds) {
+        toast.error(`Odds must be between ${minOdds}x and ${maxOdds}x`);
+        setIsLoading(false);
+        return;
+      }
+      
+      // Check event timing
+      const now = Math.floor(Date.now() / 1000);
+      const bettingGracePeriod = 60; // 60 seconds
+      const maxEventTime = 365 * 24 * 3600; // 365 days
+      
+      if (eventStartTime <= now + bettingGracePeriod) {
+        toast.error('Event must start at least 1 minute from now');
+        setIsLoading(false);
+        return;
+      }
+      
+      if (eventStartTime > now + maxEventTime) {
+        toast.error('Event cannot be more than 365 days in the future');
+        setIsLoading(false);
+        return;
+      }
+      
+      if (eventEndTime <= eventStartTime) {
+        toast.error('Event end time must be after start time');
+        setIsLoading(false);
+        return;
+      }
+
       console.log('Writing contract with config:', contractConfig);
       console.log('Contract call details:', {
         address: contractConfig.address,
         functionName: contractConfig.functionName,
-        args: contractConfig.args,
+        args: contractConfig.args.map((arg, i) => ({
+          index: i,
+          value: arg.toString(),
+          type: typeof arg
+        })),
         value: (contractConfig as { value?: bigint }).value?.toString(),
         gas: contractConfig.gas?.toString(),
         gasPrice: contractConfig.gasPrice?.toString()
       });
+      
+      // Log specific parameter details for debugging
+      console.log('Market creation parameters:', {
+        predictedOutcome,
+        originalOdds: data.odds,
+        contractOdds,
+        creatorStake: data.creatorStake,
+        eventStartTime,
+        eventEndTime,
+        league,
+        category: data.category,
+        region,
+        marketId,
+        useBitr
+      });
+      
+      // Final contract validation
+      console.log('Contract validation:', {
+        contractAddress: CONTRACT_ADDRESS,
+        contractABI: BitredictPoolABI.abi ? 'Loaded' : 'Missing',
+        functionExists: BitredictPoolABI.abi?.find(fn => fn.name === 'createPool') ? 'Yes' : 'No'
+      });
+      
       await writeContract(contractConfig);
     } catch (error) {
       console.error('Error creating market:', error);
-      toast.error('Failed to create market: ' + (error as Error).message);
+      
+      // Parse specific error messages
+      let errorMessage = 'Failed to create market';
+      
+      if (error instanceof Error) {
+        const errorStr = error.message.toLowerCase();
+        
+        if (errorStr.includes('insufficient funds')) {
+          errorMessage = 'Insufficient funds for transaction';
+        } else if (errorStr.includes('user rejected')) {
+          errorMessage = 'Transaction was rejected by user';
+        } else if (errorStr.includes('execution reverted')) {
+          errorMessage = 'Transaction failed - check your parameters';
+        } else if (errorStr.includes('invalid odds')) {
+          errorMessage = 'Invalid odds value (must be between 1.01x and 100x)';
+        } else if (errorStr.includes('stake below minimum')) {
+          errorMessage = 'Creator stake must be at least 20 BITR';
+        } else if (errorStr.includes('event must be in future')) {
+          errorMessage = 'Event must start in the future';
+        } else if (errorStr.includes('event too soon')) {
+          errorMessage = 'Event must start at least 1 minute from now';
+        } else if (errorStr.includes('event too far')) {
+          errorMessage = 'Event cannot be more than 365 days in the future';
+        } else if (errorStr.includes('bitr transfer failed')) {
+          errorMessage = 'BITR token transfer failed - check your balance and allowance';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      toast.error(errorMessage);
       setIsLoading(false);
     }
   };
