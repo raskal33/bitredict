@@ -931,35 +931,43 @@ export default function CreateMarketPage() {
         <h3 className="text-lg sm:text-xl font-semibold text-white mb-4">Select Category</h3>
         <div className="grid grid-cols-1 gap-4">
           <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
             onClick={() => handleInputChange('category', 'football')}
-            className={`p-4 sm:p-6 rounded-xl border-2 text-left transition-all ${
-              data.category === 'football'
-                ? 'border-cyan-500 bg-cyan-500/10'
-                : 'border-gray-600 bg-gray-800/50 hover:border-cyan-400'
-            }`}
+            className={`
+              p-6 rounded-2xl border-2 text-left transition-all duration-300
+              bg-gradient-to-br from-gray-900/80 to-gray-800/80 backdrop-blur-sm
+              hover:border-cyan-500/30 hover:shadow-lg hover:shadow-cyan-500/10
+              ${data.category === 'football'
+                ? 'border-cyan-500 bg-cyan-500/5 ring-2 ring-cyan-500/20'
+                : 'border-gray-700/50 hover:bg-gray-800/50'
+              }
+            `}
           >
-            <div className="text-xl sm:text-2xl mb-2">⚽</div>
-            <h4 className="text-base sm:text-lg font-semibold text-white mb-2">Football Matches</h4>
-            <p className="text-gray-400 text-xs sm:text-sm">
+            <div className="text-3xl mb-3">⚽</div>
+            <h4 className="text-lg font-semibold text-white mb-2">Football Matches</h4>
+            <p className="text-gray-400 text-sm">
               Create predictions on real upcoming football matches with live odds from SportMonks
             </p>
           </motion.button>
 
           <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
             onClick={() => handleInputChange('category', 'cryptocurrency')}
-            className={`p-4 sm:p-6 rounded-xl border-2 text-left transition-all ${
-              data.category === 'cryptocurrency'
-                ? 'border-cyan-500 bg-cyan-500/10'
-                : 'border-gray-600 bg-gray-800/50 hover:border-cyan-400'
-            }`}
+            className={`
+              p-6 rounded-2xl border-2 text-left transition-all duration-300
+              bg-gradient-to-br from-gray-900/80 to-gray-800/80 backdrop-blur-sm
+              hover:border-cyan-500/30 hover:shadow-lg hover:shadow-cyan-500/10
+              ${data.category === 'cryptocurrency'
+                ? 'border-cyan-500 bg-cyan-500/5 ring-2 ring-cyan-500/20'
+                : 'border-gray-700/50 hover:bg-gray-800/50'
+              }
+            `}
           >
-            <div className="text-xl sm:text-2xl mb-2">₿</div>
-            <h4 className="text-base sm:text-lg font-semibold text-white mb-2">Cryptocurrency</h4>
-            <p className="text-gray-400 text-xs sm:text-sm">
+            <div className="text-3xl mb-3">₿</div>
+            <h4 className="text-lg font-semibold text-white mb-2">Cryptocurrency</h4>
+            <p className="text-gray-400 text-sm">
               Predict cryptocurrency price movements with time-based outcomes
             </p>
           </motion.button>
@@ -1097,18 +1105,18 @@ export default function CreateMarketPage() {
         <div>
           <h4 className="text-lg font-semibold text-white mb-4">Select Cryptocurrency</h4>
           
-          <div className="relative mb-4">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <div className="relative mb-6">
+            <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
             <input
               type="text"
               placeholder="Search cryptocurrencies (500+ available)..."
               value={cryptoSearchQuery}
               onChange={(e) => setCryptoSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-cyan-500"
+              className="w-full pl-12 pr-4 py-4 bg-gray-800/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
             />
           </div>
 
-          <div className="max-h-80 overflow-y-auto space-y-2">
+          <div className="max-h-96 overflow-y-auto space-y-3">
             {filteredCryptos.length === 0 ? (
               <div className="text-center py-8 text-gray-400">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-500 mx-auto mb-2"></div>
@@ -1119,46 +1127,51 @@ export default function CreateMarketPage() {
               <motion.button
                 key={crypto.id}
                 whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
                 onClick={() => handleInputChange('selectedCrypto', crypto)}
-                  className={`w-full p-4 rounded-lg border text-left transition-all ${
-                  data.selectedCrypto?.id === crypto.id
-                    ? 'border-cyan-500 bg-cyan-500/10'
-                    : 'border-gray-600 bg-gray-800/50 hover:border-cyan-400'
-                }`}
+                className={`
+                  w-full p-6 rounded-2xl border text-left transition-all duration-300
+                  bg-gradient-to-br from-gray-900/80 to-gray-800/80 backdrop-blur-sm
+                  hover:border-cyan-500/30 hover:shadow-lg hover:shadow-cyan-500/10
+                  ${data.selectedCrypto?.id === crypto.id
+                    ? 'ring-2 ring-cyan-500 bg-cyan-500/5 border-cyan-500/50'
+                    : 'border-gray-700/50 hover:bg-gray-800/50'
+                  }
+                `}
               >
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-8 h-8 relative">
-                        {crypto.logo && crypto.logo.startsWith('http') ? (
-                          <Image
-                            src={crypto.logo}
-                            alt={crypto.symbol}
-                            fill
-                            className="object-contain"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.style.display = 'none';
-                            }}
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-cyan-500 to-blue-600 rounded-full text-white font-bold text-sm">
-                            {crypto.symbol.slice(0, 2)}
-                          </div>
-                        )}
-                      </div>
-                  <div>
-                    <div className="font-semibold text-white">{crypto.symbol}</div>
-                    <div className="text-sm text-gray-400">{crypto.name}</div>
-                        {crypto.rank && (
-                          <div className="text-xs text-gray-500">Rank: #{crypto.rank}</div>
-                        )}
-                      </div>
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 relative rounded-full overflow-hidden bg-gray-700 flex items-center justify-center">
+                      {crypto.logo && crypto.logo.startsWith('http') ? (
+                        <Image
+                          src={crypto.logo}
+                          alt={crypto.symbol}
+                          fill
+                          className="object-cover"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-cyan-500 to-blue-600 text-white font-bold text-sm">
+                          {crypto.symbol.slice(0, 2)}
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-semibold text-white text-base">{crypto.symbol}</div>
+                      <div className="text-sm text-gray-400 truncate">{crypto.name}</div>
+                      {crypto.rank && (
+                        <div className="text-xs text-gray-500 mt-1">Rank: #{crypto.rank}</div>
+                      )}
+                    </div>
                   </div>
                   <div className="text-right">
-                      <div className="font-semibold text-white">${crypto.currentPrice.toLocaleString()}</div>
-                      <div className="text-xs text-gray-400">
-                        {crypto.currentPrice < 1 ? crypto.currentPrice.toFixed(6) : crypto.currentPrice.toFixed(2)}
-                      </div>
+                    <div className="font-bold text-white text-lg">${crypto.currentPrice.toLocaleString()}</div>
+                    <div className="text-xs text-gray-400">
+                      {crypto.currentPrice < 1 ? crypto.currentPrice.toFixed(6) : crypto.currentPrice.toFixed(2)}
+                    </div>
                   </div>
                 </div>
               </motion.button>

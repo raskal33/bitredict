@@ -110,38 +110,63 @@ const FixtureSelector: React.FC<FixtureSelectorProps> = ({
 
     // Search filter
     if (searchTerm) {
+      const lowerSearch = searchTerm.toLowerCase();
       filtered = filtered.filter(f => 
-        f.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        f.homeTeam?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        f.awayTeam?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        f.league?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+        f.homeTeam?.name?.toLowerCase().includes(lowerSearch) ||
+        f.awayTeam?.name?.toLowerCase().includes(lowerSearch) ||
+        f.league?.name?.toLowerCase().includes(lowerSearch)
       );
     }
 
     setFilteredFixtures(filtered);
   }, [fixtures, leagueFilter, timeFilter, searchTerm]);
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric',
+      weekday: 'short'
+    });
+  };
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: false 
+    });
+  };
+
   const getTeamLogo = (team: { name: string; logoUrl?: string } | undefined) => {
-    if (!team?.name) return null;
+    if (!team) return null;
     
     // Use logoUrl from backend if available, otherwise fallback to UI Avatars
     if (team.logoUrl) {
       return team.logoUrl;
     }
     
-    // Fallback to UI Avatars with better styling
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(team.name)}&background=22C7FF&color=000&size=64&font-size=0.4&bold=true`;
+    // Fallback to UI Avatars with team initials
+    const initials = team.name
+      .split(' ')
+      .map(word => word[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase();
+    
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=22C7FF&color=000&size=64&font-size=0.4&bold=true`;
   };
 
   const getLeagueLogo = (league: { name: string; logoUrl?: string } | undefined) => {
-    if (!league?.name) return null;
+    if (!league) return null;
     
     // Use logoUrl from backend if available
     if (league.logoUrl) {
       return league.logoUrl;
     }
     
-    // Popular league mappings with SportMonks CDN
+    // Fallback to known league logos
     const leagueLogos: { [key: string]: string } = {
       'Premier League': 'https://cdn.sportmonks.com/images/soccer/leagues/8.png',
       'England Premier League': 'https://cdn.sportmonks.com/images/soccer/leagues/8.png',
@@ -155,81 +180,21 @@ const FixtureSelector: React.FC<FixtureSelectorProps> = ({
       'UEFA Champions League': 'https://cdn.sportmonks.com/images/soccer/leagues/2.png'
     };
     
-    // Try exact match first
-    if (leagueLogos[league.name]) {
-      return leagueLogos[league.name];
-    }
-    
-    // Try partial match
-    for (const [key, url] of Object.entries(leagueLogos)) {
-      if (league.name.toLowerCase().includes(key.toLowerCase())) {
-        return url;
-      }
-    }
-    
-    // Fallback to UI Avatars
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(league.name)}&background=FF6B00&color=fff&size=64&font-size=0.4&bold=true`;
+    return leagueLogos[league.name] || null;
   };
 
-  const formatDate = (dateString: string) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    const now = new Date();
+  const getDifficultyBadge = (odds: Fixture['odds']) => {
+    if (!odds) return null;
     
-    // Fix timezone issues by comparing only the date parts
-    const dateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    const nowOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const diffTime = dateOnly.getTime() - nowOnly.getTime();
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Tomorrow';
-    if (diffDays === -1) return 'Yesterday';
-    if (diffDays > 1 && diffDays < 7) return `In ${diffDays} days`;
-    if (diffDays < -1 && diffDays > -7) return `${Math.abs(diffDays)} days ago`;
+    const homeOdds = odds.home || 0;
+    const drawOdds = odds.draw || 0;
+    const awayOdds = odds.away || 0;
     
-    return date.toLocaleDateString('en-US', { 
-        month: 'short',
-        day: 'numeric'
-      });
-  };
-
-  const formatTime = (dateString: string) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: false 
-    });
-  };
-
-  const getDifficultyBadge = (odds: { 
-    home?: number | null; 
-    away?: number | null; 
-    draw?: number | null;
-    over25?: number | null;
-    under25?: number | null;
-    bttsYes?: number | null;
-    bttsNo?: number | null;
-  } | undefined) => {
-    if (!odds?.home || !odds?.away) return null;
+    const avgOdds = (homeOdds + drawOdds + awayOdds) / 3;
     
-    const homeOdds = odds.home;
-    const awayOdds = odds.away;
-    
-    // New difficulty criteria based on odds
-    // Any home-away team odd below 1.50 --> Easy
-    // Any home-away team odd between 1.51-1.95 --> Medium  
-    // Any home-away team odd above 1.95 --> Hard
-    
-    if (homeOdds < 1.50 || awayOdds < 1.50) {
-      return { text: 'Easy', color: 'bg-green-500' };
-    } else if ((homeOdds >= 1.51 && homeOdds <= 1.95) || (awayOdds >= 1.51 && awayOdds <= 1.95)) {
-      return { text: 'Medium', color: 'bg-yellow-500' };
-    } else {
-      return { text: 'Hard', color: 'bg-red-500' };
-    }
+    if (avgOdds < 2.0) return { text: 'Easy', color: 'bg-green-500/20 text-green-400' };
+    if (avgOdds < 3.0) return { text: 'Medium', color: 'bg-yellow-500/20 text-yellow-400' };
+    return { text: 'Hard', color: 'bg-red-500/20 text-red-400' };
   };
 
   return (
@@ -240,201 +205,246 @@ const FixtureSelector: React.FC<FixtureSelectorProps> = ({
         <div className="relative">
           <input
             type="text"
-            placeholder="Search matches, teams, or leagues..."
+            placeholder="Search teams or leagues..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-3 bg-[var(--bg-card)] border border-[var(--border-input)] rounded-lg text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--somnia-cyan)] focus:border-transparent transition-all duration-200"
+            className="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
           />
-          <svg className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
         </div>
 
-        {/* Filter Controls */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          {/* League Filter */}
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
-              League
-            </label>
-          <select
-              value={leagueFilter}
-              onChange={(e) => setLeagueFilter(e.target.value)}
-              className="w-full px-4 py-3 bg-[var(--bg-card)] border border-[var(--border-input)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--somnia-cyan)] focus:border-transparent transition-all duration-200"
-            >
-              <option value="all">All Leagues</option>
-            {leagues.map(league => (
-                <option key={league} value={league}>{league}</option>
-            ))}
-          </select>
-          </div>
-
-          {/* Time Filter */}
-          <div className="flex-1">
-            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
-              Time
-            </label>
-          <select
-              value={timeFilter}
-              onChange={(e) => setTimeFilter(e.target.value)}
-              className="w-full px-4 py-3 bg-[var(--bg-card)] border border-[var(--border-input)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--somnia-cyan)] focus:border-transparent transition-all duration-200"
-            >
-              <option value="all">All Time</option>
-              <option value="today">Today</option>
-              <option value="tomorrow">Tomorrow</option>
-              <option value="week">This Week</option>
-          </select>
-          </div>
+        {/* Filter Tabs */}
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setTimeFilter('all')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              timeFilter === 'all'
+                ? 'bg-cyan-500 text-black'
+                : 'bg-gray-800/50 text-gray-300 hover:bg-gray-700/50'
+            }`}
+          >
+            All Time
+          </button>
+          <button
+            onClick={() => setTimeFilter('today')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              timeFilter === 'today'
+                ? 'bg-cyan-500 text-black'
+                : 'bg-gray-800/50 text-gray-300 hover:bg-gray-700/50'
+            }`}
+          >
+            Today
+          </button>
+          <button
+            onClick={() => setTimeFilter('tomorrow')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              timeFilter === 'tomorrow'
+                ? 'bg-cyan-500 text-black'
+                : 'bg-gray-800/50 text-gray-300 hover:bg-gray-700/50'
+            }`}
+          >
+            Tomorrow
+          </button>
+          <button
+            onClick={() => setTimeFilter('week')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              timeFilter === 'week'
+                ? 'bg-cyan-500 text-black'
+                : 'bg-gray-800/50 text-gray-300 hover:bg-gray-700/50'
+            }`}
+          >
+            This Week
+          </button>
         </div>
+
+        {/* League Filter */}
+        {leagues.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setLeagueFilter('all')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                leagueFilter === 'all'
+                  ? 'bg-cyan-500 text-black'
+                  : 'bg-gray-800/50 text-gray-300 hover:bg-gray-700/50'
+              }`}
+            >
+              All Leagues
+            </button>
+            {leagues.slice(0, 5).map((league) => (
+              <button
+                key={league}
+                onClick={() => setLeagueFilter(league)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  leagueFilter === league
+                    ? 'bg-cyan-500 text-black'
+                    : 'bg-gray-800/50 text-gray-300 hover:bg-gray-700/50'
+                }`}
+              >
+                {league}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Results Count */}
-      <div className="text-[var(--text-muted)] text-sm">
-        {filteredFixtures.length} match{filteredFixtures.length !== 1 ? 'es' : ''} found
-        </div>
+      <div className="text-sm text-gray-400">
+        Showing {filteredFixtures.length} of {fixtures.length} matches
+      </div>
 
       {/* Fixtures Grid */}
-      <div className="grid gap-4">
+      <div className="space-y-4">
         {filteredFixtures.map((fixture) => {
           const isSelected = selectedFixture?.id === fixture.id;
           const difficulty = getDifficultyBadge(fixture.odds);
           
           return (
             <motion.div
-                key={fixture.id}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              key={fixture.id}
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
               onClick={() => onSelect(fixture)}
               className={`
-                glass-card cursor-pointer transition-all duration-200 relative overflow-hidden
-                ${isSelected ? 'ring-2 ring-[var(--somnia-cyan)] bg-[rgba(34,199,255,0.1)]' : ''}
-                hover:bg-[rgba(22,24,48,0.8)] hover:border-[rgba(255,255,255,0.15)]
+                relative bg-gradient-to-br from-gray-900/80 to-gray-800/80 backdrop-blur-sm
+                border border-gray-700/50 rounded-2xl p-6 cursor-pointer transition-all duration-300
+                hover:border-cyan-500/30 hover:shadow-lg hover:shadow-cyan-500/10
+                ${isSelected ? 'ring-2 ring-cyan-500 bg-cyan-500/5 border-cyan-500/50' : ''}
               `}
-              >
-                {/* Match Header */}
+            >
+              {/* Selection Indicator */}
+              {isSelected && (
+                <div className="absolute top-4 right-4">
+                  <div className="w-6 h-6 bg-cyan-500 rounded-full flex items-center justify-center shadow-lg">
+                    <svg className="w-3 h-3 text-black" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                </div>
+              )}
+
+              {/* League Header */}
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                                     {/* League Logo */}
-                   {fixture.league && (
-                     <Image
-                       src={getLeagueLogo(fixture.league) || ''}
-                       alt={fixture.league.name}
-                       width={24}
-                       height={24}
-                       className="w-6 h-6 rounded-full"
-                       onError={(e) => {
-                         const target = e.target as HTMLImageElement;
-                         target.style.display = 'none';
-                       }}
-                     />
-                   )}
-                  
-                  {/* League Name */}
-                  <span className="text-[var(--text-secondary)] text-sm font-medium">
-                    {fixture.league?.name || 'Unknown League'}
-                      </span>
+                  {fixture.league && (
+                    <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-700 flex items-center justify-center">
+                      <Image
+                        src={getLeagueLogo(fixture.league) || ''}
+                        alt={fixture.league.name}
+                        width={32}
+                        height={32}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                        }}
+                      />
                     </div>
-
-                {/* Match Date and Time */}
-                {fixture.matchDate && (
-                  <span className="text-[var(--text-muted)] text-sm">
-                    {formatDate(fixture.matchDate)} • {formatTime(fixture.matchDate)}
-                  </span>
-                )}
-                  </div>
-
-              {/* Teams */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3 flex-1">
-                                     {/* Home Team */}
-                   <div className="flex items-center gap-2">
-                     <Image
-                       src={getTeamLogo(fixture.homeTeam) || ''}
-                       alt={fixture.homeTeam?.name || ''}
-                       width={32}
-                       height={32}
-                       className="w-8 h-8 rounded-full"
-                       onError={(e) => {
-                         const target = e.target as HTMLImageElement;
-                         target.style.display = 'none';
-                       }}
-                     />
-                    <span className="text-[var(--text-primary)] font-medium">
-                      {fixture.homeTeam?.name || 'TBD'}
-                    </span>
+                  )}
+                  <div>
+                    <h3 className="text-white font-semibold text-sm">
+                      {fixture.league?.name || 'Unknown League'}
+                    </h3>
+                    {fixture.matchDate && (
+                      <p className="text-gray-400 text-xs">
+                        {formatDate(fixture.matchDate)} • {formatTime(fixture.matchDate)}
+                      </p>
+                    )}
                   </div>
                 </div>
-
-                {/* VS */}
-                <div className="mx-4 text-[var(--text-muted)] font-medium">
-                  vs
-                </div>
-
-                                   {/* Away Team */}
-                   <div className="flex items-center gap-2 flex-1 justify-end">
-                     <span className="text-[var(--text-primary)] font-medium">
-                       {fixture.awayTeam?.name || 'TBD'}
-                     </span>
-                     <Image
-                       src={getTeamLogo(fixture.awayTeam) || ''}
-                       alt={fixture.awayTeam?.name || ''}
-                       width={32}
-                       height={32}
-                       className="w-8 h-8 rounded-full"
-                       onError={(e) => {
-                         const target = e.target as HTMLImageElement;
-                         target.style.display = 'none';
-                       }}
-                     />
-                   </div>
-                    </div>
-
-              {/* Odds and Difficulty */}
-              <div className="flex items-center justify-between">
-                <div className="flex gap-2">
-                  {fixture.odds?.home && (
-                    <span className="px-2 py-1 bg-[rgba(34,199,255,0.1)] text-[var(--somnia-cyan)] text-xs rounded">
-                      H: {fixture.odds.home.toFixed(2)}
-                    </span>
-                  )}
-                  {fixture.odds?.draw && (
-                    <span className="px-2 py-1 bg-[rgba(140,0,255,0.1)] text-[var(--somnia-violet)] text-xs rounded">
-                      D: {fixture.odds.draw.toFixed(2)}
-                    </span>
-                  )}
-                  {fixture.odds?.away && (
-                    <span className="px-2 py-1 bg-[rgba(255,0,128,0.1)] text-[var(--somnia-magenta)] text-xs rounded">
-                      A: {fixture.odds.away.toFixed(2)}
-                    </span>
-                  )}
-                  </div>
-
+                
                 {difficulty && (
-                  <span className={`px-2 py-1 text-xs rounded font-medium ${difficulty.color}`}>
+                  <span className={`px-3 py-1 text-xs rounded-full font-medium ${difficulty.color}`}>
                     {difficulty.text}
                   </span>
                 )}
               </div>
 
-              {/* Selection Indicator */}
-              {isSelected && (
-                <div className="absolute top-2 right-2">
-                  <div className="w-4 h-4 bg-[var(--somnia-cyan)] rounded-full flex items-center justify-center">
-                    <svg className="w-2.5 h-2.5 text-black" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
+              {/* Teams Section */}
+              <div className="flex items-center justify-between mb-6">
+                {/* Home Team */}
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-700 flex items-center justify-center">
+                    <Image
+                      src={getTeamLogo(fixture.homeTeam) || ''}
+                      alt={fixture.homeTeam?.name || ''}
+                      width={48}
+                      height={48}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                      }}
+                    />
                   </div>
-        </div>
-      )}
+                  <div className="min-w-0 flex-1">
+                    <h4 className="text-white font-semibold text-sm truncate">
+                      {fixture.homeTeam?.name || 'TBD'}
+                    </h4>
+                  </div>
+                </div>
+
+                {/* VS */}
+                <div className="mx-4 text-gray-500 font-medium text-sm">
+                  vs
+                </div>
+
+                {/* Away Team */}
+                <div className="flex items-center gap-3 flex-1 justify-end">
+                  <div className="min-w-0 flex-1 text-right">
+                    <h4 className="text-white font-semibold text-sm truncate">
+                      {fixture.awayTeam?.name || 'TBD'}
+                    </h4>
+                  </div>
+                  <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-700 flex items-center justify-center">
+                    <Image
+                      src={getTeamLogo(fixture.awayTeam) || ''}
+                      alt={fixture.awayTeam?.name || ''}
+                      width={48}
+                      height={48}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Odds Section */}
+              <div className="flex items-center justify-between">
+                <div className="flex gap-2">
+                  {fixture.odds?.home && (
+                    <div className="px-3 py-2 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                      <div className="text-blue-400 text-xs font-medium">Home</div>
+                      <div className="text-white font-bold text-sm">{fixture.odds.home.toFixed(2)}</div>
+                    </div>
+                  )}
+                  {fixture.odds?.draw && (
+                    <div className="px-3 py-2 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+                      <div className="text-purple-400 text-xs font-medium">Draw</div>
+                      <div className="text-white font-bold text-sm">{fixture.odds.draw.toFixed(2)}</div>
+                    </div>
+                  )}
+                  {fixture.odds?.away && (
+                    <div className="px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-lg">
+                      <div className="text-red-400 text-xs font-medium">Away</div>
+                      <div className="text-white font-bold text-sm">{fixture.odds.away.toFixed(2)}</div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </motion.div>
           );
         })}
-            </div>
+      </div>
 
       {filteredFixtures.length === 0 && (
         <div className="text-center py-12">
-          <div className="text-[var(--text-muted)] text-lg mb-2">No matches found</div>
-          <div className="text-[var(--text-muted)] text-sm">Try adjusting your filters or search terms</div>
+          <div className="text-gray-400 text-lg mb-2">No matches found</div>
+          <div className="text-gray-500 text-sm">Try adjusting your filters or search terms</div>
         </div>
       )}
     </div>
