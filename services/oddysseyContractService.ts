@@ -15,6 +15,7 @@ import {
 import { CONTRACTS } from '@/contracts';
 import { GAS_SETTINGS } from '@/config/wagmi';
 
+
 // Convert somniaNetwork to viem Chain format
 const somniaChain: Chain = {
   id: 50312,
@@ -604,6 +605,8 @@ export function useOddysseyContract() {
       throw new Error('Wallet client not available');
     }
 
+
+
     if (!isInitialized) {
       throw new Error('Contract service not initialized. Please wait for initialization to complete.');
     }
@@ -676,6 +679,9 @@ export function useOddysseyContract() {
     currentMatches,
     // Initialization state
     isInitialized,
-    isInitializing
+    isInitializing,
+    // Network state
+    chain,
+    switchNetwork
   };
 }
