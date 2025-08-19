@@ -1091,12 +1091,12 @@ export default function OddysseyPage() {
                         {/* Mobile-First Table Header */}
                         <div className="hidden md:grid md:grid-cols-12 gap-2 px-4 py-2 text-xs font-bold text-text-muted uppercase tracking-wider bg-bg-card/30 rounded-button">
                           <div className="col-span-1 text-center">Time</div>
-                          <div className="col-span-4">Match</div>
+                          <div className="col-span-5">Match</div>
                           <div className="col-span-1 text-center">1</div>
                           <div className="col-span-1 text-center">X</div>
                           <div className="col-span-1 text-center">2</div>
                           <div className="col-span-2 text-center">O/U 2.5</div>
-                          <div className="col-span-2 text-center">League</div>
+                          <div className="col-span-1 text-center">League</div>
                         </div>
 
                         {/* Matches Rows - Mobile First */}
@@ -1112,7 +1112,7 @@ export default function OddysseyPage() {
                             <div className="md:hidden space-y-3">
                               {/* Match Header */}
                               <div className="flex items-center justify-between">
-                                <div className="flex-1 min-w-0 text-center">
+                                <div className="flex-1 min-w-0">
                                   <div className="text-sm font-semibold text-white truncate">
                                     {match.home_team} vs {match.away_team}
                                   </div>
@@ -1143,7 +1143,7 @@ export default function OddysseyPage() {
                               </div>
 
                               {/* Odds Row */}
-                              <div className="grid grid-cols-5 gap-2">
+                              <div className="grid grid-cols-5 gap-1">
                                 {/* Home Win (1) */}
                                 <button
                                   onClick={() => handlePickSelection(match.fixture_id, "home")}
@@ -1251,7 +1251,7 @@ export default function OddysseyPage() {
                             </div>
 
                             {/* Match */}
-                              <div className="col-span-4 flex items-center justify-center">
+                              <div className="col-span-5 flex items-center justify-center">
                               <div className="text-sm font-semibold text-white text-center leading-tight">
                                 <div className="truncate">{match.home_team}</div>
                                 <div className="text-xs text-text-muted">vs</div>
@@ -1343,7 +1343,7 @@ export default function OddysseyPage() {
                             </div>
 
                             {/* League */}
-                              <div className="col-span-2 text-center">
+                              <div className="col-span-1 text-center">
                               <div className="text-xs text-text-secondary truncate">
                                 {match.league_name}
                                 </div>

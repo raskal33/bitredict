@@ -422,9 +422,10 @@ export function useStaking() {
 
   const getTotalPendingRewards = useMemo((): bigint => {
     try {
-      if (!userStakesWithRewards || !Array.isArray(userStakesWithRewards) || userStakesWithRewards.length === 0) return BigInt(0);
+      const stakesWithRewards = getUserStakesWithRewards;
+      if (!stakesWithRewards || !Array.isArray(stakesWithRewards) || stakesWithRewards.length === 0) return BigInt(0);
       
-      return userStakesWithRewards.reduce((total, stake) => {
+      return stakesWithRewards.reduce((total: bigint, stake: any) => {
         try {
           if (!stake || typeof stake !== 'object') return total;
           
@@ -441,10 +442,10 @@ export function useStaking() {
       console.error('Error calculating total pending rewards:', error);
       return BigInt(0);
     }
-  }, [userStakesWithRewards]);
+  }, [getUserStakesWithRewards]);
 
   const getUserTier = (): number => {
-    const totalStaked = getTotalStakedAmount();
+    const totalStaked = getTotalStakedAmount;
     if (!tiers || !Array.isArray(tiers) || tiers.length === 0) return 0;
     
     const tiersArray = tiers as Tier[];
@@ -509,7 +510,7 @@ export function useStaking() {
     userStakes: userStakes as Stake[],
     
     // Calculated data
-    userStakesWithRewards,
+    userStakesWithRewards: getUserStakesWithRewards,
     totalUserStaked: formatAmount(getTotalStakedAmount),
     totalPendingRewards: formatReward(getTotalPendingRewards),
     userTier: getUserTier(),

@@ -143,7 +143,7 @@ const FixtureSelector: React.FC<FixtureSelectorProps> = ({
     if (!team) return null;
     
     // Use logoUrl from backend if available, otherwise fallback to UI Avatars
-    if (team.logoUrl) {
+    if (team.logoUrl && team.logoUrl !== 'null' && team.logoUrl !== '') {
       return team.logoUrl;
     }
     
@@ -158,44 +158,9 @@ const FixtureSelector: React.FC<FixtureSelectorProps> = ({
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=22C7FF&color=000&size=64&font-size=0.4&bold=true`;
   };
 
-  const getLeagueLogo = (league: { name: string; logoUrl?: string } | undefined) => {
-    if (!league) return null;
-    
-    // Use logoUrl from backend if available
-    if (league.logoUrl) {
-      return league.logoUrl;
-    }
-    
-    // Fallback to known league logos
-    const leagueLogos: { [key: string]: string } = {
-      'Premier League': 'https://cdn.sportmonks.com/images/soccer/leagues/8.png',
-      'England Premier League': 'https://cdn.sportmonks.com/images/soccer/leagues/8.png',
-      'La Liga': 'https://cdn.sportmonks.com/images/soccer/leagues/564.png',
-      'Bundesliga': 'https://cdn.sportmonks.com/images/soccer/leagues/82.png',
-      'Serie A': 'https://cdn.sportmonks.com/images/soccer/leagues/301.png',
-      'Ligue 1': 'https://cdn.sportmonks.com/images/soccer/leagues/501.png',
-      'Champions League': 'https://cdn.sportmonks.com/images/soccer/leagues/2.png',
-      'Europa League': 'https://cdn.sportmonks.com/images/soccer/leagues/5.png',
-      'UEFA Europa League': 'https://cdn.sportmonks.com/images/soccer/leagues/5.png',
-      'UEFA Champions League': 'https://cdn.sportmonks.com/images/soccer/leagues/2.png'
-    };
-    
-    return leagueLogos[league.name] || null;
-  };
 
-  const getDifficultyBadge = (odds: Fixture['odds']) => {
-    if (!odds) return null;
-    
-    const homeOdds = odds.home || 0;
-    const drawOdds = odds.draw || 0;
-    const awayOdds = odds.away || 0;
-    
-    const avgOdds = (homeOdds + drawOdds + awayOdds) / 3;
-    
-    if (avgOdds < 2.0) return { text: 'Easy', color: 'bg-green-500/20 text-green-400' };
-    if (avgOdds < 3.0) return { text: 'Medium', color: 'bg-yellow-500/20 text-yellow-400' };
-    return { text: 'Hard', color: 'bg-red-500/20 text-red-400' };
-  };
+
+
 
   return (
     <div className="space-y-6">
@@ -298,7 +263,6 @@ const FixtureSelector: React.FC<FixtureSelectorProps> = ({
       <div className="space-y-4">
         {filteredFixtures.map((fixture) => {
           const isSelected = selectedFixture?.id === fixture.id;
-          const difficulty = getDifficultyBadge(fixture.odds);
           
           return (
             <motion.div
@@ -327,21 +291,6 @@ const FixtureSelector: React.FC<FixtureSelectorProps> = ({
               {/* League Header */}
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  {fixture.league && (
-                    <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-700 flex items-center justify-center">
-                      <Image
-                        src={getLeagueLogo(fixture.league) || ''}
-                        alt={fixture.league.name}
-                        width={32}
-                        height={32}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                        }}
-                      />
-                    </div>
-                  )}
                   <div>
                     <h3 className="text-white font-semibold text-sm">
                       {fixture.league?.name || 'Unknown League'}
@@ -354,11 +303,7 @@ const FixtureSelector: React.FC<FixtureSelectorProps> = ({
                   </div>
                 </div>
                 
-                {difficulty && (
-                  <span className={`px-3 py-1 text-xs rounded-full font-medium ${difficulty.color}`}>
-                    {difficulty.text}
-                  </span>
-                )}
+
               </div>
 
               {/* Teams Section */}
@@ -376,6 +321,7 @@ const FixtureSelector: React.FC<FixtureSelectorProps> = ({
                         const target = e.target as HTMLImageElement;
                         target.style.display = 'none';
                       }}
+                      unoptimized
                     />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -408,6 +354,7 @@ const FixtureSelector: React.FC<FixtureSelectorProps> = ({
                         const target = e.target as HTMLImageElement;
                         target.style.display = 'none';
                       }}
+                      unoptimized
                     />
                   </div>
                 </div>
