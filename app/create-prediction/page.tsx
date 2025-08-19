@@ -450,38 +450,14 @@ export default function CreateMarketPage() {
     });
   };
 
-  const handleFixtureSelect = (fixture: Fixture) => {
-    handleInputChange('selectedFixture', fixture);
-    
-    // Auto-populate some fields based on fixture
-    if (fixture.odds && typeof fixture.odds.draw === 'number') {
-      // Use the most balanced odd as default (often the draw)
-      // The odds from the API are already in the correct contract format
-      const defaultOdds = Math.floor(fixture.odds.draw) || 200;
-      handleInputChange('odds', defaultOdds);
-    } else {
-      // Set default odds if no valid odds data
-      handleInputChange('odds', 200);
-    }
 
-    // Auto-scroll to the next step after a short delay
-    setTimeout(() => {
-      const nextStepElement = document.getElementById('next-step-button');
-      if (nextStepElement) {
-        nextStepElement.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'center' 
-        });
-      }
-    }, 300);
-  };
 
   const handleMarketSelect = (fixture: Fixture, marketType: string, outcome: string) => {
     // Set the selected fixture
     handleInputChange('selectedFixture', fixture);
     
     // Set the outcome based on market type and outcome
-    handleInputChange('outcome', outcome as any);
+    handleInputChange('outcome', outcome as 'home' | 'away' | 'draw' | 'over15' | 'under15' | 'over25' | 'under25' | 'over35' | 'under35' | 'bttsYes' | 'bttsNo' | 'htHome' | 'htDraw' | 'htAway');
     
     // Auto-populate odds based on the selected market
     if (fixture.odds) {
@@ -1028,7 +1004,6 @@ export default function CreateMarketPage() {
               )}
               <FixtureSelector
                 fixtures={fixtures as Fixture[]}
-                onSelect={handleFixtureSelect}
                 onMarketSelect={handleMarketSelect}
                 selectedFixture={data.selectedFixture as Fixture}
               />

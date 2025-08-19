@@ -1,14 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url);
-    const date = searchParams.get('date'); // Optional: specific date
+    // const { searchParams } = new URL(request.url);
+    // const date = searchParams.get('date'); // Optional: specific date - not currently used
 
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://bitredict-backend.fly.dev';
-    const url = `${backendUrl}/api/oddyssey/matches${date ? `?date=${date}` : ''}`;
+    // Use contract-matches endpoint to get data directly from contract with correct data types
+    const url = `${backendUrl}/api/oddyssey/contract-matches`;
 
-    console.log('🎯 Fetching Oddyssey matches from:', url);
+    console.log('🎯 Fetching Oddyssey contract matches from:', url);
 
     const response = await fetch(url, {
       method: 'GET',
@@ -25,88 +26,59 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await response.json();
-    console.log('✅ Backend response:', data);
+    console.log('✅ Backend contract response:', data);
 
-    // Transform the matches data to match the expected format
+    // Transform the contract matches data to match the expected format
     const transformMatches = (matches: Array<{
-      id?: number;
-      fixture_id?: number;
-      home_team?: string;
-      away_team?: string;
-      match_date?: string;
-      matchDate?: string;
-      league_name?: string;
-      home_odds?: number;
-      draw_odds?: number;
-      away_odds?: number;
-      over_odds?: number;
-      under_odds?: number;
-      odds?: {
-        home?: number;
-        draw?: number;
-        away?: number;
-        over25?: number;
-        under25?: number;
-      };
-      odds_data?: {
-        home?: number;
-        draw?: number;
-        away?: number;
-        over25?: number;
-        under25?: number;
-        bttsYes?: number;
-        bttsNo?: number;
-        bookmaker?: string;
-        updatedAt?: string;
-      };
-      display_order?: number;
+      id: number;
+      startTime: number;
+      oddsHome: number;
+      oddsDraw: number;
+      oddsAway: number;
+      oddsOver: number;
+      oddsUnder: number;
+      homeTeam: string;
+      awayTeam: string;
+      leagueName: string;
+      displayOrder: number;
     }>) => {
       return matches.map((match) => {
-        // Extract odds from odds_data if available
-        const oddsData = match.odds_data || match.odds || {};
-        
         return {
-          id: match.id || match.fixture_id || Math.floor(Math.random() * 1000000),
-          fixture_id: match.fixture_id || match.id || Math.floor(Math.random() * 1000000),
-          home_team: match.home_team || 'Unknown Team',
-          away_team: match.away_team || 'Unknown Team',
-          match_date: match.match_date || match.matchDate || new Date().toISOString(),
-          league_name: match.league_name || 'Unknown League',
-          home_odds: match.home_odds || oddsData.home || 2.0,
-          draw_odds: match.draw_odds || oddsData.draw || 3.0,
-          away_odds: match.away_odds || oddsData.away || 2.5,
-          over_odds: match.over_odds || oddsData.over25 || 1.8,
-          under_odds: match.under_odds || oddsData.under25 || 2.0,
+          id: match.id, // This is now a number, matching contract data type
+          fixture_id: match.id,
+          home_team: match.homeTeam,
+          away_team: match.awayTeam,
+          match_date: new Date(match.startTime * 1000).toISOString(),
+          league_name: match.leagueName,
+          home_odds: match.oddsHome / 1000, // Convert from scaled format
+          draw_odds: match.oddsDraw / 1000,
+          away_odds: match.oddsAway / 1000,
+          over_odds: match.oddsOver / 1000,
+          under_odds: match.oddsUnder / 1000,
           market_type: 'moneyline',
-          display_order: match.display_order || 1
+          display_order: match.displayOrder
         };
       });
     };
 
-    let transformedData;
-    if (date) {
-      // Single date request
-      transformedData = {
-        date: date,
-        matches: transformMatches(data.data?.matches || [])
-      };
-    } else {
-      // Full data request (today, tomorrow, yesterday)
-      transformedData = {
-        today: {
-          date: data.data?.today?.date || new Date().toISOString().split('T')[0],
-          matches: transformMatches(data.data?.today?.matches || [])
-        },
-        tomorrow: {
-          date: data.data?.tomorrow?.date || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-          matches: transformMatches(data.data?.tomorrow?.matches || [])
-        },
-        yesterday: data.data?.yesterday ? {
-          date: data.data.yesterday.date,
-          matches: transformMatches(data.data.yesterday.matches || [])
-        } : undefined
-      };
-    }
+    // Transform contract data to expected format
+    const transformedData = {
+      today: {
+        date: new Date().toISOString().split('T')[0],
+        matches: transformMatches(data.data || []),
+        count: data.data?.length || 0
+      },
+      tomorrow: {
+        date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        matches: [],
+        count: 0
+      },
+      yesterday: {
+        date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        matches: [],
+        count: 0
+      }
+    };
 
     console.log('✅ Transformed data:', transformedData);
 

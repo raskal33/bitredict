@@ -55,14 +55,12 @@ interface Fixture {
 
 interface FixtureSelectorProps {
   fixtures: Fixture[];
-  onSelect: (fixture: Fixture) => void;
   onMarketSelect: (fixture: Fixture, marketType: string, outcome: string) => void;
   selectedFixture?: Fixture;
 }
 
 const FixtureSelector: React.FC<FixtureSelectorProps> = ({
   fixtures,
-  onSelect,
   onMarketSelect,
   selectedFixture
 }) => {

@@ -92,20 +92,23 @@ class OddysseyService {
     data: MatchesData;
   }> {
     try {
-      // Use matches endpoint which includes team names from fixtures
-      const endpoint = `${this.baseEndpoint}/matches`;
+      // Use contract-matches endpoint to get data directly from contract with correct data types
+      const endpoint = `${this.baseEndpoint}/contract-matches`;
       
-      console.log('🎯 OddysseyService: Fetching matches from:', endpoint);
+      console.log('🎯 OddysseyService: Fetching contract matches from:', endpoint);
       
       const response = await apiRequest<{
         success: boolean;
-        data: MatchesData;
+        data: any[];
+        cycleId: string;
+        totalMatches: number;
+        source: string;
       }>(endpoint);
       
-      console.log('✅ OddysseyService: Matches result:', response);
+      console.log('✅ OddysseyService: Contract matches result:', response);
       
-      if (!response.data) {
-        console.warn('⚠️ No matches data found');
+      if (!response.data || response.data.length === 0) {
+        console.warn('⚠️ No contract matches found');
         return {
           data: {
             today: { date: '', matches: [] },
@@ -115,12 +118,42 @@ class OddysseyService {
         };
       }
 
-      // The backend already provides properly formatted data with team names
+      // Transform contract matches to the expected format
+      const transformedMatches: OddysseyMatch[] = response.data.map((match, index) => ({
+        id: match.id, // This is now a number, matching contract data type
+        fixture_id: match.id,
+        home_team: match.homeTeam,
+        away_team: match.awayTeam,
+        match_date: new Date(match.startTime * 1000).toISOString(),
+        league_name: match.leagueName,
+        home_odds: match.oddsHome / 1000, // Convert from scaled format
+        draw_odds: match.oddsDraw / 1000,
+        away_odds: match.oddsAway / 1000,
+        over_odds: match.oddsOver / 1000,
+        under_odds: match.oddsUnder / 1000,
+        market_type: 'moneyline',
+        display_order: index + 1
+      }));
+
+      // Return in the expected format
       return {
-        data: response.data
+        data: {
+          today: {
+            date: new Date().toISOString().split('T')[0],
+            matches: transformedMatches
+          },
+          tomorrow: {
+            date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            matches: []
+          },
+          yesterday: {
+            date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            matches: []
+          }
+        }
       };
     } catch (error) {
-      console.error('❌ OddysseyService: Error fetching matches:', error);
+      console.error('❌ OddysseyService: Error fetching contract matches:', error);
       throw error;
     }
   }

@@ -284,7 +284,7 @@ export default function AirdropPage() {
                     <span className="text-white font-medium">
                       {staking.userStakesWithRewards && staking.userStakesWithRewards.length > 0
                         ? staking.userStakesWithRewards
-                            .reduce((acc: number, stake: any) => acc + Number(stake.amount), 0)
+                            .reduce((acc: number, stake: { amount: bigint }) => acc + Number(stake.amount), 0)
                             .toLocaleString()
                         : '0'}
                     </span>
