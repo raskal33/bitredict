@@ -1729,7 +1729,7 @@ export default function OddysseyPage() {
                         
                       <div className="glass-card p-4 text-center">
                           <ChartBarIcon className="h-8 w-8 mx-auto mb-2 text-accent" />
-                          <div className="text-2xl font-bold text-white">{userStats.bestScore.toLocaleString()}</div>
+                          <div className="text-2xl font-bold text-white">{(userStats.bestScore || 0).toLocaleString()}</div>
                           <div className="text-sm text-text-muted">Best Score</div>
                       </div>
                         
@@ -1742,17 +1742,17 @@ export default function OddysseyPage() {
                       
                       <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
                           <div className="glass-card p-4 text-center">
-                          <div className="text-lg font-bold text-white">{userStats.averageScore.toLocaleString()}</div>
+                          <div className="text-lg font-bold text-white">{(userStats.averageScore || 0).toLocaleString()}</div>
                           <div className="text-sm text-text-muted">Average Score</div>
                           </div>
                         
                           <div className="glass-card p-4 text-center">
-                          <div className="text-lg font-bold text-white">{userStats.currentStreak}</div>
+                          <div className="text-lg font-bold text-white">{userStats.currentStreak || 0}</div>
                           <div className="text-sm text-text-muted">Current Streak</div>
                           </div>
                         
                           <div className="glass-card p-4 text-center">
-                          <div className="text-lg font-bold text-white">{userStats.bestStreak}</div>
+                          <div className="text-lg font-bold text-white">{userStats.bestStreak || 0}</div>
                           <div className="text-sm text-text-muted">Best Streak</div>
                           </div>
                           </div>
@@ -1769,19 +1769,19 @@ export default function OddysseyPage() {
                       
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         <div className="text-center">
-                          <div className="text-3xl font-bold text-primary mb-2">{stats.totalPlayers.toLocaleString()}</div>
+                          <div className="text-3xl font-bold text-primary mb-2">{(stats.totalPlayers || 0).toLocaleString()}</div>
                           <div className="text-lg text-text-secondary">Total Players</div>
                           <div className="text-sm text-text-muted">All-time registered</div>
                         </div>
                         
                         <div className="text-center">
-                          <div className="text-3xl font-bold text-secondary mb-2">{stats.totalCycles}</div>
+                          <div className="text-3xl font-bold text-secondary mb-2">{stats.totalCycles || 0}</div>
                           <div className="text-lg text-text-secondary">Total Cycles</div>
                           <div className="text-sm text-text-muted">Completed competitions</div>
                         </div>
                         
                         <div className="text-center">
-                          <div className="text-3xl font-bold text-accent mb-2">{stats.activeCycles}</div>
+                          <div className="text-3xl font-bold text-accent mb-2">{stats.activeCycles || 0}</div>
                           <div className="text-lg text-text-secondary">Active Cycles</div>
                           <div className="text-sm text-text-muted">Currently running</div>
                         </div>
@@ -1799,7 +1799,7 @@ export default function OddysseyPage() {
                         </div>
                         
                         <div className="text-center">
-                          <div className="text-3xl font-bold text-blue-400 mb-2">{stats.avgCorrect}x</div>
+                          <div className="text-3xl font-bold text-blue-400 mb-2">{stats.avgCorrect || 0}x</div>
                           <div className="text-lg text-text-secondary">Avg Odds</div>
                           <div className="text-sm text-text-muted">Winning slips</div>
                         </div>

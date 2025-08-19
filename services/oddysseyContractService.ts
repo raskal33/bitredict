@@ -679,9 +679,6 @@ export function useOddysseyContract() {
     currentMatches,
     // Initialization state
     isInitialized,
-    isInitializing,
-    // Network state
-    chain,
-    switchNetwork
+    isInitializing
   };
 }
