@@ -31,7 +31,7 @@ const somniaChain: Chain = {
     },
   },
   blockExplorers: {
-    default: { name: 'Somnia Explorer', url: 'https://somnia-testnet.explorer.caldera.xyz' },
+    default: { name: 'Somnia Explorer', url: 'https://shannon-explorer.somnia.network' },
   },
   testnet: true,
 };

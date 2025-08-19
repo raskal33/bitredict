@@ -12,7 +12,9 @@ export const API_CONFIG = {
     oddyssey: '/api/oddyssey',
     staking: '/api/staking',
     users: '/api/users',
-    reputation: '/api/reputation'
+    reputation: '/api/reputation',
+    guidedOracle: '/api/guided-oracle',
+    optimisticOracle: '/api/optimistic-oracle'
   }
 } as const;
 

@@ -17,7 +17,7 @@ export const somniaNetwork: AppKitNetwork = {
     },
   },
   blockExplorers: {
-    default: { name: 'Somnia Explorer', url: 'https://somnia-testnet.explorer.caldera.xyz' },
+    default: { name: 'Somnia Explorer', url: 'https://shannon-explorer.somnia.network' },
   },
   testnet: true,
 }
@@ -73,10 +73,10 @@ export const config = wagmiAdapter.wagmiConfig
 // Contract addresses for smart contract integration
 export const CONTRACT_ADDRESSES = {
   BITR_TOKEN: (process.env.NEXT_PUBLIC_BITR_TOKEN_ADDRESS || '0x4b10fBFFDEE97C42E29899F47A2ECD30a38dBf2C') as `0x${string}`,
-  FAUCET: process.env.NEXT_PUBLIC_FAUCET_ADDRESS as `0x${string}`,
-  GUIDED_ORACLE: process.env.NEXT_PUBLIC_GUIDED_ORACLE_ADDRESS as `0x${string}`,
+  FAUCET: (process.env.NEXT_PUBLIC_FAUCET_ADDRESS || '0x1656712131BB07dDE6EeC7D88757Db24782cab71') as `0x${string}`,
+  GUIDED_ORACLE: (process.env.NEXT_PUBLIC_GUIDED_ORACLE_ADDRESS || '0x2103cCfc9a15F2876765487F594481D5f8EC160a') as `0x${string}`,
   BITREDICT_POOL: (process.env.NEXT_PUBLIC_BITREDICT_POOL_ADDRESS || '0x5F112bD56Eaa805DffF4b2929d9D44B2d364Cd08') as `0x${string}`,
-  OPTIMISTIC_ORACLE: process.env.NEXT_PUBLIC_OPTIMISTIC_ORACLE_ADDRESS as `0x${string}`,
+  OPTIMISTIC_ORACLE: (process.env.NEXT_PUBLIC_OPTIMISTIC_ORACLE_ADDRESS || '0x9E53d44aD3f614BA53F3B21EDF9fcE79a72238b2') as `0x${string}`,
   BITREDICT_STAKING: (process.env.NEXT_PUBLIC_BITREDICT_STAKING_ADDRESS || '0x4736a1593d52803b2EabDf4EFd5645A0bfc22908') as `0x${string}`,
   ODDYSSEY: (process.env.NEXT_PUBLIC_ODDYSSEY_ADDRESS || '0x31AfDC3978317a1de606e76037429F3e456015C6') as `0x${string}`,
 }
@@ -85,7 +85,7 @@ export const CONTRACT_ADDRESSES = {
 export const NETWORK_CONFIG = {
   chainId: 50312,
   rpcUrl: 'https://dream-rpc.somnia.network/',
-  explorerUrl: 'https://somnia-testnet.explorer.caldera.xyz',
+  explorerUrl: 'https://shannon-explorer.somnia.network',
 }
 
 // Global gas settings - Optimized for Somnia Network

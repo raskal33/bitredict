@@ -81,6 +81,57 @@ interface Fixture {
   };
 }
 
+// Interface for the raw API response
+interface RawFixture {
+  id?: string | number;
+  homeTeam?: { 
+    id?: number; 
+    name?: string; 
+    logoUrl?: string;
+    logo?: string;
+  };
+  awayTeam?: { 
+    id?: number; 
+    name?: string; 
+    logoUrl?: string;
+    logo?: string;
+  };
+  league?: { 
+    id?: number; 
+    name?: string; 
+    logoUrl?: string;
+    logo?: string;
+    country?: string;
+  };
+  home_team_logo?: string;
+  away_team_logo?: string;
+  matchDate?: string;
+  startingAt?: string;
+  venue?: { name?: string };
+  status?: string;
+  odds?: {
+    home?: string | number;
+    draw?: string | number;
+    away?: string | number;
+    over15?: string | number;
+    under15?: string | number;
+    over25?: string | number;
+    under25?: string | number;
+    over35?: string | number;
+    under35?: string | number;
+    bttsYes?: string | number;
+    bttsNo?: string | number;
+    htHome?: string | number;
+    htDraw?: string | number;
+    htAway?: string | number;
+    ht_over_05?: string | number;
+    ht_under_05?: string | number;
+    ht_over_15?: string | number;
+    ht_under_15?: string | number;
+    updatedAt?: string;
+  };
+}
+
 interface GuidedMarketData {
   // Common fields
   category: 'football' | 'cryptocurrency' | '';
@@ -91,7 +142,7 @@ interface GuidedMarketData {
   
   // Football specific (updated for SportMonks)
   selectedFixture?: Fixture;
-  outcome?: 'home' | 'away' | 'draw' | 'over15' | 'under15' | 'over25' | 'under25' | 'over35' | 'under35' | 'bttsYes' | 'bttsNo' | 'htHome' | 'htDraw' | 'htAway';
+  outcome?: 'home' | 'away' | 'draw' | 'over15' | 'under15' | 'over25' | 'under25' | 'over35' | 'under35' | 'bttsYes' | 'bttsNo' | 'htHome' | 'htDraw' | 'htAway' | 'ht_over_05' | 'ht_under_05' | 'ht_over_15' | 'ht_under_15';
   fixtures?: { fixtures: Fixture[] };
   
   // Cryptocurrency specific
@@ -209,31 +260,42 @@ export default function CreateMarketPage() {
           // Set filtering info for display
           setFilteringInfo(`Showing ${filteredFixtures.length} matches (excluded ${fixturesData.length - filteredFixtures.length} matches starting within 30 minutes)`);
           
-          const transformedFixtures = filteredFixtures.map((fixture) => {
+          const transformedFixtures = filteredFixtures.map((fixture: RawFixture) => {
+            // Get team logo URLs from the correct fields
+            const homeTeamLogo = fixture.home_team_logo || fixture.homeTeam?.logoUrl || fixture.homeTeam?.logo;
+            const awayTeamLogo = fixture.away_team_logo || fixture.awayTeam?.logoUrl || fixture.awayTeam?.logo;
+            
+            // Get league info with country
+            const leagueName = fixture.league?.name || 'Unknown League';
+            const leagueCountry = fixture.league?.country || '';
+            const fullLeagueName = leagueCountry ? `${leagueCountry} ${leagueName}` : leagueName;
+            
             return {
               id: typeof fixture.id === 'string' ? parseInt(fixture.id, 10) || Math.floor(Math.random() * 1000000) : (fixture.id || Math.floor(Math.random() * 1000000)),
               name: `${fixture.homeTeam?.name || 'Unknown'} vs ${fixture.awayTeam?.name || 'Unknown'}`,
               homeTeam: {
                 id: fixture.homeTeam?.id ? Number(fixture.homeTeam.id) : 0,
                 name: fixture.homeTeam?.name || 'Unknown',
-                logoUrl: fixture.homeTeam?.logoUrl
+                logoUrl: homeTeamLogo
               },
               awayTeam: {
                 id: fixture.awayTeam?.id ? Number(fixture.awayTeam.id) : 0,
                 name: fixture.awayTeam?.name || 'Unknown',
-                logoUrl: fixture.awayTeam?.logoUrl
+                logoUrl: awayTeamLogo
               },
               league: {
                 id: fixture.league?.id ? Number(fixture.league.id) : 0,
-                name: fixture.league?.name || 'Unknown League',
-                logoUrl: fixture.league?.logoUrl
+                name: fullLeagueName,
+                logoUrl: fixture.league?.logoUrl || fixture.league?.logo
               },
-              matchDate: fixture.matchDate || new Date().toISOString(),
+              matchDate: fixture.matchDate || fixture.startingAt || new Date().toISOString(),
               status: fixture.status || 'scheduled',
               odds: fixture.odds ? {
                 home: typeof fixture.odds.home === 'number' ? fixture.odds.home : null,
                 draw: typeof fixture.odds.draw === 'number' ? fixture.odds.draw : null,
                 away: typeof fixture.odds.away === 'number' ? fixture.odds.away : null,
+                over15: typeof fixture.odds.over15 === 'number' ? fixture.odds.over15 : null,
+                under15: typeof fixture.odds.under15 === 'number' ? fixture.odds.under15 : null,
                 over25: typeof fixture.odds.over25 === 'number' ? fixture.odds.over25 : null,
                 under25: typeof fixture.odds.under25 === 'number' ? fixture.odds.under25 : null,
                 over35: typeof fixture.odds.over35 === 'number' ? fixture.odds.over35 : null,
@@ -243,6 +305,10 @@ export default function CreateMarketPage() {
                 htHome: typeof fixture.odds.htHome === 'number' ? fixture.odds.htHome : null,
                 htDraw: typeof fixture.odds.htDraw === 'number' ? fixture.odds.htDraw : null,
                 htAway: typeof fixture.odds.htAway === 'number' ? fixture.odds.htAway : null,
+                ht_over_05: typeof fixture.odds.ht_over_05 === 'number' ? fixture.odds.ht_over_05 : null,
+                ht_under_05: typeof fixture.odds.ht_under_05 === 'number' ? fixture.odds.ht_under_05 : null,
+                ht_over_15: typeof fixture.odds.ht_over_15 === 'number' ? fixture.odds.ht_over_15 : null,
+                ht_under_15: typeof fixture.odds.ht_under_15 === 'number' ? fixture.odds.ht_under_15 : null,
                 updatedAt: fixture.odds.updatedAt || new Date().toISOString()
               } : null
             };
@@ -457,7 +523,7 @@ export default function CreateMarketPage() {
     handleInputChange('selectedFixture', fixture);
     
     // Set the outcome based on market type and outcome
-    handleInputChange('outcome', outcome as 'home' | 'away' | 'draw' | 'over15' | 'under15' | 'over25' | 'under25' | 'over35' | 'under35' | 'bttsYes' | 'bttsNo' | 'htHome' | 'htDraw' | 'htAway');
+    handleInputChange('outcome', outcome as 'home' | 'away' | 'draw' | 'over15' | 'under15' | 'over25' | 'under25' | 'over35' | 'under35' | 'bttsYes' | 'bttsNo' | 'htHome' | 'htDraw' | 'htAway' | 'ht_over_05' | 'ht_under_05' | 'ht_over_15' | 'ht_under_15');
     
     // Auto-populate odds based on the selected market
     if (fixture.odds) {
@@ -470,12 +536,27 @@ export default function CreateMarketPage() {
           else if (outcome === 'away' && fixture.odds.away) selectedOdds = Math.floor(fixture.odds.away * 100);
           break;
         case 'over_under':
-          if (outcome === 'over25' && fixture.odds.over25) selectedOdds = Math.floor(fixture.odds.over25 * 100);
+          if (outcome === 'over15' && fixture.odds.over15) selectedOdds = Math.floor(fixture.odds.over15 * 100);
+          else if (outcome === 'under15' && fixture.odds.under15) selectedOdds = Math.floor(fixture.odds.under15 * 100);
+          else if (outcome === 'over25' && fixture.odds.over25) selectedOdds = Math.floor(fixture.odds.over25 * 100);
           else if (outcome === 'under25' && fixture.odds.under25) selectedOdds = Math.floor(fixture.odds.under25 * 100);
+          else if (outcome === 'over35' && fixture.odds.over35) selectedOdds = Math.floor(fixture.odds.over35 * 100);
+          else if (outcome === 'under35' && fixture.odds.under35) selectedOdds = Math.floor(fixture.odds.under35 * 100);
           break;
         case 'btts':
           if (outcome === 'yes' && fixture.odds.bttsYes) selectedOdds = Math.floor(fixture.odds.bttsYes * 100);
           else if (outcome === 'no' && fixture.odds.bttsNo) selectedOdds = Math.floor(fixture.odds.bttsNo * 100);
+          break;
+        case 'ht_moneyline':
+          if (outcome === 'htHome' && fixture.odds.htHome) selectedOdds = Math.floor(fixture.odds.htHome * 100);
+          else if (outcome === 'htDraw' && fixture.odds.htDraw) selectedOdds = Math.floor(fixture.odds.htDraw * 100);
+          else if (outcome === 'htAway' && fixture.odds.htAway) selectedOdds = Math.floor(fixture.odds.htAway * 100);
+          break;
+        case 'ht_over_under':
+          if (outcome === 'ht_over_05' && fixture.odds.ht_over_05) selectedOdds = Math.floor(fixture.odds.ht_over_05 * 100);
+          else if (outcome === 'ht_under_05' && fixture.odds.ht_under_05) selectedOdds = Math.floor(fixture.odds.ht_under_05 * 100);
+          else if (outcome === 'ht_over_15' && fixture.odds.ht_over_15) selectedOdds = Math.floor(fixture.odds.ht_over_15 * 100);
+          else if (outcome === 'ht_under_15' && fixture.odds.ht_under_15) selectedOdds = Math.floor(fixture.odds.ht_under_15 * 100);
           break;
       }
       

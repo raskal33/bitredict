@@ -144,7 +144,8 @@ const FixtureSelector: React.FC<FixtureSelectorProps> = ({
     if (!team) return null;
     
     // Use logoUrl from backend if available, otherwise fallback to UI Avatars
-    if (team.logoUrl && team.logoUrl !== 'null' && team.logoUrl !== '') {
+    if (team.logoUrl && team.logoUrl !== 'null' && team.logoUrl !== '' && team.logoUrl !== 'undefined') {
+      console.log(`Team ${team.name} logo URL:`, team.logoUrl);
       return team.logoUrl;
     }
     
@@ -156,7 +157,9 @@ const FixtureSelector: React.FC<FixtureSelectorProps> = ({
       .slice(0, 2)
       .toUpperCase();
     
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=22C7FF&color=000&size=64&font-size=0.4&bold=true`;
+    const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=22C7FF&color=000&size=64&font-size=0.4&bold=true`;
+    console.log(`Team ${team.name} using fallback logo:`, fallbackUrl);
+    return fallbackUrl;
   };
 
   // Get available markets for a fixture
@@ -172,7 +175,7 @@ const FixtureSelector: React.FC<FixtureSelectorProps> = ({
 
     if (!odds) return markets;
 
-    // Moneyline markets
+    // Moneyline markets (Full Time)
     if (odds.home && odds.home > 1.0) {
       markets.push({
         type: 'moneyline',
@@ -201,7 +204,25 @@ const FixtureSelector: React.FC<FixtureSelectorProps> = ({
       });
     }
 
-    // Over/Under markets
+    // Over/Under markets (Full Time)
+    if (odds.over15 && odds.over15 > 1.0) {
+      markets.push({
+        type: 'over_under',
+        outcome: 'over15',
+        label: 'Over 1.5 Goals',
+        odds: odds.over15,
+        color: 'bg-green-500/20 text-green-400 border-green-500/30'
+      });
+    }
+    if (odds.under15 && odds.under15 > 1.0) {
+      markets.push({
+        type: 'over_under',
+        outcome: 'under15',
+        label: 'Under 1.5 Goals',
+        odds: odds.under15,
+        color: 'bg-orange-500/20 text-orange-400 border-orange-500/30'
+      });
+    }
     if (odds.over25 && odds.over25 > 1.0) {
       markets.push({
         type: 'over_under',
@@ -217,6 +238,24 @@ const FixtureSelector: React.FC<FixtureSelectorProps> = ({
         outcome: 'under25',
         label: 'Under 2.5 Goals',
         odds: odds.under25,
+        color: 'bg-orange-500/20 text-orange-400 border-orange-500/30'
+      });
+    }
+    if (odds.over35 && odds.over35 > 1.0) {
+      markets.push({
+        type: 'over_under',
+        outcome: 'over35',
+        label: 'Over 3.5 Goals',
+        odds: odds.over35,
+        color: 'bg-green-500/20 text-green-400 border-green-500/30'
+      });
+    }
+    if (odds.under35 && odds.under35 > 1.0) {
+      markets.push({
+        type: 'over_under',
+        outcome: 'under35',
+        label: 'Under 3.5 Goals',
+        odds: odds.under35,
         color: 'bg-orange-500/20 text-orange-400 border-orange-500/30'
       });
     }
@@ -238,6 +277,73 @@ const FixtureSelector: React.FC<FixtureSelectorProps> = ({
         label: 'Not Both Teams Score',
         odds: odds.bttsNo,
         color: 'bg-rose-500/20 text-rose-400 border-rose-500/30'
+      });
+    }
+
+    // Half Time markets
+    if (odds.htHome && odds.htHome > 1.0) {
+      markets.push({
+        type: 'ht_moneyline',
+        outcome: 'htHome',
+        label: 'HT: Home Win',
+        odds: odds.htHome,
+        color: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30'
+      });
+    }
+    if (odds.htDraw && odds.htDraw > 1.0) {
+      markets.push({
+        type: 'ht_moneyline',
+        outcome: 'htDraw',
+        label: 'HT: Draw',
+        odds: odds.htDraw,
+        color: 'bg-violet-500/20 text-violet-400 border-violet-500/30'
+      });
+    }
+    if (odds.htAway && odds.htAway > 1.0) {
+      markets.push({
+        type: 'ht_moneyline',
+        outcome: 'htAway',
+        label: 'HT: Away Win',
+        odds: odds.htAway,
+        color: 'bg-pink-500/20 text-pink-400 border-pink-500/30'
+      });
+    }
+
+    // Half Time Over/Under markets
+    if (odds.ht_over_05 && odds.ht_over_05 > 1.0) {
+      markets.push({
+        type: 'ht_over_under',
+        outcome: 'ht_over_05',
+        label: 'HT: Over 0.5 Goals',
+        odds: odds.ht_over_05,
+        color: 'bg-teal-500/20 text-teal-400 border-teal-500/30'
+      });
+    }
+    if (odds.ht_under_05 && odds.ht_under_05 > 1.0) {
+      markets.push({
+        type: 'ht_over_under',
+        outcome: 'ht_under_05',
+        label: 'HT: Under 0.5 Goals',
+        odds: odds.ht_under_05,
+        color: 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+      });
+    }
+    if (odds.ht_over_15 && odds.ht_over_15 > 1.0) {
+      markets.push({
+        type: 'ht_over_under',
+        outcome: 'ht_over_15',
+        label: 'HT: Over 1.5 Goals',
+        odds: odds.ht_over_15,
+        color: 'bg-teal-500/20 text-teal-400 border-teal-500/30'
+      });
+    }
+    if (odds.ht_under_15 && odds.ht_under_15 > 1.0) {
+      markets.push({
+        type: 'ht_over_under',
+        outcome: 'ht_under_15',
+        label: 'HT: Under 1.5 Goals',
+        odds: odds.ht_under_15,
+        color: 'bg-amber-500/20 text-amber-400 border-amber-500/30'
       });
     }
 
@@ -426,9 +532,17 @@ const FixtureSelector: React.FC<FixtureSelectorProps> = ({
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
                           target.style.display = 'none';
+                          // Show fallback with team initials
+                          const fallbackDiv = target.parentElement?.querySelector('.team-fallback') as HTMLElement;
+                          if (fallbackDiv) {
+                            fallbackDiv.style.display = 'flex';
+                          }
                         }}
                         unoptimized
                       />
+                      <div className="team-fallback absolute inset-0 flex items-center justify-center text-white font-bold text-xs" style={{ display: 'none' }}>
+                        {fixture.homeTeam?.name?.split(' ').map(word => word[0]).join('').slice(0, 2).toUpperCase() || 'T'}
+                      </div>
                     </div>
                     <div className="min-w-0 flex-1">
                       <h4 className="text-white font-semibold text-sm truncate">
@@ -459,9 +573,17 @@ const FixtureSelector: React.FC<FixtureSelectorProps> = ({
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
                           target.style.display = 'none';
+                          // Show fallback with team initials
+                          const fallbackDiv = target.parentElement?.querySelector('.team-fallback') as HTMLElement;
+                          if (fallbackDiv) {
+                            fallbackDiv.style.display = 'flex';
+                          }
                         }}
                         unoptimized
                       />
+                      <div className="team-fallback absolute inset-0 flex items-center justify-center text-white font-bold text-xs" style={{ display: 'none' }}>
+                        {fixture.awayTeam?.name?.split(' ').map(word => word[0]).join('').slice(0, 2).toUpperCase() || 'T'}
+                      </div>
                     </div>
                   </div>
                 </div>

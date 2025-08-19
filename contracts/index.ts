@@ -4,6 +4,7 @@ import { CONTRACT_ADDRESSES } from '@/config/wagmi';
 import BitredictTokenABI from './abis/BitredictToken.json';
 import BitrFaucetABI from './abis/BitrFaucet.json';
 import GuidedOracleABI from './abis/GuidedOracle.json';
+import OptimisticOracleABI from './abis/OptimisticOracle.json';
 import BitredictPoolABI from './abis/BitredictPool.json';
 import BitredictStakingABI from './abis/BitredictStaking.json';
 import OddysseyABI from './abis/Oddyssey.json';
@@ -21,6 +22,10 @@ export const CONTRACTS = {
   GUIDED_ORACLE: {
     address: CONTRACT_ADDRESSES.GUIDED_ORACLE,
     abi: GuidedOracleABI.abi,
+  },
+  OPTIMISTIC_ORACLE: {
+    address: CONTRACT_ADDRESSES.OPTIMISTIC_ORACLE,
+    abi: OptimisticOracleABI.abi,
   },
   BITREDICT_POOL: {
     address: CONTRACT_ADDRESSES.BITREDICT_POOL,
@@ -41,6 +46,7 @@ export {
   BitredictTokenABI,
   BitrFaucetABI,
   GuidedOracleABI,
+  OptimisticOracleABI,
   BitredictPoolABI,
   BitredictStakingABI,
   OddysseyABI,
@@ -55,6 +61,16 @@ export const CONTRACT_EVENTS = {
   FAUCET: {
     FAUCET_CLAIMED: 'FaucetClaimed',
     COOLDOWN_SET: 'CooldownSet',
+  },
+  GUIDED_ORACLE: {
+    OUTCOME_SUBMITTED: 'OutcomeSubmitted',
+    OUTCOME_UPDATED: 'OutcomeUpdated',
+  },
+  OPTIMISTIC_ORACLE: {
+    MARKET_CREATED: 'MarketCreated',
+    OUTCOME_PROPOSED: 'OutcomeProposed',
+    OUTCOME_DISPUTED: 'OutcomeDisputed',
+    MARKET_RESOLVED: 'MarketResolved',
   },
   BITREDICT_POOL: {
     POOL_CREATED: 'PoolCreated',

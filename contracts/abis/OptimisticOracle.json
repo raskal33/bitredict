@@ -1,0 +1,407 @@
+{
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "contract IERC20",
+          "name": "_bondToken",
+          "type": "address"
+        },
+        {
+          "internalType": "contract IBitredictPool",
+          "name": "_bitredictPool",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "marketId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "uint256",
+          "name": "poolId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "string",
+          "name": "question",
+          "type": "string"
+        },
+        {
+          "internalType": "string",
+          "name": "category",
+          "type": "string"
+        }
+      ],
+      "name": "createMarket",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "marketId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "outcome",
+          "type": "bytes32"
+        }
+      ],
+      "name": "proposeOutcome",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "marketId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "alternativeOutcome",
+          "type": "bytes32"
+        }
+      ],
+      "name": "disputeOutcome",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "marketId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "resolveMarket",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "marketId",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "finalOutcome",
+          "type": "bytes32"
+        }
+      ],
+      "name": "adminResolve",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "marketId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "claimBond",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "marketId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "getMarket",
+      "outputs": [
+        {
+          "components": [
+            {
+              "internalType": "bytes32",
+              "name": "marketId",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "uint256",
+              "name": "poolId",
+              "type": "uint256"
+            },
+            {
+              "internalType": "string",
+              "name": "question",
+              "type": "string"
+            },
+            {
+              "internalType": "string",
+              "name": "category",
+              "type": "string"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "proposedOutcome",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "address",
+              "name": "proposer",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "proposalTime",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "proposalBond",
+              "type": "uint256"
+            },
+            {
+              "internalType": "address",
+              "name": "disputer",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "disputeTime",
+              "type": "uint256"
+            },
+            {
+              "internalType": "uint256",
+              "name": "disputeBond",
+              "type": "uint256"
+            },
+            {
+              "internalType": "enum OptimisticOracle.MarketState",
+              "name": "state",
+              "type": "uint8"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "finalOutcome",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "uint256",
+              "name": "resolutionTime",
+              "type": "uint256"
+            }
+          ],
+          "internalType": "struct OptimisticOracle.Market",
+          "name": "",
+          "type": "tuple"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "user",
+          "type": "address"
+        }
+      ],
+      "name": "getUserReputation",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "marketId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "getMarketState",
+      "outputs": [
+        {
+          "internalType": "enum OptimisticOracle.MarketState",
+          "name": "",
+          "type": "uint8"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "bondToken",
+      "outputs": [
+        {
+          "internalType": "contract IERC20",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "bitredictPool",
+      "outputs": [
+        {
+          "internalType": "contract IBitredictPool",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "marketId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "poolId",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "question",
+          "type": "string"
+        },
+        {
+          "indexed": false,
+          "internalType": "string",
+          "name": "category",
+          "type": "string"
+        }
+      ],
+      "name": "MarketCreated",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "marketId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "proposer",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes32",
+          "name": "outcome",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "bondAmount",
+          "type": "uint256"
+        }
+      ],
+      "name": "OutcomeProposed",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "marketId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "disputer",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes32",
+          "name": "alternativeOutcome",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "bondAmount",
+          "type": "uint256"
+        }
+      ],
+      "name": "OutcomeDisputed",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "marketId",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes32",
+          "name": "finalOutcome",
+          "type": "bytes32"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "winner",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "rewardAmount",
+          "type": "uint256"
+        }
+      ],
+      "name": "MarketResolved",
+      "type": "event"
+    }
+  ]
+}
