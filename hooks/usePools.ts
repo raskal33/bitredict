@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { CONTRACTS } from '@/contracts';
 import { formatUnits, parseUnits } from 'viem';
+import { encodeBytes32String } from 'ethers';
 
 export interface Pool {
   id: bigint;
@@ -195,19 +196,19 @@ export function usePools() {
     const maxBetWei = maxBetPerUser === "0" ? BigInt(0) : parseUnits(maxBetPerUser, 18);
     
     const args = [
-      predictedOutcome,
-      BigInt(odds),
+      encodeBytes32String(predictedOutcome), // Properly encode bytes32
+      odds, // Remove BigInt wrapper - should be number
       stakeWei,
-      startTimestamp,
-      endTimestamp,
+      Math.floor(eventStartTime.getTime() / 1000), // Convert to number timestamp
+      Math.floor(eventEndTime.getTime() / 1000), // Convert to number timestamp
       league,
       category,
       region,
       isPrivate,
       maxBetWei,
       useBitr,
-      BigInt(oracleType),
-      marketId
+      oracleType, // Remove BigInt wrapper - should be number
+      encodeBytes32String(marketId || '') // Properly encode bytes32
     ] as const;
 
     if (useBitr) {

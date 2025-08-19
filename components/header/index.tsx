@@ -302,19 +302,26 @@ export default function Header() {
                         </button>
                       </div>
                     ) : (
-                      <button
-                        onClick={connectWallet}
-                        disabled={isConnecting}
-                        className="flex items-center gap-2 px-4 py-2 rounded-button text-sm font-medium transition-all duration-200 border-2 border-primary text-primary hover:bg-primary hover:text-black disabled:opacity-50 disabled:cursor-not-allowed"
-                        style={{
-                          fontFamily: "var(--font-onest)",
-                          fontSize: "14px",
-                          fontWeight: "500",
-                        }}
-                      >
-                        <WalletIcon className="h-4 w-4" />
-                        {isConnecting ? 'Connecting...' : 'Connect Wallet'}
-                      </button>
+                      <div className="flex flex-col items-end gap-1">
+                        <button
+                          onClick={connectWallet}
+                          disabled={isConnecting}
+                          className="flex items-center gap-2 px-4 py-2 rounded-button text-sm font-medium transition-all duration-200 border-2 border-primary text-primary hover:bg-primary hover:text-black disabled:opacity-50 disabled:cursor-not-allowed"
+                          style={{
+                            fontFamily: "var(--font-onest)",
+                            fontSize: "14px",
+                            fontWeight: "500",
+                          }}
+                        >
+                          <WalletIcon className="h-4 w-4" />
+                          {isConnecting ? 'Connecting...' : 'Connect Wallet'}
+                        </button>
+                        {error && (
+                          <div className="text-xs text-red-400 max-w-48 text-right">
+                            {error}
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                 )}
@@ -515,21 +522,28 @@ export default function Header() {
                             </button>
                           </div>
                         ) : (
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              connectWallet();
-                            }}
-                            disabled={isConnecting}
-                            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 border-2 border-primary text-primary hover:bg-primary hover:text-black disabled:opacity-50 disabled:cursor-not-allowed"
-                            style={{
-                              fontFamily: "var(--font-onest)",
-                              fontWeight: "500",
-                            }}
-                          >
-                            <WalletIcon className="h-4 w-4" />
-                            {isConnecting ? 'Connecting...' : 'Connect Wallet'}
-                          </button>
+                          <div className="w-full space-y-2">
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                connectWallet();
+                              }}
+                              disabled={isConnecting}
+                              className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 border-2 border-primary text-primary hover:bg-primary hover:text-black disabled:opacity-50 disabled:cursor-not-allowed"
+                              style={{
+                                fontFamily: "var(--font-onest)",
+                                fontWeight: "500",
+                              }}
+                            >
+                              <WalletIcon className="h-4 w-4" />
+                              {isConnecting ? 'Connecting...' : 'Connect Wallet'}
+                            </button>
+                            {error && (
+                              <div className="text-xs text-red-400 text-center px-2">
+                                {error}
+                              </div>
+                            )}
+                          </div>
                         )
                       )}
                     </div>

@@ -5,7 +5,8 @@ import { motion } from "framer-motion";
 import Image from "next/image";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { parseEther, parseUnits, formatUnits } from "viem";
-import { GAS_SETTINGS } from "@/config/wagmi";
+import { encodeBytes32String, keccak256, solidityPacked } from "ethers";
+
 import { toast } from "react-hot-toast";
 import { useTransactionFeedback, TransactionFeedback } from "@/components/TransactionFeedback";
 import { 
@@ -762,22 +763,15 @@ export default function CreateMarketPage() {
         } : 'NO FIXTURE SELECTED'
       });
 
-      // Use proper ethers.js encoding for bytes32 strings
-      const encodeBytes32String = (str: string): `0x${string}` => {
-        // Pad string to 32 bytes like ethers.js encodeBytes32String
-        const encoder = new TextEncoder();
-        const bytes = encoder.encode(str);
-        const padded = new Uint8Array(32);
-        padded.set(bytes);
-        return `0x${Array.from(padded).map(b => b.toString(16).padStart(2, '0')).join('')}` as `0x${string}`;
-      };
+      // Using proper ethers.js encodeBytes32String (imported above)
 
       // Convert odds to contract format (200 = 2.0x, 150 = 1.5x)
       // The frontend already stores odds in the correct contract format, so no multiplication needed
       const contractOdds = data.odds;
       
-      // Create market ID from fixture ID for easy resolution
-      const marketId = data.selectedFixture?.id?.toString() || '0';
+      // Create market ID using keccak256(abi.encodePacked(fixtureId)) as required
+      const fixtureId = data.selectedFixture?.id?.toString() || '0';
+      const marketId = keccak256(solidityPacked(['uint256'], [fixtureId]));
       
       const baseConfig = {
         address: CONTRACT_ADDRESS,
@@ -785,18 +779,18 @@ export default function CreateMarketPage() {
         functionName: 'createPool' as const,
         args: [
           encodeBytes32String(predictedOutcome), // _predictedOutcome: bytes32
-          BigInt(contractOdds), // _odds: uint256 (in contract format: 200 = 2.0x)
+          contractOdds, // _odds: uint256 (in contract format: 200 = 2.0x) - Remove BigInt wrapper
           parseEther(data.creatorStake.toString()), // _creatorStake: uint256
-          BigInt(eventStartTime), // _eventStartTime: uint256
-          BigInt(eventEndTime), // _eventEndTime: uint256
+          eventStartTime, // _eventStartTime: uint256 - Remove BigInt wrapper
+          eventEndTime, // _eventEndTime: uint256 - Remove BigInt wrapper
           league, // _league: string
           data.category, // _category: string
           region, // _region: string
           false, // _isPrivate: bool
           parseEther('500'), // _maxBetPerUser: uint256
           useBitr, // _useBitr: bool
-          0, // _oracleType: OracleType (0 = GUIDED)
-          encodeBytes32String(marketId) // _marketId: bytes32 (fixture ID for easy resolution)
+          0, // _oracleType: OracleType (0 = GUIDED) - Remove BigInt wrapper
+          marketId // _marketId: bytes32 (keccak256(abi.encodePacked(fixtureId)))
         ] as const
       };
 
@@ -937,12 +931,12 @@ export default function CreateMarketPage() {
        const contractConfig = useBitr 
          ? { 
              ...baseConfig,
-             ...GAS_SETTINGS
+             gasLimit: BigInt(1500000) // Use gasLimit instead of gas
            }
          : { 
              ...baseConfig, 
              value: parseEther((data.creatorStake + 1).toString()), // +1 for creation fee (only for STT)
-             ...GAS_SETTINGS
+             gasLimit: BigInt(1500000) // Use gasLimit instead of gas
            };
        
        console.log('Contract config:', contractConfig);
