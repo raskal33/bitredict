@@ -56,18 +56,21 @@ interface Fixture {
 interface FixtureSelectorProps {
   fixtures: Fixture[];
   onSelect: (fixture: Fixture) => void;
+  onMarketSelect: (fixture: Fixture, marketType: string, outcome: string) => void;
   selectedFixture?: Fixture;
 }
 
 const FixtureSelector: React.FC<FixtureSelectorProps> = ({
   fixtures,
   onSelect,
+  onMarketSelect,
   selectedFixture
 }) => {
   const [filteredFixtures, setFilteredFixtures] = useState<Fixture[]>(fixtures);
   const [leagueFilter, setLeagueFilter] = useState<string>('all');
   const [timeFilter, setTimeFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [expandedFixture, setExpandedFixture] = useState<number | null>(null);
 
   // Get unique leagues
   const leagues = Array.from(new Set(fixtures.map(f => f.league?.name).filter(Boolean)));
@@ -156,6 +159,103 @@ const FixtureSelector: React.FC<FixtureSelectorProps> = ({
       .toUpperCase();
     
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=22C7FF&color=000&size=64&font-size=0.4&bold=true`;
+  };
+
+  // Get available markets for a fixture
+  const getAvailableMarkets = (fixture: Fixture) => {
+    const markets: Array<{
+      type: string;
+      outcome: string;
+      label: string;
+      odds: number;
+      color: string;
+    }> = [];
+    const odds = fixture.odds;
+
+    if (!odds) return markets;
+
+    // Moneyline markets
+    if (odds.home && odds.home > 1.0) {
+      markets.push({
+        type: 'moneyline',
+        outcome: 'home',
+        label: 'Home Win',
+        odds: odds.home,
+        color: 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+      });
+    }
+    if (odds.draw && odds.draw > 1.0) {
+      markets.push({
+        type: 'moneyline',
+        outcome: 'draw',
+        label: 'Draw',
+        odds: odds.draw,
+        color: 'bg-purple-500/20 text-purple-400 border-purple-500/30'
+      });
+    }
+    if (odds.away && odds.away > 1.0) {
+      markets.push({
+        type: 'moneyline',
+        outcome: 'away',
+        label: 'Away Win',
+        odds: odds.away,
+        color: 'bg-red-500/20 text-red-400 border-red-500/30'
+      });
+    }
+
+    // Over/Under markets
+    if (odds.over25 && odds.over25 > 1.0) {
+      markets.push({
+        type: 'over_under',
+        outcome: 'over25',
+        label: 'Over 2.5 Goals',
+        odds: odds.over25,
+        color: 'bg-green-500/20 text-green-400 border-green-500/30'
+      });
+    }
+    if (odds.under25 && odds.under25 > 1.0) {
+      markets.push({
+        type: 'over_under',
+        outcome: 'under25',
+        label: 'Under 2.5 Goals',
+        odds: odds.under25,
+        color: 'bg-orange-500/20 text-orange-400 border-orange-500/30'
+      });
+    }
+
+    // Both Teams to Score
+    if (odds.bttsYes && odds.bttsYes > 1.0) {
+      markets.push({
+        type: 'btts',
+        outcome: 'yes',
+        label: 'Both Teams Score',
+        odds: odds.bttsYes,
+        color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+      });
+    }
+    if (odds.bttsNo && odds.bttsNo > 1.0) {
+      markets.push({
+        type: 'btts',
+        outcome: 'no',
+        label: 'Not Both Teams Score',
+        odds: odds.bttsNo,
+        color: 'bg-rose-500/20 text-rose-400 border-rose-500/30'
+      });
+    }
+
+    return markets;
+  };
+
+  const handleFixtureClick = (fixture: Fixture) => {
+    if (expandedFixture === fixture.id) {
+      setExpandedFixture(null);
+    } else {
+      setExpandedFixture(fixture.id);
+    }
+  };
+
+  const handleMarketSelect = (fixture: Fixture, marketType: string, outcome: string) => {
+    onMarketSelect(fixture, marketType, outcome);
   };
 
 
@@ -263,126 +363,184 @@ const FixtureSelector: React.FC<FixtureSelectorProps> = ({
       <div className="space-y-4">
         {filteredFixtures.map((fixture) => {
           const isSelected = selectedFixture?.id === fixture.id;
+          const isExpanded = expandedFixture === fixture.id;
+          const availableMarkets = getAvailableMarkets(fixture);
           
           return (
             <motion.div
               key={fixture.id}
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
-              onClick={() => onSelect(fixture)}
+              layout
               className={`
                 relative bg-gradient-to-br from-gray-900/80 to-gray-800/80 backdrop-blur-sm
-                border border-gray-700/50 rounded-2xl p-6 cursor-pointer transition-all duration-300
+                border border-gray-700/50 rounded-2xl transition-all duration-300
                 hover:border-cyan-500/30 hover:shadow-lg hover:shadow-cyan-500/10
                 ${isSelected ? 'ring-2 ring-cyan-500 bg-cyan-500/5 border-cyan-500/50' : ''}
               `}
             >
-              {/* Selection Indicator */}
-              {isSelected && (
-                <div className="absolute top-4 right-4">
-                  <div className="w-6 h-6 bg-cyan-500 rounded-full flex items-center justify-center shadow-lg">
-                    <svg className="w-3 h-3 text-black" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
+              {/* Main Fixture Card */}
+              <div 
+                className="p-6 cursor-pointer"
+                onClick={() => handleFixtureClick(fixture)}
+              >
+                {/* League Header */}
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div>
+                      <h3 className="text-white font-semibold text-sm">
+                        {fixture.league?.name || 'Unknown League'}
+                      </h3>
+                      {fixture.matchDate && (
+                        <p className="text-gray-400 text-xs">
+                          {formatDate(fixture.matchDate)} • {formatTime(fixture.matchDate)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Expand/Collapse Indicator */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-400">
+                      {availableMarkets.length} markets
+                    </span>
+                    <motion.div
+                      animate={{ rotate: isExpanded ? 180 : 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="w-5 h-5 text-gray-400"
+                    >
+                      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </motion.div>
                   </div>
                 </div>
-              )}
 
-              {/* League Header */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div>
-                    <h3 className="text-white font-semibold text-sm">
-                      {fixture.league?.name || 'Unknown League'}
-                    </h3>
-                    {fixture.matchDate && (
-                      <p className="text-gray-400 text-xs">
-                        {formatDate(fixture.matchDate)} • {formatTime(fixture.matchDate)}
-                      </p>
+                {/* Teams Section */}
+                <div className="flex items-center justify-between mb-4">
+                  {/* Home Team */}
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-700 flex items-center justify-center">
+                      <Image
+                        src={getTeamLogo(fixture.homeTeam) || ''}
+                        alt={fixture.homeTeam?.name || ''}
+                        width={48}
+                        height={48}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                        }}
+                        unoptimized
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-white font-semibold text-sm truncate">
+                        {fixture.homeTeam?.name || 'TBD'}
+                      </h4>
+                    </div>
+                  </div>
+
+                  {/* VS */}
+                  <div className="mx-4 text-gray-500 font-medium text-sm">
+                    vs
+                  </div>
+
+                  {/* Away Team */}
+                  <div className="flex items-center gap-3 flex-1 justify-end">
+                    <div className="min-w-0 flex-1 text-right">
+                      <h4 className="text-white font-semibold text-sm truncate">
+                        {fixture.awayTeam?.name || 'TBD'}
+                      </h4>
+                    </div>
+                    <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-700 flex items-center justify-center">
+                      <Image
+                        src={getTeamLogo(fixture.awayTeam) || ''}
+                        alt={fixture.awayTeam?.name || ''}
+                        width={48}
+                        height={48}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                        }}
+                        unoptimized
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Odds Preview */}
+                <div className="flex items-center justify-between">
+                  <div className="flex gap-2">
+                    {fixture.odds?.home && (
+                      <div className="px-3 py-2 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                        <div className="text-blue-400 text-xs font-medium">Home</div>
+                        <div className="text-white font-bold text-sm">{fixture.odds.home.toFixed(2)}</div>
+                      </div>
+                    )}
+                    {fixture.odds?.draw && (
+                      <div className="px-3 py-2 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+                        <div className="text-purple-400 text-xs font-medium">Draw</div>
+                        <div className="text-white font-bold text-sm">{fixture.odds.draw.toFixed(2)}</div>
+                      </div>
+                    )}
+                    {fixture.odds?.away && (
+                      <div className="px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-lg">
+                        <div className="text-red-400 text-xs font-medium">Away</div>
+                        <div className="text-white font-bold text-sm">{fixture.odds.away.toFixed(2)}</div>
+                      </div>
                     )}
                   </div>
                 </div>
-                
-
               </div>
 
-              {/* Teams Section */}
-              <div className="flex items-center justify-between mb-6">
-                {/* Home Team */}
-                <div className="flex items-center gap-3 flex-1">
-                  <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-700 flex items-center justify-center">
-                    <Image
-                      src={getTeamLogo(fixture.homeTeam) || ''}
-                      alt={fixture.homeTeam?.name || ''}
-                      width={48}
-                      height={48}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                      }}
-                      unoptimized
-                    />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <h4 className="text-white font-semibold text-sm truncate">
-                      {fixture.homeTeam?.name || 'TBD'}
-                    </h4>
-                  </div>
-                </div>
-
-                {/* VS */}
-                <div className="mx-4 text-gray-500 font-medium text-sm">
-                  vs
-                </div>
-
-                {/* Away Team */}
-                <div className="flex items-center gap-3 flex-1 justify-end">
-                  <div className="min-w-0 flex-1 text-right">
-                    <h4 className="text-white font-semibold text-sm truncate">
-                      {fixture.awayTeam?.name || 'TBD'}
-                    </h4>
-                  </div>
-                  <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-700 flex items-center justify-center">
-                    <Image
-                      src={getTeamLogo(fixture.awayTeam) || ''}
-                      alt={fixture.awayTeam?.name || ''}
-                      width={48}
-                      height={48}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = 'none';
-                      }}
-                      unoptimized
-                    />
+              {/* Expandable Markets Section */}
+              <motion.div
+                initial={false}
+                animate={{ 
+                  height: isExpanded ? 'auto' : 0,
+                  opacity: isExpanded ? 1 : 0
+                }}
+                transition={{ duration: 0.3, ease: 'easeInOut' }}
+                className="overflow-hidden"
+              >
+                <div className="px-6 pb-6 border-t border-gray-700/50">
+                  <div className="pt-4">
+                    <h4 className="text-white font-semibold text-sm mb-4">Available Markets</h4>
+                    
+                    {availableMarkets.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {availableMarkets.map((market, index) => (
+                          <motion.button
+                            key={`${market.type}-${market.outcome}`}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.05 }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMarketSelect(fixture, market.type, market.outcome);
+                            }}
+                            className={`
+                              p-4 rounded-xl border transition-all duration-200 hover:scale-105
+                              ${market.color} hover:shadow-lg
+                            `}
+                          >
+                            <div className="text-left">
+                              <div className="font-semibold text-sm mb-1">{market.label}</div>
+                              <div className="text-lg font-bold">{market.odds.toFixed(2)}</div>
+                              <div className="text-xs opacity-75 mt-1">Click to configure</div>
+                            </div>
+                          </motion.button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-gray-400">
+                        <div className="text-sm">No markets available for this fixture</div>
+                        <div className="text-xs mt-1">Check back later for updated odds</div>
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-
-              {/* Odds Section */}
-              <div className="flex items-center justify-between">
-                <div className="flex gap-2">
-                  {fixture.odds?.home && (
-                    <div className="px-3 py-2 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                      <div className="text-blue-400 text-xs font-medium">Home</div>
-                      <div className="text-white font-bold text-sm">{fixture.odds.home.toFixed(2)}</div>
-                    </div>
-                  )}
-                  {fixture.odds?.draw && (
-                    <div className="px-3 py-2 bg-purple-500/10 border border-purple-500/20 rounded-lg">
-                      <div className="text-purple-400 text-xs font-medium">Draw</div>
-                      <div className="text-white font-bold text-sm">{fixture.odds.draw.toFixed(2)}</div>
-                    </div>
-                  )}
-                  {fixture.odds?.away && (
-                    <div className="px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-lg">
-                      <div className="text-red-400 text-xs font-medium">Away</div>
-                      <div className="text-white font-bold text-sm">{fixture.odds.away.toFixed(2)}</div>
-                    </div>
-                  )}
-                </div>
-              </div>
+              </motion.div>
             </motion.div>
           );
         })}

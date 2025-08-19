@@ -476,6 +476,40 @@ export default function CreateMarketPage() {
     }, 300);
   };
 
+  const handleMarketSelect = (fixture: Fixture, marketType: string, outcome: string) => {
+    // Set the selected fixture
+    handleInputChange('selectedFixture', fixture);
+    
+    // Set the outcome based on market type and outcome
+    handleInputChange('outcome', outcome as any);
+    
+    // Auto-populate odds based on the selected market
+    if (fixture.odds) {
+      let selectedOdds = 200; // default
+      
+      switch (marketType) {
+        case 'moneyline':
+          if (outcome === 'home' && fixture.odds.home) selectedOdds = Math.floor(fixture.odds.home * 100);
+          else if (outcome === 'draw' && fixture.odds.draw) selectedOdds = Math.floor(fixture.odds.draw * 100);
+          else if (outcome === 'away' && fixture.odds.away) selectedOdds = Math.floor(fixture.odds.away * 100);
+          break;
+        case 'over_under':
+          if (outcome === 'over25' && fixture.odds.over25) selectedOdds = Math.floor(fixture.odds.over25 * 100);
+          else if (outcome === 'under25' && fixture.odds.under25) selectedOdds = Math.floor(fixture.odds.under25 * 100);
+          break;
+        case 'btts':
+          if (outcome === 'yes' && fixture.odds.bttsYes) selectedOdds = Math.floor(fixture.odds.bttsYes * 100);
+          else if (outcome === 'no' && fixture.odds.bttsNo) selectedOdds = Math.floor(fixture.odds.bttsNo * 100);
+          break;
+      }
+      
+      handleInputChange('odds', selectedOdds);
+    }
+
+    // Navigate to configure page
+    setStep(2);
+  };
+
   const validateStep = (stepNumber: number): boolean => {
     const newErrors: Record<string, string> = {};
 
@@ -488,9 +522,7 @@ export default function CreateMarketPage() {
         if (!data.selectedFixture) {
           newErrors.selectedFixture = 'Please select a football match';
         }
-        if (!data.outcome) {
-          newErrors.outcome = 'Please select an outcome to predict';
-        }
+        // Note: outcome is now selected directly in FixtureSelector, so no need to validate here
       }
 
       if (data.category === 'cryptocurrency') {
@@ -997,6 +1029,7 @@ export default function CreateMarketPage() {
               <FixtureSelector
                 fixtures={fixtures as Fixture[]}
                 onSelect={handleFixtureSelect}
+                onMarketSelect={handleMarketSelect}
                 selectedFixture={data.selectedFixture as Fixture}
               />
             </>
@@ -1005,92 +1038,7 @@ export default function CreateMarketPage() {
             <p className="text-red-400 text-sm mt-2">{errors.selectedFixture}</p>
           )}
 
-          {/* Outcome Selection */}
-          {data.selectedFixture && (
-            <div className="mt-6 sticky top-4 z-10 bg-gray-900/95 backdrop-blur-sm rounded-lg border border-gray-600 p-4">
-              <h4 className="text-lg font-semibold text-white mb-4">Select Outcome to Predict</h4>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-64 overflow-y-auto">
-                {[
-                  { key: 'home', label: `${data.selectedFixture.homeTeam.name} Wins`, color: 'green' },
-                  { key: 'draw', label: 'Draw', color: 'yellow' },
-                  { key: 'away', label: `${data.selectedFixture.awayTeam.name} Wins`, color: 'red' },
-                  { key: 'over15', label: 'Over 1.5 Goals', color: 'cyan' },
-                  { key: 'under15', label: 'Under 1.5 Goals', color: 'indigo' },
-                  { key: 'over25', label: 'Over 2.5 Goals', color: 'orange' },
-                  { key: 'under25', label: 'Under 2.5 Goals', color: 'blue' },
-                  { key: 'over35', label: 'Over 3.5 Goals', color: 'purple' },
-                  { key: 'under35', label: 'Under 3.5 Goals', color: 'pink' },
-                  { key: 'bttsYes', label: 'Both Teams to Score - Yes', color: 'green' },
-                  { key: 'bttsNo', label: 'Both Teams to Score - No', color: 'red' },
-                  { key: 'htHome', label: 'HT: Home Wins', color: 'blue' },
-                  { key: 'htDraw', label: 'HT: Draw', color: 'yellow' },
-                  { key: 'htAway', label: 'HT: Away Wins', color: 'orange' }
-                ].filter(outcome => {
-                  if (!data.selectedFixture?.odds) return false;
-                  const oddsKey = outcome.key as keyof typeof data.selectedFixture.odds;
-                  return data.selectedFixture.odds[oddsKey] !== null && data.selectedFixture.odds[oddsKey] !== undefined;
-                }).map((outcome) => (
-                  <motion.button
-                    key={outcome.key}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => handleInputChange('outcome', outcome.key as 'home' | 'away' | 'draw' | 'over15' | 'under15' | 'over25' | 'under25' | 'over35' | 'under35' | 'bttsYes' | 'bttsNo' | 'htHome' | 'htDraw' | 'htAway')}
-                    className={`p-3 rounded-lg border text-sm font-medium transition-all ${
-                      data.outcome === outcome.key
-                        ? 'border-cyan-500 bg-cyan-500/10 text-cyan-400'
-                        : 'border-gray-600 bg-gray-800/50 text-gray-300 hover:border-cyan-400'
-                    }`}
-                  >
-                    {outcome.label}
-                    {data.selectedFixture?.odds && (
-                      <div className="text-xs mt-1 opacity-75">
-                        {outcome.key === 'home' && data.selectedFixture.odds.home !== null && `${data.selectedFixture.odds.home.toFixed(2)}`}
-                        {outcome.key === 'draw' && data.selectedFixture.odds.draw !== null && `${data.selectedFixture.odds.draw.toFixed(2)}`}
-                        {outcome.key === 'away' && data.selectedFixture.odds.away !== null && `${data.selectedFixture.odds.away.toFixed(2)}`}
-                        {outcome.key === 'over15' && data.selectedFixture.odds.over15 !== null && `${data.selectedFixture.odds.over15.toFixed(2)}`}
-                        {outcome.key === 'under15' && data.selectedFixture.odds.under15 !== null && `${data.selectedFixture.odds.under15.toFixed(2)}`}
-                        {outcome.key === 'over25' && data.selectedFixture.odds.over25 !== null && `${data.selectedFixture.odds.over25.toFixed(2)}`}
-                        {outcome.key === 'under25' && data.selectedFixture.odds.under25 !== null && `${data.selectedFixture.odds.under25.toFixed(2)}`}
-                        {outcome.key === 'over35' && data.selectedFixture.odds.over35 !== null && `${data.selectedFixture.odds.over35.toFixed(2)}`}
-                        {outcome.key === 'under35' && data.selectedFixture.odds.under35 !== null && `${data.selectedFixture.odds.under35.toFixed(2)}`}
-                        {outcome.key === 'bttsYes' && data.selectedFixture.odds.bttsYes !== null && `${data.selectedFixture.odds.bttsYes.toFixed(2)}`}
-                        {outcome.key === 'bttsNo' && data.selectedFixture.odds.bttsNo !== null && `${data.selectedFixture.odds.bttsNo.toFixed(2)}`}
-                        {outcome.key === 'htHome' && data.selectedFixture.odds.htHome !== null && `${data.selectedFixture.odds.htHome.toFixed(2)}`}
-                        {outcome.key === 'htDraw' && data.selectedFixture.odds.htDraw !== null && `${data.selectedFixture.odds.htDraw.toFixed(2)}`}
-                        {outcome.key === 'htAway' && data.selectedFixture.odds.htAway !== null && `${data.selectedFixture.odds.htAway.toFixed(2)}`}
-                      </div>
-                    )}
-                  </motion.button>
-                ))}
-              </div>
-              {errors.outcome && (
-                <p className="text-red-400 text-sm mt-2">{errors.outcome}</p>
-              )}
-              
-              {/* Quick Action Buttons */}
-              {data.outcome && (
-                <div className="mt-4 flex gap-2">
-                  <motion.button
-                    id="next-step-button"
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => handleNextStep()}
-                    className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white font-medium py-2 px-4 rounded-lg transition-colors"
-                  >
-                    Continue to Configure
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => handleInputChange('outcome', undefined)}
-                    className="px-4 py-2 border border-gray-600 text-gray-300 hover:border-gray-500 rounded-lg transition-colors"
-                  >
-                    Clear Selection
-                  </motion.button>
-                </div>
-              )}
-            </div>
-          )}
+
         </div>
       )}
 
