@@ -23,7 +23,7 @@ import AnimatedTitle from "@/components/AnimatedTitle";
 import FixtureSelector from "@/components/FixtureSelector";
 import { useReputationStore } from "@/stores/useReputationStore";
 import ReputationBadge from "@/components/ReputationBadge";
-import { GuidedMarketService, Cryptocurrency } from "@/services/guidedMarketService";
+import { GuidedMarketService, Cryptocurrency, FootballMatch } from "@/services/guidedMarketService";
 import { CONTRACTS } from "@/contracts";
 import { useBITRToken } from "@/hooks/useBITRToken";
 
@@ -81,56 +81,7 @@ interface Fixture {
   };
 }
 
-// Interface for the raw API response
-interface RawFixture {
-  id?: string | number;
-  homeTeam?: { 
-    id?: number; 
-    name?: string; 
-    logoUrl?: string;
-    logo?: string;
-  };
-  awayTeam?: { 
-    id?: number; 
-    name?: string; 
-    logoUrl?: string;
-    logo?: string;
-  };
-  league?: { 
-    id?: number; 
-    name?: string; 
-    logoUrl?: string;
-    logo?: string;
-    country?: string;
-  };
-  home_team_logo?: string;
-  away_team_logo?: string;
-  matchDate?: string;
-  startingAt?: string;
-  venue?: { name?: string };
-  status?: string;
-  odds?: {
-    home?: string | number;
-    draw?: string | number;
-    away?: string | number;
-    over15?: string | number;
-    under15?: string | number;
-    over25?: string | number;
-    under25?: string | number;
-    over35?: string | number;
-    under35?: string | number;
-    bttsYes?: string | number;
-    bttsNo?: string | number;
-    htHome?: string | number;
-    htDraw?: string | number;
-    htAway?: string | number;
-    ht_over_05?: string | number;
-    ht_under_05?: string | number;
-    ht_over_15?: string | number;
-    ht_under_15?: string | number;
-    updatedAt?: string;
-  };
-}
+
 
 interface GuidedMarketData {
   // Common fields
@@ -260,14 +211,14 @@ export default function CreateMarketPage() {
           // Set filtering info for display
           setFilteringInfo(`Showing ${filteredFixtures.length} matches (excluded ${fixturesData.length - filteredFixtures.length} matches starting within 30 minutes)`);
           
-          const transformedFixtures = filteredFixtures.map((fixture: RawFixture) => {
+          const transformedFixtures = filteredFixtures.map((fixture) => {
             // Get team logo URLs from the correct fields
-            const homeTeamLogo = fixture.home_team_logo || fixture.homeTeam?.logoUrl || fixture.homeTeam?.logo;
-            const awayTeamLogo = fixture.away_team_logo || fixture.awayTeam?.logoUrl || fixture.awayTeam?.logo;
+            const homeTeamLogo = (fixture as FootballMatch & { home_team_logo?: string; away_team_logo?: string; league?: { country?: string } }).home_team_logo || fixture.homeTeam?.logoUrl;
+            const awayTeamLogo = (fixture as FootballMatch & { home_team_logo?: string; away_team_logo?: string; league?: { country?: string } }).away_team_logo || fixture.awayTeam?.logoUrl;
             
             // Get league info with country
             const leagueName = fixture.league?.name || 'Unknown League';
-            const leagueCountry = fixture.league?.country || '';
+            const leagueCountry = (fixture as FootballMatch & { home_team_logo?: string; away_team_logo?: string; league?: { country?: string } }).league?.country || '';
             const fullLeagueName = leagueCountry ? `${leagueCountry} ${leagueName}` : leagueName;
             
             return {
@@ -286,29 +237,29 @@ export default function CreateMarketPage() {
               league: {
                 id: fixture.league?.id ? Number(fixture.league.id) : 0,
                 name: fullLeagueName,
-                logoUrl: fixture.league?.logoUrl || fixture.league?.logo
+                logoUrl: fixture.league?.logoUrl
               },
-              matchDate: fixture.matchDate || fixture.startingAt || new Date().toISOString(),
+              matchDate: fixture.matchDate || new Date().toISOString(),
               status: fixture.status || 'scheduled',
               odds: fixture.odds ? {
-                home: typeof fixture.odds.home === 'number' ? fixture.odds.home : null,
-                draw: typeof fixture.odds.draw === 'number' ? fixture.odds.draw : null,
-                away: typeof fixture.odds.away === 'number' ? fixture.odds.away : null,
-                over15: typeof fixture.odds.over15 === 'number' ? fixture.odds.over15 : null,
-                under15: typeof fixture.odds.under15 === 'number' ? fixture.odds.under15 : null,
-                over25: typeof fixture.odds.over25 === 'number' ? fixture.odds.over25 : null,
-                under25: typeof fixture.odds.under25 === 'number' ? fixture.odds.under25 : null,
-                over35: typeof fixture.odds.over35 === 'number' ? fixture.odds.over35 : null,
-                under35: typeof fixture.odds.under35 === 'number' ? fixture.odds.under35 : null,
-                bttsYes: typeof fixture.odds.bttsYes === 'number' ? fixture.odds.bttsYes : null,
-                bttsNo: typeof fixture.odds.bttsNo === 'number' ? fixture.odds.bttsNo : null,
-                htHome: typeof fixture.odds.htHome === 'number' ? fixture.odds.htHome : null,
-                htDraw: typeof fixture.odds.htDraw === 'number' ? fixture.odds.htDraw : null,
-                htAway: typeof fixture.odds.htAway === 'number' ? fixture.odds.htAway : null,
-                ht_over_05: typeof fixture.odds.ht_over_05 === 'number' ? fixture.odds.ht_over_05 : null,
-                ht_under_05: typeof fixture.odds.ht_under_05 === 'number' ? fixture.odds.ht_under_05 : null,
-                ht_over_15: typeof fixture.odds.ht_over_15 === 'number' ? fixture.odds.ht_over_15 : null,
-                ht_under_15: typeof fixture.odds.ht_under_15 === 'number' ? fixture.odds.ht_under_15 : null,
+                home: fixture.odds.home,
+                draw: fixture.odds.draw,
+                away: fixture.odds.away,
+                over15: fixture.odds.over15,
+                under15: fixture.odds.under15,
+                over25: fixture.odds.over25,
+                under25: fixture.odds.under25,
+                over35: fixture.odds.over35,
+                under35: fixture.odds.under35,
+                bttsYes: fixture.odds.bttsYes,
+                bttsNo: fixture.odds.bttsNo,
+                htHome: fixture.odds.htHome,
+                htDraw: fixture.odds.htDraw,
+                htAway: fixture.odds.htAway,
+                ht_over_05: fixture.odds.ht_over_05,
+                ht_under_05: fixture.odds.ht_under_05,
+                ht_over_15: fixture.odds.ht_over_15,
+                ht_under_15: fixture.odds.ht_under_15,
                 updatedAt: fixture.odds.updatedAt || new Date().toISOString()
               } : null
             };
