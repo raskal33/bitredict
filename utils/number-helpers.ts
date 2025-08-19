@@ -43,3 +43,16 @@ export const formatPercentage = (value: number, maxDecimals: number = 1): string
 export const formatCurrency = (value: number, symbol: string = 'BITR', maxDecimals: number = 2): string => {
   return `${formatNumber(value, maxDecimals)} ${symbol}`;
 };
+
+/**
+ * Formats token amounts for rewards display with exactly 2 decimal places
+ */
+export const formatRewardAmount = (amount?: bigint, decimals: number = 18): string => {
+  if (!amount) return '0.00';
+  
+  const formatted = formatUnits(amount, decimals);
+  const num = parseFloat(formatted);
+  
+  // Always show exactly 2 decimal places for rewards
+  return num.toFixed(2);
+};

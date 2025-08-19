@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { CONTRACTS } from '@/contracts';
 import { formatUnits, parseUnits } from 'viem';
 import { toBigInt } from '@/utils/bigint-helpers';
-import { formatTokenAmount } from '@/utils/number-helpers';
+import { formatTokenAmount, formatRewardAmount } from '@/utils/number-helpers';
 
 export interface Tier {
   baseAPY: number | bigint;
@@ -73,13 +73,7 @@ export function useStaking() {
     functionName: 'getDurationOptions',
   });
 
-  // Debug logging for duration options
-  useEffect(() => {
-    if (durationOptions) {
-      console.log('🔍 Contract duration options:', durationOptions);
-      console.log('🔍 Duration options in days:', (durationOptions as bigint[]).map(d => Number(d) / (24 * 60 * 60)));
-    }
-  }, [durationOptions]);
+  // Duration options loaded
 
   const { data: userStakes, refetch: refetchUserStakes } = useReadContract({
     ...CONTRACTS.BITREDICT_STAKING,
@@ -188,7 +182,7 @@ export function useStaking() {
   };
 
   const claimStakeRewards = async (stakeIndex: number) => {
-    console.log('claimStakeRewards called with stakeIndex:', stakeIndex);
+
     setClaimingStakeIndex(stakeIndex);
     
     try {
@@ -197,7 +191,7 @@ export function useStaking() {
         functionName: 'claim',
         args: [BigInt(stakeIndex)],
       });
-      console.log('writeContract result:', result);
+
       return result;
     } catch (error) {
       console.error('Error in claimStakeRewards:', error);
@@ -239,6 +233,10 @@ export function useStaking() {
     return formatTokenAmount(amount, 18);
   };
 
+  const formatReward = (amount?: bigint): string => {
+    return formatRewardAmount(amount, 18);
+  };
+
   const getDurationName = (option: DurationOption): string => {
     switch (option) {
       case DurationOption.THIRTY_DAYS: return '3 Days';
@@ -264,7 +262,7 @@ export function useStaking() {
     return tierNames[tierId] || 'Unknown';
   };
 
-  const getUserStakesWithRewards = (): StakeWithRewards[] => {
+  const getUserStakesWithRewards = useMemo((): StakeWithRewards[] => {
     try {
       // Comprehensive safety checks
       if (!userStakes || !tiers || !Array.isArray(userStakes) || !Array.isArray(tiers)) return [];
@@ -348,14 +346,7 @@ export function useStaking() {
               durationInSeconds = Number(durationOptionsArray[stake.durationOption]);
               if (isNaN(durationInSeconds) || durationInSeconds < 0) durationInSeconds = 0;
               
-              // Debug logging to check actual duration values
-              console.log(`Stake ${index} duration debug:`, {
-                durationOption: stake.durationOption,
-                durationInSeconds,
-                durationInDays: durationInSeconds / (24 * 60 * 60),
-                contractDuration: durationOptionsArray[stake.durationOption],
-                allDurations: durationOptionsArray
-              });
+              // Duration calculation completed
             } catch (e) {
               durationInSeconds = 0;
             }
@@ -406,9 +397,9 @@ export function useStaking() {
       console.error('Error in getUserStakesWithRewards:', error);
       return [];
     }
-  };
+  }, [userStakes, tiers, durationOptions]);
 
-  const getTotalStakedAmount = (): bigint => {
+  const getTotalStakedAmount = useMemo((): bigint => {
     try {
       if (!userStakes || !Array.isArray(userStakes) || userStakes.length === 0) return BigInt(0);
       
@@ -427,14 +418,13 @@ export function useStaking() {
       console.error('Error calculating total staked amount:', error);
       return BigInt(0);
     }
-  };
+  }, [userStakes]);
 
-  const getTotalPendingRewards = (): bigint => {
+  const getTotalPendingRewards = useMemo((): bigint => {
     try {
-      const stakesWithRewards = getUserStakesWithRewards();
-      if (!stakesWithRewards || !Array.isArray(stakesWithRewards) || stakesWithRewards.length === 0) return BigInt(0);
+      if (!userStakesWithRewards || !Array.isArray(userStakesWithRewards) || userStakesWithRewards.length === 0) return BigInt(0);
       
-      return stakesWithRewards.reduce((total, stake) => {
+      return userStakesWithRewards.reduce((total, stake) => {
         try {
           if (!stake || typeof stake !== 'object') return total;
           
@@ -451,7 +441,7 @@ export function useStaking() {
       console.error('Error calculating total pending rewards:', error);
       return BigInt(0);
     }
-  };
+  }, [userStakesWithRewards]);
 
   const getUserTier = (): number => {
     const totalStaked = getTotalStakedAmount();
@@ -512,23 +502,23 @@ export function useStaking() {
   return {
     // Contract data
     totalStaked: formatAmount(totalStaked as bigint),
-    totalRewardsPaid: formatAmount(totalRewardsPaid as bigint),
-    totalRevenuePaid: formatAmount(totalRevenuePaid as bigint),
+    totalRewardsPaid: formatReward(totalRewardsPaid as bigint),
+    totalRevenuePaid: formatReward(totalRevenuePaid as bigint),
     tiers: tiers as Tier[],
     durationOptions: durationOptions as bigint[],
     userStakes: userStakes as Stake[],
     
     // Calculated data
-    userStakesWithRewards: getUserStakesWithRewards(),
-    totalUserStaked: formatAmount(getTotalStakedAmount()),
-    totalPendingRewards: formatAmount(getTotalPendingRewards()),
+    userStakesWithRewards,
+    totalUserStaked: formatAmount(getTotalStakedAmount),
+    totalPendingRewards: formatReward(getTotalPendingRewards),
     userTier: getUserTier(),
     userTierName: getTierName(getUserTier()),
     nextTierThreshold: formatAmount(getNextTierThreshold()),
     
     // Revenue sharing
-    pendingRevenueBITR: formatAmount(pendingRevenueBITR as bigint),
-    pendingRevenueSTT: formatAmount(pendingRevenueSTT as bigint),
+    pendingRevenueBITR: formatReward(pendingRevenueBITR as bigint),
+    pendingRevenueSTT: formatReward(pendingRevenueSTT as bigint),
     
     // Actions
     stake,
@@ -550,6 +540,7 @@ export function useStaking() {
     
     // Helpers
     formatAmount,
+    formatReward,
     getDurationName,
     getDurationBonus,
     getTierName,

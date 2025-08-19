@@ -197,12 +197,8 @@ export default function StakingPage() {
   // Handle individual stake actions
   const handleClaimStakeRewards = async (stakeIndex: number) => {
     try {
-      console.log('handleClaimStakeRewards called with stakeIndex:', stakeIndex);
-      console.log('staking.claimStakeRewards function:', staking.claimStakeRewards);
-      
       await staking.claimStakeRewards(stakeIndex);
     } catch (error: unknown) {
-      console.error('Error in handleClaimStakeRewards:', error);
       showError("Claim Failed", (error as Error).message || "Failed to claim rewards. Please try again.");
     }
   };
@@ -257,20 +253,6 @@ export default function StakingPage() {
     const days = Math.floor(remaining / (1000 * 60 * 60 * 24));
     const hours = Math.floor((remaining % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
-    
-    // Debug logging
-    console.log('formatTimeRemaining debug:', {
-      unlockTime,
-      now,
-      remaining,
-      days,
-      hours,
-      minutes,
-      unlockTimeDate: new Date(unlockTime),
-      nowDate: new Date(now),
-      remainingSeconds: remaining / 1000,
-      remainingDays: remaining / (1000 * 60 * 60 * 24)
-    });
     
     if (days > 0) return `${days}d ${hours}h`;
     if (hours > 0) return `${hours}h ${minutes}m`;
@@ -646,7 +628,7 @@ export default function StakingPage() {
                           </div>
                           <div className="flex items-center gap-1 text-green-400">
                             <FaCoins className="h-4 w-4" />
-                            <span>{staking.formatAmount(stake.pendingRewards)} BITR pending</span>
+                            <span>{staking.formatReward(stake.pendingRewards)} BITR pending</span>
                           </div>
                         </div>
                       </div>
