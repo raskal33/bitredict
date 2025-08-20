@@ -14,12 +14,23 @@ export const somniaNetwork: AppKitNetwork = {
   rpcUrls: {
     default: {
       http: ['https://dream-rpc.somnia.network/'],
+      webSocket: ['wss://dream-rpc.somnia.network/ws'],
+    },
+    public: {
+      http: ['https://dream-rpc.somnia.network/'],
+      webSocket: ['wss://dream-rpc.somnia.network/ws'],
     },
   },
   blockExplorers: {
     default: { name: 'Somnia Explorer', url: 'https://shannon-explorer.somnia.network' },
   },
   testnet: true,
+  contracts: {
+    multicall3: {
+      address: '0xcA11bde05977b3631167028862bE2a173976CA11',
+      blockCreated: 1,
+    },
+  },
 }
 
 // Get project ID from environment
@@ -95,6 +106,8 @@ export const NETWORK_CONFIG = {
 
 // Global gas settings - Optimized for Somnia Network
 export const GAS_SETTINGS = {
-  gas: BigInt(1000000), // 1M gas limit (increased for complex transactions)
-  gasPrice: BigInt(10000000000), // 10 gwei (max for Somnia)
+  gas: BigInt(2000000), // 2M gas limit (increased for complex transactions)
+  gasPrice: BigInt(20000000000), // 20 gwei (increased for reliability)
+  maxFeePerGas: BigInt(30000000000), // 30 gwei max fee
+  maxPriorityFeePerGas: BigInt(2000000000), // 2 gwei priority fee
 }

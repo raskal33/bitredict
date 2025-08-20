@@ -22,25 +22,58 @@ export function getAPIUrl(endpoint: string): string {
   return `${API_CONFIG.baseURL}${endpoint}`;
 }
 
-// Helper function for making API requests with proper error handling
+// Helper function for making API requests with proper error handling and retry logic
 export async function apiRequest<T>(
   endpoint: string, 
-  options: RequestInit = {}
+  options: RequestInit = {},
+  retries: number = 3
 ): Promise<T> {
   const url = getAPIUrl(endpoint);
   
-  const response = await fetch(url, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-    ...options,
-  });
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+        ...options,
+      });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`API Error (${response.status}): ${errorText}`);
+      if (!response.ok) {
+        // Handle rate limiting (429) with exponential backoff
+        if (response.status === 429 && attempt < retries) {
+          const delay = Math.pow(2, attempt) * 1000; // Exponential backoff: 2s, 4s, 8s
+          console.warn(`⚠️ Rate limited (429). Retrying in ${delay}ms... (attempt ${attempt}/${retries})`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        
+        // Handle server errors (5xx) with retry
+        if (response.status >= 500 && attempt < retries) {
+          const delay = 1000 * attempt; // Linear backoff for server errors
+          console.warn(`⚠️ Server error (${response.status}). Retrying in ${delay}ms... (attempt ${attempt}/${retries})`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        
+        const errorText = await response.text();
+        throw new Error(`API Error (${response.status}): ${errorText || 'Unknown error'}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      // Network errors or other fetch failures
+      if (attempt < retries && (error instanceof TypeError || (error instanceof Error && error.message.includes('fetch')))) {
+        const delay = 1000 * attempt;
+        console.warn(`⚠️ Network error. Retrying in ${delay}ms... (attempt ${attempt}/${retries})`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      
+      throw error;
+    }
   }
-
-  return response.json();
+  
+  throw new Error(`Failed to complete request after ${retries} attempts`);
 }
