@@ -31,7 +31,7 @@ const somniaChain: Chain = {
     },
   },
   blockExplorers: {
-    default: { name: 'Somnia Explorer', url: 'https://shannon-explorer.somnia.network' },
+    default: { name: 'Somnia Explorer', url: 'https://somnia-testnet.explorer.caldera.xyz' },
   },
   testnet: true,
 };
@@ -580,11 +580,37 @@ export function useOddysseyContract() {
     
     try {
       console.log('🎯 Fetching initial contract data...');
-      const [entryFee, cycleId, matches] = await Promise.all([
-        OddysseyContractService.getEntryFee(),
-        OddysseyContractService.getCurrentCycleId(),
-        OddysseyContractService.getCurrentMatches()
-      ]);
+      
+      // Fetch data individually to handle failures gracefully
+      let entryFee = '0.5'; // Default fallback
+      let cycleId = 0;
+      let matches: any[] = [];
+      
+      // Try to get entry fee (but don't fail if it doesn't work)
+      try {
+        entryFee = await OddysseyContractService.getEntryFee();
+        console.log('✅ Entry fee fetched:', entryFee);
+      } catch (err) {
+        console.warn('⚠️ Could not fetch entry fee, using default:', err);
+      }
+      
+      // Try to get cycle ID
+      try {
+        cycleId = await OddysseyContractService.getCurrentCycleId();
+        console.log('✅ Cycle ID fetched:', cycleId);
+      } catch (err) {
+        console.error('❌ Could not fetch cycle ID:', err);
+        throw err; // This is critical, so we fail
+      }
+      
+      // Try to get matches
+      try {
+        matches = await OddysseyContractService.getCurrentMatches();
+        console.log('✅ Matches fetched:', matches.length);
+      } catch (err) {
+        console.error('❌ Could not fetch matches:', err);
+        throw err; // This is critical, so we fail
+      }
       
       setContractEntryFee(entryFee);
       setCurrentCycleId(cycleId);
