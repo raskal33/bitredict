@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import Image from "next/image";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { parseEther, parseUnits, formatUnits } from "viem";
-import { encodeBytes32String, keccak256, solidityPacked } from "ethers";
+import { keccak256, solidityPacked, toUtf8Bytes } from "ethers";
 
 import { toast } from "react-hot-toast";
 import { useTransactionFeedback, TransactionFeedback } from "@/components/TransactionFeedback";
@@ -735,7 +735,7 @@ export default function CreateMarketPage() {
       
       if (data.category === 'football' && data.selectedFixture) {
         league = data.selectedFixture.league.name;
-        region = data.selectedFixture.venue?.city || 'Unknown';
+        region = data.selectedFixture.venue?.city || 'Global';
       } else if (data.category === 'cryptocurrency' && data.selectedCrypto) {
         league = data.selectedCrypto.name;
         region = 'Global';
@@ -763,8 +763,6 @@ export default function CreateMarketPage() {
         } : 'NO FIXTURE SELECTED'
       });
 
-      // Using proper ethers.js encodeBytes32String (imported above)
-
       // Convert odds to contract format (200 = 2.0x, 150 = 1.5x)
       // The frontend already stores odds in the correct contract format, so no multiplication needed
       const contractOdds = data.odds;
@@ -781,7 +779,7 @@ export default function CreateMarketPage() {
         abi: BitredictPoolABI.abi,
         functionName: 'createPool' as const,
         args: [
-          encodeBytes32String(predictedOutcome), // _predictedOutcome: bytes32
+          keccak256(toUtf8Bytes(predictedOutcome)), // _predictedOutcome: bytes32 (hash the string)
           contractOdds, // _odds: uint256 (in contract format: 200 = 2.0x)
           parseEther(data.creatorStake.toString()), // _creatorStake: uint256
           eventStartTime, // _eventStartTime: uint256
@@ -799,7 +797,7 @@ export default function CreateMarketPage() {
 
       // For BITR pools, check and handle token approval
       if (useBitr) {
-        const requiredAmount = (data.creatorStake + 1).toString(); // +1 for creation fee
+        const requiredAmount = (data.creatorStake + 50).toString(); // +50 for creation fee
         const currentAllowance = token.getAllowance(CONTRACTS.BITREDICT_POOL.address);
         const currentBalance = token.rawBalance;
         const requiredAmountWei = parseUnits(requiredAmount, 18);
