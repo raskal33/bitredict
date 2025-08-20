@@ -3,6 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
+import { 
+  formatLeagueName, 
+  getTeamDisplayName,
+  getTeamInitials 
+} from "@/utils/teamUtils";
 
 interface Fixture {
   id: number;
@@ -22,6 +27,7 @@ interface Fixture {
     name: string;
     logoUrl?: string;
     season?: number;
+    country?: string;
   };
   round?: string;
   matchDate: string;
@@ -367,7 +373,7 @@ const FixtureSelector: React.FC<FixtureSelectorProps> = ({
 
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-none">
       {/* Filters */}
       <div className="space-y-4">
         {/* Search */}
@@ -483,7 +489,7 @@ const FixtureSelector: React.FC<FixtureSelectorProps> = ({
             >
               {/* Main Fixture Card */}
               <div 
-                className="p-6 cursor-pointer"
+                className="p-4 md:p-6 cursor-pointer w-full"
                 onClick={() => handleFixtureClick(fixture)}
               >
                 {/* League Header */}
@@ -491,7 +497,7 @@ const FixtureSelector: React.FC<FixtureSelectorProps> = ({
                   <div className="flex items-center gap-3">
                     <div>
                       <h3 className="text-white font-semibold text-sm">
-                        {fixture.league?.name || 'Unknown League'}
+                        {formatLeagueName(fixture.league?.name || 'Unknown League', fixture.league?.country)}
                       </h3>
                       {fixture.matchDate && (
                         <p className="text-gray-400 text-xs">
@@ -518,11 +524,11 @@ const FixtureSelector: React.FC<FixtureSelectorProps> = ({
                   </div>
                 </div>
 
-                {/* Teams Section */}
-                <div className="flex items-center justify-between mb-4">
+                {/* Teams Section - Mobile Optimized */}
+                <div className="flex items-center justify-between mb-4 gap-6">
                   {/* Home Team */}
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-700 flex items-center justify-center">
+                  <div className="flex flex-col items-center flex-1 min-w-0">
+                    <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-700 flex items-center justify-center mb-2">
                       <Image
                         src={getTeamLogo(fixture.homeTeam) || ''}
                         alt={fixture.homeTeam?.name || ''}
@@ -541,29 +547,24 @@ const FixtureSelector: React.FC<FixtureSelectorProps> = ({
                         unoptimized
                       />
                       <div className="team-fallback absolute inset-0 flex items-center justify-center text-white font-bold text-xs" style={{ display: 'none' }}>
-                        {fixture.homeTeam?.name?.split(' ').map(word => word[0]).join('').slice(0, 2).toUpperCase() || 'T'}
+                        {getTeamInitials(fixture.homeTeam?.name || 'T')}
                       </div>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <h4 className="text-white font-semibold text-sm truncate">
-                        {fixture.homeTeam?.name || 'TBD'}
+                    <div className="min-w-0 flex-1 text-center">
+                      <h4 className="text-white font-semibold text-xs md:text-sm truncate w-full">
+                        {getTeamDisplayName(fixture.homeTeam?.name || 'TBD', true)}
                       </h4>
                     </div>
                   </div>
 
                   {/* VS */}
-                  <div className="mx-4 text-gray-500 font-medium text-sm">
+                  <div className="text-gray-500 font-medium text-base px-3">
                     vs
                   </div>
 
                   {/* Away Team */}
-                  <div className="flex items-center gap-3 flex-1 justify-end">
-                    <div className="min-w-0 flex-1 text-right">
-                      <h4 className="text-white font-semibold text-sm truncate">
-                        {fixture.awayTeam?.name || 'TBD'}
-                      </h4>
-                    </div>
-                    <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-700 flex items-center justify-center">
+                  <div className="flex flex-col items-center flex-1 min-w-0">
+                    <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-700 flex items-center justify-center mb-2">
                       <Image
                         src={getTeamLogo(fixture.awayTeam) || ''}
                         alt={fixture.awayTeam?.name || ''}
@@ -582,8 +583,13 @@ const FixtureSelector: React.FC<FixtureSelectorProps> = ({
                         unoptimized
                       />
                       <div className="team-fallback absolute inset-0 flex items-center justify-center text-white font-bold text-xs" style={{ display: 'none' }}>
-                        {fixture.awayTeam?.name?.split(' ').map(word => word[0]).join('').slice(0, 2).toUpperCase() || 'T'}
+                        {getTeamInitials(fixture.awayTeam?.name || 'T')}
                       </div>
+                    </div>
+                    <div className="min-w-0 flex-1 text-center">
+                      <h4 className="text-white font-semibold text-xs md:text-sm truncate w-full">
+                        {getTeamDisplayName(fixture.awayTeam?.name || 'TBD', true)}
+                      </h4>
                     </div>
                   </div>
                 </div>
