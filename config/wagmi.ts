@@ -46,49 +46,41 @@ export const wagmiAdapter = new WagmiAdapter({
   ssr: true
 })
 
-// Create AppKit instance (client-side only)
-let appKit: ReturnType<typeof createAppKit> | undefined;
-
-if (typeof window !== 'undefined') {
-  appKit = createAppKit({
-    adapters: [wagmiAdapter],
-    networks,
-    projectId,
-    metadata: {
-      name: 'BitRedict - Connect Wallet',
-      description: 'Connect your wallet to access decentralized prediction markets on Somnia Network',
-      url: 'https://bitredict.vercel.app',
-      icons: ['https://bitredict.vercel.app/logo.png'],
-    },
-    features: {
-      analytics: false, // Disable analytics to remove Reown tracking
-      email: false,
-      socials: false,
-      emailShowWallets: false,
-    },
-    themeMode: 'dark',
-    themeVariables: {
-      '--w3m-font-family': 'var(--font-onest), system-ui, sans-serif',
-      '--w3m-accent': '#22C7FF',
-      '--w3m-color-mix': '#22C7FF',
-      '--w3m-color-mix-strength': 25,
-      '--w3m-border-radius-master': '16px',
-      '--w3m-z-index': 999999,
-    },
-    allWallets: 'HIDE',
-    featuredWalletIds: [
-      'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96', // MetaMask
-      '4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0', // Trust Wallet
-    ],
-    // Improved connection settings
-    enableWalletConnect: true,
-    enableInjected: true,
-    enableEIP6963: true,
-    enableCoinbase: false, // Disable Coinbase for better performance
-  });
-}
-
-export { appKit };
+// Create AppKit instance
+createAppKit({
+  adapters: [wagmiAdapter],
+  networks,
+  projectId,
+  metadata: {
+    name: 'BitRedict - Connect Wallet',
+    description: 'Connect your wallet to access decentralized prediction markets on Somnia Network',
+    url: 'https://bitredict.vercel.app',
+    icons: ['https://bitredict.vercel.app/logo.png'],
+  },
+  features: {
+    analytics: false,
+    email: false,
+    socials: false,
+    emailShowWallets: false,
+  },
+  themeMode: 'dark',
+  themeVariables: {
+    '--w3m-font-family': 'var(--font-onest), system-ui, sans-serif',
+    '--w3m-accent': '#22C7FF',
+    '--w3m-color-mix': '#22C7FF',
+    '--w3m-color-mix-strength': 25,
+    '--w3m-border-radius-master': '16px',
+    '--w3m-z-index': 999999,
+  },
+  allWallets: 'HIDE',
+  featuredWalletIds: [
+    'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96', // MetaMask
+    '4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0', // Trust Wallet
+  ],
+  chainImages: {
+    [somniaNetwork.id]: 'https://somnia.network/favicon.ico',
+  },
+});
 
 export const config = wagmiAdapter.wagmiConfig
 

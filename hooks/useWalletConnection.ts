@@ -18,12 +18,8 @@ export function useWalletConnection() {
   const { disconnect } = useDisconnect();
   const chainId = useChainId();
   
-  // Guard against SSR - only use AppKit hooks on client side
-  const appKit = typeof window !== 'undefined' ? useAppKit() : { open: () => Promise.resolve(), close: () => Promise.resolve() };
-  const appKitState = typeof window !== 'undefined' ? useAppKitState() : { open: false };
-  
-  const { open, close } = appKit;
-  const { open: isModalOpen } = appKitState;
+  const { open, close } = useAppKit();
+  const { open: isModalOpen } = useAppKitState();
   
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);

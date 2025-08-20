@@ -92,8 +92,8 @@ class OddysseyService {
     data: MatchesData;
   }> {
     try {
-      // Use contract-matches endpoint to get data directly from contract with correct data types
-      const endpoint = `${this.baseEndpoint}/contract-matches`;
+      // Use matches endpoint to get data directly from contract with correct data types
+      const endpoint = `${this.baseEndpoint}/matches`;
       
       console.log('🎯 OddysseyService: Fetching contract matches from:', endpoint);
       
