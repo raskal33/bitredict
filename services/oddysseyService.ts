@@ -99,15 +99,16 @@ class OddysseyService {
       
       const response = await apiRequest<{
         success: boolean;
-        data: any[];
-        cycleId: string;
-        totalMatches: number;
-        source: string;
+        data: {
+          today: { date: string; matches: any[]; count: number };
+          yesterday: { date: string; matches: any[]; count: number };
+        };
+        meta: any;
       }>(endpoint);
       
       console.log('✅ OddysseyService: Contract matches result:', response);
       
-      if (!response.data || response.data.length === 0) {
+      if (!response.data || !response.data.today || !response.data.today.matches || response.data.today.matches.length === 0) {
         console.warn('⚠️ No contract matches found');
         return {
           data: {
@@ -119,27 +120,27 @@ class OddysseyService {
       }
 
       // Transform contract matches to the expected format
-      const transformedMatches: OddysseyMatch[] = response.data.map((match, index) => ({
-        id: match.id, // This is now a number, matching contract data type
-        fixture_id: match.id,
-        home_team: match.homeTeam,
-        away_team: match.awayTeam,
-        match_date: new Date(match.startTime * 1000).toISOString(),
-        league_name: match.leagueName,
-        home_odds: match.oddsHome / 1000, // Convert from scaled format
-        draw_odds: match.oddsDraw / 1000,
-        away_odds: match.oddsAway / 1000,
-        over_odds: match.oddsOver / 1000,
-        under_odds: match.oddsUnder / 1000,
-        market_type: 'moneyline',
-        display_order: index + 1
+      const transformedMatches: OddysseyMatch[] = response.data.today.matches.map((match, index) => ({
+        id: match.id,
+        fixture_id: match.fixture_id || match.id,
+        home_team: match.home_team,
+        away_team: match.away_team,
+        match_date: match.match_date,
+        league_name: match.league_name,
+        home_odds: match.home_odds || match.odds?.home || 0,
+        draw_odds: match.draw_odds || match.odds?.draw || 0,
+        away_odds: match.away_odds || match.odds?.away || 0,
+        over_odds: match.over_odds || match.over_25_odds || match.odds?.over_25 || 0,
+        under_odds: match.under_odds || match.under_25_odds || match.odds?.under_25 || 0,
+        market_type: match.market_type || '1x2_ou25',
+        display_order: match.display_order || (index + 1)
       }));
 
       // Return in the expected format
       return {
         data: {
           today: {
-            date: new Date().toISOString().split('T')[0],
+            date: response.data.today.date,
             matches: transformedMatches
           },
           tomorrow: {
@@ -147,8 +148,8 @@ class OddysseyService {
             matches: []
           },
           yesterday: {
-            date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            matches: []
+            date: response.data.yesterday?.date || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+            matches: response.data.yesterday?.matches || []
           }
         }
       };
