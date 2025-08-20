@@ -3,7 +3,7 @@
 import Button from "@/components/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect, useCallback } from "react";
-import { useAccount } from "wagmi";
+import { useAccount, useChainId } from "wagmi";
 import { toast } from "react-hot-toast";
 
 import { oddysseyService } from "@/services/oddysseyService";
@@ -98,6 +98,7 @@ const DEFAULT_ENTRY_FEE = "0.5";
 
 export default function OddysseyPage() {
   const { address, isConnected } = useAccount();
+  const chainId = useChainId();
   const { 
     placeSlip, 
     isPending, 
@@ -127,6 +128,17 @@ export default function OddysseyPage() {
   const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
   const [isExpired, setIsExpired] = useState(false);
   const [hasStartedMatches, setHasStartedMatches] = useState(false);
+
+  // Debug chainId changes and clear network errors when correct
+  useEffect(() => {
+    console.log('🔗 Chain ID changed:', chainId);
+    
+    // Clear any network errors if we're on the correct network
+    if (isConnected && chainId === 50312) {
+      console.log('✅ On correct network, clearing any network errors');
+      // The error will be cleared automatically by the transaction feedback system
+    }
+  }, [chainId, isConnected]);
 
   // Enhanced transaction state monitoring with better feedback
   useEffect(() => {
@@ -773,15 +785,28 @@ export default function OddysseyPage() {
 
   // Add network check
   const checkNetwork = useCallback(() => {
-    if (typeof window !== 'undefined' && window.ethereum) {
-      const chainId = window.ethereum.chainId;
-      if (chainId !== '0xc4a8') { // Somnia Network chain ID in hex
-        showError("Wrong Network", "Please switch to Somnia Network to use Oddyssey. Current network is not supported.");
-        return false;
-      }
+    // Only check network if wallet is connected
+    if (!isConnected) {
+      console.log('⏳ Wallet not connected, skipping network check');
+      return true; // Don't show error if wallet is not connected
     }
+    
+    // Handle case where chainId is undefined (wallet not connected or still loading)
+    if (chainId === undefined) {
+      console.log('⏳ Chain ID not yet available, skipping network check');
+      return true; // Don't show error if chainId is not available yet
+    }
+    
+    // Use Wagmi chainId instead of window.ethereum.chainId
+    if (chainId !== 50312) { // Somnia Network chain ID in decimal
+      console.log(`❌ Wrong network detected: ${chainId}, expected: 50312`);
+      showError("Wrong Network", "Please switch to Somnia Network to use Oddyssey. Current network is not supported.");
+      return false;
+    }
+    
+    console.log('✅ Network check passed: Somnia Network detected');
     return true;
-  }, [showError]);
+  }, [chainId, isConnected, showError]);
 
   // Add retry mechanism for contract data
   const retryContractData = useCallback(async () => {
