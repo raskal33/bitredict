@@ -25,7 +25,8 @@ import {
   ArrowTrendingUpIcon,
   UserIcon,
   CalendarIcon,
-  TableCellsIcon
+  TableCellsIcon,
+  ArrowPathIcon
 } from "@heroicons/react/24/outline";
 import { FaSpinner } from "react-icons/fa";
 
@@ -128,6 +129,8 @@ export default function OddysseyPage() {
   const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
   const [isExpired, setIsExpired] = useState(false);
   const [hasStartedMatches, setHasStartedMatches] = useState(false);
+  const [backendSubmissionInProgress, setBackendSubmissionInProgress] = useState(false);
+  const [apiCallInProgress, setApiCallInProgress] = useState(false);
 
   // Debug chainId changes and clear network errors when correct
   useEffect(() => {
@@ -160,10 +163,14 @@ export default function OddysseyPage() {
         "Your predictions have been submitted to the blockchain and are now active in the competition",
         hash
       );
-      // Reset picks after successful submission
-      setPicks([]);
+      // Don't reset picks here - let the backend submission handle it
+      
+      // Auto-close the success message after 5 seconds
+      setTimeout(() => {
+        clearStatus();
+      }, 5000);
     }
-  }, [isSuccess, hash, showSuccess]);
+  }, [isSuccess, hash, showSuccess, clearStatus]);
 
   useEffect(() => {
     if (error) {
@@ -173,7 +180,10 @@ export default function OddysseyPage() {
 
   // Fetch matches data using the service
   const fetchMatches = useCallback(async () => {
+    if (apiCallInProgress) return; // Prevent multiple simultaneous calls
+    
     try {
+      setApiCallInProgress(true);
       setIsLoading(true);
       console.log('🎯 Fetching Oddyssey matches...');
       
@@ -192,12 +202,16 @@ export default function OddysseyPage() {
       setMatchesData(null);
     } finally {
       setIsLoading(false);
+      setApiCallInProgress(false);
     }
-  }, []);
+  }, [apiCallInProgress]);
 
   // Fetch stats using the service
   const fetchStats = useCallback(async () => {
+    if (apiCallInProgress) return; // Prevent multiple simultaneous calls
+    
     try {
+      setApiCallInProgress(true);
       console.log('🎯 Fetching Oddyssey stats...');
       
       const [globalStatsResult, userStatsResult] = await Promise.all([
@@ -273,12 +287,17 @@ export default function OddysseyPage() {
         bestStreak: 0,
         lastActiveCycle: 0
       });
+    } finally {
+      setApiCallInProgress(false);
     }
-  }, [address]);
+  }, [address, apiCallInProgress]);
 
   // Fetch current cycle and match results
   const fetchCurrentCycle = useCallback(async () => {
+    if (apiCallInProgress) return; // Prevent multiple simultaneous calls
+    
     try {
+      setApiCallInProgress(true);
       console.log('🎯 Fetching current cycle...');
       
       const result = await oddysseyService.getCurrentCycle();
@@ -301,14 +320,17 @@ export default function OddysseyPage() {
       }
     } catch (error) {
       console.error('❌ Error fetching current cycle:', error);
+    } finally {
+      setApiCallInProgress(false);
     }
-  }, []);
+  }, [apiCallInProgress]);
 
   // Fetch user slips using the service
   const fetchUserSlips = useCallback(async () => {
-    if (!address) return;
+    if (!address || apiCallInProgress) return;
     
     try {
+      setApiCallInProgress(true);
       console.log('🎯 Fetching user slips for address:', address);
       
       const result = await oddysseyService.getUserSlips(address);
@@ -339,28 +361,35 @@ export default function OddysseyPage() {
     } catch (error) {
       console.error('❌ Error fetching user slips:', error);
       setSlips([]);
+    } finally {
+      setApiCallInProgress(false);
     }
-  }, [address]);
+  }, [address, apiCallInProgress]);
 
   useEffect(() => {
     fetchMatches();
     fetchCurrentCycle();
-  }, [fetchMatches, fetchCurrentCycle]); // Include fetchMatches in dependencies
+  }, [fetchMatches, fetchCurrentCycle]); // Include dependencies
 
   useEffect(() => {
-    fetchStats();
     if (address) {
+      fetchStats();
       fetchUserSlips();
     }
-  }, [address, fetchStats, fetchUserSlips]); // Include all dependencies
+  }, [address, fetchStats, fetchUserSlips]); // Include dependencies
 
   // Enhanced transaction handling with backend synchronization
   useEffect(() => {
-    if (isSuccess && hash) {
+    if (isSuccess && hash && !backendSubmissionInProgress) {
       // Transaction confirmed - submit to backend for tracking
       const submitToBackend = async () => {
         try {
-          const predictions = picks.map(pick => ({
+          setBackendSubmissionInProgress(true);
+          
+          // Store predictions before they get reset
+          const currentPicks = [...picks];
+          
+          const predictions = currentPicks.map(pick => ({
             matchId: pick.id, // This is now fixture_id
             prediction: pick.pick === "home" ? "1" : 
                        pick.pick === "draw" ? "X" : 
@@ -374,27 +403,41 @@ export default function OddysseyPage() {
             return;
           }
           
+          console.log('🎯 Submitting to backend:', { address, predictionsCount: predictions.length, predictions });
+          console.log('🎯 Current picks before submission:', currentPicks);
+          
           const backendResponse = await oddysseyService.placeSlip(address, predictions);
           
           if (backendResponse.success) {
             // Add to local slips for immediate UI update
-            setSlips(prevSlips => [...prevSlips, [...picks]]);
+            setSlips(prevSlips => [...prevSlips, currentPicks]);
             
-            // Refresh stats after successful submission
-            fetchStats();
-            fetchUserSlips();
+            // Reset picks after successful backend submission
+            setPicks([]);
+            
+            // Delay the refresh calls to avoid rate limiting
+            setTimeout(() => {
+              fetchStats();
+              fetchUserSlips();
+            }, 2000); // 2 second delay
           } else {
             console.warn('Backend submission failed, but blockchain transaction succeeded');
+            // Reset picks even if backend fails since blockchain transaction succeeded
+            setPicks([]);
           }
         } catch (backendError) {
           console.warn('Backend submission failed:', backendError);
           // Don't show error to user since blockchain transaction succeeded
+          // Reset picks even if backend fails since blockchain transaction succeeded
+          setPicks([]);
+        } finally {
+          setBackendSubmissionInProgress(false);
         }
       };
       
       submitToBackend();
     }
-  }, [isSuccess, hash, picks, address, fetchStats, fetchUserSlips]);
+  }, [isSuccess, hash, picks, address, fetchStats, fetchUserSlips, backendSubmissionInProgress]);
 
   // Check if any matches have started
   const checkStartedMatches = useCallback((matches: Match[]) => {
@@ -756,6 +799,28 @@ export default function OddysseyPage() {
 
   const totalOdd = picks.reduce((acc, pick) => acc * (pick.odd || 1), 1).toFixed(2);
 
+  // Manual refresh function for when rate limiting occurs
+  const handleManualRefresh = useCallback(async () => {
+    if (apiCallInProgress) {
+      toast.error('Please wait, a refresh is already in progress');
+      return;
+    }
+    
+    try {
+      toast.success('Refreshing data...');
+      await Promise.all([
+        fetchMatches(),
+        fetchCurrentCycle(),
+        fetchStats(),
+        address ? fetchUserSlips() : Promise.resolve()
+      ]);
+      toast.success('Data refreshed successfully!');
+    } catch (error) {
+      console.error('❌ Error during manual refresh:', error);
+      toast.error('Failed to refresh data. Please try again later.');
+    }
+  }, [fetchMatches, fetchCurrentCycle, fetchStats, fetchUserSlips, address, apiCallInProgress]);
+
 
 
   const formatDate = (dateStr: string) => {
@@ -993,19 +1058,35 @@ export default function OddysseyPage() {
           transition={{ delay: 0.3 }}
           className="glass-card text-center p-6 mb-8"
         >
-          <h3 className="text-xl font-bold text-primary mb-6 flex items-center justify-center gap-2">
-            <ClockIcon className="h-6 w-6" />
-            {matches && matches.length > 0 ? (
-              <>
-            Betting Closes In
-                <span className="text-sm font-normal text-text-secondary ml-2">
-                  (First match: {matches.sort((a, b) => new Date(a.match_date).getTime() - new Date(b.match_date).getTime())[0]?.home_team} vs {matches.sort((a, b) => new Date(a.match_date).getTime() - new Date(b.match_date).getTime())[0]?.away_team})
-                </span>
-              </>
-            ) : (
-              "Betting Closes In"
-            )}
-          </h3>
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-bold text-primary flex items-center gap-2">
+              <ClockIcon className="h-6 w-6" />
+              {matches && matches.length > 0 ? (
+                <>
+              Betting Closes In
+                  <span className="text-sm font-normal text-text-secondary ml-2">
+                    (First match: {matches.sort((a, b) => new Date(a.match_date).getTime() - new Date(b.match_date).getTime())[0]?.home_team} vs {matches.sort((a, b) => new Date(a.match_date).getTime() - new Date(b.match_date).getTime())[0]?.away_team})
+                  </span>
+                </>
+              ) : (
+                "Betting Closes In"
+              )}
+            </h3>
+            
+            {/* Refresh Button */}
+            <button
+              onClick={handleManualRefresh}
+              disabled={apiCallInProgress}
+              className="flex items-center gap-2 px-3 py-2 bg-primary/20 hover:bg-primary/30 text-primary rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {apiCallInProgress ? (
+                <FaSpinner className="h-4 w-4 animate-spin" />
+              ) : (
+                <ArrowPathIcon className="h-4 w-4" />
+              )}
+              <span className="text-sm font-medium">Refresh</span>
+            </button>
+          </div>
           {isExpired ? (
             <div className="text-red-400 font-bold text-2xl">
               Betting is closed - first match has started
