@@ -109,7 +109,8 @@ export default function OddysseyPage() {
     currentCycleId, 
     currentMatches,
     isInitialized,
-    isInitializing
+    isInitializing,
+    refetchAll
   } = useOddysseyContract();
   
   // Enhanced transaction feedback system
@@ -588,13 +589,18 @@ export default function OddysseyPage() {
     try {
       // Check if contract service is initialized
       if (!isInitialized) {
-        showError("Service Not Ready", "Contract service is not initialized. Please wait for initialization to complete.");
+        showError("Service Not Ready", "Contract service is still initializing. Please wait a moment and try again.");
         return;
       }
 
       // Validate wallet connection
       if (!isConnected || !address) {
         showError("Wallet Not Connected", "Please connect your wallet to place a slip.");
+        return;
+      }
+
+      // Check network
+      if (!checkNetwork()) {
         return;
       }
 
@@ -607,7 +613,15 @@ export default function OddysseyPage() {
 
       // Check if we have contract data
       if (!currentMatches || !Array.isArray(currentMatches) || currentMatches.length !== 10) {
-        showError("Contract Error", "No active matches found in contract. Please wait for the next cycle or refresh the page.");
+        if (!isInitialized) {
+          showError("Service Not Ready", "Contract service is still initializing. Please wait a moment and try again.");
+        } else if (!isConnected) {
+          showError("Wallet Not Connected", "Please connect your wallet to access contract data.");
+        } else if (currentMatches.length === 0) {
+          showError("Contract Connection Issue", "Unable to fetch matches from contract. Please check your network connection and ensure you're on the Somnia Network.");
+        } else {
+          showError("Contract Error", `Expected 10 matches but found ${currentMatches.length}. Please wait for the next cycle or refresh the page.`);
+        }
         return;
       }
 
@@ -756,6 +770,44 @@ export default function OddysseyPage() {
       date: formatDate(targetDate.toISOString())
     };
   };
+
+  // Add network check
+  const checkNetwork = useCallback(() => {
+    if (typeof window !== 'undefined' && window.ethereum) {
+      const chainId = window.ethereum.chainId;
+      if (chainId !== '0xc4a8') { // Somnia Network chain ID in hex
+        showError("Wrong Network", "Please switch to Somnia Network to use Oddyssey. Current network is not supported.");
+        return false;
+      }
+    }
+    return true;
+  }, [showError]);
+
+  // Add retry mechanism for contract data
+  const retryContractData = useCallback(async () => {
+    if (!isConnected || !address) {
+      showError("Wallet Not Connected", "Please connect your wallet first.");
+      return;
+    }
+    
+    // Check network first
+    if (!checkNetwork()) {
+      return;
+    }
+    
+    try {
+      showInfo("Retrying Contract Connection", "Attempting to reconnect to the contract...");
+      
+      // Force re-initialization
+      if (refetchAll) {
+        await refetchAll();
+        showSuccess("Connection Successful", "Contract data has been refreshed successfully.");
+      }
+    } catch (error) {
+      console.error('❌ Error retrying contract data:', error);
+      showError("Retry Failed", "Failed to reconnect to contract. Please check your network connection.");
+    }
+  }, [isConnected, address, refetchAll, checkNetwork, showError, showInfo, showSuccess]);
 
   return (
     <div className="min-h-screen bg-gradient-main text-white">
@@ -1554,6 +1606,33 @@ export default function OddysseyPage() {
                                 <p className="text-xs text-text-muted mt-1">
                                   Please don&apos;t close this page or disconnect your wallet
                                 </p>
+                              </motion.div>
+                            )}
+
+                            {/* Contract Data Retry Button */}
+                            {isInitialized && isConnected && (!currentMatches || currentMatches.length === 0) && (
+                              <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="mt-3 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-button"
+                              >
+                                <div className="flex items-center gap-2 text-sm mb-2">
+                                  <div className="w-2 h-2 bg-yellow-400 rounded-full"></div>
+                                  <span className="text-yellow-400 font-medium">Contract Data Unavailable</span>
+                                </div>
+                                <p className="text-xs text-text-muted mb-3">
+                                  Unable to fetch matches from contract. This might be due to network issues.
+                                </p>
+                                <Button
+                                  fullWidth
+                                  variant="secondary"
+                                  size="sm"
+                                  leftIcon={<BoltIcon className="h-4 w-4" />}
+                                  onClick={retryContractData}
+                                  className="text-xs"
+                                >
+                                  Retry Contract Connection
+                                </Button>
                               </motion.div>
                             )}
                           </div>

@@ -600,7 +600,8 @@ export function useOddysseyContract() {
         console.log('✅ Cycle ID fetched:', cycleId);
       } catch (err) {
         console.error('❌ Could not fetch cycle ID:', err);
-        throw err; // This is critical, so we fail
+        // Don't throw here, just set default and continue
+        cycleId = 0;
       }
       
       // Try to get matches
@@ -609,7 +610,8 @@ export function useOddysseyContract() {
         console.log('✅ Matches fetched:', matches.length);
       } catch (err) {
         console.error('❌ Could not fetch matches:', err);
-        throw err; // This is critical, so we fail
+        // Don't throw here, just set empty array and continue
+        matches = [];
       }
       
       setContractEntryFee(entryFee);
@@ -618,7 +620,10 @@ export function useOddysseyContract() {
       console.log('✅ Initial contract data fetched successfully');
     } catch (err) {
       console.error('Error fetching initial data:', err);
-      // Don't throw here, just log the error
+      // Set default values on error
+      setContractEntryFee('0.5');
+      setCurrentCycleId(0);
+      setCurrentMatches([]);
     }
   }, [isInitialized]);
 
@@ -687,11 +692,19 @@ export function useOddysseyContract() {
     return await OddysseyContractService.getCurrentMatches();
   }, [isInitialized]);
 
+  const refetchAll = useCallback(async () => {
+    if (!isInitialized) {
+      throw new Error('Contract service not initialized. Please wait for initialization to complete.');
+    }
+    await fetchInitialData();
+  }, [isInitialized, fetchInitialData]);
+
   return {
     placeSlip,
     getEntryFee,
     getCurrentCycleId,
     getCurrentMatches,
+    refetchAll,
     isConnected,
     address,
     // Wagmi-style properties

@@ -7,8 +7,9 @@ The Oddyssey game is now fully automated with daily cycles featuring 10 carefull
 ## Key Features
 
 ### 🕐 Daily Automation
-- **New Cycle Creation**: Daily at 01:00 UTC
-- **Match Selection**: 10 matches starting after 13:00 UTC  
+- **Match Selection**: Daily at 00:01 UTC
+- **New Cycle Creation**: Daily at 00:04 UTC
+- **First Matches**: Starting after 13:00 UTC  
 - **Cycle Resolution**: Automatic when match results are available
 - **Prize Distribution**: Handled by smart contract
 
@@ -33,7 +34,8 @@ The Oddyssey game is now fully automated with daily cycles featuring 10 carefull
 - Manages smart contract interactions
 
 #### OddysseyScheduler (`backend/cron/oddyssey-scheduler.js`)
-- Daily cycle creation at 12:00 UTC
+- Match selection at 00:01 UTC
+- Daily cycle creation at 00:04 UTC
 - Resolution checks every hour (22:00-06:00 UTC)
 - Weekly data cleanup on Sundays
 
@@ -89,7 +91,8 @@ The Oddyssey game is now fully automated with daily cycles featuring 10 carefull
 ## Automation Schedule
 
 ### Daily Operations
-- **01:00 UTC**: New cycle creation
+- **00:01 UTC**: Match selection
+- **00:04 UTC**: New cycle creation
 - **13:00+ UTC**: First matches begin (betting closes)
 - **22:00-06:00 UTC**: Resolution checks every hour
 
