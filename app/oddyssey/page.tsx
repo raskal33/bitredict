@@ -171,17 +171,6 @@ export default function OddysseyPage() {
     }
   }, [error, showError]);
 
-  // Handle transaction failure on blockchain
-  useEffect(() => {
-    if (error && hash) {
-      showError(
-        "Transaction Failed on Blockchain", 
-        `Your transaction was sent but failed on the blockchain. This could be due to insufficient gas, contract revert, or other blockchain issues. Transaction hash: ${hash}`,
-        hash
-      );
-    }
-  }, [error, hash, showError]);
-
   // Fetch matches data using the service
   const fetchMatches = useCallback(async () => {
     try {

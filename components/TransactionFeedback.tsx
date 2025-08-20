@@ -32,13 +32,20 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
   const [isVisible, setIsVisible] = useState(false);
   const [progress, setProgress] = useState(0);
   const [timeElapsed, setTimeElapsed] = useState(0);
+  const [isClosing, setIsClosing] = useState(false);
 
   const handleClose = useCallback(() => {
+    if (isClosing) return; // Prevent multiple close attempts
+    
+    setIsClosing(true);
     setIsVisible(false);
+    
+    // Small delay to allow animation to complete before calling onClose
     setTimeout(() => {
       onClose();
-    }, 300); // Wait for animation to complete before clearing status
-  }, [onClose]);
+      setIsClosing(false);
+    }, 150);
+  }, [onClose, isClosing]);
 
   // Progress simulation for pending transactions
   useEffect(() => {
@@ -70,7 +77,7 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
   }, [status?.type]);
 
   useEffect(() => {
-    if (status) {
+    if (status && !isClosing) {
       setIsVisible(true);
       
       // Auto-close for success/error messages (but not for pending transactions)
@@ -81,20 +88,11 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
         
         return () => clearTimeout(timer);
       }
-    } else {
+    } else if (!status) {
       setIsVisible(false);
+      setIsClosing(false); // Reset closing state when status is cleared
     }
-  }, [status, autoClose, autoCloseDelay, handleClose]);
-
-  // Prevent modal from reappearing by clearing status when closed
-  useEffect(() => {
-    if (!isVisible && status) {
-      const timer = setTimeout(() => {
-        onClose();
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [isVisible, status, onClose]);
+  }, [status, autoClose, autoCloseDelay, handleClose, isClosing]);
 
   const getIcon = () => {
     switch (status?.type) {

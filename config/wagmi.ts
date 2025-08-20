@@ -1,6 +1,6 @@
 import { createAppKit } from '@reown/appkit/react'
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi'
-import { type AppKitNetwork } from '@reown/appkit/networks'
+import { mainnet, sepolia, type AppKitNetwork } from '@reown/appkit/networks'
 
 // Somnia Network configuration - CORRECT SETTINGS FROM HARDHAT
 export const somniaNetwork: AppKitNetwork = {
@@ -14,30 +14,19 @@ export const somniaNetwork: AppKitNetwork = {
   rpcUrls: {
     default: {
       http: ['https://dream-rpc.somnia.network/'],
-      webSocket: ['wss://dream-rpc.somnia.network/ws'],
-    },
-    public: {
-      http: ['https://dream-rpc.somnia.network/'],
-      webSocket: ['wss://dream-rpc.somnia.network/ws'],
     },
   },
   blockExplorers: {
     default: { name: 'Somnia Explorer', url: 'https://shannon-explorer.somnia.network' },
   },
   testnet: true,
-  contracts: {
-    multicall3: {
-      address: '0xcA11bde05977b3631167028862bE2a173976CA11',
-      blockCreated: 1,
-    },
-  },
 }
 
 // Get project ID from environment
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '6a0514d82fb621e41aa6cad5473883a3'
 
-// Create the networks array (Somnia only)
-const networks = [somniaNetwork] as [AppKitNetwork, ...AppKitNetwork[]]
+// Create the networks array
+const networks = [somniaNetwork, mainnet, sepolia] as [AppKitNetwork, ...AppKitNetwork[]]
 
 // Create Wagmi Adapter
 export const wagmiAdapter = new WagmiAdapter({
@@ -47,7 +36,7 @@ export const wagmiAdapter = new WagmiAdapter({
 })
 
 // Create AppKit instance
-createAppKit({
+export const appKit = createAppKit({
   adapters: [wagmiAdapter],
   networks,
   projectId,
@@ -58,7 +47,7 @@ createAppKit({
     icons: ['https://bitredict.vercel.app/logo.png'],
   },
   features: {
-    analytics: false,
+    analytics: false, // Disable analytics to remove Reown tracking
     email: false,
     socials: false,
     emailShowWallets: false,
@@ -77,10 +66,12 @@ createAppKit({
     'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96', // MetaMask
     '4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0', // Trust Wallet
   ],
-  chainImages: {
-    [somniaNetwork.id]: 'https://somnia.network/favicon.ico',
-  },
-});
+  // Improved connection settings
+  enableWalletConnect: true,
+  enableInjected: true,
+  enableEIP6963: true,
+  enableCoinbase: false, // Disable Coinbase for better performance
+})
 
 export const config = wagmiAdapter.wagmiConfig
 
@@ -104,8 +95,6 @@ export const NETWORK_CONFIG = {
 
 // Global gas settings - Optimized for Somnia Network
 export const GAS_SETTINGS = {
-  gas: BigInt(2000000), // 2M gas limit (increased for complex transactions)
-  gasPrice: BigInt(20000000000), // 20 gwei (increased for reliability)
-  maxFeePerGas: BigInt(30000000000), // 30 gwei max fee
-  maxPriorityFeePerGas: BigInt(2000000000), // 2 gwei priority fee
+  gas: BigInt(20000000), // 20M gas limit (sufficient for complex Oddyssey transactions)
+  gasPrice: BigInt(10000000000), // 10 gwei (max for Somnia)
 }

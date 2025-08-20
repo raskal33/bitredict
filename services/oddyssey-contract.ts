@@ -1,7 +1,6 @@
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { CONTRACT_ADDRESSES } from '@/config/wagmi';
 import { parseUnits, formatUnits } from 'viem';
-import { usePublicClient } from 'wagmi';
 import OddysseyABI from '@/contracts/abis/Oddyssey.json';
 
 // Use the full ABI from the compiled contract
@@ -33,20 +32,8 @@ export interface Slip {
 
 export function useOddysseyContract() {
   const { address } = useAccount();
-  const publicClient = usePublicClient();
-  const { writeContract, data: hash, isPending, error: writeError } = useWriteContract();
-  const { 
-    isLoading: isConfirming, 
-    isSuccess: isConfirmed, 
-    isError: isTransactionError,
-    error: transactionError,
-    data: receipt
-  } = useWaitForTransactionReceipt({ 
-    hash,
-    query: {
-      enabled: !!hash,
-    }
-  });
+  const { writeContract, data: hash, isPending } = useWriteContract();
+  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash });
 
   // Contract reads
   const { data: entryFee, refetch: refetchEntryFee } = useReadContract({
@@ -98,43 +85,13 @@ export function useOddysseyContract() {
     if (!address) throw new Error('Wallet not connected');
     if (!entryFee) throw new Error('Entry fee not loaded');
 
-    try {
-      // Estimate gas first
-      let gasEstimate: bigint;
-      if (publicClient) {
-        try {
-          gasEstimate = await publicClient.estimateContractGas({
-            address: CONTRACT_ADDRESSES.ODDYSSEY,
-            abi: ODDYSSEY_ABI.abi,
-            functionName: 'placeSlip',
-            args: [slip.predictions],
-            value: entryFee as bigint,
-            account: address,
-          });
-          
-          // Add 30% buffer to gas estimate
-          gasEstimate = (gasEstimate * BigInt(130)) / BigInt(100);
-          console.log('🔥 Gas estimated:', gasEstimate.toString());
-        } catch (gasError) {
-          console.warn('⚠️ Gas estimation failed, using default:', gasError);
-          gasEstimate = BigInt(2000000); // 2M gas fallback
-        }
-      } else {
-        gasEstimate = BigInt(2000000); // 2M gas fallback
-      }
-
-      writeContract({
-        address: CONTRACT_ADDRESSES.ODDYSSEY,
-        abi: ODDYSSEY_ABI.abi,
-        functionName: 'placeSlip',
-        args: [slip.predictions],
-        value: entryFee as bigint,
-        gas: gasEstimate,
-      });
-    } catch (error) {
-      console.error('❌ Error in placeSlip:', error);
-      throw error;
-    }
+    writeContract({
+      address: CONTRACT_ADDRESSES.ODDYSSEY,
+      abi: ODDYSSEY_ABI.abi,
+      functionName: 'placeSlip',
+      args: [slip.predictions],
+      value: entryFee as bigint,
+    });
   };
 
 
@@ -144,13 +101,6 @@ export function useOddysseyContract() {
     refetchCurrentCycle();
     refetchUserStats();
   };
-
-  // Check if transaction actually succeeded on blockchain
-  const isSuccess = isConfirmed && receipt?.status === 'success';
-  const isFailed = isTransactionError || (isConfirmed && receipt?.status === 'reverted');
-  
-  // Combine all possible errors
-  const error = writeError || transactionError;
 
   return {
     // Contract data
@@ -164,11 +114,8 @@ export function useOddysseyContract() {
     // Transaction state
     isPending,
     isConfirming,
-    isSuccess, // This now properly checks blockchain status
-    isFailed,
+    isConfirmed,
     hash,
-    error,
-    receipt,
     
     // Utils
     refetchAll,

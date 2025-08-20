@@ -636,8 +636,6 @@ export function useOddysseyContract() {
       throw new Error('Wallet client not available');
     }
 
-
-
     if (!isInitialized) {
       throw new Error('Contract service not initialized. Please wait for initialization to complete.');
     }
@@ -656,18 +654,40 @@ export function useOddysseyContract() {
       setIsPending(false);
       setIsConfirming(true);
 
-      // Wait for transaction receipt
-      await OddysseyContractService.waitForTransactionReceipt({ hash: result.hash });
+      // Wait for transaction receipt and check status
+      const receipt = await OddysseyContractService.waitForTransactionReceipt({ hash: result.hash });
       
       setIsConfirming(false);
-      setIsSuccess(true);
+      
+      // Check if transaction was successful
+      if (receipt.status === 'success') {
+        setIsSuccess(true);
+        console.log('✅ Transaction confirmed successfully:', result.hash);
+      } else {
+        // Transaction failed on blockchain
+        const errorMsg = `Transaction failed on blockchain. Status: ${receipt.status}. Hash: ${result.hash}`;
+        console.error('❌ Transaction failed:', errorMsg);
+        const error = new Error(errorMsg);
+        setError(error);
+        throw error;
+      }
       
       return result;
     } catch (err) {
       setIsPending(false);
       setIsConfirming(false);
-      setError(err as Error);
-      throw err;
+      
+      // Enhanced error handling with transaction receipt checking
+      if (err instanceof Error && err.message.includes('Transaction failed on blockchain')) {
+        // This is already a properly formatted blockchain failure error
+        setError(err);
+        throw err;
+      } else {
+        // This is a different type of error (network, validation, etc.)
+        const error = err as Error;
+        setError(error);
+        throw error;
+      }
     }
   }, [isConnected, address, walletClient, isInitialized]);
 
