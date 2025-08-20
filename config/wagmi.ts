@@ -1,6 +1,6 @@
 import { createAppKit } from '@reown/appkit/react'
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi'
-import { mainnet, sepolia, type AppKitNetwork } from '@reown/appkit/networks'
+import { type AppKitNetwork } from '@reown/appkit/networks'
 
 // Somnia Network configuration - CORRECT SETTINGS FROM HARDHAT
 export const somniaNetwork: AppKitNetwork = {
@@ -36,8 +36,8 @@ export const somniaNetwork: AppKitNetwork = {
 // Get project ID from environment
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '6a0514d82fb621e41aa6cad5473883a3'
 
-// Create the networks array
-const networks = [somniaNetwork, mainnet, sepolia] as [AppKitNetwork, ...AppKitNetwork[]]
+// Create the networks array (Somnia only)
+const networks = [somniaNetwork] as [AppKitNetwork, ...AppKitNetwork[]]
 
 // Create Wagmi Adapter
 export const wagmiAdapter = new WagmiAdapter({
@@ -46,43 +46,45 @@ export const wagmiAdapter = new WagmiAdapter({
   ssr: true
 })
 
-// Create AppKit instance
-export const appKit = createAppKit({
-  adapters: [wagmiAdapter],
-  networks,
-  projectId,
-  metadata: {
-    name: 'BitRedict - Connect Wallet',
-    description: 'Connect your wallet to access decentralized prediction markets on Somnia Network',
-    url: 'https://bitredict.vercel.app',
-    icons: ['https://bitredict.vercel.app/logo.png'],
-  },
-  features: {
-    analytics: false, // Disable analytics to remove Reown tracking
-    email: false,
-    socials: false,
-    emailShowWallets: false,
-  },
-  themeMode: 'dark',
-  themeVariables: {
-    '--w3m-font-family': 'var(--font-onest), system-ui, sans-serif',
-    '--w3m-accent': '#22C7FF',
-    '--w3m-color-mix': '#22C7FF',
-    '--w3m-color-mix-strength': 25,
-    '--w3m-border-radius-master': '16px',
-    '--w3m-z-index': 999999,
-  },
-  allWallets: 'HIDE',
-  featuredWalletIds: [
-    'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96', // MetaMask
-    '4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0', // Trust Wallet
-  ],
-  // Improved connection settings
-  enableWalletConnect: true,
-  enableInjected: true,
-  enableEIP6963: true,
-  enableCoinbase: false, // Disable Coinbase for better performance
-})
+// Create AppKit instance (client-only)
+export const appKit = typeof window !== 'undefined'
+  ? createAppKit({
+      adapters: [wagmiAdapter],
+      networks,
+      projectId,
+      metadata: {
+        name: 'BitRedict - Connect Wallet',
+        description: 'Connect your wallet to access decentralized prediction markets on Somnia Network',
+        url: 'https://bitredict.vercel.app',
+        icons: ['https://bitredict.vercel.app/logo.png'],
+      },
+      features: {
+        analytics: false, // Disable analytics to remove Reown tracking
+        email: false,
+        socials: false,
+        emailShowWallets: false,
+      },
+      themeMode: 'dark',
+      themeVariables: {
+        '--w3m-font-family': 'var(--font-onest), system-ui, sans-serif',
+        '--w3m-accent': '#22C7FF',
+        '--w3m-color-mix': '#22C7FF',
+        '--w3m-color-mix-strength': 25,
+        '--w3m-border-radius-master': '16px',
+        '--w3m-z-index': 999999,
+      },
+      allWallets: 'HIDE',
+      featuredWalletIds: [
+        'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96', // MetaMask
+        '4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0', // Trust Wallet
+      ],
+      // Improved connection settings
+      enableWalletConnect: true,
+      enableInjected: true,
+      enableEIP6963: true,
+      enableCoinbase: false, // Disable Coinbase for better performance
+    })
+  : undefined as any
 
 export const config = wagmiAdapter.wagmiConfig
 
