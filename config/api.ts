@@ -39,15 +39,13 @@ export async function apiRequest<T>(
           'Origin': typeof window !== 'undefined' ? window.location.origin : 'https://bitredict.vercel.app',
           ...options.headers,
         },
-        mode: 'cors',
-        credentials: 'omit', // Changed from 'include' to 'omit' to avoid CORS issues
         ...options,
       });
 
       if (!response.ok) {
         // Handle rate limiting (429) with exponential backoff
         if (response.status === 429 && attempt < retries) {
-          const delay = Math.pow(2, attempt) * 2000; // Increased delay: 4s, 8s
+          const delay = Math.pow(2, attempt) * 1000; // Exponential backoff: 2s, 4s, 8s
           console.warn(`⚠️ Rate limited (429). Retrying in ${delay}ms... (attempt ${attempt}/${retries})`);
           await new Promise(resolve => setTimeout(resolve, delay));
           continue;
@@ -55,16 +53,10 @@ export async function apiRequest<T>(
         
         // Handle server errors (5xx) with retry
         if (response.status >= 500 && attempt < retries) {
-          const delay = 2000 * attempt; // Increased delay for server errors
+          const delay = 1000 * attempt; // Linear backoff for server errors
           console.warn(`⚠️ Server error (${response.status}). Retrying in ${delay}ms... (attempt ${attempt}/${retries})`);
           await new Promise(resolve => setTimeout(resolve, delay));
           continue;
-        }
-        
-        // Handle CORS errors
-        if (response.status === 0 || response.status === 403) {
-          console.error(`🚫 CORS or access error (${response.status}). Check CORS configuration.`);
-          throw new Error(`CORS Error: Unable to access API from ${typeof window !== 'undefined' ? window.location.origin : 'unknown origin'}`);
         }
         
         const errorText = await response.text();
@@ -75,7 +67,7 @@ export async function apiRequest<T>(
     } catch (error) {
       // Network errors or other fetch failures
       if (attempt < retries && (error instanceof TypeError || (error instanceof Error && error.message.includes('fetch')))) {
-        const delay = 2000 * attempt; // Increased delay
+        const delay = 1000 * attempt;
         console.warn(`⚠️ Network error. Retrying in ${delay}ms... (attempt ${attempt}/${retries})`);
         await new Promise(resolve => setTimeout(resolve, delay));
         continue;

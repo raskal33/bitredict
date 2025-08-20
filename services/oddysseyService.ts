@@ -1,4 +1,4 @@
-import { managedApiRequest } from './connectionManager';
+import { apiRequest, API_CONFIG } from '@/config/api';
 
 export interface OddysseyCycle {
   cycle_id: number;
@@ -83,7 +83,7 @@ export interface MatchesData {
 }
 
 class OddysseyService {
-  private baseEndpoint = '/api/oddyssey';
+  private baseEndpoint = API_CONFIG.endpoints.oddyssey;
 
   /**
    * Get current Oddyssey matches (yesterday, today, tomorrow)
@@ -97,7 +97,7 @@ class OddysseyService {
       
       console.log('🎯 OddysseyService: Fetching contract matches from:', endpoint);
       
-      const response = await managedApiRequest<{
+      const response = await apiRequest<{
         success: boolean;
         data: any[];
         cycleId: string;
@@ -166,7 +166,7 @@ class OddysseyService {
     status: 'active' | 'no_active_cycle';
   }> {
     try {
-      const response = await managedApiRequest<{
+      const response = await apiRequest<{
         success: boolean;
         data: OddysseyCycle | null;
         message?: string;
@@ -272,7 +272,7 @@ class OddysseyService {
   async getLiveMatches(matchIds: number[]): Promise<{
     matches: Record<number, OddysseyMatch>;
   }> {
-    return managedApiRequest<{
+    return apiRequest<{
       matches: Record<number, OddysseyMatch>;
     }>(`${this.baseEndpoint}/live-matches`, {
       method: 'POST',
@@ -288,7 +288,7 @@ class OddysseyService {
     count: number;
     targetDate: string;
   }> {
-    return managedApiRequest<{
+    return apiRequest<{
       matches: OddysseyMatch[];
       count: number;
       targetDate: string;
@@ -306,7 +306,7 @@ class OddysseyService {
       ? `${this.baseEndpoint}/leaderboard/${cycleId}`
       : `${this.baseEndpoint}/leaderboard`;
     
-    return managedApiRequest<{
+    return apiRequest<{
       leaderboard: LeaderboardEntry[];
       cycleId: string | number;
     }>(endpoint);
@@ -322,7 +322,7 @@ class OddysseyService {
       ? `${this.baseEndpoint}/user-slips/${cycleId}/${address}`
       : `${this.baseEndpoint}/slips/${address}`;
     
-    return managedApiRequest<{
+    return apiRequest<{
       slips: OddysseySlip[];
     }>(endpoint);
   }
@@ -337,7 +337,7 @@ class OddysseyService {
       ? `${this.baseEndpoint}/stats/${cycleId}`
       : `${this.baseEndpoint}/stats`;
     
-    return managedApiRequest<{
+    return apiRequest<{
       stats: OddysseyStats;
     }>(endpoint);
   }
@@ -353,7 +353,7 @@ class OddysseyService {
       
       console.log('🎯 OddysseyService: Fetching stats from:', endpoint);
       
-      const response = await managedApiRequest<{
+      const response = await apiRequest<{
         success: boolean;
         data: any;
       }>(endpoint);
@@ -378,7 +378,7 @@ class OddysseyService {
     stats: any;
     suitable: boolean;
   }> {
-    return managedApiRequest<{
+    return apiRequest<{
       date: string;
       stats: any;
       suitable: boolean;
@@ -396,7 +396,7 @@ class OddysseyService {
       predictionsCount: number;
     };
   }> {
-    return managedApiRequest<{
+    return apiRequest<{
       success: boolean;
       data: {
         slipId: number;
@@ -424,7 +424,7 @@ class OddysseyService {
       notifications: boolean;
     };
   }> {
-    return managedApiRequest<{
+    return apiRequest<{
       data: {
         user_address: string;
         auto_evaluate: boolean;
@@ -448,7 +448,7 @@ class OddysseyService {
     success: boolean;
     message: string;
   }> {
-    return managedApiRequest<{
+    return apiRequest<{
       success: boolean;
       message: string;
     }>(`${this.baseEndpoint}/preferences/${address}`, {
@@ -464,7 +464,7 @@ class OddysseyService {
     success: boolean;
     result: any;
   }> {
-    return managedApiRequest<{
+    return apiRequest<{
       success: boolean;
       result: any;
     }>(`${this.baseEndpoint}/admin/trigger-cycle`, {
@@ -479,7 +479,7 @@ class OddysseyService {
     success: boolean;
     result: any;
   }> {
-    return managedApiRequest<{
+    return apiRequest<{
       success: boolean;
       result: any;
     }>(`${this.baseEndpoint}/admin/resolve-cycle`, {
@@ -494,7 +494,7 @@ class OddysseyService {
     success: boolean;
     data: any;
   }> {
-    return managedApiRequest<{
+    return apiRequest<{
       success: boolean;
       data: any;
     }>(`${this.baseEndpoint}/select-matches`, {
