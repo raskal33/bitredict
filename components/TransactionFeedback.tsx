@@ -89,8 +89,13 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
         return () => clearTimeout(timer);
       }
     } else if (!status) {
-      setIsVisible(false);
-      setIsClosing(false); // Reset closing state when status is cleared
+      // Add a small delay before hiding to prevent rapid show/hide cycles
+      const hideTimer = setTimeout(() => {
+        setIsVisible(false);
+        setIsClosing(false); // Reset closing state when status is cleared
+      }, 100);
+      
+      return () => clearTimeout(hideTimer);
     }
   }, [status, autoClose, autoCloseDelay, handleClose, isClosing]);
 

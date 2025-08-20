@@ -2,7 +2,7 @@
 
 import Button from "@/components/button";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAccount, useChainId } from "wagmi";
 import { toast } from "react-hot-toast";
 
@@ -131,6 +131,8 @@ export default function OddysseyPage() {
   const [hasStartedMatches, setHasStartedMatches] = useState(false);
   const [backendSubmissionInProgress, setBackendSubmissionInProgress] = useState(false);
   const [apiCallInProgress, setApiCallInProgress] = useState(false);
+  const [lastSubmissionTime, setLastSubmissionTime] = useState(0);
+  const picksRef = useRef<Pick[]>([]);
 
   // Debug chainId changes and clear network errors when correct
   useEffect(() => {
@@ -381,13 +383,29 @@ export default function OddysseyPage() {
   // Enhanced transaction handling with backend synchronization
   useEffect(() => {
     if (isSuccess && hash && !backendSubmissionInProgress) {
+      // Prevent rapid submissions - debounce mechanism
+      const now = Date.now();
+      if (now - lastSubmissionTime < 5000) { // 5 second cooldown
+        console.log('🔄 Backend submission skipped due to rate limiting');
+        return;
+      }
+      
       // Transaction confirmed - submit to backend for tracking
       const submitToBackend = async () => {
         try {
           setBackendSubmissionInProgress(true);
+          setLastSubmissionTime(now);
           
           // Store predictions before they get reset
-          const currentPicks = [...picks];
+          const currentPicks = [...picksRef.current];
+          
+          // Validate that we have exactly 10 predictions before submitting
+          if (currentPicks.length !== 10) {
+            console.warn('Invalid number of predictions for backend submission:', currentPicks.length);
+            // Reset picks and return without submitting to backend
+            setPicks([]);
+            return;
+          }
           
           const predictions = currentPicks.map(pick => ({
             matchId: pick.id, // This is now fixture_id
@@ -437,7 +455,7 @@ export default function OddysseyPage() {
       
       submitToBackend();
     }
-  }, [isSuccess, hash, picks, address, fetchStats, fetchUserSlips, backendSubmissionInProgress]);
+  }, [isSuccess, hash, address, fetchStats, fetchUserSlips, backendSubmissionInProgress, lastSubmissionTime]);
 
   // Check if any matches have started
   const checkStartedMatches = useCallback((matches: Match[]) => {
@@ -520,6 +538,11 @@ export default function OddysseyPage() {
 
     return () => clearInterval(timer);
   }, [matches, calculateTimeLeft]); // Include calculateTimeLeft in dependencies
+
+  // Update picksRef whenever picks changes
+  useEffect(() => {
+    picksRef.current = picks;
+  }, [picks]);
 
   const handlePickSelection = (matchId: number, pick: "home" | "draw" | "away" | "over" | "under") => {
     const match = matches.find(m => m.fixture_id === matchId);
