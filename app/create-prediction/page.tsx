@@ -773,23 +773,26 @@ export default function CreateMarketPage() {
       const fixtureId = data.selectedFixture?.id?.toString() || '0';
       const marketId = keccak256(solidityPacked(['uint256'], [fixtureId]));
       
+      // Ensure guided oracle value is properly set (0 for GUIDED, 1 for OPEN)
+      const oracleType = 0; // GUIDED oracle for guided markets
+      
       const baseConfig = {
         address: CONTRACT_ADDRESS,
         abi: BitredictPoolABI.abi,
         functionName: 'createPool' as const,
         args: [
           encodeBytes32String(predictedOutcome), // _predictedOutcome: bytes32
-          contractOdds, // _odds: uint256 (in contract format: 200 = 2.0x) - Remove BigInt wrapper
+          contractOdds, // _odds: uint256 (in contract format: 200 = 2.0x)
           parseEther(data.creatorStake.toString()), // _creatorStake: uint256
-          eventStartTime, // _eventStartTime: uint256 - Remove BigInt wrapper
-          eventEndTime, // _eventEndTime: uint256 - Remove BigInt wrapper
+          eventStartTime, // _eventStartTime: uint256
+          eventEndTime, // _eventEndTime: uint256
           league, // _league: string
           data.category, // _category: string
           region, // _region: string
           false, // _isPrivate: bool
           parseEther('500'), // _maxBetPerUser: uint256
           useBitr, // _useBitr: bool
-          0, // _oracleType: OracleType (0 = GUIDED) - Remove BigInt wrapper
+          oracleType, // _oracleType: OracleType (0 = GUIDED, 1 = OPEN)
           marketId // _marketId: bytes32 (keccak256(abi.encodePacked(fixtureId)))
         ] as const
       };
@@ -927,17 +930,17 @@ export default function CreateMarketPage() {
         useBitr
       });
       
-             // Use wagmi hooks properly - let the transaction feedback system handle everything
-       const contractConfig = useBitr 
-         ? { 
-             ...baseConfig,
-             gasLimit: BigInt(1500000) // Use gasLimit instead of gas
-           }
-         : { 
-             ...baseConfig, 
-             value: parseEther((data.creatorStake + 1).toString()), // +1 for creation fee (only for STT)
-             gasLimit: BigInt(1500000) // Use gasLimit instead of gas
-           };
+             // Use wagmi hooks with proper gas estimation
+             const contractConfig = useBitr 
+               ? { 
+                   ...baseConfig,
+                   gasLimit: BigInt(2000000) // Higher gas limit for BITR pools due to token transfers
+                 }
+               : { 
+                   ...baseConfig, 
+                   value: parseEther((data.creatorStake + 1).toString()), // +1 for creation fee (only for STT)
+                   gasLimit: BigInt(1500000) // Standard gas limit for STT pools
+                 };
        
        console.log('Contract config:', contractConfig);
        

@@ -44,6 +44,8 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
     setTimeout(() => {
       onClose();
       setIsClosing(false);
+      setProgress(0);
+      setTimeElapsed(0);
     }, 150);
   }, [onClose, isClosing]);
 
@@ -89,13 +91,9 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
         return () => clearTimeout(timer);
       }
     } else if (!status) {
-      // Add a small delay before hiding to prevent rapid show/hide cycles
-      const hideTimer = setTimeout(() => {
-        setIsVisible(false);
-        setIsClosing(false); // Reset closing state when status is cleared
-      }, 100);
-      
-      return () => clearTimeout(hideTimer);
+      // Immediately hide when status is cleared to prevent persistence
+      setIsVisible(false);
+      setIsClosing(false); // Reset closing state when status is cleared
     }
   }, [status, autoClose, autoCloseDelay, handleClose, isClosing]);
 
@@ -192,77 +190,84 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className={`px-4 py-3 flex items-center gap-3 ${getStatusColor()}`}>
-              <div className={`p-2 rounded-full ${
-                status.type === 'success' ? 'bg-green-500/20 text-green-400' :
-                status.type === 'error' ? 'bg-red-500/20 text-red-400' :
-                status.type === 'warning' ? 'bg-yellow-500/20 text-yellow-400' :
-                status.type === 'pending' ? 'bg-blue-500/20 text-blue-400' :
-                status.type === 'confirming' ? 'bg-purple-500/20 text-purple-400' :
-                'bg-blue-500/20 text-blue-400'
+            <div className={`px-6 py-4 flex items-center gap-4 ${getStatusColor()} border-b border-border-card/30`}>
+              <div className={`p-3 rounded-full shadow-lg ${
+                status.type === 'success' ? 'bg-green-500/20 text-green-400 shadow-green-500/20' :
+                status.type === 'error' ? 'bg-red-500/20 text-red-400 shadow-red-500/20' :
+                status.type === 'warning' ? 'bg-yellow-500/20 text-yellow-400 shadow-yellow-500/20' :
+                status.type === 'pending' ? 'bg-blue-500/20 text-blue-400 shadow-blue-500/20' :
+                status.type === 'confirming' ? 'bg-purple-500/20 text-purple-400 shadow-purple-500/20' :
+                'bg-blue-500/20 text-blue-400 shadow-blue-500/20'
               }`}>
                 {getIcon()}
               </div>
               <div className="flex-1">
-                <h3 className="text-sm sm:text-base font-semibold text-text-primary">
+                <h3 className="text-base sm:text-lg font-bold text-white mb-1">
                   {status.title}
                 </h3>
                 {(status.type === 'pending' || status.type === 'confirming') && (
-                  <p className="text-xs text-text-secondary mt-1">
-                    {formatTime(timeElapsed)} elapsed
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-current rounded-full animate-pulse"></div>
+                    <p className="text-xs text-text-secondary">
+                      {formatTime(timeElapsed)} elapsed
+                    </p>
+                  </div>
                 )}
               </div>
               <button
                 onClick={handleClose}
-                className="p-1 rounded-full hover:bg-bg-overlay transition-colors"
+                className="p-2 rounded-full hover:bg-bg-overlay/50 transition-all duration-200 hover:scale-110"
               >
-                <FaTimesCircle className="h-4 w-4 text-text-secondary hover:text-text-primary" />
+                <FaTimesCircle className="h-5 w-5 text-text-secondary hover:text-text-primary" />
               </button>
             </div>
 
             {/* Progress Bar for Pending/Confirming Transactions */}
             {(status.type === 'pending' || status.type === 'confirming') && showProgress && (
-              <div className="px-4 py-2 bg-bg-overlay/50">
-                <div className="flex items-center justify-between text-xs text-text-secondary mb-1">
-                  <span>Progress</span>
-                  <span>{Math.round(progress)}%</span>
+              <div className="px-6 py-4 bg-gradient-to-r from-bg-overlay/30 to-bg-overlay/10">
+                <div className="flex items-center justify-between text-sm text-text-secondary mb-3">
+                  <span className="font-medium">Transaction Progress</span>
+                  <span className="font-bold text-white">{Math.round(progress)}%</span>
                 </div>
-                <div className="w-full bg-bg-card/30 rounded-full h-2">
+                <div className="w-full bg-bg-card/30 rounded-full h-3 shadow-inner">
                   <motion.div 
-                    className={`h-2 rounded-full ${getProgressColor()}`}
+                    className={`h-3 rounded-full ${getProgressColor()} shadow-lg`}
                     initial={{ width: 0 }}
                     animate={{ width: `${progress}%` }}
                     transition={{ duration: 0.5, ease: "easeOut" }}
                   />
                 </div>
+                <div className="flex items-center justify-between text-xs text-text-muted mt-2">
+                  <span>Processing blockchain transaction...</span>
+                  <span>{status.type === 'pending' ? 'Waiting for confirmation' : 'Confirming on network'}</span>
+                </div>
               </div>
             )}
 
             {/* Content */}
-            <div className="px-4 py-4 space-y-3">
-              <p className="text-xs sm:text-sm text-text-secondary leading-relaxed">
+            <div className="px-6 py-5 space-y-4">
+              <p className="text-sm text-text-secondary leading-relaxed">
                 {status.message}
               </p>
 
               {/* Transaction Hash */}
               {status.hash && (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-text-secondary">Transaction Hash:</span>
+                    <span className="text-sm font-semibold text-text-primary">Transaction Hash</span>
                     <button
                       onClick={() => {
                         navigator.clipboard.writeText(status.hash!);
                         toast.success('Hash copied to clipboard!');
                       }}
-                      className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
+                      className="flex items-center gap-2 px-3 py-1 text-xs text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 rounded-lg transition-all duration-200"
                     >
                       <FaCopy className="h-3 w-3" />
-                      Copy
+                      Copy Hash
                     </button>
                   </div>
-                  <div className="bg-bg-overlay rounded-lg p-2">
-                    <code className="text-xs text-text-secondary break-all font-mono">
+                  <div className="bg-bg-overlay/50 rounded-lg p-3 border border-border-card/30">
+                    <code className="text-xs text-text-secondary break-all font-mono leading-relaxed">
                       {status.hash}
                     </code>
                   </div>
@@ -273,21 +278,21 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
               {status.action && status.onAction && (
                 <button
                   onClick={status.onAction}
-                  className="w-full px-3 py-2 text-xs sm:text-sm font-medium text-white bg-primary hover:bg-primary/90 rounded-lg transition-colors flex items-center justify-center gap-2"
+                  className="w-full px-4 py-3 text-sm font-semibold text-white bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
                 >
-                  <FaExternalLinkAlt className="h-3 w-3" />
+                  <FaExternalLinkAlt className="h-4 w-4" />
                   {status.action}
                 </button>
               )}
             </div>
 
             {/* Footer */}
-            <div className="px-4 py-3 border-t border-border-card">
+            <div className="px-6 py-4 border-t border-border-card/30 bg-bg-overlay/20">
               <button
                 onClick={handleClose}
-                className="w-full px-3 py-2 text-xs sm:text-sm font-medium text-text-primary bg-bg-overlay hover:bg-bg-overlay/80 rounded-lg transition-colors"
+                className="w-full px-4 py-3 text-sm font-medium text-text-primary bg-bg-overlay/50 hover:bg-bg-overlay/70 rounded-lg transition-all duration-200 border border-border-card/30 hover:border-border-card/50"
               >
-                Close
+                {status.type === 'pending' || status.type === 'confirming' ? 'Minimize' : 'Close'}
               </button>
             </div>
           </motion.div>

@@ -424,7 +424,8 @@ export default function OddysseyPage() {
           console.log('🎯 Submitting to backend:', { address, predictionsCount: predictions.length, predictions });
           console.log('🎯 Current picks before submission:', currentPicks);
           
-          const backendResponse = await oddysseyService.placeSlip(address, predictions);
+          // Include cycleId in backend submission
+          const backendResponse = await oddysseyService.placeSlip(address, predictions, currentCycleId);
           
           if (backendResponse.success) {
             // Add to local slips for immediate UI update
@@ -435,8 +436,8 @@ export default function OddysseyPage() {
             
             // Delay the refresh calls to avoid rate limiting
             setTimeout(() => {
-              fetchStats();
-              fetchUserSlips();
+              fetchStats?.();
+              fetchUserSlips?.();
             }, 2000); // 2 second delay
           } else {
             console.warn('Backend submission failed, but blockchain transaction succeeded');
@@ -455,7 +456,7 @@ export default function OddysseyPage() {
       
       submitToBackend();
     }
-  }, [isSuccess, hash, address, fetchStats, fetchUserSlips, backendSubmissionInProgress, lastSubmissionTime]);
+  }, [isSuccess, hash, address, currentCycleId, backendSubmissionInProgress, lastSubmissionTime, fetchStats, fetchUserSlips]);
 
   // Check if any matches have started
   const checkStartedMatches = useCallback((matches: Match[]) => {
