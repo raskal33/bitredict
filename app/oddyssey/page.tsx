@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useAccount, useChainId } from "wagmi";
 import { toast } from "react-hot-toast";
 
-import { oddysseyService } from "@/services/oddysseyService";
+import { oddysseyService, OddysseySlip } from "@/services/oddysseyService";
 import { useOddysseyContract } from "@/services/oddysseyContractService";
 import { useTransactionFeedback, TransactionFeedback } from "@/components/TransactionFeedback";
 import { 

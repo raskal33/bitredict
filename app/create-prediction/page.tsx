@@ -389,12 +389,15 @@ export default function CreateMarketPage() {
       }
 
       // Notify backend about the new pool creation for indexing
-      try {
-        await notifyPoolCreation(hash);
-      } catch (error) {
-        console.warn('Failed to notify backend about pool creation:', error);
-        // Don't fail the entire flow if backend notification fails
-      }
+      const notifyBackend = async () => {
+        try {
+          await notifyPoolCreation(hash);
+        } catch (error) {
+          console.warn('Failed to notify backend about pool creation:', error);
+          // Don't fail the entire flow if backend notification fails
+        }
+      };
+      notifyBackend();
       
       // Reset approval state for future transactions
       setApprovalConfirmed(false);
