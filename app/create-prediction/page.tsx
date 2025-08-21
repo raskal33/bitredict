@@ -157,7 +157,7 @@ export default function CreateMarketPage() {
   // Notify backend about pool creation for immediate indexing
   const notifyPoolCreation = useCallback(async (transactionHash: string) => {
     try {
-      const response = await fetch('/api/pools/notify-creation', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://bitredict-backend.fly.dev'}/api/pools/notify-creation`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -174,6 +174,8 @@ export default function CreateMarketPage() {
 
       if (response.ok) {
         console.log('Pool creation notification sent successfully');
+      } else {
+        console.warn('Pool creation notification failed:', response.status, response.statusText);
       }
     } catch (error) {
       console.error('Failed to notify pool creation:', error);
@@ -387,19 +389,30 @@ export default function CreateMarketPage() {
       }
 
       // Notify backend about the new pool creation for indexing
-      notifyPoolCreation(hash);
+      try {
+        await notifyPoolCreation(hash);
+      } catch (error) {
+        console.warn('Failed to notify backend about pool creation:', error);
+        // Don't fail the entire flow if backend notification fails
+      }
       
       // Reset approval state for future transactions
       setApprovalConfirmed(false);
       
       // Reset form data for next market creation
-      setData({
-        category: '',
-        odds: 200,
-        creatorStake: 20,
-        description: ''
-      });
-      setStep(1);
+      try {
+        setData({
+          category: '',
+          odds: 200,
+          creatorStake: 20,
+          description: ''
+        });
+        setStep(1);
+      } catch (error) {
+        console.error('Error resetting form data:', error);
+        // Fallback: just reset to step 1 without changing data
+        setStep(1);
+      }
     }
   }, [isSuccess, hash, address, addReputationAction, notifyPoolCreation, showSuccess]);
 

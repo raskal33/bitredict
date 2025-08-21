@@ -321,7 +321,7 @@ class OddysseyService {
   }> {
     const endpoint = cycleId
       ? `${this.baseEndpoint}/user-slips/${cycleId}/${address}`
-      : `${this.baseEndpoint}/slips/${address}`;
+      : `${this.baseEndpoint}/user-slips/${address}`;
     
     return apiRequest<{
       slips: OddysseySlip[];

@@ -38,6 +38,14 @@ interface Pick {
   odd: number;
   team1: string;
   team2: string;
+  // Slip metadata
+  slipId?: number;
+  cycleId?: number;
+  finalScore?: number;
+  correctCount?: number;
+  isEvaluated?: boolean;
+  placedAt?: string;
+  status?: string;
 }
 
 interface Match {
@@ -337,24 +345,44 @@ export default function OddysseyPage() {
       
       const result = await oddysseyService.getUserSlips(address);
       
-      if (result.slips) {
+      if (result.slips && result.slips.length > 0) {
         console.log('✅ User slips received:', result.slips);
+        
         // Convert backend slip format to frontend format
-        const convertedSlips = result.slips.map((slip: { predictions: { match_id: number; prediction: string; odds: number }[] }) => {
-          return slip.predictions?.map((pred: { match_id: number; prediction: string; odds: number }) => ({
-            id: pred.match_id || 0,
-            time: "00:00", // Would need actual match time
-            match: `Match ${pred.match_id || 0}`, // Would need actual team names
-            pick: (pred.prediction === "1" ? "home" : 
-                  pred.prediction === "X" ? "draw" : 
-                  pred.prediction === "2" ? "away" : 
-                  pred.prediction === "Over" ? "over" : "under") as "home" | "draw" | "away" | "over" | "under",
-            odd: pred.odds || 1,
-            team1: "Team A", // Would need actual team names
-            team2: "Team B"
-          })) || [];
+        const convertedSlips = result.slips.map((slip: OddysseySlip) => {
+          // Handle different prediction formats from the API
+          const predictions = Array.isArray(slip.predictions) ? slip.predictions : [];
+          
+          return predictions.map((pred: Record<string, unknown>) => {
+            // Handle different prediction object structures
+            const matchId = Number(pred.match_id || pred.matchId || 0);
+            const prediction = String(pred.prediction || pred.selection || "1");
+            const odds = Number(pred.odds || pred.selectedOdd || 1);
+            
+            return {
+              id: matchId,
+              time: "00:00", // Would need actual match time
+              match: `Match ${matchId}`, // Would need actual team names
+              pick: (prediction === "1" ? "home" : 
+                    prediction === "X" ? "draw" : 
+                    prediction === "2" ? "away" : 
+                    prediction === "Over" ? "over" : "under") as "home" | "draw" | "away" | "over" | "under",
+              odd: odds,
+              team1: "Team A", // Would need actual team names
+              team2: "Team B",
+              // Add slip metadata
+              slipId: slip.slip_id,
+              cycleId: slip.cycle_id,
+              finalScore: slip.final_score,
+              correctCount: slip.correct_count,
+              isEvaluated: slip.is_evaluated,
+              placedAt: slip.placed_at,
+              status: slip.is_evaluated ? "Evaluated" : "Pending"
+            };
+          });
         });
         
+        console.log('🔄 Converted slips:', convertedSlips);
         setSlips(convertedSlips);
       } else {
         console.warn('⚠️ No user slips received');
@@ -1827,6 +1855,14 @@ export default function OddysseyPage() {
                       >
                         {slips.map((slip, slipIndex) => {
                           const slipTotalOdd = slip.reduce((acc, pick) => acc * (pick.odd || 1), 1).toFixed(2);
+                          const firstPick = slip[0]; // Get metadata from first pick
+                          const slipId = firstPick?.slipId || `Slip ${slipIndex + 1}`;
+                          const cycleId = firstPick?.cycleId || 'Unknown';
+                          const finalScore = firstPick?.finalScore || 0;
+                          const correctCount = firstPick?.correctCount || 0;
+                          const isEvaluated = firstPick?.isEvaluated || false;
+                          const placedAt = firstPick?.placedAt ? new Date(firstPick.placedAt).toLocaleString() : 'Unknown';
+                          const status = firstPick?.status || 'Pending';
                           
                           return (
                             <motion.div
@@ -1839,10 +1875,11 @@ export default function OddysseyPage() {
                               <div className="flex justify-between items-center mb-4">
                                 <h3 className="text-lg font-bold text-primary flex items-center gap-2">
                                   <CheckCircleIcon className="h-5 w-5" />
-                                  Slip #{slipIndex + 1}
+                                  {typeof slipId === 'number' ? `Slip #${slipId}` : slipId}
                                 </h3>
                                 <div className="flex items-center gap-4 text-sm">
-                                  <span className="text-text-muted">Status: <span className="text-green-400">Active</span></span>
+                                  <span className="text-text-muted">Cycle: <span className="text-white font-bold">{cycleId}</span></span>
+                                  <span className="text-text-muted">Status: <span className={`font-bold ${isEvaluated ? 'text-green-400' : 'text-yellow-400'}`}>{status}</span></span>
                                   <span className="text-text-muted">Total Odds: <span className="text-primary font-bold">{slipTotalOdd}x</span></span>
                                   <span className="text-text-muted">Entry Fee: <span className="text-white font-bold">
                                     {contractEntryFee || DEFAULT_ENTRY_FEE} STT
@@ -1875,8 +1912,16 @@ export default function OddysseyPage() {
                               </div>
                               
                               <div className="mt-4 flex justify-between items-center text-sm">
-                                <span className="text-text-muted">Potential Payout: <span className="text-secondary font-bold">{calculatePotentialPayout(Number(slipTotalOdd))} STT</span></span>
-                                <span className="text-text-muted">Submitted: <span className="text-white">Just now</span></span>
+                                <div className="flex items-center gap-4">
+                                  <span className="text-text-muted">Potential Payout: <span className="text-secondary font-bold">{calculatePotentialPayout(Number(slipTotalOdd))} STT</span></span>
+                                  {isEvaluated && (
+                                    <>
+                                      <span className="text-text-muted">Final Score: <span className="text-white font-bold">{finalScore}</span></span>
+                                      <span className="text-text-muted">Correct: <span className="text-green-400 font-bold">{correctCount}/10</span></span>
+                                    </>
+                                  )}
+                                </div>
+                                <span className="text-text-muted">Submitted: <span className="text-white">{placedAt}</span></span>
                               </div>
                             </motion.div>
                           );
