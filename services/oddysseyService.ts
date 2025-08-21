@@ -323,9 +323,16 @@ class OddysseyService {
       ? `${this.baseEndpoint}/user-slips/${cycleId}/${address}`
       : `${this.baseEndpoint}/user-slips/${address}`;
     
-    return apiRequest<{
-      slips: OddysseySlip[];
+    const response = await apiRequest<{
+      success: boolean;
+      data: OddysseySlip[];
+      meta: any;
     }>(endpoint);
+    
+    // Transform the response to match the expected interface
+    return {
+      slips: response.data || []
+    };
   }
 
   /**
