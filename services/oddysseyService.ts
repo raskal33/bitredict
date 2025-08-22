@@ -92,24 +92,39 @@ class OddysseyService {
     data: MatchesData;
   }> {
     try {
-      // Use matches endpoint to get data directly from contract with correct data types
+      // Use matches endpoint to get synced data from database
       const endpoint = `${this.baseEndpoint}/matches`;
       
-      console.log('🎯 OddysseyService: Fetching contract matches from:', endpoint);
+      console.log('🎯 OddysseyService: Fetching matches from database via:', endpoint);
       
       const response = await apiRequest<{
         success: boolean;
         data: {
-          today: { date: string; matches: any[]; count: number };
-          yesterday: { date: string; matches: any[]; count: number };
+          today: {
+            date: string;
+            matches: OddysseyMatch[];
+            count: number;
+          };
+          yesterday: {
+            date: string;
+            matches: OddysseyMatch[];
+            count: number;
+          };
         };
-        meta: any;
+        meta: {
+          total_matches: number;
+          expected_matches: number;
+          cycle_id: string;
+          source: string;
+          operation: string;
+        };
+        message: string;
       }>(endpoint);
       
-      console.log('✅ OddysseyService: Contract matches result:', response);
+      console.log('✅ OddysseyService: Database matches result:', response);
       
-      if (!response.data || !response.data.today || !response.data.today.matches || response.data.today.matches.length === 0) {
-        console.warn('⚠️ No contract matches found');
+      if (!response.success || !response.data) {
+        console.warn('⚠️ No database matches found');
         return {
           data: {
             today: { date: '', matches: [] },
@@ -119,42 +134,19 @@ class OddysseyService {
         };
       }
 
-      // Transform contract matches to the expected format
-      const transformedMatches: OddysseyMatch[] = response.data.today.matches.map((match, index) => ({
-        id: match.id,
-        fixture_id: match.fixture_id || match.id,
-        home_team: match.home_team,
-        away_team: match.away_team,
-        match_date: match.match_date,
-        league_name: match.league_name,
-        home_odds: match.home_odds || match.odds?.home || 0,
-        draw_odds: match.draw_odds || match.odds?.draw || 0,
-        away_odds: match.away_odds || match.odds?.away || 0,
-        over_odds: match.over_odds || match.over_25_odds || match.odds?.over_25 || 0,
-        under_odds: match.under_odds || match.under_25_odds || match.odds?.under_25 || 0,
-        market_type: match.market_type || '1x2_ou25',
-        display_order: match.display_order || (index + 1)
-      }));
-
-      // Return in the expected format
+      // Return the data in the expected format
       return {
         data: {
-          today: {
-            date: response.data.today.date,
-            matches: transformedMatches
-          },
+          today: response.data.today,
           tomorrow: {
             date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
             matches: []
           },
-          yesterday: {
-            date: response.data.yesterday?.date || new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            matches: response.data.yesterday?.matches || []
-          }
+          yesterday: response.data.yesterday
         }
       };
     } catch (error) {
-      console.error('❌ OddysseyService: Error fetching contract matches:', error);
+      console.error('❌ OddysseyService: Error fetching database matches:', error);
       throw error;
     }
   }

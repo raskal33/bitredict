@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import React from "react";
+import CycleMonitoring from "./cycle-monitoring";
 import {
   ServerIcon,
   ExclamationTriangleIcon,
@@ -617,6 +618,7 @@ export default function AdminPage() {
               { id: 'overview', label: 'Overview', icon: ChartBarIcon },
               { id: 'admin-actions', label: 'Admin Actions', icon: CommandLineIcon },
               { id: 'oddyssey', label: 'Oddyssey Management', icon: TrophyIcon },
+              { id: 'cycle-monitoring', label: 'Cycle Monitoring', icon: EyeIcon },
               { id: 'failed-cycles', label: 'Failed Cycles', icon: XCircleIcon },
               { id: 'database', label: 'Database', icon: CogIcon },
               { id: 'health', label: 'Health Checks', icon: ServerIcon },
@@ -1182,6 +1184,12 @@ export default function AdminPage() {
               ) : (
                 <p className="text-gray-400 text-center py-8">No metrics available</p>
               )}
+            </div>
+          )}
+
+          {activeTab === 'cycle-monitoring' && (
+            <div className="space-y-6">
+              <CycleMonitoring />
             </div>
           )}
 

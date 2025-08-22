@@ -141,15 +141,11 @@ export function useOddyssey() {
     refetchInterval: 30000, // Refetch every 30 seconds
   });
 
-  // Fetch Oddyssey fixtures from backend API (exactly 10 matches)
-  const { data: backendOddysseyFixtures, refetch: refetchBackendOddysseyFixtures } = useQuery({
-    queryKey: ['oddyssey', 'backend', 'fixtures'],
-    queryFn: async () => {
-      const response = await fetch(`${API_CONFIG.baseURL}/api/fixtures/upcoming?oddyssey=true`);
-      const data = await response.json();
-      return data.success ? data.data.fixtures : [];
-    },
-    refetchInterval: 60000, // Refetch every minute
+  // Fetch Oddyssey matches from backend API using the working contract-matches endpoint
+  const { data: backendOddysseyMatches, refetch: refetchBackendOddysseyMatches } = useQuery({
+    queryKey: ['oddyssey', 'backend', 'matches'],
+    queryFn: () => oddysseyService.getMatches(),
+    refetchInterval: 30000, // Refetch every 30 seconds
   });
 
   const { data: leaderboardData, refetch: refetchBackendLeaderboard } = useQuery({
@@ -387,7 +383,7 @@ export function useOddyssey() {
     refetchDailyMatches(); // Refetch live matches
     // Backend data
     refetchBackendData();
-    refetchBackendOddysseyFixtures(); // Refetch backend Oddyssey fixtures
+    refetchBackendOddysseyMatches(); // Refetch backend Oddyssey matches
     refetchBackendLeaderboard();
     refetchBackendSlips();
     refetchBackendStats();
@@ -399,7 +395,7 @@ export function useOddyssey() {
     dailyCycleId: Number(dailyCycleId || 0),
     slipCount: Number(slipCount || 0),
     globalStats: globalStats as GlobalStats,
-    dailyMatches: backendOddysseyFixtures || dailyMatchesWithLive || dailyMatches || [],
+    dailyMatches: backendOddysseyMatches?.data?.today?.matches || dailyMatchesWithLive || dailyMatches || [],
     dailyLeaderboard: dailyLeaderboard as LeaderboardEntry[],
     cycleStats: cycleStats as CycleStats,
     prizePool: formatAmount(prizePool as bigint),
