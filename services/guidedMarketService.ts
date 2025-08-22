@@ -1,5 +1,7 @@
+import { API_CONFIG } from '@/config/api';
+
 // Backend API Base URL
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/api` : 'https://bitredict-backend.fly.dev/api';
+const API_BASE_URL = `${API_CONFIG.baseURL}/api`;
 
 // Updated interfaces to match backend response
 export interface FootballMatch {

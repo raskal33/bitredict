@@ -84,7 +84,7 @@ export interface FaucetClaimResponse {
 }
 
 export class FaucetService {
-  private static baseUrl = process.env.NEXT_PUBLIC_API_URL || 'https://bitredict-backend.fly.dev';
+  private static baseUrl = API_CONFIG.baseURL;
 
   // Retry configuration
   private static retryConfig = {

@@ -13,7 +13,7 @@ export const API_CONFIG = {
     staking: '/api/staking',
     users: '/api/users',
     reputation: '/api/reputation',
-    guidedOracle: '/api/guided-oracle',
+    guidedMarkets: '/api/guided-markets',
     optimisticOracle: '/api/optimistic-oracle'
   }
 } as const;
