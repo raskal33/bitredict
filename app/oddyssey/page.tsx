@@ -7,6 +7,7 @@ import { useAccount, useChainId } from "wagmi";
 import { toast } from "react-hot-toast";
 
 import { oddysseyService, OddysseySlip } from "@/services/oddysseyService";
+import OddysseyMatchResults from "@/components/OddysseyMatchResults";
 import { useOddysseyContract } from "@/services/oddysseyContractService";
 import { useTransactionFeedback, TransactionFeedback } from "@/components/TransactionFeedback";
 import { 
@@ -26,7 +27,8 @@ import {
   UserIcon,
   CalendarIcon,
   TableCellsIcon,
-  ArrowPathIcon
+  ArrowPathIcon,
+  DocumentTextIcon
 } from "@heroicons/react/24/outline";
 import { FaSpinner } from "react-icons/fa";
 
@@ -127,7 +129,7 @@ export default function OddysseyPage() {
   const { transactionStatus, showSuccess, showError, showInfo, showPending, showConfirming, clearStatus } = useTransactionFeedback();
   const [picks, setPicks] = useState<Pick[]>([]);
   const [slips, setSlips] = useState<Pick[][]>([]);
-  const [activeTab, setActiveTab] = useState<"today" | "slips" | "stats">("today");
+  const [activeTab, setActiveTab] = useState<"today" | "slips" | "stats" | "results">("today");
   const [selectedDate, setSelectedDate] = useState<"yesterday" | "today" | "tomorrow">("today");
   const [matches, setMatches] = useState<Match[]>([]);
   const [matchesData, setMatchesData] = useState<MatchesData | null>(null);
@@ -1201,6 +1203,18 @@ export default function OddysseyPage() {
               <span className="sm:hidden">Slips ({slips.length})</span>
             </button>
             <button
+              onClick={() => setActiveTab("results")}
+              className={`px-4 md:px-8 py-2 md:py-3 rounded-button font-semibold transition-all duration-300 flex items-center gap-1 md:gap-2 text-sm md:text-base ${
+                activeTab === "results"
+                  ? "bg-gradient-secondary text-black shadow-lg scale-105"
+                  : "text-text-secondary hover:text-text-primary hover:bg-bg-card/50"
+              }`}
+            >
+              <DocumentTextIcon className="h-4 w-4 md:h-5 md:w-5" />
+              <span className="hidden sm:inline">Match Results</span>
+              <span className="sm:hidden">Results</span>
+            </button>
+            <button
               onClick={() => setActiveTab("stats")}
               className={`px-4 md:px-8 py-2 md:py-3 rounded-button font-semibold transition-all duration-300 flex items-center gap-1 md:gap-2 text-sm md:text-base ${
                 activeTab === "stats"
@@ -1950,6 +1964,16 @@ export default function OddysseyPage() {
                     )}
                   </AnimatePresence>
                 </div>
+              </motion.div>
+            ) : activeTab === "results" ? (
+              <motion.div
+                key="results"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="lg:col-span-3"
+              >
+                <OddysseyMatchResults cycleId={8} />
               </motion.div>
             ) : (
               <motion.div

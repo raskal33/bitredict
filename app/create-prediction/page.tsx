@@ -4,8 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
-import { parseEther, parseUnits, formatUnits } from "viem";
-import { keccak256, solidityPacked, toUtf8Bytes } from "ethers";
+// Removed unused imports: parseEther, parseUnits, formatUnits, keccak256, solidityPacked, toUtf8Bytes
 
 import { toast } from "react-hot-toast";
 import { useTransactionFeedback, TransactionFeedback } from "@/components/TransactionFeedback";
@@ -25,13 +24,14 @@ import FixtureSelector from "@/components/FixtureSelector";
 import { useReputationStore } from "@/stores/useReputationStore";
 import ReputationBadge from "@/components/ReputationBadge";
 import { GuidedMarketService, Cryptocurrency, FootballMatch } from "@/services/guidedMarketService";
-import { CONTRACTS } from "@/contracts";
+// import { CONTRACTS } from "@/contracts"; // Commented out as not currently used
 import { useBITRToken } from "@/hooks/useBITRToken";
 
-// Import the full contract ABI
-import BitredictPoolABI from '@/contracts/abis/BitredictPool.json';
+// Import the full contract ABI (commented out as not currently used)
+// import BitredictPoolABI from '@/contracts/abis/BitredictPool.json';
 
-const CONTRACT_ADDRESS = CONTRACTS.BITREDICT_POOL.address;
+// Contract address (commented out as not currently used)
+// const CONTRACT_ADDRESS = CONTRACTS.BITREDICT_POOL.address;
 
 // SportMonks Fixture interface
 interface Fixture {
@@ -120,7 +120,7 @@ interface GuidedMarketData {
 export default function CreateMarketPage() {
   const { address, isConnected } = useAccount();
   const { getUserReputation, canCreateMarket, addReputationAction } = useReputationStore();
-  const { writeContract, data: hash, error: writeError, isPending } = useWriteContract();
+  const { data: hash, error: writeError, isPending } = useWriteContract(); // writeContract removed as not currently used
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
   
   // Transaction feedback system
@@ -697,20 +697,20 @@ export default function CreateMarketPage() {
     return 'unknown_outcome';
   };
 
-  // BITR Token approval function
-  const approveBitrTokens = async (amount: string) => {
-    if (!address) return false;
-    
-    try {
-      // Use the BITR token hook for approval
-      await token.approve(CONTRACTS.BITREDICT_POOL.address, amount);
-      return true;
-    } catch (error) {
-      console.error('BITR approval error:', error);
-      // Error will be handled by the useEffect hook monitoring token.error
-      return false;
-    }
-  };
+  // BITR Token approval function (commented out as not currently used)
+  // const approveBitrTokens = async (amount: string) => {
+  //   if (!address) return false;
+  //   
+  //   try {
+  //     // Use the BITR token hook for approval
+  //     await token.approve(CONTRACTS.BITREDICT_POOL.address, amount);
+  //     return true;
+  //   } catch (error) {
+  //     console.error('BITR approval error:', error);
+  //     // Error will be handled by the useEffect hook monitoring token.error
+  //     return false;
+  //   }
+  // };
 
   const handleCreateMarket = async () => {
     console.log('Create Market button clicked');
@@ -744,227 +744,102 @@ export default function CreateMarketPage() {
 
     try {
       const predictedOutcome = generatePredictedOutcome();
-      const { eventStartTime, eventEndTime } = calculateEventTimes();
       
-      let league = '';
-      let region = '';
-      
+      // Use backend API instead of direct contract calls
       if (data.category === 'football' && data.selectedFixture) {
-        league = data.selectedFixture.league.name;
-        region = data.selectedFixture.venue?.city || 'Global';
+        const marketData = {
+          fixtureId: data.selectedFixture.id.toString(),
+          homeTeam: data.selectedFixture.homeTeam.name,
+          awayTeam: data.selectedFixture.awayTeam.name,
+          league: data.selectedFixture.league.name,
+          matchDate: data.selectedFixture.matchDate,
+          outcome: data.outcome || '',
+          predictedOutcome: predictedOutcome,
+          odds: data.odds,
+          creatorStake: data.creatorStake,
+          useBitr: useBitr,
+          description: data.description,
+          isPrivate: data.isPrivate || false,
+          maxBetPerUser: data.maxBetPerUser || 500
+        };
+
+        console.log('Creating football market via backend API:', marketData);
+        
+        const result = await GuidedMarketService.createFootballMarket(marketData);
+        
+        if (!result.success) {
+          showError('Market Creation Failed', result.error || 'Failed to create football market');
+          setIsLoading(false);
+          return;
+        }
+
+        console.log('Football market created successfully:', result.data);
+        showSuccess('Market Created!', 'Your football prediction market has been created successfully!', result.data.transactionHash);
+        
+        // Add reputation for market creation
+        if (address) {
+          addReputationAction(address, 'CREATE_MARKET', 10);
+        }
+
       } else if (data.category === 'cryptocurrency' && data.selectedCrypto) {
-        league = data.selectedCrypto.name;
-        region = 'Global';
+        const marketData = {
+          cryptocurrency: {
+            symbol: data.selectedCrypto.symbol,
+            name: data.selectedCrypto.name
+          },
+          targetPrice: data.targetPrice || 0,
+          direction: data.direction || 'above',
+          timeframe: data.timeframe || '1d',
+          predictedOutcome: predictedOutcome,
+          odds: data.odds,
+          creatorStake: data.creatorStake,
+          useBitr: useBitr,
+          description: data.description,
+          isPrivate: data.isPrivate || false,
+          maxBetPerUser: data.maxBetPerUser || 500
+        };
+
+        console.log('Creating crypto market via backend API:', marketData);
+        
+        const result = await GuidedMarketService.createCryptoMarket(marketData);
+        
+        if (!result.success) {
+          showError('Market Creation Failed', result.error || 'Failed to create crypto market');
+          setIsLoading(false);
+          return;
+        }
+
+        console.log('Crypto market created successfully:', result.data);
+        showSuccess('Market Created!', 'Your cryptocurrency prediction market has been created successfully!', result.data.transactionHash);
+        
+        // Add reputation for market creation
+        if (address) {
+          addReputationAction(address, 'CREATE_MARKET', 10);
+        }
+
+      } else {
+        showError('Invalid Category', 'Please select a valid market category');
+        setIsLoading(false);
+        return;
       }
 
-      console.log('Contract config:', {
-        predictedOutcome,
-        odds: data.odds,
-        creatorStake: data.creatorStake,
-        eventStartTime,
-        eventEndTime,
-        league,
-        category: data.category,
-        region,
-        useBitr,
-        currentTime: Math.floor(Date.now() / 1000),
-        timeUntilEvent: eventStartTime - Math.floor(Date.now() / 1000),
-        selectedFixture: data.selectedFixture ? {
-          id: data.selectedFixture.id,
-          name: data.selectedFixture.name,
-          homeTeam: data.selectedFixture.homeTeam?.name,
-          awayTeam: data.selectedFixture.awayTeam?.name,
-          league: data.selectedFixture.league?.name,
-          matchDate: data.selectedFixture.matchDate
-        } : 'NO FIXTURE SELECTED'
-      });
-
-      // Convert odds to contract format (200 = 2.0x, 150 = 1.5x)
-      // The frontend already stores odds in the correct contract format, so no multiplication needed
-      const contractOdds = data.odds;
-      
-      // Create market ID using keccak256(abi.encodePacked(fixtureId)) as required
-      const fixtureId = data.selectedFixture?.id?.toString() || '0';
-      const marketId = keccak256(solidityPacked(['uint256'], [fixtureId]));
-      
-      // Ensure guided oracle value is properly set (0 for GUIDED, 1 for OPEN)
-      const oracleType = 0; // GUIDED oracle for guided markets
-      
-      const baseConfig = {
-        address: CONTRACT_ADDRESS,
-        abi: BitredictPoolABI.abi,
-        functionName: 'createPool' as const,
-        args: [
-          keccak256(toUtf8Bytes(predictedOutcome)), // _predictedOutcome: bytes32 (hash the string)
-          contractOdds, // _odds: uint256 (in contract format: 200 = 2.0x)
-          parseEther(data.creatorStake.toString()), // _creatorStake: uint256
-          eventStartTime, // _eventStartTime: uint256
-          eventEndTime, // _eventEndTime: uint256
-          league, // _league: string
-          data.category, // _category: string
-          region, // _region: string
-          false, // _isPrivate: bool
-          parseEther('500'), // _maxBetPerUser: uint256
-          useBitr, // _useBitr: bool
-          oracleType, // _oracleType: OracleType (0 = GUIDED, 1 = OPEN)
-          marketId // _marketId: bytes32 (keccak256(abi.encodePacked(fixtureId)))
-        ] as const
-      };
-
-      // For BITR pools, check and handle token approval
-      if (useBitr) {
-        const requiredAmount = (data.creatorStake + 50).toString(); // +50 for creation fee
-        const currentAllowance = token.getAllowance(CONTRACTS.BITREDICT_POOL.address);
-        const currentBalance = token.rawBalance;
-        const requiredAmountWei = parseUnits(requiredAmount, 18);
-        
-        console.log('BITR approval check:', {
-          requiredAmount,
-          currentBalance: currentBalance?.toString(),
-          currentAllowance: currentAllowance?.toString(),
-          requiredAmountWei: requiredAmountWei.toString(),
-          hasEnoughBalance: currentBalance && currentBalance >= requiredAmountWei,
-          hasEnoughAllowance: currentAllowance && currentAllowance >= requiredAmountWei,
-          approvalConfirmed
+      // Reset form data for next market creation
+      try {
+        setData({
+          category: '',
+          odds: 200,
+          creatorStake: 20,
+          description: ''
         });
-        
-        // Check balance first
-        if (!currentBalance || currentBalance < requiredAmountWei) {
-          showError('Insufficient Balance', `You need ${requiredAmount} BITR but have ${currentBalance ? formatUnits(currentBalance, 18) : '0'} BITR`);
-          setIsLoading(false);
-          return;
-        }
-        
-        // Check if approval is needed
-        const needsApproval = !currentAllowance || currentAllowance < requiredAmountWei;
-        
-        if (needsApproval && !approvalConfirmed) {
-          console.log('Requesting BITR approval...');
-          const approvalSuccess = await approveBitrTokens(requiredAmount);
-          if (!approvalSuccess) {
-            setIsLoading(false);
-            return;
-          }
-          // Wait for approval confirmation before proceeding
-          setIsLoading(false);
-          return;
-        }
-        
-        // If we reach here, either approval is not needed or it's already confirmed
-        if (!needsApproval || approvalConfirmed) {
-          console.log('BITR approval sufficient, proceeding with market creation...');
-          // Clear any existing transaction feedback before proceeding
-          clearStatus();
-        }
+        setStep(1);
+      } catch (error) {
+        console.error('Error resetting form data:', error);
+        setStep(1);
       }
 
-      // Final validation before contract call
-      if (data.category === 'football' && !data.selectedFixture) {
-        showError('Fixture Required', 'Please select a football match to continue.');
-        setIsLoading(false);
-        return;
-      }
-
-      if (data.category === 'football' && !data.outcome) {
-        showError('Outcome Required', 'Please select an outcome to predict.');
-        setIsLoading(false);
-        return;
-      }
-
-      // Contract validation checks
-      const minStake = 20; // 20 BITR minimum
-      const maxStake = 1000000; // 1M BITR maximum
-      const minOdds = 101; // 1.01x minimum (101 in contract format)
-      const maxOdds = 10000; // 100x maximum (10000 in contract format)
-      
-      if (data.creatorStake < minStake) {
-        showError('Invalid Stake', `Creator stake must be at least ${minStake} BITR`);
-        setIsLoading(false);
-        return;
-      }
-      
-      if (data.creatorStake > maxStake) {
-        showError('Invalid Stake', `Creator stake cannot exceed ${maxStake} BITR`);
-        setIsLoading(false);
-        return;
-      }
-      
-      if (data.odds < minOdds || data.odds > maxOdds) {
-        showError('Invalid Odds', `Odds must be between 1.01x and 100.0x`);
-        setIsLoading(false);
-        return;
-      }
-      
-      // Check event timing
-      const now = Math.floor(Date.now() / 1000);
-      const bettingGracePeriod = 60; // 60 seconds
-      const maxEventTime = 365 * 24 * 3600; // 365 days
-      
-      if (eventStartTime <= now + bettingGracePeriod) {
-        showError('Invalid Timing', 'Event must start at least 1 minute from now');
-        setIsLoading(false);
-        return;
-      }
-      
-      if (eventStartTime > now + maxEventTime) {
-        showError('Invalid Timing', 'Event cannot be more than 365 days in the future');
-        setIsLoading(false);
-        return;
-      }
-      
-      if (eventEndTime <= eventStartTime) {
-        showError('Invalid Timing', 'Event end time must be after start time');
-        setIsLoading(false);
-        return;
-      }
-
-      console.log('Writing contract with config:', baseConfig);
-      console.log('Contract call details:', {
-        address: baseConfig.address,
-        functionName: baseConfig.functionName,
-        args: baseConfig.args.map((arg, i) => ({
-          index: i,
-          value: arg.toString(),
-          type: typeof arg
-        }))
-      });
-      
-      // Log specific parameter details for debugging
-      console.log('Market creation parameters:', {
-        predictedOutcome,
-        originalOdds: data.odds,
-        contractOdds,
-        creatorStake: data.creatorStake,
-        eventStartTime,
-        eventEndTime,
-        league,
-        category: data.category,
-        region,
-        marketId,
-        useBitr
-      });
-      
-             // Use wagmi hooks with proper gas estimation
-             const contractConfig = useBitr 
-               ? { 
-                   ...baseConfig,
-                   gasLimit: BigInt(2000000) // Higher gas limit for BITR pools due to token transfers
-                 }
-               : { 
-                   ...baseConfig, 
-                   value: parseEther((data.creatorStake + 1).toString()), // +1 for creation fee (only for STT)
-                   gasLimit: BigInt(1500000) // Standard gas limit for STT pools
-                 };
-       
-       console.log('Contract config:', contractConfig);
-       
-       // Execute the contract call - let wagmi hooks handle the transaction state
-       writeContract(contractConfig);
     } catch (error) {
-      console.error('Error in market creation setup:', error);
-      
-      // This catch block is for setup errors, not transaction errors
-      showError('Setup Error', 'Failed to prepare market creation transaction');
+      console.error('Error in market creation:', error);
+      showError('Creation Error', 'Failed to create market. Please try again.');
       setIsLoading(false);
     }
   };

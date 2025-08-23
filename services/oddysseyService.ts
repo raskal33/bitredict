@@ -33,6 +33,20 @@ export interface OddysseyMatch {
   odds_data?: any;
 }
 
+export interface MatchResult {
+  home_score: number | null;
+  away_score: number | null;
+  outcome_1x2: string | null;
+  outcome_ou25: string | null;
+  finished_at: string | null;
+  is_finished: boolean;
+}
+
+export interface OddysseyMatchWithResult extends OddysseyMatch {
+  status: string;
+  result: MatchResult;
+}
+
 export interface OddysseySlip {
   slip_id: number;
   cycle_id: number;
@@ -500,6 +514,33 @@ class OddysseyService {
     }>(`${this.baseEndpoint}/select-matches`, {
       method: 'POST',
     });
+  }
+
+  /**
+   * Get match results for a specific cycle
+   */
+  async getCycleResults(cycleId: number): Promise<{
+    success: boolean;
+    data: {
+      cycleId: string;
+      isResolved: boolean;
+      cycleStartTime: string;
+      matches: OddysseyMatchWithResult[];
+      totalMatches: number;
+      finishedMatches: number;
+    };
+  }> {
+    return apiRequest<{
+      success: boolean;
+      data: {
+        cycleId: string;
+        isResolved: boolean;
+        cycleStartTime: string;
+        matches: OddysseyMatchWithResult[];
+        totalMatches: number;
+        finishedMatches: number;
+      };
+    }>(`${this.baseEndpoint}/cycle/${cycleId}/results`);
   }
 }
 

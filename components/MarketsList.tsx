@@ -46,10 +46,57 @@ export default function MarketsList({
   const poolsContract = usePools();
 
   const loadPools = useCallback(async () => {
-    if (!poolsContract.poolCount && !poolsContract.comboPoolCount) return;
-    
     setLoading(true);
     try {
+      // For trending markets, use the real-time API endpoint
+      if (marketType === "trending") {
+        try {
+          const response = await fetch('/api/pools/trending?limit=50');
+          const data = await response.json();
+          
+          if (data.success && data.data.pools) {
+            // Convert API response to Pool format
+            const trendingPools: Pool[] = data.data.pools.map((apiPool: Record<string, unknown>) => ({
+              id: BigInt(apiPool.id),
+              creator: apiPool.creator,
+              predictedOutcome: apiPool.predictedOutcome,
+              odds: apiPool.odds,
+              creatorStake: BigInt(apiPool.creatorStake || '0'),
+              totalCreatorSideStake: BigInt(apiPool.totalCreatorSideStake || '0'),
+              maxBettorStake: BigInt(apiPool.maxBettorStake || '0'),
+              totalBettorStake: BigInt(apiPool.totalBettorStake || '0'),
+              result: apiPool.actualResult || '',
+              marketId: apiPool.marketId || '',
+              settled: apiPool.isSettled || false,
+              creatorSideWon: apiPool.creatorSideWon || false,
+              eventStartTime: BigInt(Math.floor(new Date(apiPool.eventStartTime).getTime() / 1000)),
+              eventEndTime: BigInt(Math.floor(new Date(apiPool.eventEndTime).getTime() / 1000)),
+              bettingEndTime: BigInt(Math.floor(new Date(apiPool.bettingEndTime).getTime() / 1000)),
+              resultTimestamp: BigInt(0),
+              arbitrationDeadline: BigInt(0),
+              league: apiPool.league || '',
+              category: apiPool.category || '',
+              region: apiPool.region || '',
+              isPrivate: apiPool.isPrivate || false,
+              maxBetPerUser: BigInt(apiPool.maxBetPerUser || '0'),
+              usesBitr: apiPool.usesBitr || false,
+              filledAbove60: apiPool.indexedData?.fillPercentage >= 60 || false,
+              oracleType: apiPool.oracleType === 'GUIDED' ? 0 : 1
+            }));
+            
+            setPools(trendingPools);
+            setComboPools([]); // Trending API doesn't include combo pools yet
+            return;
+          }
+        } catch (apiError) {
+          console.error("Error fetching trending pools from API:", apiError);
+          // Fall back to contract data if API fails
+        }
+      }
+
+      // Fallback to contract data for non-trending or if API fails
+      if (!poolsContract.poolCount && !poolsContract.comboPoolCount) return;
+      
       const regularPools: Pool[] = [];
       const comboPools: ComboPool[] = [];
 
@@ -164,6 +211,17 @@ export default function MarketsList({
   useEffect(() => {
     loadPools();
   }, [poolsContract.poolCount, poolsContract.comboPoolCount, marketType, loadPools]);
+
+  // Refresh trending pools every 30 seconds
+  useEffect(() => {
+    if (marketType === "trending") {
+      const interval = setInterval(() => {
+        loadPools();
+      }, 30000); // 30 seconds
+      
+      return () => clearInterval(interval);
+    }
+  }, [marketType, loadPools]);
 
 
   const getPoolTypeIcon = () => {

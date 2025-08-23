@@ -90,6 +90,30 @@ export default function MarketsPage() {
     };
   };
 
+  // Load pools from backend API
+  useEffect(() => {
+    const loadPools = async () => {
+      setIsLoading(true);
+      try {
+        const fetchedPools = await PoolService.getPools(50, 0);
+        const enhancedPools = fetchedPools.map(convertToEnhancedPool);
+        setPools(enhancedPools);
+        setFilteredPools(enhancedPools);
+        
+        // Load stats
+        const poolStats = await PoolService.getPoolStats();
+        setStats(poolStats);
+      } catch (error) {
+        console.error('Error loading pools:', error);
+        toast.error('Failed to load markets');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadPools();
+  }, []);
+
   const handleCreateMarket = () => {
     router.push("/create-prediction");
   };

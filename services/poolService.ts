@@ -1,7 +1,8 @@
-// Mock service for development - replace with actual contract integration
-// import { ethers } from 'ethers';
-// import { bitredictPoolABI } from '@/contracts/abis/bitredictPoolABI';
-// import { bitredictPoolAddress } from '@/contracts/addresses';
+// PoolService - Real backend integration
+import { API_CONFIG } from '@/config/api';
+
+// Backend API Base URL
+const API_BASE_URL = `${API_CONFIG.baseURL}/api`;
 
 // Mock data for development - replace with actual contract integration
 const MOCK_POOLS = [
@@ -129,10 +130,34 @@ export interface PoolStats {
 }
 
 export class PoolService {
+  static async getPools(limit: number = 50, offset: number = 0): Promise<Pool[]> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/guided-markets/pools?limit=${limit}&offset=${offset}`);
+      const data = await response.json();
+      
+      if (!data.success) {
+        console.error('Failed to fetch pools:', data.error);
+        return [];
+      }
+      
+      return data.data.pools || [];
+    } catch (error) {
+      console.error('Error fetching pools:', error);
+      return [];
+    }
+  }
+
   static async getPoolsByCategory(category: string, limit: number = 50, offset: number = 0): Promise<Pool[]> {
     try {
-      // For now, return mock data - replace with actual contract calls
-      return MOCK_POOLS.filter(pool => pool.category === category || category === 'all');
+      const response = await fetch(`${API_BASE_URL}/guided-markets/pools/category/${category}?limit=${limit}&offset=${offset}`);
+      const data = await response.json();
+      
+      if (!data.success) {
+        console.error('Failed to fetch pools by category:', data.error);
+        return [];
+      }
+      
+      return data.data.pools || [];
     } catch (error) {
       console.error('Error fetching pools by category:', error);
       return [];
@@ -141,20 +166,34 @@ export class PoolService {
 
   static async getPoolById(poolId: number): Promise<Pool | null> {
     try {
-      // For now, return mock data - replace with actual contract calls
-      return MOCK_POOLS.find(pool => pool.id === poolId) || null;
+      const response = await fetch(`${API_BASE_URL}/guided-markets/pools/${poolId}`);
+      const data = await response.json();
+      
+      if (!data.success) {
+        console.error('Failed to fetch pool:', data.error);
+        return null;
+      }
+      
+      return data.data.pool || null;
     } catch (error) {
-      console.error('Error fetching pool by ID:', error);
+      console.error('Error fetching pool:', error);
       return null;
     }
   }
 
-  static async getActivePoolsByCreator(creator: string, limit: number = 50, offset: number = 0): Promise<Pool[]> {
+  static async getActivePoolsByCreator(creatorAddress: string, limit: number = 50, offset: number = 0): Promise<Pool[]> {
     try {
-      // For now, return mock data - replace with actual contract calls
-      return MOCK_POOLS.filter(pool => pool.creator === creator && !pool.settled);
+      const response = await fetch(`${API_BASE_URL}/guided-markets/pools/creator/${creatorAddress}?limit=${limit}&offset=${offset}`);
+      const data = await response.json();
+      
+      if (!data.success) {
+        console.error('Failed to fetch creator pools:', data.error);
+        return [];
+      }
+      
+      return data.data.pools || [];
     } catch (error) {
-      console.error('Error fetching active pools by creator:', error);
+      console.error('Error fetching creator pools:', error);
       return [];
     }
   }
@@ -215,30 +254,91 @@ export class PoolService {
 
   static async placeBet(poolId: number, amount: string, useBitr: boolean = false): Promise<{ success: boolean; error?: string }> {
     try {
-      // Mock implementation - replace with actual contract calls
-      console.log('Placing bet on pool:', poolId, 'amount:', amount, 'useBitr:', useBitr);
+      const response = await fetch(`${API_BASE_URL}/guided-markets/pools/${poolId}/bet`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount,
+          useBitr
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (!result.success) {
+        return {
+          success: false,
+          error: result.error || 'Failed to place bet'
+        };
+      }
+
       return { success: true };
     } catch (error) {
       console.error('Error placing bet:', error);
-      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Network error'
+      };
+    }
+  }
+
+  static async addLiquidity(poolId: number, amount: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/guided-markets/pools/${poolId}/liquidity`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ amount }),
+      });
+
+      const result = await response.json();
+      
+      if (!result.success) {
+        return {
+          success: false,
+          error: result.error || 'Failed to add liquidity'
+        };
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error adding liquidity:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Network error'
+      };
     }
   }
 
   static async getPoolStats(): Promise<PoolStats> {
     try {
-      // Calculate stats from mock data
-      const totalVolume = MOCK_POOLS.reduce((acc, pool) => {
-        return acc + parseFloat(pool.creatorStake) + parseFloat(pool.totalBettorStake);
-      }, 0);
+      const response = await fetch(`${API_BASE_URL}/guided-markets/stats`);
+      const data = await response.json();
       
-      return {
-        totalVolume: (totalVolume / 1e18).toFixed(2),
-        activeMarkets: MOCK_POOLS.filter(p => !p.settled).length,
-        participants: MOCK_POOLS.length, // Simplified
-        totalPools: MOCK_POOLS.length,
-        boostedPools: MOCK_POOLS.filter(p => p.boostTier !== "NONE").length,
-        comboPools: 0, // Will be implemented with combo pools
-        privatePools: MOCK_POOLS.filter(p => p.isPrivate).length
+      if (!data.success) {
+        console.error('Failed to fetch pool stats:', data.error);
+        return {
+          totalVolume: "0",
+          activeMarkets: 0,
+          participants: 0,
+          totalPools: 0,
+          boostedPools: 0,
+          comboPools: 0,
+          privatePools: 0
+        };
+      }
+      
+      return data.data.stats || {
+        totalVolume: "0",
+        activeMarkets: 0,
+        participants: 0,
+        totalPools: 0,
+        boostedPools: 0,
+        comboPools: 0,
+        privatePools: 0
       };
     } catch (error) {
       console.error('Error fetching pool stats:', error);

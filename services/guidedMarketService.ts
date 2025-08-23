@@ -500,4 +500,98 @@ export class GuidedMarketService {
       errors
     };
   }
+
+  // Backend API Integration Methods
+  static async createFootballMarket(marketData: {
+    fixtureId: string;
+    homeTeam: string;
+    awayTeam: string;
+    league: string;
+    matchDate: string;
+    outcome: string;
+    predictedOutcome: string;
+    odds: number;
+    creatorStake: number;
+    useBitr?: boolean;
+    description?: string;
+    isPrivate?: boolean;
+    maxBetPerUser?: number;
+  }): Promise<{ success: boolean; data?: any; error?: string }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/guided-markets/football`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(marketData),
+      });
+
+      const result = await response.json();
+      
+      if (!result.success) {
+        return {
+          success: false,
+          error: result.error || 'Failed to create football market'
+        };
+      }
+
+      return {
+        success: true,
+        data: result.data
+      };
+    } catch (error) {
+      console.error('Error creating football market:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Network error'
+      };
+    }
+  }
+
+  static async createCryptoMarket(marketData: {
+    cryptocurrency: {
+      symbol: string;
+      name: string;
+    };
+    targetPrice: number;
+    direction: 'above' | 'below';
+    timeframe: string;
+    predictedOutcome: string;
+    odds: number;
+    creatorStake: number;
+    useBitr?: boolean;
+    description?: string;
+    isPrivate?: boolean;
+    maxBetPerUser?: number;
+  }): Promise<{ success: boolean; data?: any; error?: string }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/guided-markets/cryptocurrency`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(marketData),
+      });
+
+      const result = await response.json();
+      
+      if (!result.success) {
+        return {
+          success: false,
+          error: result.error || 'Failed to create crypto market'
+        };
+      }
+
+      return {
+        success: true,
+        data: result.data
+      };
+    } catch (error) {
+      console.error('Error creating crypto market:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Network error'
+      };
+    }
+  }
 } 
