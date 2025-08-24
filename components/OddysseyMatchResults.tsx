@@ -27,10 +27,6 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
     finishedMatches: number;
   } | null>(null);
 
-  useEffect(() => {
-    fetchResults();
-  }, [fetchResults]);
-
   const fetchResults = useCallback(async () => {
     try {
       setLoading(true);
@@ -55,6 +51,10 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
       setLoading(false);
     }
   }, [cycleId]);
+
+  useEffect(() => {
+    fetchResults();
+  }, [fetchResults]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {

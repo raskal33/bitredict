@@ -778,7 +778,10 @@ export default function CreateMarketPage() {
         
         // Add reputation for market creation
         if (address) {
-          addReputationAction(address, 'CREATE_MARKET', 10);
+          addReputationAction(address, {
+            type: 'market_created',
+            points: 10
+          });
         }
 
       } else if (data.category === 'cryptocurrency' && data.selectedCrypto) {
@@ -814,7 +817,10 @@ export default function CreateMarketPage() {
         
         // Add reputation for market creation
         if (address) {
-          addReputationAction(address, 'CREATE_MARKET', 10);
+          addReputationAction(address, {
+            type: 'market_created',
+            points: 10
+          });
         }
 
       } else {

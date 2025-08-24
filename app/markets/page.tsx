@@ -33,8 +33,8 @@ export default function MarketsPage() {
   const [sortBy, setSortBy] = useState<SortBy>("newest");
   const [searchTerm, setSearchTerm] = useState("");
   const [showFilters, setShowFilters] = useState(false);
-  const [pools, setPools] = useState<Pool[]>([]);
-  const [filteredPools, setFilteredPools] = useState<Pool[]>([]);
+  const [pools, setPools] = useState<EnhancedPool[]>([]);
+  const [filteredPools, setFilteredPools] = useState<EnhancedPool[]>([]);
   const [stats, setStats] = useState<PoolStats>({
     totalVolume: "0",
     activeMarkets: 0,
@@ -78,7 +78,7 @@ export default function MarketsPage() {
       region: pool.region,
       maxBetPerUser: pool.maxBetPerUser,
       
-      boostTier: pool.boostTier,
+      boostTier: pool.boostTier || 'NONE',
       boostExpiry: pool.boostExpiry,
       trending: false, // Default value
       socialStats: {

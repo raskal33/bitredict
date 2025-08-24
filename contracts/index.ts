@@ -7,6 +7,7 @@ import GuidedOracleABI from './abis/GuidedOracle.json';
 import OptimisticOracleABI from './abis/OptimisticOracle.json';
 import BitredictPoolABI from './abis/BitredictPool.json';
 import BitredictStakingABI from './abis/BitredictStaking.json';
+import ReputationSystemABI from './abis/ReputationSystem.json';
 import OddysseyABI from './abis/Oddyssey.json';
 
 // Contract configurations
@@ -35,6 +36,10 @@ export const CONTRACTS = {
     address: CONTRACT_ADDRESSES.BITREDICT_STAKING,
     abi: BitredictStakingABI.abi,
   },
+  REPUTATION_SYSTEM: {
+    address: CONTRACT_ADDRESSES.REPUTATION_SYSTEM,
+    abi: ReputationSystemABI.abi,
+  },
   ODDYSSEY: {
     address: CONTRACT_ADDRESSES.ODDYSSEY,
     abi: OddysseyABI.abi,
@@ -49,6 +54,7 @@ export {
   OptimisticOracleABI,
   BitredictPoolABI,
   BitredictStakingABI,
+  ReputationSystemABI,
   OddysseyABI,
 };
 
