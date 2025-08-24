@@ -780,7 +780,8 @@ export default function CreateMarketPage() {
         if (address) {
           addReputationAction(address, {
             type: 'market_created',
-            points: 10
+            points: 10,
+            description: 'Created a football prediction market'
           });
         }
 
@@ -819,7 +820,8 @@ export default function CreateMarketPage() {
         if (address) {
           addReputationAction(address, {
             type: 'market_created',
-            points: 10
+            points: 10,
+            description: 'Created a cryptocurrency prediction market'
           });
         }
 
