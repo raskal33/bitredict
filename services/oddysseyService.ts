@@ -92,6 +92,32 @@ export interface MatchesData {
   };
 }
 
+export interface ResultsByDate {
+  date: string;
+  cycleId: number | null;
+  isResolved: boolean;
+  cycleStartTime: string | null;
+  matches: OddysseyMatchWithResult[];
+  totalMatches: number;
+  finishedMatches: number;
+}
+
+export interface AvailableDate {
+  date: string;
+  cycleId: number;
+  isResolved: boolean;
+  cycleCount: number;
+}
+
+export interface AvailableDates {
+  availableDates: AvailableDate[];
+  totalDates: number;
+  dateRange: {
+    oldest: string | null;
+    newest: string | null;
+  };
+}
+
 class OddysseyService {
   private baseEndpoint = API_CONFIG.endpoints.oddyssey;
 
@@ -138,13 +164,12 @@ class OddysseyService {
         return {
           data: {
             today: { date: '', matches: [] },
-            tomorrow: { date: '', matches: [] },
             yesterday: { date: '', matches: [] }
           }
         };
       }
 
-      // Return the data in the expected format (tomorrow deprecated)
+      // Return the data in the expected format
       return {
         data: {
           today: response.data.today,
@@ -533,6 +558,34 @@ class OddysseyService {
         finishedMatches: number;
       };
     }>(`${this.baseEndpoint}/cycle/${cycleId}/results`);
+  }
+
+  /**
+   * Get results by date for date picker functionality
+   */
+  async getResultsByDate(date: string): Promise<{
+    success: boolean;
+    data: ResultsByDate;
+    message?: string;
+  }> {
+    return apiRequest<{
+      success: boolean;
+      data: ResultsByDate;
+      message?: string;
+    }>(`${this.baseEndpoint}/results/${date}`);
+  }
+
+  /**
+   * Get available dates for date picker
+   */
+  async getAvailableDates(): Promise<{
+    success: boolean;
+    data: AvailableDates;
+  }> {
+    return apiRequest<{
+      success: boolean;
+      data: AvailableDates;
+    }>(`${this.baseEndpoint}/available-dates`);
   }
 }
 

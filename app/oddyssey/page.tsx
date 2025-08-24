@@ -7,7 +7,7 @@ import { useAccount, useChainId } from "wagmi";
 import { toast } from "react-hot-toast";
 
 import { oddysseyService, OddysseySlip } from "@/services/oddysseyService";
-import OddysseyMatchResults from "@/components/OddysseyMatchResults";
+import OddysseyResults from "@/components/OddysseyResults";
 import { useOddysseyContract } from "@/services/oddysseyContractService";
 import { useTransactionFeedback, TransactionFeedback } from "@/components/TransactionFeedback";
 import { 
@@ -509,8 +509,6 @@ export default function OddysseyPage() {
       
       if (selectedDate === "today") {
         currentMatches = matchesData.today.matches.slice(0, 10);
-      } else if (selectedDate === "tomorrow") {
-        currentMatches = matchesData.tomorrow.matches.slice(0, 10);
       } else if (selectedDate === "yesterday" && matchesData.yesterday) {
         currentMatches = matchesData.yesterday.matches.slice(0, 10);
       }
@@ -882,14 +880,12 @@ export default function OddysseyPage() {
     });
   };
 
-  const getDateTabLabel = (tab: "yesterday" | "today" | "tomorrow") => {
+  const getDateTabLabel = (tab: "yesterday" | "today") => {
     const today = new Date();
     const targetDate = new Date(today);
     
     if (tab === "yesterday") {
       targetDate.setDate(today.getDate() - 1);
-    } else if (tab === "tomorrow") {
-      targetDate.setDate(today.getDate() + 1);
     }
     
     return {
@@ -1241,7 +1237,7 @@ export default function OddysseyPage() {
                   <div className="glass-card p-4 md:p-6">
                     {/* Date Tabs */}
                     <div className="flex items-center justify-center gap-1 md:gap-2 mb-4 md:mb-6 flex-wrap">
-                      {(["yesterday", "today", "tomorrow"] as const).map((date) => {
+                      {(["yesterday", "today"] as const).map((date) => {
                         const { label, date: dateStr } = getDateTabLabel(date);
                         return (
                           <button
@@ -1969,7 +1965,7 @@ export default function OddysseyPage() {
                 exit={{ opacity: 0, x: -20 }}
                 className="lg:col-span-3"
               >
-                <OddysseyMatchResults cycleId={8} />
+                <OddysseyResults />
               </motion.div>
             ) : (
               <motion.div
