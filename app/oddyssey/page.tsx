@@ -71,10 +71,6 @@ interface MatchesData {
     date: string;
     matches: Match[];
   };
-  tomorrow: {
-    date: string;
-    matches: Match[];
-  };
   yesterday?: {
     date: string;
     matches: Match[];
@@ -130,7 +126,7 @@ export default function OddysseyPage() {
   const [picks, setPicks] = useState<Pick[]>([]);
   const [slips, setSlips] = useState<Pick[][]>([]);
   const [activeTab, setActiveTab] = useState<"today" | "slips" | "stats" | "results">("today");
-  const [selectedDate, setSelectedDate] = useState<"yesterday" | "today" | "tomorrow">("today");
+  const [selectedDate, setSelectedDate] = useState<"yesterday" | "today">("today");
   const [matches, setMatches] = useState<Match[]>([]);
   const [matchesData, setMatchesData] = useState<MatchesData | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);

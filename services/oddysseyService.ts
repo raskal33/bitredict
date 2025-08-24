@@ -86,10 +86,6 @@ export interface MatchesData {
     date: string;
     matches: OddysseyMatch[];
   };
-  tomorrow: {
-    date: string;
-    matches: OddysseyMatch[];
-  };
   yesterday?: {
     date: string;
     matches: OddysseyMatch[];
@@ -148,14 +144,10 @@ class OddysseyService {
         };
       }
 
-      // Return the data in the expected format
+      // Return the data in the expected format (tomorrow deprecated)
       return {
         data: {
           today: response.data.today,
-          tomorrow: {
-            date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            matches: []
-          },
           yesterday: response.data.yesterday
         }
       };
