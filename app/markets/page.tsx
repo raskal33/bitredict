@@ -169,7 +169,8 @@ export default function MarketsPage() {
       setIsLoading(true);
       try {
         const poolsData = await PoolService.getPoolsByCategory('all', 50, 0);
-        setPools(poolsData);
+        const enhancedPools = poolsData.map(convertToEnhancedPool);
+        setPools(enhancedPools);
         
         // Get stats from service
         const statsData = await PoolService.getPoolStats();
