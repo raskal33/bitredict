@@ -42,8 +42,8 @@ export interface EnhancedPool {
   maxBetPerUser: string;
   
   // Optional fields for enhanced display
-  boostTier?: 'NONE' | 'BRONZE' | 'SILVER' | 'GOLD';
-  boostExpiry?: number;
+  boostTier: 'NONE' | 'BRONZE' | 'SILVER' | 'GOLD';
+  boostExpiry: number;
   trending?: boolean;
   socialStats?: {
     likes: number;

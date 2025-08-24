@@ -78,7 +78,7 @@ export default function MarketsPage() {
       region: pool.region,
       maxBetPerUser: pool.maxBetPerUser,
       
-      boostTier: pool.boostTier || 'NONE',
+      boostTier: pool.boostTier,
       boostExpiry: pool.boostExpiry,
       trending: false, // Default value
       socialStats: {
