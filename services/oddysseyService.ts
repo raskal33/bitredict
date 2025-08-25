@@ -337,25 +337,39 @@ class OddysseyService {
   }
 
   /**
-   * Get user slips for a cycle
+   * Get user slips for a specific address
    */
-  async getUserSlips(address: string, cycleId?: string | number): Promise<{
-    slips: OddysseySlip[];
+  async getUserSlips(address: string): Promise<{
+    success: boolean;
+    data: OddysseySlip[];
+    meta?: {
+      count: number;
+      address: string;
+      timestamp: string;
+    };
   }> {
-    const endpoint = cycleId
-      ? `${this.baseEndpoint}/user-slips/${cycleId}/${address}`
-      : `${this.baseEndpoint}/user-slips/${address}`;
-    
-    const response = await apiRequest<{
+    return apiRequest<{
       success: boolean;
       data: OddysseySlip[];
-      meta: any;
-    }>(endpoint);
-    
-    // Transform the response to match the expected interface
-    return {
-      slips: response.data || []
-    };
+      meta?: {
+        count: number;
+        address: string;
+        timestamp: string;
+      };
+    }>(`${this.baseEndpoint}/user-slips/${address}`);
+  }
+
+  /**
+   * Get user slips for a specific cycle
+   */
+  async getUserSlipsForCycle(cycleId: number, address: string): Promise<{
+    success: boolean;
+    data: OddysseySlip[];
+  }> {
+    return apiRequest<{
+      success: boolean;
+      data: OddysseySlip[];
+    }>(`${this.baseEndpoint}/user-slips/${cycleId}/${address}`);
   }
 
   /**

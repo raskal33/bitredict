@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useAccount, useChainId } from "wagmi";
 import { toast } from "react-hot-toast";
 
-import { oddysseyService, OddysseySlip } from "@/services/oddysseyService";
+import { oddysseyService } from "@/services/oddysseyService";
 import OddysseyResults from "@/components/OddysseyResults";
 import { useOddysseyContract } from "@/services/oddysseyContractService";
 import { useTransactionFeedback, TransactionFeedback } from "@/components/TransactionFeedback";
@@ -48,6 +48,8 @@ interface Pick {
   isEvaluated?: boolean;
   placedAt?: string;
   status?: string;
+  totalOdds?: number;
+  potentialPayout?: number;
 }
 
 interface Match {
@@ -343,39 +345,63 @@ export default function OddysseyPage() {
       
       const result = await oddysseyService.getUserSlips(address);
       
-      if (result.slips && result.slips.length > 0) {
-        console.log('✅ User slips received:', result.slips);
+      if (result.success && result.data && result.data.length > 0) {
+        console.log('✅ User slips received:', result.data);
         
-        // Convert backend slip format to frontend format
-        const convertedSlips = result.slips.map((slip: OddysseySlip) => {
+        // Convert backend slip format to frontend format with enhanced data
+        const convertedSlips = result.data.map((slip: unknown) => {
           // Handle different prediction formats from the API
           const predictions = Array.isArray(slip.predictions) ? slip.predictions : [];
           
-          return predictions.map((pred: Record<string, unknown>) => {
+          return predictions.map((pred: unknown) => {
             // Handle different prediction object structures
-            const matchId = Number(pred.match_id || pred.matchId || 0);
-            const prediction = String(pred.prediction || pred.selection || "1");
-            const odds = Number(pred.odds || pred.selectedOdd || 1);
+            const matchId = Number(pred.match_id || pred.matchId || pred.id || 0);
+            const prediction = String(pred.prediction || pred.selection || pred.betType || "1");
+            const odds = Number(pred.odds || pred.selectedOdd || pred.odd || 1);
+            
+            // Get team names from enhanced data (now properly populated by backend)
+            const homeTeam = pred.home_team || `Team ${matchId}`;
+            const awayTeam = pred.away_team || `Team ${matchId}`;
+            
+            // Use enhanced match time from backend, fallback to calculated time
+            let matchTime = pred.match_time || '00:00';
+            if (!pred.match_time && pred.match_date) {
+              const matchDate = new Date(pred.match_date);
+              matchTime = matchDate.toLocaleTimeString('en-US', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: false 
+              });
+            }
+            
+            // Determine pick type based on prediction value
+            let pick: "home" | "draw" | "away" | "over" | "under" = "home";
+            if (prediction === "X" || prediction === "draw") pick = "draw";
+            else if (prediction === "2" || prediction === "away") pick = "away";
+            else if (prediction === "Over" || prediction === "over" || prediction === "O2.5") pick = "over";
+            else if (prediction === "Under" || prediction === "under" || prediction === "U2.5") pick = "under";
             
             return {
               id: matchId,
-              time: "00:00", // Would need actual match time
-              match: `Match ${matchId}`, // Would need actual team names
-              pick: (prediction === "1" ? "home" : 
-                    prediction === "X" ? "draw" : 
-                    prediction === "2" ? "away" : 
-                    prediction === "Over" ? "over" : "under") as "home" | "draw" | "away" | "over" | "under",
+              time: matchTime,
+              match: `${homeTeam} vs ${awayTeam}`,
+              pick: pick,
               odd: odds,
-              team1: "Team A", // Would need actual team names
-              team2: "Team B",
-              // Add slip metadata
+              team1: homeTeam,
+              team2: awayTeam,
+              // Add enhanced slip metadata
               slipId: slip.slip_id,
               cycleId: slip.cycle_id,
               finalScore: slip.final_score,
               correctCount: slip.correct_count,
               isEvaluated: slip.is_evaluated,
-              placedAt: slip.placed_at,
-              status: slip.is_evaluated ? "Evaluated" : "Pending"
+              placedAt: slip.submitted_time || slip.placed_at, // Use enhanced submission time
+              status: slip.status || (slip.is_evaluated ? "Evaluated" : "Pending"),
+              totalOdds: slip.total_odds,
+              // Remove potential payout as it's not applicable for Oddyssey
+              leagueName: pred.league_name,
+              matchDate: pred.match_date,
+              matchStatus: pred.status
             };
           });
         });
@@ -1860,7 +1886,6 @@ export default function OddysseyPage() {
                         className="space-y-6"
                       >
                         {slips.map((slip, slipIndex) => {
-                          const slipTotalOdd = slip.reduce((acc, pick) => acc * (pick.odd || 1), 1).toFixed(2);
                           const firstPick = slip[0]; // Get metadata from first pick
                           const slipId = firstPick?.slipId || `Slip ${slipIndex + 1}`;
                           const cycleId = firstPick?.cycleId || 'Unknown';
@@ -1869,6 +1894,7 @@ export default function OddysseyPage() {
                           const isEvaluated = firstPick?.isEvaluated || false;
                           const placedAt = firstPick?.placedAt ? new Date(firstPick.placedAt).toLocaleString() : 'Unknown';
                           const status = firstPick?.status || 'Pending';
+                          const totalOdds = firstPick?.totalOdds || slip.reduce((acc, pick) => acc * (pick.odd || 1), 1);
                           
                           return (
                             <motion.div
@@ -1876,29 +1902,53 @@ export default function OddysseyPage() {
                               initial={{ opacity: 0, y: 20 }}
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ delay: slipIndex * 0.1 }}
-                              className="glass-card p-4"
+                              className="glass-card p-6 border border-border-card/50 hover:border-primary/30 transition-all duration-300"
                             >
-                              <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-lg font-bold text-primary flex items-center gap-2">
-                                  <CheckCircleIcon className="h-5 w-5" />
-                                  {typeof slipId === 'number' ? `Slip #${slipId}` : slipId}
-                                </h3>
-                                <div className="flex items-center gap-4 text-sm">
-                                  <span className="text-text-muted">Cycle: <span className="text-white font-bold">{cycleId}</span></span>
-                                  <span className="text-text-muted">Status: <span className={`font-bold ${isEvaluated ? 'text-green-400' : 'text-yellow-400'}`}>{status}</span></span>
-                                  <span className="text-text-muted">Total Odds: <span className="text-primary font-bold">{slipTotalOdd}x</span></span>
-                                  <span className="text-text-muted">Entry Fee: <span className="text-white font-bold">
-                                    {contractEntryFee || DEFAULT_ENTRY_FEE} STT
-                                  </span></span>
+                              {/* Enhanced Slip Header */}
+                              <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+                                <div className="flex items-center gap-4">
+                                  <div className="flex items-center gap-2">
+                                    <CheckCircleIcon className="h-6 w-6 text-primary" />
+                                    <h3 className="text-xl font-bold text-primary">
+                                      {typeof slipId === 'number' ? `Slip #${slipId}` : slipId}
+                                    </h3>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="px-3 py-1 bg-primary/10 text-primary text-sm font-medium rounded-full">
+                                      Cycle {cycleId}
+                                    </span>
+                                    <span className={`px-3 py-1 text-sm font-medium rounded-full ${
+                                      isEvaluated ? 'bg-green-500/10 text-green-400' : 'bg-yellow-500/10 text-yellow-400'
+                                    }`}>
+                                      {status}
+                                    </span>
+                                  </div>
+                                </div>
+                                
+                                <div className="flex flex-col md:flex-row items-start md:items-center gap-4 text-sm">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-text-muted">Total Odds:</span>
+                                    <span className="text-primary font-bold">{totalOdds.toFixed(2)}x</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-text-muted">Entry Fee:</span>
+                                    <span className="text-white font-bold">{contractEntryFee || DEFAULT_ENTRY_FEE} STT</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-text-muted">Submitted:</span>
+                                    <span className="text-white">{placedAt}</span>
+                                  </div>
                                 </div>
                               </div>
                               
-                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2">
+                              {/* Enhanced Predictions Grid */}
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
                                 {slip.map((pick, i) => (
-                                  <div key={i} className="bg-bg-card/30 p-3 rounded-button">
-                                    <div className="text-xs text-text-muted mb-1">{pick.time}</div>
-                                    <div className="text-xs text-white font-medium mb-2 line-clamp-2">{pick.match}</div>
-                                    <div className="flex items-center justify-between">
+                                  <div key={i} className="bg-bg-card/30 p-4 rounded-button border border-border-card/30 hover:border-primary/20 transition-all duration-200">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <div className="text-xs text-text-muted font-mono">
+                                        {pick.time || '00:00'}
+                                      </div>
                                       <span className={`px-2 py-1 rounded text-xs font-bold ${
                                         pick.pick === "home" ? "bg-primary/20 text-primary" :
                                         pick.pick === "draw" ? "bg-secondary/20 text-secondary" :
@@ -1911,23 +1961,45 @@ export default function OddysseyPage() {
                                          pick.pick === "away" ? "2" :
                                          pick.pick === "over" ? "O2.5" : "U2.5"}
                                       </span>
-                                      <span className="text-white font-bold text-sm">{typeof pick.odd === 'number' ? pick.odd.toFixed(2) : '0.00'}</span>
+                                    </div>
+                                    
+                                    <div className="text-sm text-white font-medium mb-3 line-clamp-2 leading-tight">
+                                      {pick.team1 && pick.team2 ? `${pick.team1} vs ${pick.team2}` : `Match ${pick.id}`}
+                                    </div>
+                                    
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-xs text-text-muted">
+                                        {pick.team1 && pick.team2 ? 'Teams' : 'Match ID'}
+                                      </span>
+                                      <span className="text-white font-bold text-sm">
+                                        {typeof pick.odd === 'number' ? pick.odd.toFixed(2) : '0.00'}
+                                      </span>
                                     </div>
                                   </div>
                                 ))}
                               </div>
                               
-                              <div className="mt-4 flex justify-between items-center text-sm">
-                                <div className="flex items-center gap-4">
-                                  <span className="text-text-muted">Potential Payout: <span className="text-secondary font-bold">{calculatePotentialPayout(Number(slipTotalOdd))} STT</span></span>
+                              {/* Enhanced Slip Footer */}
+                              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pt-4 border-t border-border-card/30">
+                                <div className="flex items-center gap-6">
                                   {isEvaluated && (
                                     <>
-                                      <span className="text-text-muted">Final Score: <span className="text-white font-bold">{finalScore}</span></span>
-                                      <span className="text-text-muted">Correct: <span className="text-green-400 font-bold">{correctCount}/10</span></span>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-text-muted text-sm">Final Score:</span>
+                                        <span className="text-white font-bold">{finalScore}</span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-text-muted text-sm">Correct:</span>
+                                        <span className="text-green-400 font-bold">{correctCount}/10</span>
+                                      </div>
                                     </>
                                   )}
                                 </div>
-                                <span className="text-text-muted">Submitted: <span className="text-white">{placedAt}</span></span>
+                                
+                                <div className="flex items-center gap-2 text-sm text-text-muted">
+                                  <ClockIcon className="h-4 w-4" />
+                                  <span>Submitted: {placedAt}</span>
+                                </div>
                               </div>
                             </motion.div>
                           );
