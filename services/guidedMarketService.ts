@@ -501,8 +501,8 @@ export class GuidedMarketService {
     };
   }
 
-  // Backend API Integration Methods
-  static async createFootballMarket(marketData: {
+  // Backend API Integration Methods - Updated to use prepare/confirm flow
+  static async prepareFootballMarket(marketData: {
     fixtureId: string;
     homeTeam: string;
     awayTeam: string;
@@ -518,7 +518,7 @@ export class GuidedMarketService {
     maxBetPerUser?: number;
   }): Promise<{ success: boolean; data?: any; error?: string }> {
     try {
-      const response = await fetch(`${API_BASE_URL}/guided-markets/football`, {
+      const response = await fetch(`${API_BASE_URL}/guided-markets/football/prepare`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -531,7 +531,7 @@ export class GuidedMarketService {
       if (!result.success) {
         return {
           success: false,
-          error: result.error || 'Failed to create football market'
+          error: result.error || 'Failed to prepare football market'
         };
       }
 
@@ -540,12 +540,69 @@ export class GuidedMarketService {
         data: result.data
       };
     } catch (error) {
-      console.error('Error creating football market:', error);
+      console.error('Error preparing football market:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Network error'
       };
     }
+  }
+
+  static async confirmFootballMarket(transactionHash: string, marketDetails: any): Promise<{ success: boolean; data?: any; error?: string }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/guided-markets/football/confirm`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          transactionHash,
+          marketDetails
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (!result.success) {
+        return {
+          success: false,
+          error: result.error || 'Failed to confirm football market'
+        };
+      }
+
+      return {
+        success: true,
+        data: result.data
+      };
+    } catch (error) {
+      console.error('Error confirming football market:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Network error'
+      };
+    }
+  }
+
+  // Legacy method for backward compatibility - now uses prepare/confirm flow
+  static async createFootballMarket(marketData: {
+    fixtureId: string;
+    homeTeam: string;
+    awayTeam: string;
+    league: string;
+    matchDate: string;
+    outcome: string;
+    predictedOutcome: string;
+    odds: number;
+    creatorStake: number;
+    useBitr?: boolean;
+    description?: string;
+    isPrivate?: boolean;
+    maxBetPerUser?: number;
+  }): Promise<{ success: boolean; data?: any; error?: string }> {
+    console.warn('⚠️ createFootballMarket is deprecated. Use prepareFootballMarket + wallet transaction + confirmFootballMarket instead.');
+    
+    // For now, just prepare the transaction data
+    return this.prepareFootballMarket(marketData);
   }
 
   static async createCryptoMarket(marketData: {
