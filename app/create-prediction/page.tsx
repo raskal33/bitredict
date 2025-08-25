@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import Image from "next/image";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 // Removed unused imports: parseEther, parseUnits, formatUnits, keccak256, solidityPacked, toUtf8Bytes
+import { ethers } from "ethers";
 
 import { toast } from "react-hot-toast";
 import { useTransactionFeedback, TransactionFeedback } from "@/components/TransactionFeedback";
@@ -26,6 +27,8 @@ import ReputationBadge from "@/components/ReputationBadge";
 import { GuidedMarketService, Cryptocurrency, FootballMatch } from "@/services/guidedMarketService";
 // import { CONTRACTS } from "@/contracts"; // Commented out as not currently used
 import { useBITRToken } from "@/hooks/useBITRToken";
+
+
 
 // Import the full contract ABI (commented out as not currently used)
 // import BitredictPoolABI from '@/contracts/abis/BitredictPool.json';
@@ -745,7 +748,7 @@ export default function CreateMarketPage() {
     try {
       const predictedOutcome = generatePredictedOutcome();
       
-      // Use backend API instead of direct contract calls
+      // Use proper Web3 flow with MetaMask integration
       if (data.category === 'football' && data.selectedFixture) {
         const marketData = {
           fixtureId: data.selectedFixture.id.toString(),
@@ -763,29 +766,126 @@ export default function CreateMarketPage() {
           maxBetPerUser: data.maxBetPerUser || 500
         };
 
-        console.log('Creating football market via backend API:', marketData);
+        console.log('Creating football market via Web3 flow:', marketData);
         
-        const result = await GuidedMarketService.createFootballMarket(marketData);
+        // Step 1: Prepare transaction data
+        const prepareResult = await GuidedMarketService.prepareFootballMarket(marketData);
         
-        if (!result.success) {
-          showError('Market Creation Failed', result.error || 'Failed to create football market');
+        if (!prepareResult.success) {
+          showError('Preparation Failed', prepareResult.error || 'Failed to prepare football market');
           setIsLoading(false);
           return;
         }
 
-        console.log('Football market created successfully:', result.data);
-        showSuccess('Market Created!', 'Your football prediction market has been created successfully!', result.data.transactionHash);
+        const txData = prepareResult.data;
+        console.log('Transaction data prepared:', txData);
+
+        // Step 2: Connect to MetaMask and get signer
+        if (typeof window.ethereum === 'undefined') {
+          showError('MetaMask Not Found', 'Please install MetaMask to create markets');
+          setIsLoading(false);
+          return;
+        }
+
+        try {
+          // Request account access
+          await window.ethereum.request({ method: 'eth_requestAccounts' });
+        } catch {
+          showError('MetaMask Access Denied', 'Please allow MetaMask access to create markets');
+          setIsLoading(false);
+          return;
+        }
+
+        // Get provider and signer
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+
+        // Step 3: Approve BITR tokens if using BITR
+        if (useBitr) {
+          showInfo('Approving BITR Tokens', 'Please approve BITR token spending in MetaMask...');
+          
+          const BITR_ABI = [
+            "function approve(address spender, uint256 amount) external returns (bool)",
+            "function allowance(address owner, address spender) external view returns (uint256)"
+          ];
+          
+          const bitrContract = new ethers.Contract(
+            process.env.NEXT_PUBLIC_BITR_TOKEN_ADDRESS || '0xe10e734b6d475f4004C354CA5086CA7968efD4fd',
+            BITR_ABI,
+            signer
+          );
+
+          // Check current allowance
+          const currentAllowance = await bitrContract.allowance(address, txData.contractAddress);
+          const requiredAmount = BigInt(txData.parameters[2]); // creatorStake
+
+          if (currentAllowance < requiredAmount) {
+            const approveTx = await bitrContract.approve(txData.contractAddress, requiredAmount);
+            showInfo('BITR Approval Pending', 'Waiting for BITR approval confirmation...');
+            await approveTx.wait();
+            showSuccess('BITR Approved', 'BITR tokens approved successfully!');
+          }
+        }
+
+        // Step 4: Create the pool contract instance
+        const POOL_ABI = [
+          "function createPool(bytes32 predictedOutcome, uint256 odds, uint256 creatorStake, uint256 eventStartTime, uint256 eventEndTime, string league, string category, string region, bool isPrivate, uint256 maxBetPerUser, bool useBitr, uint8 oracleType, bytes32 marketId) external payable"
+        ];
+
+        const poolContract = new ethers.Contract(txData.contractAddress, POOL_ABI, signer);
+
+        // Step 5: Send the transaction
+        showInfo('Creating Market', 'Please confirm the market creation transaction in MetaMask...');
         
-        // Add reputation for market creation
-        if (address) {
-          addReputationAction(address, {
-            type: 'market_created',
-            points: 10,
-            description: 'Created a football prediction market'
-          });
+        const tx = await poolContract.createPool(
+          txData.parameters[0], // predictedOutcome
+          txData.parameters[1], // odds
+          txData.parameters[2], // creatorStake
+          txData.parameters[3], // eventStartTime
+          txData.parameters[4], // eventEndTime
+          txData.parameters[5], // league
+          txData.parameters[6], // category
+          txData.parameters[7], // region
+          txData.parameters[8], // isPrivate
+          txData.parameters[9], // maxBetPerUser
+          txData.parameters[10], // useBitr
+          txData.parameters[11], // oracleType
+          txData.parameters[12], // marketId
+          {
+            value: txData.value !== '0' ? txData.value : '0',
+            gasLimit: BigInt(txData.gasEstimate)
+          }
+        );
+
+        showInfo('Transaction Pending', 'Market creation transaction submitted. Waiting for confirmation...');
+        
+        // Step 6: Wait for transaction confirmation
+        const receipt = await tx.wait();
+        
+        if (receipt.status === 1) {
+          // Step 7: Confirm transaction with backend
+          const confirmResult = await GuidedMarketService.confirmFootballMarket(tx.hash, txData.marketDetails);
+          
+          if (confirmResult.success) {
+            showSuccess('Market Created!', 'Your football prediction market has been created successfully!', tx.hash);
+            
+            // Add reputation for market creation
+            if (address) {
+              addReputationAction(address, {
+                type: 'market_created',
+                points: 10,
+                description: 'Created a football prediction market'
+              });
+            }
+          } else {
+            showError('Confirmation Failed', confirmResult.error || 'Market created but confirmation failed');
+          }
+        } else {
+          showError('Transaction Failed', 'Market creation transaction failed on the blockchain');
         }
 
       } else if (data.category === 'cryptocurrency' && data.selectedCrypto) {
+        // For crypto markets, use the existing backend API for now
         const marketData = {
           cryptocurrency: {
             symbol: data.selectedCrypto.symbol,
