@@ -9,6 +9,7 @@ import { toast } from "react-hot-toast";
 import { oddysseyService } from "@/services/oddysseyService";
 import OddysseyResults from "@/components/OddysseyResults";
 import { useOddysseyContract } from "@/services/oddysseyContractService";
+import { useOddyssey } from "@/hooks/useOddyssey";
 import { useTransactionFeedback, TransactionFeedback } from "@/components/TransactionFeedback";
 import { 
   FireIcon, 
@@ -28,7 +29,9 @@ import {
   CalendarIcon,
   TableCellsIcon,
   ArrowPathIcon,
-  DocumentTextIcon
+  DocumentTextIcon,
+  GiftIcon,
+  ExclamationTriangleIcon
 } from "@heroicons/react/24/outline";
 import { FaSpinner } from "react-icons/fa";
 
@@ -122,6 +125,15 @@ export default function OddysseyPage() {
     isInitializing,
     refetchAll
   } = useOddysseyContract();
+  
+  // Add useOddyssey hook for prize claiming
+  const {
+    claimPrize,
+    isPending: isClaimPending,
+    isConfirming: isClaimConfirming,
+    isConfirmed: isClaimConfirmed,
+    hash: claimHash
+  } = useOddyssey();
   
   // Enhanced transaction feedback system
   const { transactionStatus, showSuccess, showError, showInfo, showPending, showConfirming, clearStatus } = useTransactionFeedback();
@@ -350,23 +362,64 @@ export default function OddysseyPage() {
         
         // Convert backend slip format to frontend format with enhanced data
         const convertedSlips = result.data.map((slip: unknown) => {
+          // Type guard to ensure slip is an object with predictions
+          if (!slip || typeof slip !== 'object' || !('predictions' in slip)) {
+            return [];
+          }
+          
+          const slipObj = slip as { 
+            predictions?: unknown[];
+            slip_id?: number;
+            cycle_id?: number;
+            final_score?: number;
+            correct_count?: number;
+            is_evaluated?: boolean;
+            submitted_time?: string;
+            placed_at?: string;
+            status?: string;
+            total_odds?: number;
+          };
+          
           // Handle different prediction formats from the API
-          const predictions = Array.isArray(slip.predictions) ? slip.predictions : [];
+          const predictions = Array.isArray(slipObj.predictions) ? slipObj.predictions : [];
           
           return predictions.map((pred: unknown) => {
+            // Type guard for prediction object
+            if (!pred || typeof pred !== 'object') {
+              return null;
+            }
+            
+            const predObj = pred as {
+              match_id?: number | string;
+              matchId?: number | string;
+              id?: number | string;
+              prediction?: string;
+              selection?: string;
+              betType?: string;
+              odds?: number;
+              selectedOdd?: number;
+              odd?: number;
+              home_team?: string;
+              away_team?: string;
+              match_time?: string;
+              match_date?: string;
+              league_name?: string;
+              status?: string;
+            };
+            
             // Handle different prediction object structures
-            const matchId = Number(pred.match_id || pred.matchId || pred.id || 0);
-            const prediction = String(pred.prediction || pred.selection || pred.betType || "1");
-            const odds = Number(pred.odds || pred.selectedOdd || pred.odd || 1);
+            const matchId = Number(predObj.match_id || predObj.matchId || predObj.id || 0);
+            const prediction = String(predObj.prediction || predObj.selection || predObj.betType || "1");
+            const odds = Number(predObj.odds || predObj.selectedOdd || predObj.odd || 1);
             
             // Get team names from enhanced data (now properly populated by backend)
-            const homeTeam = pred.home_team || `Team ${matchId}`;
-            const awayTeam = pred.away_team || `Team ${matchId}`;
+            const homeTeam = predObj.home_team || `Team ${matchId}`;
+            const awayTeam = predObj.away_team || `Team ${matchId}`;
             
             // Use enhanced match time from backend, fallback to calculated time
-            let matchTime = pred.match_time || '00:00';
-            if (!pred.match_time && pred.match_date) {
-              const matchDate = new Date(pred.match_date);
+            let matchTime = predObj.match_time || '00:00';
+            if (!predObj.match_time && predObj.match_date) {
+              const matchDate = new Date(predObj.match_date);
               matchTime = matchDate.toLocaleTimeString('en-US', { 
                 hour: '2-digit', 
                 minute: '2-digit',
@@ -390,24 +443,22 @@ export default function OddysseyPage() {
               team1: homeTeam,
               team2: awayTeam,
               // Add enhanced slip metadata
-              slipId: slip.slip_id,
-              cycleId: slip.cycle_id,
-              finalScore: slip.final_score,
-              correctCount: slip.correct_count,
-              isEvaluated: slip.is_evaluated,
-              placedAt: slip.submitted_time || slip.placed_at, // Use enhanced submission time
-              status: slip.status || (slip.is_evaluated ? "Evaluated" : "Pending"),
-              totalOdds: slip.total_odds,
-              // Remove potential payout as it's not applicable for Oddyssey
-              leagueName: pred.league_name,
-              matchDate: pred.match_date,
-              matchStatus: pred.status
+              slipId: slipObj.slip_id,
+              cycleId: slipObj.cycle_id,
+              finalScore: slipObj.final_score,
+              correctCount: slipObj.correct_count,
+              isEvaluated: slipObj.is_evaluated,
+              placedAt: slipObj.submitted_time || slipObj.placed_at, // Use enhanced submission time
+              status: slipObj.status || (slipObj.is_evaluated ? "Evaluated" : "Pending"),
+              totalOdds: slipObj.total_odds
             };
-          });
+          }).filter(Boolean); // Remove null entries
         });
         
         console.log('🔄 Converted slips:', convertedSlips);
-        setSlips(convertedSlips);
+        // Flatten the array and filter out null values to match Pick[][] type
+        const flattenedSlips = convertedSlips.flat().filter((item) => item !== null) as Pick[];
+        setSlips([flattenedSlips]);
       } else {
         console.warn('⚠️ No user slips received');
         setSlips([]);

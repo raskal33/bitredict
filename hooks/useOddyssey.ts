@@ -157,7 +157,10 @@ export function useOddyssey() {
 
   const { data: backendUserSlips, refetch: refetchBackendSlips } = useQuery({
     queryKey: ['oddyssey', 'backend', 'slips', address, dailyCycleId?.toString()],
-    queryFn: () => address ? oddysseyService.getUserSlips(address) : Promise.resolve({ slips: [] }),
+    queryFn: async () => {
+      if (!address) return { success: true, data: [], meta: undefined };
+      return oddysseyService.getUserSlips(address);
+    },
     enabled: !!address && !!dailyCycleId,
   });
 
@@ -406,7 +409,7 @@ export function useOddyssey() {
     backendCycleData: backendCycleData?.cycle,
     backendLoading,
     leaderboard: leaderboardData?.leaderboard || [],
-    backendUserSlips: backendUserSlips?.slips || [],
+    backendUserSlips: backendUserSlips?.data || [],
     backendStats: backendStats?.stats,
     
     // Calculated data
