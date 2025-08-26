@@ -30,8 +30,7 @@ import {
   TableCellsIcon,
   ArrowPathIcon,
   DocumentTextIcon,
-  GiftIcon,
-  ExclamationTriangleIcon
+  GiftIcon
 } from "@heroicons/react/24/outline";
 import { FaSpinner } from "react-icons/fa";
 
@@ -53,6 +52,8 @@ interface Pick {
   status?: string;
   totalOdds?: number;
   potentialPayout?: number;
+  leaderboardRank?: number;
+  prizeClaimed?: boolean;
 }
 
 interface Match {
@@ -130,9 +131,7 @@ export default function OddysseyPage() {
   const {
     claimPrize,
     isPending: isClaimPending,
-    isConfirming: isClaimConfirming,
-    isConfirmed: isClaimConfirmed,
-    hash: claimHash
+    isConfirming: isClaimConfirming
   } = useOddyssey();
   
   // Enhanced transaction feedback system
@@ -145,6 +144,76 @@ export default function OddysseyPage() {
   const [matchesData, setMatchesData] = useState<MatchesData | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
+  
+  // Helper function to get enhanced slip status
+  const getSlipStatusInfo = (firstPick: unknown) => {
+    if (!firstPick || typeof firstPick !== 'object') {
+      return { 
+        text: 'Pending Evaluation', 
+        color: 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20', 
+        icon: ClockIcon 
+      };
+    }
+    
+    const pick = firstPick as {
+      isEvaluated?: boolean;
+      leaderboardRank?: number;
+      prizeClaimed?: boolean;
+    };
+    
+    if (!pick.isEvaluated) {
+      return { 
+        text: 'Pending Evaluation', 
+        color: 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20', 
+        icon: ClockIcon 
+      };
+    }
+    
+    const leaderboardRank = pick.leaderboardRank;
+    if (leaderboardRank && leaderboardRank <= 5) {
+      if (pick.prizeClaimed) {
+        return { 
+          text: 'Prize Claimed', 
+          color: 'bg-green-500/10 text-green-400 border border-green-500/20', 
+          icon: CheckCircleIcon 
+        };
+      } else {
+        return { 
+          text: `🏆 Winner! Rank #${leaderboardRank}`, 
+          color: 'bg-gradient-to-r from-yellow-500/10 to-orange-500/10 text-yellow-400 border border-yellow-500/30 animate-pulse-glow', 
+          icon: TrophyIcon 
+        };
+      }
+    }
+    
+    return { 
+      text: 'Evaluated', 
+      color: 'bg-blue-500/10 text-blue-400 border border-blue-500/20', 
+      icon: CheckCircleIcon 
+    };
+  };
+  
+  // Helper function to calculate prize amount
+  const calculatePrizeAmount = (rank: number, prizePool: number = 50) => {
+    if (rank < 1 || rank > 5) return '0';
+    const percentages = [40, 30, 20, 5, 5]; // 1st, 2nd, 3rd, 4th, 5th
+    const percentage = percentages[rank - 1];
+    return ((prizePool * percentage) / 100).toFixed(2);
+  };
+  
+  // Handle prize claiming
+  const handleClaimPrize = async (cycleId: number, slipId: number) => {
+    try {
+      showPending('Claiming prize...', 'info');
+      await claimPrize(cycleId);
+      showSuccess(`Prize claim initiated for Slip #${slipId}!`, 'success');
+      // Refresh slips data
+      await fetchUserSlips();
+    } catch (error) {
+      console.error('Prize claim error:', error);
+      showError('Failed to claim prize. Please try again.', 'error');
+    }
+  };
   const [isLoading, setIsLoading] = useState(true);
   const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
   const [isExpired, setIsExpired] = useState(false);
@@ -482,6 +551,40 @@ export default function OddysseyPage() {
       fetchUserSlips();
     }
   }, [address, fetchStats, fetchUserSlips]); // Include dependencies
+  
+  // Winner notification system
+  useEffect(() => {
+    if (slips?.length > 0) {
+      const unclaimedWins = slips.filter(slip => {
+        const firstPick = slip[0];
+        return firstPick?.isEvaluated && 
+               (firstPick?.leaderboardRank ?? 0) <= 5 && 
+               (firstPick?.leaderboardRank ?? 0) > 0 && 
+               !firstPick?.prizeClaimed;
+      });
+      
+      if (unclaimedWins.length > 0) {
+        const totalPrizes = unclaimedWins.length;
+        const topRank = Math.min(...unclaimedWins.map(slip => slip[0]?.leaderboardRank ?? 6));
+        
+        toast.success(
+          `🎉 Congratulations! You have ${totalPrizes} unclaimed prize${totalPrizes > 1 ? 's' : ''}! Highest rank: #${topRank}`,
+          {
+            duration: 8000,
+            position: 'top-center',
+            style: {
+              background: 'linear-gradient(135deg, #fbbf24, #f59e0b)',
+              color: '#000',
+              fontWeight: 'bold',
+              borderRadius: '12px',
+              padding: '16px 20px'
+            },
+            icon: '🏆'
+          }
+        );
+      }
+    }
+  }, [slips]);
 
   // Enhanced transaction handling with backend synchronization
   useEffect(() => {
@@ -1267,7 +1370,21 @@ export default function OddysseyPage() {
                   : "text-text-secondary hover:text-text-primary hover:bg-bg-card/50"
               }`}
             >
-              <TrophyIcon className="h-4 w-4 md:h-5 md:w-5" />
+              <div className="relative">
+                <TrophyIcon className="h-4 w-4 md:h-5 md:w-5" />
+                {(() => {
+                  const unclaimedPrizes = slips.filter(slip => {
+                    const firstPick = slip[0];
+                    return firstPick?.isEvaluated && (firstPick?.leaderboardRank ?? 0) <= 5 && !firstPick?.prizeClaimed;
+                  }).length;
+                  
+                  return unclaimedPrizes > 0 ? (
+                    <span className="absolute -top-2 -right-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-black text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold animate-pulse-glow">
+                      {unclaimedPrizes}
+                    </span>
+                  ) : null;
+                })()}
+              </div>
               <span className="hidden sm:inline">My Slips ({slips.length})</span>
               <span className="sm:hidden">Slips ({slips.length})</span>
             </button>
@@ -1944,7 +2061,6 @@ export default function OddysseyPage() {
                           const correctCount = firstPick?.correctCount || 0;
                           const isEvaluated = firstPick?.isEvaluated || false;
                           const placedAt = firstPick?.placedAt ? new Date(firstPick.placedAt).toLocaleString() : 'Unknown';
-                          const status = firstPick?.status || 'Pending';
                           const totalOdds = firstPick?.totalOdds || slip.reduce((acc, pick) => acc * (pick.odd || 1), 1);
                           
                           return (
@@ -1968,11 +2084,16 @@ export default function OddysseyPage() {
                                     <span className="px-3 py-1 bg-primary/10 text-primary text-sm font-medium rounded-full">
                                       Cycle {cycleId}
                                     </span>
-                                    <span className={`px-3 py-1 text-sm font-medium rounded-full ${
-                                      isEvaluated ? 'bg-green-500/10 text-green-400' : 'bg-yellow-500/10 text-yellow-400'
-                                    }`}>
-                                      {status}
-                                    </span>
+                                    {(() => {
+                                      const statusInfo = getSlipStatusInfo(firstPick);
+                                      const StatusIcon = statusInfo.icon;
+                                      return (
+                                        <span className={`px-3 py-1 text-sm font-medium rounded-full flex items-center gap-1 ${statusInfo.color}`}>
+                                          <StatusIcon className="h-4 w-4" />
+                                          {statusInfo.text}
+                                        </span>
+                                      );
+                                    })()}
                                   </div>
                                 </div>
                                 
@@ -2052,6 +2173,63 @@ export default function OddysseyPage() {
                                   <span>Submitted: {placedAt}</span>
                                 </div>
                               </div>
+                              
+                              {/* Prize Claiming Section */}
+                              {isEvaluated && firstPick?.leaderboardRank && firstPick.leaderboardRank <= 5 && (
+                                <motion.div
+                                  initial={{ opacity: 0, y: 10 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  className="mt-6 p-4 bg-gradient-to-r from-yellow-500/10 via-orange-500/10 to-yellow-500/10 border border-yellow-500/30 rounded-button relative overflow-hidden"
+                                >
+                                  {/* Animated background glow */}
+                                  <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/5 via-orange-500/5 to-yellow-500/5 animate-gradient-flow"></div>
+                                  
+                                  <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                                    <div className="flex items-start gap-3">
+                                      <div className="flex-shrink-0 p-2 bg-yellow-500/20 rounded-full">
+                                        <TrophyIcon className="h-6 w-6 text-yellow-400" />
+                                      </div>
+                                      <div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <h4 className="text-yellow-400 font-bold text-lg">🏆 Winner!</h4>
+                                          <span className="px-2 py-1 bg-yellow-500/20 text-yellow-300 text-sm font-bold rounded-full">
+                                            Rank #{firstPick.leaderboardRank}
+                                          </span>
+                                        </div>
+                                        <p className="text-sm text-text-muted mb-1">
+                                          Prize Amount: <span className="text-yellow-400 font-bold">{calculatePrizeAmount(firstPick.leaderboardRank)} STT</span>
+                                        </p>
+                                        <p className="text-xs text-text-muted">
+                                          Congratulations on your outstanding performance!
+                                        </p>
+                                      </div>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-3">
+                                      {!firstPick.prizeClaimed ? (
+                                        <Button
+                                          variant="warning"
+                                          size="md"
+                                          onClick={() => handleClaimPrize(typeof cycleId === 'number' ? cycleId : parseInt(cycleId.toString()), typeof slipId === 'number' ? slipId : parseInt(slipId.toString()))}
+                                          disabled={isClaimPending || isClaimConfirming}
+                                          leftIcon={isClaimPending || isClaimConfirming ? 
+                                            <FaSpinner className="animate-spin" /> : 
+                                            <GiftIcon className="h-5 w-5" />
+                                          }
+                                          className="bg-gradient-to-r from-yellow-500 to-orange-500 text-black font-bold hover:scale-105 transition-all duration-200 shadow-glow-cyan"
+                                        >
+                                          {isClaimPending || isClaimConfirming ? 'Claiming...' : 'Claim Prize'}
+                                        </Button>
+                                      ) : (
+                                        <div className="flex items-center gap-2 px-4 py-2 bg-green-500/10 text-green-400 rounded-button border border-green-500/20">
+                                          <CheckCircleIcon className="h-5 w-5" />
+                                          <span className="font-medium">Prize Claimed</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </motion.div>
+                              )}
                             </motion.div>
                           );
                         })}
