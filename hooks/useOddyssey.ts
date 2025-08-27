@@ -159,25 +159,28 @@ export function useOddyssey() {
     }
   });
 
-  // Backend API queries for additional data
+  // Backend API queries for additional data - optimized intervals
   const { data: backendCycleData, isLoading: backendLoading, refetch: refetchBackendData } = useQuery({
     queryKey: ['oddyssey', 'backend', 'currentCycle'],
     queryFn: () => oddysseyService.getCurrentCycle(),
-    refetchInterval: 30000, // Refetch every 30 seconds
+    refetchInterval: 120000, // Reduced to every 2 minutes
+    staleTime: 60000, // Consider data fresh for 1 minute
   });
 
   // Fetch Oddyssey matches from backend API using the working contract-matches endpoint
   const { data: backendOddysseyMatches, refetch: refetchBackendOddysseyMatches } = useQuery({
     queryKey: ['oddyssey', 'backend', 'matches'],
     queryFn: () => oddysseyService.getMatches(),
-    refetchInterval: 30000, // Refetch every 30 seconds
+    refetchInterval: 120000, // Reduced to every 2 minutes
+    staleTime: 60000, // Consider data fresh for 1 minute
   });
 
   const { data: leaderboardData, refetch: refetchBackendLeaderboard } = useQuery({
     queryKey: ['oddyssey', 'leaderboard', dailyCycleId?.toString()],
     queryFn: () => oddysseyService.getLeaderboard(),
     enabled: !!dailyCycleId,
-    refetchInterval: 60000,
+    refetchInterval: 180000, // Reduced to every 3 minutes
+    staleTime: 120000, // Consider data fresh for 2 minutes
   });
 
   const { data: backendUserSlips, refetch: refetchBackendSlips } = useQuery({
@@ -187,13 +190,16 @@ export function useOddyssey() {
       return oddysseyService.getUserSlips(address);
     },
     enabled: !!address && !!dailyCycleId,
+    refetchInterval: 300000, // Only refetch every 5 minutes for user slips
+    staleTime: 180000, // Consider data fresh for 3 minutes
   });
 
   const { data: backendStats, refetch: refetchBackendStats } = useQuery({
     queryKey: ['oddyssey', 'backend', 'stats', dailyCycleId?.toString()],
     queryFn: () => oddysseyService.getCycleStats(),
     enabled: !!dailyCycleId,
-    refetchInterval: 60000,
+    refetchInterval: 180000, // Reduced to every 3 minutes
+    staleTime: 120000, // Consider data fresh for 2 minutes
   });
 
   // Get current cycle end time
@@ -284,11 +290,13 @@ export function useOddyssey() {
     }
   }, []);
 
-  // Enhanced daily matches with live data
+  // Enhanced daily matches with live data - optimized for performance
   const { data: dailyMatchesWithLive, refetch: refetchDailyMatches } = useQuery({
     queryKey: ['oddyssey-daily-matches-live', dailyCycleId],
     queryFn: async () => {
       const matches = Array.isArray(dailyMatches) ? dailyMatches : [];
+      if (matches.length === 0) return [];
+      
       const liveData = await fetchLiveMatchData(matches);
       
       return matches.map((match: any) => ({
@@ -299,7 +307,8 @@ export function useOddyssey() {
       }));
     },
     enabled: !!dailyMatches && Array.isArray(dailyMatches) && dailyMatches.length > 0,
-    refetchInterval: 30000, // Refetch every 30 seconds for live data
+    refetchInterval: 60000, // Reduced to every 1 minute for live data
+    staleTime: 30000, // Consider data fresh for 30 seconds
   });
 
   // Helper functions

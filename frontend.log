@@ -1,0 +1,11 @@
+
+> bitredict@0.1.0 dev
+> next dev --turbopack -p 8080
+
+   ▲ Next.js 15.3.4 (Turbopack)
+   - Local:        http://localhost:8080
+   - Network:      http://172.24.255.31:8080
+   - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 2.6s
