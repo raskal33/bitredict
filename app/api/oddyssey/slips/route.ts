@@ -5,8 +5,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const playerAddress = searchParams.get('address');
     const limit = searchParams.get('limit') || '10';
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
 
-    console.log('🎯 Fetching user slips:', { playerAddress, limit });
+    console.log('🎯 Fetching user slips:', { playerAddress, limit, startDate, endDate });
 
     if (!playerAddress) {
       return NextResponse.json({
@@ -17,7 +19,12 @@ export async function GET(request: NextRequest) {
 
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://bitredict-backend.fly.dev';
 
-    const response = await fetch(`${backendUrl}/api/oddyssey/slips/${playerAddress}?limit=${limit}`, {
+    // Build query parameters
+    const queryParams = new URLSearchParams({ limit });
+    if (startDate) queryParams.append('startDate', startDate);
+    if (endDate) queryParams.append('endDate', endDate);
+
+    const response = await fetch(`${backendUrl}/api/oddyssey/slips/${playerAddress}?${queryParams.toString()}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

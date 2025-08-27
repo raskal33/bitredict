@@ -601,6 +601,38 @@ class OddysseyService {
       data: AvailableDates;
     }>(`${this.baseEndpoint}/available-dates`);
   }
+
+  /**
+   * Get user slips with optional date filtering
+   */
+  async getUserSlipsWithFilter(
+    address: string, 
+    options?: {
+      startDate?: string;
+      endDate?: string;
+      limit?: number;
+    }
+  ): Promise<{
+    success: boolean;
+    data: OddysseySlip[];
+  }> {
+    const params = new URLSearchParams({ address });
+    
+    if (options?.startDate) {
+      params.append('startDate', options.startDate);
+    }
+    if (options?.endDate) {
+      params.append('endDate', options.endDate);
+    }
+    if (options?.limit) {
+      params.append('limit', options.limit.toString());
+    }
+
+    return apiRequest<{
+      success: boolean;
+      data: OddysseySlip[];
+    }>(`/api/oddyssey/slips?${params.toString()}`);
+  }
 }
 
 export const oddysseyService = new OddysseyService(); 

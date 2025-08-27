@@ -39,35 +39,12 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type');
     
-    // Fallback to mock data
-    const mockData = type === 'user' ? {
-      totalSlips: 15,
-      totalWins: 8,
-      bestScore: 1250,
-      averageScore: 850,
-      winRate: 5333, // 53.33%
-      currentStreak: 3,
-      bestStreak: 5,
-      lastActiveCycle: 42
-    } : {
-      totalPlayers: 1234,
-      totalSlips: 2847,
-      totalCycles: 127,
-      activeCycles: 3,
-      completedCycles: 124,
-      avgPrizePool: 5.2,
-      winRate: 23.4,
-      avgCorrect: 8.7,
-      averageScore: 850,
-      highestScore: 2500,
-      totalWins: 665,
-      leaderboard: []
-    };
-
+    // Return error instead of mock data to help debug the issue
     return NextResponse.json({ 
-      success: true, 
-      data: mockData, 
-      message: 'Using mock data - backend connection failed' 
-    });
+      success: false, 
+      data: null, 
+      message: `Failed to fetch ${type} stats: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 } 

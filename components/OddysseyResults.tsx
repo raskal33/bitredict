@@ -85,13 +85,13 @@ export default function OddysseyResults({ className = "" }: OddysseyResultsProps
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'finished':
-        return <CheckCircleIcon className="w-4 h-4 text-green-500" />;
+        return <CheckCircleIcon className="w-4 h-4 text-green-400" />;
       case 'live':
-        return <ClockIcon className="w-4 h-4 text-red-500 animate-pulse" />;
+        return <ClockIcon className="w-4 h-4 text-red-400 animate-pulse" />;
       case 'upcoming':
-        return <EyeIcon className="w-4 h-4 text-blue-500" />;
+        return <EyeIcon className="w-4 h-4 text-primary" />;
       default:
-        return <ClockIcon className="w-4 h-4 text-gray-400" />;
+        return <ClockIcon className="w-4 h-4 text-text-muted" />;
     }
   };
 
@@ -130,28 +130,28 @@ export default function OddysseyResults({ className = "" }: OddysseyResultsProps
   };
 
   const getOutcomeColor = (outcome: string | null) => {
-    if (!outcome) return 'text-gray-500';
+    if (!outcome) return 'text-text-muted';
     
     switch (outcome) {
       case '1':
       case '2':
       case 'over':
       case 'under':
-        return 'text-green-600 font-semibold';
+        return 'text-green-400 font-semibold';
       case 'X':
-        return 'text-blue-600 font-semibold';
+        return 'text-primary font-semibold';
       default:
-        return 'text-gray-600';
+        return 'text-text-secondary';
     }
   };
 
   return (
-    <div className={`bg-white rounded-lg shadow-lg p-6 ${className}`}>
+    <div className={`glass-card p-6 ${className}`}>
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center">
           <TrophyIcon className="w-6 h-6 text-yellow-500 mr-2" />
-          <h2 className="text-xl font-bold text-gray-900">Oddyssey Results</h2>
+          <h2 className="text-xl font-bold text-white">Oddyssey Results</h2>
         </div>
         
         {/* Date Picker */}
@@ -164,11 +164,11 @@ export default function OddysseyResults({ className = "" }: OddysseyResultsProps
         </div>
       </div>
 
-      {/* Loading State */}
+              {/* Loading State */}
       {isLoading && (
         <div className="flex items-center justify-center py-12">
-          <FaSpinner className="w-8 h-8 text-blue-500 animate-spin mr-3" />
-          <span className="text-gray-600">Loading results...</span>
+          <FaSpinner className="w-8 h-8 text-primary animate-spin mr-3" />
+          <span className="text-text-secondary">Loading results...</span>
         </div>
       )}
 
@@ -182,25 +182,25 @@ export default function OddysseyResults({ className = "" }: OddysseyResultsProps
             transition={{ duration: 0.3 }}
           >
             {/* Results Summary */}
-            <div className="bg-gray-50 rounded-lg p-4 mb-6">
+            <div className="glass-card p-4 mb-6">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-900">{results.totalMatches}</div>
-                  <div className="text-sm text-gray-600">Total Matches</div>
+                  <div className="text-2xl font-bold text-white">{results.totalMatches}</div>
+                  <div className="text-sm text-text-muted">Total Matches</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">{results.finishedMatches}</div>
-                  <div className="text-sm text-gray-600">Finished</div>
+                  <div className="text-2xl font-bold text-green-400">{results.finishedMatches}</div>
+                  <div className="text-sm text-text-muted">Finished</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">{results.cycleId || 'N/A'}</div>
-                  <div className="text-sm text-gray-600">Cycle ID</div>
+                  <div className="text-2xl font-bold text-primary">{results.cycleId || 'N/A'}</div>
+                  <div className="text-sm text-text-muted">Cycle ID</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-purple-600">
+                  <div className="text-2xl font-bold text-secondary">
                     {results.isResolved ? 'Resolved' : 'Pending'}
                   </div>
-                  <div className="text-sm text-gray-600">Status</div>
+                  <div className="text-sm text-text-muted">Status</div>
                 </div>
               </div>
             </div>
@@ -213,26 +213,26 @@ export default function OddysseyResults({ className = "" }: OddysseyResultsProps
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                  className="glass-card p-4 hover:bg-primary/5 transition-all duration-200 border-l-2 border-transparent hover:border-primary/50"
                 >
                   <div className="flex items-center justify-between">
                     {/* Match Info */}
                     <div className="flex-1">
                       <div className="flex items-center mb-2">
                         {getStatusIcon(match.status)}
-                        <span className="ml-2 text-sm font-medium text-gray-600">
+                        <span className="ml-2 text-sm font-medium text-text-secondary">
                           {getStatusText(match.status)}
                         </span>
-                        <span className="ml-2 text-xs text-gray-400">
+                        <span className="ml-2 text-xs text-text-muted">
                           {format(parseISO(match.match_date), 'HH:mm')}
                         </span>
                       </div>
                       
-                      <div className="text-lg font-semibold text-gray-900 mb-1">
+                      <div className="text-lg font-semibold text-white mb-1">
                         {match.home_team} vs {match.away_team}
                       </div>
                       
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm text-text-secondary">
                         {match.league_name}
                       </div>
                     </div>
@@ -241,8 +241,11 @@ export default function OddysseyResults({ className = "" }: OddysseyResultsProps
                     <div className="text-right">
                       {match.result.is_finished ? (
                         <div className="space-y-1">
-                          <div className="text-lg font-bold text-gray-900">
-                            {match.result.home_score} - {match.result.away_score}
+                          <div className="text-lg font-bold text-white">
+                            {match.result.home_score !== null && match.result.away_score !== null 
+                              ? `${match.result.home_score} - ${match.result.away_score}`
+                              : 'Score unavailable'
+                            }
                           </div>
                           <div className="text-sm">
                             <span className={getOutcomeColor(match.result.outcome_1x2)}>
@@ -256,7 +259,7 @@ export default function OddysseyResults({ className = "" }: OddysseyResultsProps
                           </div>
                         </div>
                       ) : (
-                        <div className="text-sm text-gray-500">
+                        <div className="text-sm text-text-muted">
                           {match.status === 'upcoming' ? 'Not started' : 'In progress'}
                         </div>
                       )}
@@ -269,9 +272,9 @@ export default function OddysseyResults({ className = "" }: OddysseyResultsProps
             {/* No Results Message */}
             {results.matches.length === 0 && (
               <div className="text-center py-12">
-                <CalendarIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Results Found</h3>
-                <p className="text-gray-600">
+                <CalendarIcon className="w-12 h-12 text-text-muted mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-white mb-2">No Results Found</h3>
+                <p className="text-text-secondary">
                   No matches were found for {format(parseISO(selectedDate), 'MMMM dd, yyyy')}
                 </p>
               </div>
@@ -286,9 +289,9 @@ export default function OddysseyResults({ className = "" }: OddysseyResultsProps
             animate={{ opacity: 1 }}
             className="text-center py-12"
           >
-            <XCircleIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No Results Available</h3>
-            <p className="text-gray-600">
+            <XCircleIcon className="w-12 h-12 text-text-muted mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-white mb-2">No Results Available</h3>
+            <p className="text-text-secondary">
               Try selecting a different date or check back later
             </p>
           </motion.div>

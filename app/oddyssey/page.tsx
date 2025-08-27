@@ -222,6 +222,12 @@ export default function OddysseyPage() {
   const [apiCallInProgress, setApiCallInProgress] = useState(false);
   const [lastSubmissionTime, setLastSubmissionTime] = useState(0);
   const picksRef = useRef<Pick[]>([]);
+  
+  // Date filtering state for My Slips tab
+  const [slipDateFilter, setSlipDateFilter] = useState({
+    startDate: '',
+    endDate: ''
+  });
 
   // Debug chainId changes and clear network errors when correct
   useEffect(() => {
@@ -539,6 +545,132 @@ export default function OddysseyPage() {
       setApiCallInProgress(false);
     }
   }, [address, apiCallInProgress]);
+
+  // Date filter handlers for My Slips tab
+  const handleApplyDateFilter = useCallback(async () => {
+    if (!address || apiCallInProgress) return;
+    
+    try {
+      setApiCallInProgress(true);
+      console.log('🎯 Applying date filter:', slipDateFilter);
+      
+      const options: { startDate?: string; endDate?: string; limit?: number } = { limit: 50 };
+      if (slipDateFilter.startDate) options.startDate = slipDateFilter.startDate;
+      if (slipDateFilter.endDate) options.endDate = slipDateFilter.endDate;
+      
+      const result = await oddysseyService.getUserSlipsWithFilter(address, options);
+      
+      if (result.success && result.data) {
+        console.log('✅ Filtered user slips received:', result.data);
+        
+        // Convert backend slip format to frontend format (same logic as fetchUserSlips)
+        const convertedSlips = result.data.map((slip: unknown) => {
+          if (!slip || typeof slip !== 'object' || !('predictions' in slip)) {
+            return [];
+          }
+          
+          const slipObj = slip as { 
+            predictions?: unknown[];
+            slip_id?: number;
+            cycle_id?: number;
+            final_score?: number;
+            correct_count?: number;
+            is_evaluated?: boolean;
+            submitted_time?: string;
+            placed_at?: string;
+            status?: string;
+            total_odds?: number;
+          };
+          
+          const predictions = Array.isArray(slipObj.predictions) ? slipObj.predictions : [];
+          
+          return predictions.map((pred: unknown) => {
+            if (!pred || typeof pred !== 'object') {
+              return null;
+            }
+            
+            const predObj = pred as {
+              match_id?: number | string;
+              matchId?: number | string;
+              id?: number | string;
+              prediction?: string;
+              selection?: string;
+              betType?: string;
+              odds?: number;
+              selectedOdd?: number;
+              odd?: number;
+              home_team?: string;
+              away_team?: string;
+              match_time?: string;
+              match_date?: string;
+              league_name?: string;
+              status?: string;
+            };
+            
+            const matchId = Number(predObj.match_id || predObj.matchId || predObj.id || 0);
+            const prediction = String(predObj.prediction || predObj.selection || predObj.betType || "1");
+            const odds = Number(predObj.odds || predObj.selectedOdd || predObj.odd || 1);
+            
+            const homeTeam = predObj.home_team || `Team ${matchId}`;
+            const awayTeam = predObj.away_team || `Team ${matchId}`;
+            
+            let matchTime = predObj.match_time || '00:00';
+            if (!predObj.match_time && predObj.match_date) {
+              const matchDate = new Date(predObj.match_date);
+              matchTime = matchDate.toLocaleTimeString('en-US', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: false 
+              });
+            }
+            
+            let pick: "home" | "draw" | "away" | "over" | "under" = "home";
+            if (prediction === "X" || prediction === "draw") pick = "draw";
+            else if (prediction === "2" || prediction === "away") pick = "away";
+            else if (prediction === "Over" || prediction === "over" || prediction === "O2.5") pick = "over";
+            else if (prediction === "Under" || prediction === "under" || prediction === "U2.5") pick = "under";
+            
+            return {
+              id: matchId,
+              time: matchTime,
+              match: `${homeTeam} vs ${awayTeam}`,
+              pick: pick,
+              odd: odds,
+              team1: homeTeam,
+              team2: awayTeam,
+              slipId: slipObj.slip_id,
+              cycleId: slipObj.cycle_id,
+              finalScore: slipObj.final_score,
+              correctCount: slipObj.correct_count,
+              isEvaluated: slipObj.is_evaluated,
+              placedAt: slipObj.placed_at || slipObj.submitted_time,
+              status: slipObj.status,
+              totalOdds: slipObj.total_odds
+            };
+          }).filter(pred => pred !== null);
+        }).filter(slip => slip.length > 0);
+        
+        setSlips(convertedSlips);
+        toast.success(`Found ${convertedSlips.length} slips for the selected date range`);
+      } else {
+        console.warn('⚠️ No filtered slips found');
+        setSlips([]);
+        toast('No slips found for the selected date range');
+      }
+    } catch (error) {
+      console.error('❌ Error applying date filter:', error);
+      toast.error('Failed to filter slips');
+    } finally {
+      setApiCallInProgress(false);
+    }
+  }, [address, slipDateFilter, apiCallInProgress]);
+
+  const handleClearDateFilter = useCallback(async () => {
+    setSlipDateFilter({ startDate: '', endDate: '' });
+    // Refetch all slips without date filter
+    await fetchUserSlips();
+    toast.success('Date filter cleared');
+  }, [fetchUserSlips]);
 
   useEffect(() => {
     fetchMatches();
@@ -2044,6 +2176,55 @@ export default function OddysseyPage() {
                     <TrophyIcon className="h-6 w-6" />
                     My Submitted Slips
                   </h2>
+                  
+                  {/* Date Filtering Controls */}
+                  <div className="mb-6 p-4 glass-card">
+                    <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        <CalendarIcon className="h-5 w-5 text-primary" />
+                        <span className="text-text-secondary font-medium">Filter by Date:</span>
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-3 flex-1">
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs text-text-muted">From</label>
+                          <input
+                            type="date"
+                            value={slipDateFilter.startDate}
+                            onChange={(e) => setSlipDateFilter(prev => ({ ...prev, startDate: e.target.value }))}
+                            className="px-3 py-2 bg-bg-card border border-border-card rounded-button text-white text-sm focus:border-primary focus:outline-none"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-xs text-text-muted">To</label>
+                          <input
+                            type="date"
+                            value={slipDateFilter.endDate}
+                            onChange={(e) => setSlipDateFilter(prev => ({ ...prev, endDate: e.target.value }))}
+                            className="px-3 py-2 bg-bg-card border border-border-card rounded-button text-white text-sm focus:border-primary focus:outline-none"
+                          />
+                        </div>
+                        <div className="flex items-end gap-2">
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={handleApplyDateFilter}
+                            leftIcon={<ArrowPathIcon className="h-4 w-4" />}
+                            disabled={apiCallInProgress}
+                          >
+                            Apply Filter
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={handleClearDateFilter}
+                            disabled={apiCallInProgress}
+                          >
+                            Clear
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                   
                   <AnimatePresence mode="wait">
                     {slips.length > 0 ? (
