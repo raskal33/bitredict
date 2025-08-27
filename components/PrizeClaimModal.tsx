@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   XMarkIcon,
   TrophyIcon,
-  CurrencyDollarIcon,
+
   CheckCircleIcon,
   ExclamationTriangleIcon,
   ArrowPathIcon
@@ -40,14 +40,7 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
   
   const { connectWallet } = useWalletConnection();
 
-  // Load claimable positions
-  useEffect(() => {
-    if (isOpen && userAddress) {
-      loadPositions();
-    }
-  }, [isOpen, userAddress]);
-
-  const loadPositions = async () => {
+  const loadPositions = useCallback(async () => {
     if (!userAddress) return;
     
     setIsLoading(true);
@@ -67,7 +60,14 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [userAddress, getClaimablePositions]);
+
+  // Load claimable positions
+  useEffect(() => {
+    if (isOpen && userAddress) {
+      loadPositions();
+    }
+  }, [isOpen, userAddress, loadPositions]);
 
   const handleClaimSingle = async (position: ClaimablePosition) => {
     if (!isConnected) {

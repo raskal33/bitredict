@@ -3,9 +3,9 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt, useWalletClient } from "wagmi";
+import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 // Removed unused imports: parseEther, parseUnits, formatUnits, keccak256, solidityPacked, toUtf8Bytes
-import { ethers } from "ethers";
+
 
 import { toast } from "react-hot-toast";
 import { useTransactionFeedback, TransactionFeedback } from "@/components/TransactionFeedback";
@@ -124,7 +124,7 @@ interface GuidedMarketData {
 
 export default function CreateMarketPage() {
   const { address, isConnected } = useAccount();
-  const { data: walletClient } = useWalletClient();
+
   const { connectWallet, isConnecting } = useWalletConnection();
   const { createFootballMarket } = useGuidedMarketCreation();
   const { getUserReputation, canCreateMarket, addReputationAction } = useReputationStore();
@@ -733,7 +733,7 @@ export default function CreateMarketPage() {
       try {
         await connectWallet();
         return;
-      } catch (error) {
+      } catch {
         showError('Connection Failed', 'Failed to connect wallet. Please try again.');
         return;
       }

@@ -13,7 +13,9 @@ import {
   UserGroupIcon,
   RocketLaunchIcon,
   BeakerIcon,
-  ShieldCheckIcon
+  ShieldCheckIcon,
+
+  ServerIcon
 } from "@heroicons/react/24/outline";
 
 export default function DocsPage() {
@@ -28,7 +30,7 @@ export default function DocsPage() {
     },
     {
       id: "guides",
-      name: "Guides",
+      name: "User Guides",
       icon: BookOpenIcon,
       color: "from-green-500 to-emerald-500"
     },
@@ -43,21 +45,27 @@ export default function DocsPage() {
       name: "API Reference",
       icon: AcademicCapIcon,
       color: "from-orange-500 to-red-500"
+    },
+    {
+      id: "development",
+      name: "Development",
+      icon: ServerIcon,
+      color: "from-indigo-500 to-purple-500"
     }
   ];
 
   const documentation = [
     {
       title: "Introduction",
-      description: "Get started with BitRedict prediction markets",
+      description: "Get started with Bitredict decentralized prediction markets",
       href: "/docs/intro.html",
       category: "guides",
       icon: BookOpenIcon,
       featured: true
     },
     {
-      title: "Architecture Overview",
-      description: "Understanding the system architecture and components",
+      title: "System Architecture",
+      description: "Comprehensive technical architecture and system design",
       href: "/docs/architecture.html",
       category: "technical",
       icon: CogIcon,
@@ -65,15 +73,23 @@ export default function DocsPage() {
     },
     {
       title: "Prediction Markets",
-      description: "How prediction markets work and how to participate",
+      description: "How contrarian pools work and market participation",
       href: "/docs/prediction-markets.html",
       category: "guides",
       icon: ChartBarIcon,
       featured: true
     },
     {
+      title: "Oddyssey Contest",
+      description: "Daily parlay competitions with multiplicative scoring",
+      href: "/docs/oddyssey.html",
+      category: "guides",
+      icon: RocketLaunchIcon,
+      featured: true
+    },
+    {
       title: "Oracle System",
-      description: "Understanding the decentralized oracle infrastructure",
+      description: "Dual oracle infrastructure for guided and open markets",
       href: "/docs/oracle-system.html",
       category: "technical",
       icon: ShieldCheckIcon,
@@ -81,39 +97,47 @@ export default function DocsPage() {
     },
     {
       title: "Reputation System",
-      description: "How reputation and scoring works in the platform",
+      description: "Dynamic scoring, badges, and tier progression",
       href: "/docs/reputation-system.html",
       category: "guides",
       icon: UserGroupIcon,
       featured: false
     },
     {
-      title: "Tokenomics",
-      description: "Token economics and distribution mechanisms",
-      href: "/docs/tokenomics/",
-      category: "technical",
-      icon: CurrencyDollarIcon,
-      featured: false
-    },
-    {
-      title: "API Documentation",
-      description: "Complete API reference for developers",
-      href: "/docs/api/",
-      category: "api",
-      icon: AcademicCapIcon,
-      featured: false
-    },
-    {
-      title: "Contract Integration",
-      description: "Smart contract integration guide",
-      href: "/docs/contracts/",
+      title: "Smart Contracts",
+      description: "BitredictPool and Oddyssey contract documentation",
+      href: "/docs/contracts/prediction-pool.html",
       category: "technical",
       icon: BeakerIcon,
       featured: false
     },
     {
-      title: "Examples",
-      description: "Practical examples and use cases",
+      title: "API Reference",
+      description: "Complete REST API documentation for developers",
+      href: "/docs/api/overview.html",
+      category: "api",
+      icon: AcademicCapIcon,
+      featured: false
+    },
+    {
+      title: "Tokenomics",
+      description: "BITR token economics, staking, and airdrop mechanics",
+      href: "/docs/tokenomics/bitr-overview.html",
+      category: "technical",
+      icon: CurrencyDollarIcon,
+      featured: false
+    },
+    {
+      title: "Database Schema",
+      description: "PostgreSQL database design and data models",
+      href: "/docs/database-schema.html",
+      category: "development",
+      icon: ServerIcon,
+      featured: false
+    },
+    {
+      title: "Examples & Use Cases",
+      description: "Practical examples and real-world applications",
       href: "/docs/examples.html",
       category: "guides",
       icon: RocketLaunchIcon,
@@ -121,7 +145,7 @@ export default function DocsPage() {
     },
     {
       title: "Vision & Roadmap",
-      description: "Future plans and development roadmap",
+      description: "Future development plans and platform evolution",
       href: "/docs/vision.html",
       category: "guides",
       icon: RocketLaunchIcon,
@@ -129,7 +153,7 @@ export default function DocsPage() {
     },
     {
       title: "Glossary",
-      description: "Key terms and definitions",
+      description: "Key terms, definitions, and platform terminology",
       href: "/docs/glossary.html",
       category: "guides",
       icon: BookOpenIcon,
@@ -150,8 +174,8 @@ export default function DocsPage() {
         className="text-center space-y-4"
       >
         <h1 className="text-4xl font-bold text-white">Documentation</h1>
-        <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-          Comprehensive guides, API references, and technical documentation for the BitRedict platform
+        <p className="text-gray-400 text-lg max-w-3xl mx-auto">
+          Comprehensive technical documentation for the Bitredict platform, including user guides, API references, smart contract documentation, and system architecture details.
         </p>
       </motion.div>
 
@@ -229,7 +253,7 @@ export default function DocsPage() {
         className="bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/20 rounded-2xl p-6"
       >
         <h3 className="text-xl font-bold text-white mb-4">Quick Access</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Link 
             href="/docs/intro.html" 
             target="_blank"
@@ -238,11 +262,11 @@ export default function DocsPage() {
             <BookOpenIcon className="w-6 h-6 text-cyan-400" />
             <div>
               <div className="font-medium text-white">Getting Started</div>
-              <div className="text-sm text-gray-400">Quick setup guide</div>
+              <div className="text-sm text-gray-400">Platform introduction</div>
             </div>
           </Link>
           <Link 
-            href="/docs/api/" 
+            href="/docs/api/overview.html" 
             target="_blank"
             className="flex items-center gap-3 p-4 bg-gray-800/50 rounded-xl hover:bg-gray-700/50 transition-all"
           >
@@ -253,16 +277,63 @@ export default function DocsPage() {
             </div>
           </Link>
           <Link 
-            href="/docs/examples.html" 
+            href="/docs/contracts/prediction-pool.html" 
             target="_blank"
             className="flex items-center gap-3 p-4 bg-gray-800/50 rounded-xl hover:bg-gray-700/50 transition-all"
           >
-            <RocketLaunchIcon className="w-6 h-6 text-cyan-400" />
+            <BeakerIcon className="w-6 h-6 text-cyan-400" />
             <div>
-              <div className="font-medium text-white">Examples</div>
-              <div className="text-sm text-gray-400">Practical use cases</div>
+              <div className="font-medium text-white">Smart Contracts</div>
+              <div className="text-sm text-gray-400">Contract integration</div>
             </div>
           </Link>
+          <Link 
+            href="/docs/architecture.html" 
+            target="_blank"
+            className="flex items-center gap-3 p-4 bg-gray-800/50 rounded-xl hover:bg-gray-700/50 transition-all"
+          >
+            <CogIcon className="w-6 h-6 text-cyan-400" />
+            <div>
+              <div className="font-medium text-white">Architecture</div>
+              <div className="text-sm text-gray-400">System design</div>
+            </div>
+          </Link>
+        </div>
+      </motion.div>
+
+      {/* Platform Features Overview */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-2xl p-6"
+      >
+        <h3 className="text-xl font-bold text-white mb-4">Platform Features</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="p-4 bg-gray-800/30 rounded-xl">
+            <h4 className="font-semibold text-white mb-2">🔮 Prediction Markets</h4>
+            <p className="text-sm text-gray-400">Contrarian pool structure with guided and open markets</p>
+          </div>
+          <div className="p-4 bg-gray-800/30 rounded-xl">
+            <h4 className="font-semibold text-white mb-2">🎮 Oddyssey Contest</h4>
+            <p className="text-sm text-gray-400">Daily 10-match parlay competitions with multiplicative scoring</p>
+          </div>
+          <div className="p-4 bg-gray-800/30 rounded-xl">
+            <h4 className="font-semibold text-white mb-2">🏆 Reputation System</h4>
+            <p className="text-sm text-gray-400">Dynamic scoring, badges, and tier-based privileges</p>
+          </div>
+          <div className="p-4 bg-gray-800/30 rounded-xl">
+            <h4 className="font-semibold text-white mb-2">💎 Token Economics</h4>
+            <p className="text-sm text-gray-400">BITR staking, governance, and airdrop mechanisms</p>
+          </div>
+          <div className="p-4 bg-gray-800/30 rounded-xl">
+            <h4 className="font-semibold text-white mb-2">🔗 Smart Contracts</h4>
+            <p className="text-sm text-gray-400">Deployed on Somnia with comprehensive security measures</p>
+          </div>
+          <div className="p-4 bg-gray-800/30 rounded-xl">
+            <h4 className="font-semibold text-white mb-2">📊 Analytics</h4>
+            <p className="text-sm text-gray-400">Real-time platform metrics and user analytics</p>
+          </div>
         </div>
       </motion.div>
     </div>
