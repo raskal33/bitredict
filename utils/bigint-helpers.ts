@@ -56,4 +56,45 @@ export const formatBigInt = (value: bigint, decimals: number = 18): string => {
   const integerPart = str.slice(0, -decimals);
   const decimalPart = str.slice(-decimals);
   return `${integerPart}.${decimalPart}`;
+};
+
+/**
+ * Recursively serialize BigInt values to strings in any object/array structure
+ * This prevents React Query serialization errors
+ */
+export const serializeBigInts = (obj: any): any => {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+  
+  if (typeof obj === 'bigint') {
+    return obj.toString();
+  }
+  
+  if (obj instanceof Date) {
+    return obj.toISOString();
+  }
+  
+  if (obj instanceof ArrayBuffer || obj instanceof Uint8Array) {
+    return obj.toString();
+  }
+  
+  if (Array.isArray(obj)) {
+    return obj.map(item => serializeBigInts(item));
+  }
+  
+  if (typeof obj === 'object') {
+    const result: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      try {
+        result[key] = serializeBigInts(value);
+      } catch (error) {
+        console.warn(`Error serializing key "${key}":`, error);
+        result[key] = null;
+      }
+    }
+    return result;
+  }
+  
+  return obj;
 }; 

@@ -14,6 +14,7 @@ import {
 } from 'viem';
 import { CONTRACTS } from '@/contracts';
 import { GAS_SETTINGS } from '@/config/wagmi';
+import { serializeBigInts } from '@/utils/bigint-helpers';
 
 
 // Convert somniaNetwork to viem Chain format
@@ -169,45 +170,50 @@ class OddysseyContract {
   }
 
   async getCurrentCycleInfo() {
-    return await this.client.readContract({
+    const result = await this.client.readContract({
       address: CONTRACTS.ODDYSSEY.address as Address,
       abi: ODDYSSEY_ABI,
       functionName: 'getCurrentCycleInfo'
     });
+    return serializeBigInts(result);
   }
 
   async getDailyMatches(cycleId: bigint) {
-    return await this.client.readContract({
+    const result = await this.client.readContract({
       address: CONTRACTS.ODDYSSEY.address as Address,
       abi: ODDYSSEY_ABI,
       functionName: 'getDailyMatches',
       args: [cycleId]
     });
+    return serializeBigInts(result);
   }
 
   async getEntryFee() {
-    return await this.client.readContract({
+    const result = await this.client.readContract({
       address: CONTRACTS.ODDYSSEY.address as Address,
       abi: ODDYSSEY_ABI,
       functionName: 'entryFee'
     });
+    return serializeBigInts(result);
   }
 
   async getSlipCount() {
-    return await this.client.readContract({
+    const result = await this.client.readContract({
       address: CONTRACTS.ODDYSSEY.address as Address,
       abi: ODDYSSEY_ABI,
       functionName: 'slipCount'
     });
+    return serializeBigInts(result);
   }
 
   async getSlip(slipId: bigint) {
-    return await this.client.readContract({
+    const result = await this.client.readContract({
       address: CONTRACTS.ODDYSSEY.address as Address,
       abi: ODDYSSEY_ABI,
       functionName: 'getSlip',
       args: [slipId]
     });
+    return serializeBigInts(result);
   }
 
   async placeSlip(predictions: UserPrediction[], value: string) {
@@ -578,7 +584,8 @@ export class OddysseyContractService {
     this.ensureInitialized();
     
     const entryFee = await this.oddysseyContract!.getEntryFee();
-    return formatEther(entryFee as bigint);
+    // entryFee is now a serialized string, convert back to BigInt for formatEther
+    return formatEther(BigInt(entryFee as string));
   }
 
   /**
@@ -587,8 +594,8 @@ export class OddysseyContractService {
   static async getCurrentCycleId(): Promise<number> {
     this.ensureInitialized();
     
-    const cycleInfo = await this.oddysseyContract!.getCurrentCycleInfo() as [bigint, number, bigint, bigint, bigint];
-    return Number(cycleInfo[0]); // Return the cycle ID from the array
+    const cycleInfo = await this.oddysseyContract!.getCurrentCycleInfo() as [string, number, string, string, string];
+    return Number(cycleInfo[0]); // Return the cycle ID from the array (now serialized as string)
   }
 
   /**
@@ -597,10 +604,10 @@ export class OddysseyContractService {
   static async getCurrentMatches(): Promise<any[]> {
     this.ensureInitialized();
     
-    const cycleInfo = await this.oddysseyContract!.getCurrentCycleInfo() as [bigint, number, bigint, bigint, bigint];
-    const cycleId = cycleInfo[0];
+    const cycleInfo = await this.oddysseyContract!.getCurrentCycleInfo() as [string, number, string, string, string];
+    const cycleId = BigInt(cycleInfo[0]); // Convert back to BigInt for the contract call
     const matches = await this.oddysseyContract!.getDailyMatches(cycleId);
-    return matches as any[];
+    return matches as any[]; // matches are already serialized by getDailyMatches
   }
 }
 
