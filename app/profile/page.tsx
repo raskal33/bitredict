@@ -1,15 +1,22 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { FaFire, FaChartLine, FaBolt } from "react-icons/fa";
 import { IoStatsChart } from "react-icons/io5";
 import { MdOutlineCategory } from "react-icons/md";
 import { BiSolidBadgeCheck } from "react-icons/bi";
+import { TrophyIcon } from "@heroicons/react/24/outline";
+import { useAccount } from "wagmi";
 import { useMyProfile, useUserBadges, useUserReputation, useCategoryPerformance } from "@/hooks/useUserProfile";
 import ReputationBadge from "@/components/ReputationBadge";
 import TrophyWall, { Trophy } from './TrophyWall';
+import PrizeClaimModal from "@/components/PrizeClaimModal";
+import Button from "@/components/button";
 
 export default function ProfilePage() {
+  const { address } = useAccount();
+  const [showPrizeModal, setShowPrizeModal] = useState(false);
+  
   // Get real-time user data
   const { data: profile } = useMyProfile();
   const { data: badgeData } = useUserBadges();
@@ -139,7 +146,27 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+    <>
+      {/* Prize Claiming Modal */}
+      <PrizeClaimModal
+        isOpen={showPrizeModal}
+        onClose={() => setShowPrizeModal(false)}
+        userAddress={address}
+      />
+      
+      {/* Prize Claiming Button */}
+      <div className="mb-6 flex justify-end">
+        <Button
+          onClick={() => setShowPrizeModal(true)}
+          variant="primary"
+          className="flex items-center gap-2"
+        >
+          <TrophyIcon className="h-5 w-5" />
+          Claim Prizes
+        </Button>
+      </div>
+      
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
       {/* Left Column: Stats & Activity */}
       <div className="lg:col-span-1 space-y-8">
         {/* Reputation Badge */}
@@ -317,5 +344,6 @@ export default function ProfilePage() {
         </div>
       </div>
     </div>
+    </>
   );
 }

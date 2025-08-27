@@ -182,7 +182,6 @@ export function useStaking() {
   };
 
   const claimStakeRewards = async (stakeIndex: number) => {
-
     setClaimingStakeIndex(stakeIndex);
     
     try {
@@ -230,11 +229,21 @@ export function useStaking() {
 
   // Helper functions
   const formatAmount = (amount?: bigint): string => {
-    return formatTokenAmount(amount, 18);
+    try {
+      return formatTokenAmount(amount, 18);
+    } catch (error) {
+      console.error('Error formatting amount:', error);
+      return '0';
+    }
   };
 
   const formatReward = (amount?: bigint): string => {
-    return formatRewardAmount(amount, 18);
+    try {
+      return formatRewardAmount(amount, 18);
+    } catch (error) {
+      console.error('Error formatting reward:', error);
+      return '0';
+    }
   };
 
   const getDurationName = (option: DurationOption): string => {

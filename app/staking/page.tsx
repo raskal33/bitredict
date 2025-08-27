@@ -171,24 +171,54 @@ export default function StakingPage() {
     );
   }
 
-  // Handle approval
-  const handleApprove = async () => {
-    if (!stakeAmount) return;
-    
+  // Handle revenue share claim
+  const handleClaimRevenueShare = async () => {
     try {
-      await token.approveMax(CONTRACTS.BITREDICT_STAKING.address);
+      await staking.claimRevenueShare();
     } catch (error: unknown) {
-      showError("Approval Failed", (error as Error).message || "Failed to approve BITR. Please try again.");
+      showError("Revenue Share Claim Failed", (error as Error).message || "Failed to claim revenue share. Please try again.");
+    }
+  };
+
+  // Handle BITR approval for staking
+  const handleApprove = async () => {
+    try {
+      if (!stakeAmount) {
+        showError("Approval Failed", "Please enter a stake amount first.");
+        return;
+      }
+
+      const stakeAmountWei = parseUnits(stakeAmount, 18);
+      await token.approve(CONTRACTS.BITREDICT_STAKING.address, stakeAmountWei.toString());
+      showSuccess("Approval Successful", "BITR tokens approved for staking. You can now create your stake.");
+      
+      // Reset approval state after successful approval
+      setNeedsApproval(false);
+    } catch (error: unknown) {
+      showError("Approval Failed", (error as Error).message || "Failed to approve BITR tokens. Please try again.");
     }
   };
 
   // Handle staking
   const handleStake = async () => {
-    if (!stakeAmount || needsApproval) return;
-    
     try {
+      if (!stakeAmount) {
+        showError("Staking Failed", "Please enter a stake amount.");
+        return;
+      }
+
+      if (!staking.canStakeInTier(selectedTier, stakeAmount)) {
+        showError("Staking Failed", "Stake amount does not meet the minimum requirement for the selected tier.");
+        return;
+      }
+
       await staking.stake(stakeAmount, selectedTier, selectedDuration);
+      showSuccess("Staking Successful", "Your stake has been created successfully!");
+      
+      // Reset form after successful staking
       setStakeAmount("");
+      setSelectedTier(0);
+      setSelectedDuration(DurationOption.THIRTY_DAYS);
     } catch (error: unknown) {
       showError("Staking Failed", (error as Error).message || "Failed to create stake. Please try again.");
     }
@@ -208,15 +238,6 @@ export default function StakingPage() {
       await staking.unstakeSpecific(stakeIndex);
     } catch (error: unknown) {
       showError("Unstake Failed", (error as Error).message || "Failed to unstake. Please try again.");
-    }
-  };
-
-  // Handle revenue share claim
-  const handleClaimRevenueShare = async () => {
-    try {
-      await staking.claimRevenueShare();
-    } catch (error: unknown) {
-      showError("Revenue Share Claim Failed", (error as Error).message || "Failed to claim revenue share. Please try again.");
     }
   };
 
