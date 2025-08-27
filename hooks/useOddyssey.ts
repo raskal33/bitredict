@@ -5,6 +5,7 @@ import { formatUnits, parseUnits } from 'viem';
 import { useQuery } from '@tanstack/react-query';
 import { API_CONFIG } from '@/config/api';
 import { oddysseyService, type OddysseyCycle, type OddysseyMatch } from '@/services/oddysseyService';
+import { transformContractData } from '@/utils/bigint-serializer';
 
 export enum BetType {
   MONEYLINE = 0,
@@ -85,21 +86,33 @@ export function useOddyssey() {
   const { data: entryFee } = useReadContract({
     ...CONTRACTS.ODDYSSEY,
     functionName: 'entryFee',
+    query: {
+      select: (data) => transformContractData(data),
+    },
   });
 
   const { data: dailyCycleId, refetch: refetchCycleId } = useReadContract({
     ...CONTRACTS.ODDYSSEY,
     functionName: 'dailyCycleId',
+    query: {
+      select: (data) => transformContractData(data),
+    },
   });
 
   const { data: slipCount } = useReadContract({
     ...CONTRACTS.ODDYSSEY,
     functionName: 'slipCount',
+    query: {
+      select: (data) => transformContractData(data),
+    },
   });
 
   const { data: globalStats, refetch: refetchGlobalStats } = useReadContract({
     ...CONTRACTS.ODDYSSEY,
     functionName: 'stats',
+    query: {
+      select: (data) => transformContractData(data),
+    },
   });
 
   // Get current cycle matches
@@ -107,7 +120,10 @@ export function useOddyssey() {
     ...CONTRACTS.ODDYSSEY,
     functionName: 'getDailyMatches',
     args: dailyCycleId ? [Number(dailyCycleId)] : undefined,
-    query: { enabled: !!dailyCycleId }
+    query: { 
+      enabled: !!dailyCycleId,
+      select: (data) => transformContractData(data),
+    }
   });
 
   // Get current cycle leaderboard
@@ -115,7 +131,10 @@ export function useOddyssey() {
     ...CONTRACTS.ODDYSSEY,
     functionName: 'getDailyLeaderboard',
     args: dailyCycleId ? [Number(dailyCycleId)] : undefined,
-    query: { enabled: !!dailyCycleId }
+    query: { 
+      enabled: !!dailyCycleId,
+      select: (data) => transformContractData(data),
+    }
   });
 
   // Get current cycle stats
@@ -123,7 +142,10 @@ export function useOddyssey() {
     ...CONTRACTS.ODDYSSEY,
     functionName: 'cycleStats',
     args: dailyCycleId ? [Number(dailyCycleId)] : undefined,
-    query: { enabled: !!dailyCycleId }
+    query: { 
+      enabled: !!dailyCycleId,
+      select: (data) => transformContractData(data),
+    }
   });
 
   // Get current cycle prize pool
@@ -131,7 +153,10 @@ export function useOddyssey() {
     ...CONTRACTS.ODDYSSEY,
     functionName: 'dailyPrizePools',
     args: dailyCycleId ? [Number(dailyCycleId)] : undefined,
-    query: { enabled: !!dailyCycleId }
+    query: { 
+      enabled: !!dailyCycleId,
+      select: (data) => transformContractData(data),
+    }
   });
 
   // Backend API queries for additional data
@@ -176,7 +201,10 @@ export function useOddyssey() {
     ...CONTRACTS.ODDYSSEY,
     functionName: 'dailyCycleEndTimes',
     args: dailyCycleId ? [Number(dailyCycleId)] : undefined,
-    query: { enabled: !!dailyCycleId }
+    query: { 
+      enabled: !!dailyCycleId,
+      select: (data) => transformContractData(data),
+    }
   });
 
   // Get user slips for current cycle
@@ -184,7 +212,10 @@ export function useOddyssey() {
     ...CONTRACTS.ODDYSSEY,
     functionName: 'getUserSlipsForCycle',
     args: address && dailyCycleId ? [address, Number(dailyCycleId)] : undefined,
-    query: { enabled: !!(address && dailyCycleId) }
+    query: { 
+      enabled: !!(address && dailyCycleId),
+      select: (data) => transformContractData(data),
+    }
   });
 
   // Get if cycle is resolved
@@ -192,7 +223,10 @@ export function useOddyssey() {
     ...CONTRACTS.ODDYSSEY,
     functionName: 'isCycleResolved',
     args: dailyCycleId ? [Number(dailyCycleId)] : undefined,
-    query: { enabled: !!dailyCycleId }
+    query: { 
+      enabled: !!dailyCycleId,
+      select: (data) => transformContractData(data),
+    }
   });
 
   // Write contract functions
@@ -269,8 +303,16 @@ export function useOddyssey() {
   });
 
   // Helper functions
-  const formatAmount = (amount?: bigint): string => {
+  const formatAmount = (amount?: bigint | string): string => {
     if (!amount) return '0';
+    // Handle both BigInt and string (from our serialization)
+    if (typeof amount === 'string') {
+      try {
+        return formatUnits(BigInt(amount), 18);
+      } catch {
+        return '0';
+      }
+    }
     return formatUnits(amount, 18);
   };
 
@@ -394,16 +436,16 @@ export function useOddyssey() {
 
   return {
     // Contract data
-    entryFee: formatAmount(entryFee as bigint),
+    entryFee: formatAmount(entryFee as string | bigint | undefined),
     dailyCycleId: Number(dailyCycleId || 0),
     slipCount: Number(slipCount || 0),
     globalStats: globalStats as GlobalStats,
     dailyMatches: backendOddysseyMatches?.data?.today?.matches || dailyMatchesWithLive || dailyMatches || [],
     dailyLeaderboard: dailyLeaderboard as LeaderboardEntry[],
     cycleStats: cycleStats as CycleStats,
-    prizePool: formatAmount(prizePool as bigint),
+    prizePool: formatAmount(prizePool as string | bigint | undefined),
     isCycleResolved: isCycleResolved as boolean,
-    userSlips: userSlips as bigint[],
+    userSlips: userSlips || [],
     
     // Backend data
     backendCycleData: backendCycleData?.cycle,
