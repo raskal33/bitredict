@@ -263,9 +263,12 @@ export default function OddysseyPage() {
       // Don't reset picks here - let the backend submission handle it
       
       // Auto-close the success message after 5 seconds
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         clearStatus();
       }, 5000);
+      
+      // Cleanup timer on unmount or when dependencies change
+      return () => clearTimeout(timer);
     }
   }, [isSuccess, hash, showSuccess, clearStatus]);
 
@@ -2242,7 +2245,9 @@ export default function OddysseyPage() {
                           const correctCount = firstPick?.correctCount || 0;
                           const isEvaluated = firstPick?.isEvaluated || false;
                           const placedAt = firstPick?.placedAt ? new Date(firstPick.placedAt).toLocaleString() : 'Unknown';
-                          const totalOdds = firstPick?.totalOdds || slip.reduce((acc, pick) => acc * (pick.odd || 1), 1);
+                          const totalOdds = firstPick?.totalOdds && firstPick.totalOdds > 0 && firstPick.totalOdds < 1e10 
+                            ? firstPick.totalOdds 
+                            : slip.reduce((acc, pick) => acc * (pick.odd || 1), 1);
                           
                           return (
                             <motion.div
@@ -2281,7 +2286,9 @@ export default function OddysseyPage() {
                                 <div className="flex flex-col md:flex-row items-start md:items-center gap-4 text-sm">
                                   <div className="flex items-center gap-2">
                                     <span className="text-text-muted">Total Odds:</span>
-                                    <span className="text-primary font-bold">{totalOdds.toFixed(2)}x</span>
+                                    <span className="text-primary font-bold">
+                                      {totalOdds > 1e6 ? 'N/A' : totalOdds.toFixed(2)}x
+                                    </span>
                                   </div>
                                   <div className="flex items-center gap-2">
                                     <span className="text-text-muted">Entry Fee:</span>

@@ -13,7 +13,11 @@ export const somniaNetwork: AppKitNetwork = {
   },
   rpcUrls: {
     default: {
-      http: ['https://dream-rpc.somnia.network/'],
+      http: [
+        process.env.NODE_ENV === 'development' 
+          ? 'http://localhost:3000/api/rpc-proxy'
+          : 'https://bitredict.vercel.app/api/rpc-proxy'
+      ],
     },
   },
   blockExplorers: {
@@ -82,7 +86,7 @@ export const CONTRACT_ADDRESSES = {
   GUIDED_ORACLE: (process.env.NEXT_PUBLIC_GUIDED_ORACLE_ADDRESS || '0x9F91C01bB21385ac9959a1d51e33E65515688DC8') as `0x${string}`,
   BITREDICT_POOL: (process.env.NEXT_PUBLIC_BITREDICT_POOL_ADDRESS || '0x5a66a41b884aF70d5671b322C3e6ac1346CC885C') as `0x${string}`,
   OPTIMISTIC_ORACLE: (process.env.NEXT_PUBLIC_OPTIMISTIC_ORACLE_ADDRESS || '0x114832D788b27c530deCe033c72286927036e7CF') as `0x${string}`,
-  BITREDICT_STAKING: (process.env.NEXT_PUBLIC_BITREDICT_STAKING_ADDRESS || '0x286A4690904fe9158a316Dfd5eA506d28F497395') as `0x${string}`,
+  BITREDICT_STAKING: (process.env.NEXT_PUBLIC_STAKING_CONTRACT_ADDRESS || '0x286A4690904fe9158a316Dfd5eA506d28F497395') as `0x${string}`,
   REPUTATION_SYSTEM: (process.env.NEXT_PUBLIC_REPUTATION_SYSTEM_ADDRESS || '0x94DBC95350AaCcC9DeAbdd9cf60B189a149636C7') as `0x${string}`,
   ODDYSSEY: (process.env.NEXT_PUBLIC_ODDYSSEY_ADDRESS || '0x9f9D719041C8F0EE708440f15AE056Cd858DCF4e') as `0x${string}`,
 }
@@ -90,7 +94,9 @@ export const CONTRACT_ADDRESSES = {
 // Network configuration for contract calls
 export const NETWORK_CONFIG = {
   chainId: 50312,
-  rpcUrl: 'https://dream-rpc.somnia.network/',
+  rpcUrl: process.env.NODE_ENV === 'development' 
+    ? 'http://localhost:3000/api/rpc-proxy'
+    : 'https://bitredict.vercel.app/api/rpc-proxy',
   explorerUrl: 'https://shannon-explorer.somnia.network',
 }
 

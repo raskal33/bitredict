@@ -28,7 +28,11 @@ const somniaChain: Chain = {
   },
   rpcUrls: {
     default: {
-      http: ['https://dream-rpc.somnia.network/'],
+      http: [
+        process.env.NODE_ENV === 'development' 
+          ? 'http://localhost:3000/api/rpc-proxy'
+          : 'https://bitredict.vercel.app/api/rpc-proxy'
+      ],
     },
   },
   blockExplorers: {
