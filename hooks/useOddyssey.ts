@@ -237,14 +237,31 @@ export function useOddyssey() {
 
   // Write contract functions
   const placeSlip = async (predictions: UserPrediction[]) => {
-    if (!entryFee) return;
+    if (!entryFee || !address) return;
     
-    writeContract({
-      ...CONTRACTS.ODDYSSEY,
-      functionName: 'placeSlip',
-      args: [predictions],
-      value: entryFee as bigint,
-    });
+    try {
+      // Convert predictions to backend format
+      const backendPredictions = predictions.map(pred => ({
+        matchId: Number(pred.matchId),
+        betType: pred.betType === BetType.MONEYLINE ? 'MONEYLINE' : 'OVER_UNDER',
+        selection: pred.selection,
+        selectedOdd: pred.selectedOdd
+      }));
+      
+      // Call backend API (this will handle both contract call and database tracking)
+      const result = await oddysseyService.placeSlip(address, backendPredictions, dailyCycleId as number);
+      
+      console.log('✅ Slip placed successfully:', result);
+      
+      // Refresh data after successful placement
+      refetchAll();
+      
+      return result;
+      
+    } catch (error) {
+      console.error('Error placing slip:', error);
+      throw error;
+    }
   };
 
   const evaluateSlip = async (slipId: number) => {
