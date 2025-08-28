@@ -30,7 +30,9 @@ import {
   TableCellsIcon,
   ArrowPathIcon,
   DocumentTextIcon,
-  GiftIcon
+  GiftIcon,
+  ChevronDownIcon,
+  ChevronUpIcon
 } from "@heroicons/react/24/outline";
 import { FaSpinner } from "react-icons/fa";
 
@@ -144,6 +146,20 @@ export default function OddysseyPage() {
   const [matchesData, setMatchesData] = useState<MatchesData | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
+  const [collapsedSlips, setCollapsedSlips] = useState<Set<number>>(new Set());
+  
+  // Helper function to toggle slip collapse
+  const toggleSlipCollapse = (slipIndex: number) => {
+    setCollapsedSlips(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(slipIndex)) {
+        newSet.delete(slipIndex);
+      } else {
+        newSet.add(slipIndex);
+      }
+      return newSet;
+    });
+  };
   
   // Helper function to get enhanced slip status
   const getSlipStatusInfo = (firstPick: unknown) => {
@@ -1266,10 +1282,7 @@ export default function OddysseyPage() {
     return (odds / 1000).toFixed(2);
   };
 
-  // Helper function to get display odds for a pick
-  const getDisplayOdds = (pick: Pick) => {
-    return formatOdds(pick.odd || 1);
-  };
+
 
   // Helper function to calculate total odds correctly
   const calculateTotalOdds = (picks: Pick[]) => {
@@ -2285,6 +2298,17 @@ export default function OddysseyPage() {
                                     <h3 className="text-xl font-bold text-cyan-300">
                                       {typeof slipId === 'number' ? `Slip #${slipId}` : slipId}
                                     </h3>
+                                    <button
+                                      onClick={() => toggleSlipCollapse(slipIndex)}
+                                      className="ml-2 p-1 rounded-full hover:bg-cyan-500/20 transition-colors"
+                                      title={collapsedSlips.has(slipIndex) ? "Expand slip" : "Collapse slip"}
+                                    >
+                                      {collapsedSlips.has(slipIndex) ? (
+                                        <ChevronDownIcon className="h-5 w-5 text-cyan-400" />
+                                      ) : (
+                                        <ChevronUpIcon className="h-5 w-5 text-cyan-400" />
+                                      )}
+                                    </button>
                                   </div>
                                   <div className="flex items-center gap-2">
                                     <span className="px-3 py-1 bg-cyan-500/20 text-cyan-300 text-sm font-medium rounded-full border border-cyan-500/30">
@@ -2307,7 +2331,7 @@ export default function OddysseyPage() {
                                   <div className="flex items-center gap-2">
                                     <span className="text-text-muted">Total Odds:</span>
                                     <span className="text-cyan-300 font-bold">
-                                      {totalOdds > 1e6 ? 'N/A' : formatOdds(totalOdds)}x
+                                      {totalOdds > 1e6 ? 'N/A' : totalOdds.toFixed(2)}x
                                     </span>
                                   </div>
                                   <div className="flex items-center gap-2">
@@ -2321,10 +2345,13 @@ export default function OddysseyPage() {
                                 </div>
                               </div>
                               
-                              {/* Enhanced Predictions Grid */}
-                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+                              {/* Collapsible Content */}
+                              {!collapsedSlips.has(slipIndex) && (
+                                <>
+                                  {/* Enhanced Predictions Grid */}
+                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
                                 {slip.map((pick, i) => (
-                                  <div key={i} className="bg-bg-card/30 p-4 rounded-button border border-border-card/30 hover:border-primary/20 transition-all duration-200">
+                                  <div key={i} className="bg-slate-900/80 p-4 rounded-button border border-slate-700/50 hover:border-primary/30 transition-all duration-200 backdrop-blur-sm">
                                     <div className="flex items-center justify-between mb-2">
                                       <div className="text-xs text-text-muted font-mono">
                                         {pick.time || '00:00'}
@@ -2352,7 +2379,7 @@ export default function OddysseyPage() {
                                         {pick.team1 && pick.team2 ? 'Teams' : 'Match ID'}
                                       </span>
                                       <span className="text-white font-bold text-sm">
-                                        {typeof pick.odd === 'number' ? getDisplayOdds(pick) : '0.00'}
+                                        {typeof pick.odd === 'number' ? pick.odd.toFixed(2) : '0.00'}
                                       </span>
                                     </div>
                                   </div>
@@ -2381,6 +2408,8 @@ export default function OddysseyPage() {
                                   <span>Submitted: {placedAt}</span>
                                 </div>
                               </div>
+                                </>
+                              )}
                               
                               {/* Prize Claiming Section */}
                               {isEvaluated && firstPick?.leaderboardRank && firstPick.leaderboardRank <= 5 && (
