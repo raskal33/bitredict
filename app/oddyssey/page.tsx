@@ -23,6 +23,7 @@ import {
   EyeIcon,
   ShieldCheckIcon,
   CheckCircleIcon,
+  XCircleIcon,
   UserGroupIcon,
   ArrowTrendingUpIcon,
   UserIcon,
@@ -56,6 +57,15 @@ interface Pick {
   potentialPayout?: number;
   leaderboardRank?: number;
   prizeClaimed?: boolean;
+  // Evaluation fields
+  isCorrect?: boolean | null;
+  actualResult?: string;
+  matchResult?: {
+    homeScore?: number;
+    awayScore?: number;
+    result?: string;
+    status?: string;
+  };
 }
 
 interface Match {
@@ -2354,10 +2364,13 @@ export default function OddysseyPage() {
                                 {slip.map((pick, i) => (
                                   <div key={i} className="bg-slate-900/80 p-2 sm:p-3 md:p-4 rounded-button border border-slate-700/50 hover:border-primary/30 transition-all duration-200 backdrop-blur-sm relative">
                                     {/* Evaluation Result Indicator */}
-                                    {isEvaluated && (
+                                    {isEvaluated && pick.isCorrect !== null && (
                                       <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">
-                                        {/* TODO: Add actual match result comparison logic here */}
-                                        <span className="bg-green-500 text-white rounded-full w-5 h-5 flex items-center justify-center">✓</span>
+                                        {pick.isCorrect ? (
+                                          <CheckCircleIcon className="w-5 h-5 text-green-400 bg-green-500/20 rounded-full p-0.5" />
+                                        ) : (
+                                          <XCircleIcon className="w-5 h-5 text-red-400 bg-red-500/20 rounded-full p-0.5" />
+                                        )}
                                       </div>
                                     )}
                                     
