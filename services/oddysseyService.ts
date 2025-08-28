@@ -616,7 +616,7 @@ class OddysseyService {
     success: boolean;
     data: OddysseySlip[];
   }> {
-    const params = new URLSearchParams({ address });
+    const params = new URLSearchParams();
     
     if (options?.startDate) {
       params.append('startDate', options.startDate);
@@ -628,10 +628,20 @@ class OddysseyService {
       params.append('limit', options.limit.toString());
     }
 
+    // Use the correct backend endpoint with query parameters
+    const endpoint = params.toString() 
+      ? `${this.baseEndpoint}/user-slips/${address}?${params.toString()}`
+      : `${this.baseEndpoint}/user-slips/${address}`;
+
     return apiRequest<{
       success: boolean;
       data: OddysseySlip[];
-    }>(`/api/oddyssey/slips?${params.toString()}`);
+      meta?: {
+        count: number;
+        address: string;
+        timestamp: string;
+      };
+    }>(endpoint);
   }
 }
 
