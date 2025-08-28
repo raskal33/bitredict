@@ -2207,10 +2207,11 @@ export default function OddysseyPage() {
                 exit={{ opacity: 0, x: -20 }}
                 className="lg:col-span-3"
               >
-                <div className="glass-card p-6 bg-gradient-to-br from-cyan-500/5 to-blue-500/5 border border-cyan-500/20 shadow-lg shadow-cyan-500/10">
-                  <h2 className="text-2xl font-bold text-cyan-300 mb-6 flex items-center gap-2">
-                    <TrophyIcon className="h-6 w-6 text-cyan-400" />
-                    My Submitted Slips
+                <div className="glass-card p-4 sm:p-6 bg-gradient-to-br from-cyan-500/5 to-blue-500/5 border border-cyan-500/20 shadow-lg shadow-cyan-500/10">
+                  <h2 className="text-xl sm:text-2xl font-bold text-cyan-300 mb-4 sm:mb-6 flex items-center gap-2">
+                    <TrophyIcon className="h-5 w-5 sm:h-6 sm:w-6 text-cyan-400" />
+                    <span className="hidden sm:inline">My Submitted Slips</span>
+                    <span className="sm:hidden">My Slips</span>
                   </h2>
                   
                   {/* Date Filtering Controls */}
@@ -2288,7 +2289,7 @@ export default function OddysseyPage() {
                               initial={{ opacity: 0, y: 20 }}
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ delay: slipIndex * 0.1 }}
-                              className="glass-card p-6 border border-cyan-500/30 hover:border-cyan-400/50 transition-all duration-300 bg-gradient-to-br from-cyan-500/5 to-blue-500/5 hover:from-cyan-500/10 hover:to-blue-500/10"
+                              className="glass-card p-4 sm:p-6 border border-cyan-500/30 hover:border-cyan-400/50 transition-all duration-300 bg-gradient-to-br from-cyan-500/5 to-blue-500/5 hover:from-cyan-500/10 hover:to-blue-500/10"
                             >
                               {/* Enhanced Slip Header */}
                               <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
@@ -2348,15 +2349,23 @@ export default function OddysseyPage() {
                               {/* Collapsible Content */}
                               {!collapsedSlips.has(slipIndex) && (
                                 <>
-                                  {/* Enhanced Predictions Grid */}
-                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+                                  {/* Enhanced Predictions Grid with Mobile Support */}
+                                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4 mb-6">
                                 {slip.map((pick, i) => (
-                                  <div key={i} className="bg-slate-900/80 p-4 rounded-button border border-slate-700/50 hover:border-primary/30 transition-all duration-200 backdrop-blur-sm">
+                                  <div key={i} className="bg-slate-900/80 p-2 sm:p-3 md:p-4 rounded-button border border-slate-700/50 hover:border-primary/30 transition-all duration-200 backdrop-blur-sm relative">
+                                    {/* Evaluation Result Indicator */}
+                                    {isEvaluated && (
+                                      <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">
+                                        {/* TODO: Add actual match result comparison logic here */}
+                                        <span className="bg-green-500 text-white rounded-full w-5 h-5 flex items-center justify-center">✓</span>
+                                      </div>
+                                    )}
+                                    
                                     <div className="flex items-center justify-between mb-2">
                                       <div className="text-xs text-text-muted font-mono">
                                         {pick.time || '00:00'}
                                       </div>
-                                      <span className={`px-2 py-1 rounded text-xs font-bold ${
+                                      <span className={`px-1.5 sm:px-2 py-1 rounded text-xs font-bold ${
                                         pick.pick === "home" ? "bg-primary/20 text-primary" :
                                         pick.pick === "draw" ? "bg-secondary/20 text-secondary" :
                                         pick.pick === "away" ? "bg-accent/20 text-accent" :
@@ -2370,7 +2379,7 @@ export default function OddysseyPage() {
                                       </span>
                                     </div>
                                     
-                                    <div className="text-sm text-white font-medium mb-3 line-clamp-2 leading-tight">
+                                    <div className="text-xs sm:text-sm text-white font-medium mb-2 sm:mb-3 line-clamp-2 leading-tight">
                                       {pick.team1 && pick.team2 ? `${pick.team1} vs ${pick.team2}` : `Match ${pick.id}`}
                                     </div>
                                     
@@ -2378,7 +2387,7 @@ export default function OddysseyPage() {
                                       <span className="text-xs text-text-muted">
                                         {pick.team1 && pick.team2 ? 'Teams' : 'Match ID'}
                                       </span>
-                                      <span className="text-white font-bold text-sm">
+                                      <span className="text-white font-bold text-xs sm:text-sm">
                                         {typeof pick.odd === 'number' ? pick.odd.toFixed(2) : '0.00'}
                                       </span>
                                     </div>

@@ -148,14 +148,14 @@ export default function OddysseyResults({ className = "" }: OddysseyResultsProps
   return (
     <div className={`glass-card p-6 ${className}`}>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div className="flex items-center">
           <TrophyIcon className="w-6 h-6 text-yellow-500 mr-2" />
           <h2 className="text-xl font-bold text-white">Oddyssey Results</h2>
         </div>
         
         {/* Date Picker */}
-        <div className="w-48">
+        <div className="w-full sm:w-48 min-w-0">
           <DatePicker
             selectedDate={selectedDate}
             onDateChange={handleDateChange}
@@ -239,22 +239,22 @@ export default function OddysseyResults({ className = "" }: OddysseyResultsProps
 
                     {/* Results */}
                     <div className="text-right">
-                      {match.result.is_finished ? (
+                      {match.result?.is_finished ? (
                         <div className="space-y-1">
                           <div className="text-lg font-bold text-white">
-                            {match.result.home_score !== null && match.result.away_score !== null 
+                            {match.result?.home_score !== null && match.result?.away_score !== null 
                               ? `${match.result.home_score} - ${match.result.away_score}`
                               : 'Score unavailable'
                             }
                           </div>
                           <div className="text-sm">
-                            <span className={getOutcomeColor(match.result.outcome_1x2)}>
-                              1X2: {getOutcomeText(match.result.outcome_1x2)}
+                            <span className={getOutcomeColor(match.result?.outcome_1x2)}>
+                              1X2: {getOutcomeText(match.result?.outcome_1x2)}
                             </span>
                           </div>
                           <div className="text-sm">
-                            <span className={getOutcomeColor(match.result.outcome_ou25)}>
-                              O/U: {getOutcomeText(match.result.outcome_ou25)}
+                            <span className={getOutcomeColor(match.result?.outcome_ou25)}>
+                              O/U: {getOutcomeText(match.result?.outcome_ou25)}
                             </span>
                           </div>
                         </div>

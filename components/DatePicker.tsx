@@ -87,39 +87,39 @@ export default function DatePicker({
       {/* Date Display Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-between w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+        className="flex items-center justify-between w-full px-3 sm:px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-0"
       >
-        <div className="flex items-center">
-          <CalendarIcon className="w-5 h-5 mr-2 text-gray-400" />
-          <span>{format(selectedDateObj, 'MMM dd, yyyy')}</span>
+        <div className="flex items-center min-w-0 flex-1">
+          <CalendarIcon className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-gray-400 flex-shrink-0" />
+          <span className="truncate">{format(selectedDateObj, 'MMM dd, yyyy')}</span>
         </div>
-        <ChevronLeftIcon className="w-4 h-4 text-gray-400" />
+        <ChevronLeftIcon className="w-4 h-4 text-gray-400 flex-shrink-0 ml-2" />
       </button>
 
       {/* Calendar Dropdown */}
       {isOpen && (
-        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
+        <div className="absolute z-50 w-full sm:w-auto sm:min-w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg">
           {/* Calendar Header */}
-          <div className="flex items-center justify-between p-3 border-b border-gray-200">
+          <div className="flex items-center justify-between p-2 sm:p-3 border-b border-gray-200">
             <button
               onClick={goToPreviousMonth}
-              className="p-1 hover:bg-gray-100 rounded"
+              className="p-1 hover:bg-gray-100 rounded touch-manipulation"
             >
               <ChevronLeftIcon className="w-4 h-4" />
             </button>
-            <h3 className="text-sm font-semibold text-gray-900">
+            <h3 className="text-sm font-semibold text-gray-900 px-2">
               {format(currentMonth, 'MMMM yyyy')}
             </h3>
             <button
               onClick={goToNextMonth}
-              className="p-1 hover:bg-gray-100 rounded"
+              className="p-1 hover:bg-gray-100 rounded touch-manipulation"
             >
               <ChevronRightIcon className="w-4 h-4" />
             </button>
           </div>
 
           {/* Calendar Grid */}
-          <div className="p-3">
+          <div className="p-2 sm:p-3">
             {/* Day Headers */}
             <div className="grid grid-cols-7 gap-1 mb-2">
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
@@ -133,7 +133,7 @@ export default function DatePicker({
             <div className="grid grid-cols-7 gap-1">
               {days.map((day, index) => {
                 if (!day) {
-                  return <div key={`empty-${index}`} className="h-8" />;
+                  return <div key={`empty-${index}`} className="h-8 sm:h-10" />;
                 }
 
                 const isAvailable = isDateAvailable(day);
@@ -147,13 +147,13 @@ export default function DatePicker({
                     onClick={() => isAvailable && handleDateSelect(day)}
                     disabled={!isAvailable}
                     className={`
-                      h-8 w-full text-xs rounded-md transition-colors
+                      h-8 sm:h-10 w-full text-xs rounded-md transition-colors touch-manipulation
                       ${isSelected 
                         ? 'bg-blue-600 text-white font-semibold' 
                         : isTodayDate 
                         ? 'bg-blue-100 text-blue-700 font-semibold' 
                         : isAvailable 
-                        ? 'hover:bg-gray-100 text-gray-900' 
+                        ? 'hover:bg-gray-100 text-gray-900 active:bg-gray-200' 
                         : 'text-gray-400 cursor-not-allowed'
                       }
                       ${isAvailable && isPast ? 'bg-green-50 hover:bg-green-100' : ''}
@@ -167,16 +167,16 @@ export default function DatePicker({
           </div>
 
           {/* Quick Navigation */}
-          <div className="flex justify-between p-3 border-t border-gray-200">
+          <div className="flex justify-between p-2 sm:p-3 border-t border-gray-200">
             <button
               onClick={() => handleDateSelect(today)}
-              className="text-xs text-blue-600 hover:text-blue-800"
+              className="px-3 py-2 text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded touch-manipulation"
             >
               Today
             </button>
             <button
               onClick={() => handleDateSelect(subDays(today, 1))}
-              className="text-xs text-gray-600 hover:text-gray-800"
+              className="px-3 py-2 text-xs text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded touch-manipulation"
             >
               Yesterday
             </button>
