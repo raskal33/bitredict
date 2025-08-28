@@ -534,9 +534,9 @@ export default function OddysseyPage() {
         });
         
         console.log('🔄 Converted slips:', convertedSlips);
-        // Flatten the array and filter out null values to match Pick[][] type
-        const flattenedSlips = convertedSlips.flat().filter((item) => item !== null) as Pick[];
-        setSlips([flattenedSlips]);
+        // Keep slips as separate arrays, filter out empty slips
+        const validSlips = convertedSlips.filter(slip => slip.length > 0) as Pick[][];
+        setSlips(validSlips);
       } else {
         console.warn('⚠️ No user slips received');
         setSlips([]);
@@ -1160,7 +1160,7 @@ export default function OddysseyPage() {
     }
   };
 
-  const totalOdd = picks.reduce((acc, pick) => acc * (pick.odd || 1), 1).toFixed(2);
+
 
   // Manual refresh function for when rate limiting occurs
   const handleManualRefresh = useCallback(async () => {
@@ -1259,6 +1259,26 @@ export default function OddysseyPage() {
       showError("Retry Failed", "Failed to reconnect to contract. Please check your network connection.");
     }
   }, [isConnected, address, refetchAll, checkNetwork, showError, showInfo, showSuccess]);
+
+  // Helper function to format odds correctly (contract uses 1000x scaling)
+  const formatOdds = (odds: number) => {
+    // Contract odds are scaled by 1000, so divide by 1000 to get actual odds
+    return (odds / 1000).toFixed(2);
+  };
+
+  // Helper function to get display odds for a pick
+  const getDisplayOdds = (pick: Pick) => {
+    return formatOdds(pick.odd || 1);
+  };
+
+  // Helper function to calculate total odds correctly
+  const calculateTotalOdds = (picks: Pick[]) => {
+    const total = picks.reduce((acc, pick) => acc * (pick.odd / 1000 || 1), 1);
+    return total.toFixed(2);
+  };
+
+  // Updated totalOdd calculation
+  const totalOdd = calculateTotalOdds(picks);
 
   return (
     <div className="min-h-screen bg-gradient-main text-white">
@@ -1499,10 +1519,10 @@ export default function OddysseyPage() {
             </button>
             <button
               onClick={() => setActiveTab("slips")}
-              className={`px-4 md:px-8 py-2 md:py-3 rounded-button font-semibold transition-all duration-300 flex items-center gap-1 md:gap-2 text-sm md:text-base ${
+              className={`px-4 md:px-8 py-2 md:py-3 rounded-button font-semibold transition-all duration-300 flex items-center gap-1 md:gap-2 text-sm md:text-base relative overflow-hidden ${
                 activeTab === "slips"
-                  ? "bg-gradient-primary text-black shadow-lg scale-105"
-                  : "text-text-secondary hover:text-text-primary hover:bg-bg-card/50"
+                  ? "bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-300 shadow-lg shadow-cyan-500/25 scale-105 border border-cyan-500/30"
+                  : "text-text-secondary hover:text-cyan-300 hover:bg-gradient-to-r hover:from-cyan-500/10 hover:to-blue-500/10 hover:border hover:border-cyan-500/20"
               }`}
             >
               <div className="relative">
@@ -1525,10 +1545,10 @@ export default function OddysseyPage() {
             </button>
             <button
               onClick={() => setActiveTab("results")}
-              className={`px-4 md:px-8 py-2 md:py-3 rounded-button font-semibold transition-all duration-300 flex items-center gap-1 md:gap-2 text-sm md:text-base ${
+              className={`px-4 md:px-8 py-2 md:py-3 rounded-button font-semibold transition-all duration-300 flex items-center gap-1 md:gap-2 text-sm md:text-base relative overflow-hidden ${
                 activeTab === "results"
-                  ? "bg-gradient-secondary text-black shadow-lg scale-105"
-                  : "text-text-secondary hover:text-text-primary hover:bg-bg-card/50"
+                  ? "bg-gradient-to-r from-magenta-500/20 to-violet-500/20 text-magenta-300 shadow-lg shadow-magenta-500/25 scale-105 border border-magenta-500/30"
+                  : "text-text-secondary hover:text-magenta-300 hover:bg-gradient-to-r hover:from-magenta-500/10 hover:to-violet-500/10 hover:border hover:border-magenta-500/20"
               }`}
             >
               <DocumentTextIcon className="h-4 w-4 md:h-5 md:w-5" />
@@ -1702,7 +1722,7 @@ export default function OddysseyPage() {
                                   }`}
                                 >
                                   <div className="text-xs opacity-75">1</div>
-                                  <div>{typeof match.home_odds === 'number' ? match.home_odds.toFixed(2) : '0.00'}</div>
+                                  <div>{typeof match.home_odds === 'number' ? formatOdds(match.home_odds) : '0.00'}</div>
                                 </button>
                                 
                                 {/* Draw (X) */}
@@ -1718,7 +1738,7 @@ export default function OddysseyPage() {
                                   }`}
                                 >
                                   <div className="text-xs opacity-75">X</div>
-                                  <div>{typeof match.draw_odds === 'number' ? match.draw_odds.toFixed(2) : '0.00'}</div>
+                                  <div>{typeof match.draw_odds === 'number' ? formatOdds(match.draw_odds) : '0.00'}</div>
                                 </button>
                                 
                                 {/* Away Win (2) */}
@@ -1734,7 +1754,7 @@ export default function OddysseyPage() {
                                   }`}
                                 >
                                   <div className="text-xs opacity-75">2</div>
-                                  <div>{typeof match.away_odds === 'number' ? match.away_odds.toFixed(2) : '0.00'}</div>
+                                  <div>{typeof match.away_odds === 'number' ? formatOdds(match.away_odds) : '0.00'}</div>
                                 </button>
                                 
                                 {/* Over 2.5 */}
@@ -1750,7 +1770,7 @@ export default function OddysseyPage() {
                                   }`}
                                 >
                                   <div className="text-xs opacity-75">O</div>
-                                  <div>{typeof match.over_odds === 'number' ? match.over_odds.toFixed(1) : '1.8'}</div>
+                                  <div>{typeof match.over_odds === 'number' ? formatOdds(match.over_odds) : '0.00'}</div>
                                 </button>
                                 
                                 {/* Under 2.5 */}
@@ -1766,7 +1786,7 @@ export default function OddysseyPage() {
                                   }`}
                                 >
                                   <div className="text-xs opacity-75">U</div>
-                                  <div>{typeof match.under_odds === 'number' ? match.under_odds.toFixed(1) : '2.0'}</div>
+                                  <div>{typeof match.under_odds === 'number' ? formatOdds(match.under_odds) : '0.00'}</div>
                                 </button>
                               </div>
                             </div>
@@ -1817,7 +1837,7 @@ export default function OddysseyPage() {
                                     : "bg-primary/10 text-white hover:bg-primary/20 hover:text-primary border border-transparent hover:border-primary/30"
                               }`}
                             >
-                                {typeof match.home_odds === 'number' ? match.home_odds.toFixed(2) : '0.00'}
+                                                                    {typeof match.home_odds === 'number' ? formatOdds(match.home_odds) : '0.00'}
                             </button>
                             </div>
                             
@@ -1834,7 +1854,7 @@ export default function OddysseyPage() {
                                     : "bg-secondary/10 text-white hover:bg-secondary/20 hover:text-secondary border border-transparent hover:border-secondary/30"
                               }`}
                             >
-                                {typeof match.draw_odds === 'number' ? match.draw_odds.toFixed(2) : '0.00'}
+                                                                    {typeof match.draw_odds === 'number' ? formatOdds(match.draw_odds) : '0.00'}
                             </button>
                             </div>
                             
@@ -1851,7 +1871,7 @@ export default function OddysseyPage() {
                                     : "bg-accent/10 text-white hover:bg-accent/20 hover:text-accent border border-transparent hover:border-accent/30"
                               }`}
                             >
-                                {typeof match.away_odds === 'number' ? match.away_odds.toFixed(2) : '0.00'}
+                                                                    {typeof match.away_odds === 'number' ? formatOdds(match.away_odds) : '0.00'}
                             </button>
                             </div>
                             
@@ -1869,7 +1889,7 @@ export default function OddysseyPage() {
                                       : "bg-blue-500/10 text-white hover:bg-blue-500/20 hover:text-blue-300 border border-transparent hover:border-blue-300/30"
                               }`}
                             >
-                                  O{typeof match.over_odds === 'number' ? match.over_odds.toFixed(1) : '1.8'}
+                                  O{typeof match.over_odds === 'number' ? formatOdds(match.over_odds) : '0.00'}
                             </button>
                             <button
                               onClick={() => handlePickSelection(match.fixture_id, "under")}
@@ -1882,7 +1902,7 @@ export default function OddysseyPage() {
                                       : "bg-purple-500/10 text-white hover:bg-purple-500/20 hover:text-purple-300 border border-transparent hover:border-purple-300/30"
                               }`}
                             >
-                                  U{typeof match.under_odds === 'number' ? match.under_odds.toFixed(1) : '2.0'}
+                                  U{typeof match.under_odds === 'number' ? formatOdds(match.under_odds) : '0.00'}
                             </button>
                               </div>
                             </div>
@@ -2174,14 +2194,14 @@ export default function OddysseyPage() {
                 exit={{ opacity: 0, x: -20 }}
                 className="lg:col-span-3"
               >
-                <div className="glass-card p-6">
-                  <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-                    <TrophyIcon className="h-6 w-6" />
+                <div className="glass-card p-6 bg-gradient-to-br from-cyan-500/5 to-blue-500/5 border border-cyan-500/20 shadow-lg shadow-cyan-500/10">
+                  <h2 className="text-2xl font-bold text-cyan-300 mb-6 flex items-center gap-2">
+                    <TrophyIcon className="h-6 w-6 text-cyan-400" />
                     My Submitted Slips
                   </h2>
                   
                   {/* Date Filtering Controls */}
-                  <div className="mb-6 p-4 glass-card">
+                  <div className="mb-6 p-4 glass-card bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/30">
                     <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
                       <div className="flex items-center gap-2">
                         <CalendarIcon className="h-5 w-5 text-primary" />
@@ -2255,19 +2275,19 @@ export default function OddysseyPage() {
                               initial={{ opacity: 0, y: 20 }}
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ delay: slipIndex * 0.1 }}
-                              className="glass-card p-6 border border-border-card/50 hover:border-primary/30 transition-all duration-300"
+                              className="glass-card p-6 border border-cyan-500/30 hover:border-cyan-400/50 transition-all duration-300 bg-gradient-to-br from-cyan-500/5 to-blue-500/5 hover:from-cyan-500/10 hover:to-blue-500/10"
                             >
                               {/* Enhanced Slip Header */}
                               <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
                                 <div className="flex items-center gap-4">
                                   <div className="flex items-center gap-2">
-                                    <CheckCircleIcon className="h-6 w-6 text-primary" />
-                                    <h3 className="text-xl font-bold text-primary">
+                                    <CheckCircleIcon className="h-6 w-6 text-cyan-400" />
+                                    <h3 className="text-xl font-bold text-cyan-300">
                                       {typeof slipId === 'number' ? `Slip #${slipId}` : slipId}
                                     </h3>
                                   </div>
                                   <div className="flex items-center gap-2">
-                                    <span className="px-3 py-1 bg-primary/10 text-primary text-sm font-medium rounded-full">
+                                    <span className="px-3 py-1 bg-cyan-500/20 text-cyan-300 text-sm font-medium rounded-full border border-cyan-500/30">
                                       Cycle {cycleId}
                                     </span>
                                     {(() => {
@@ -2286,8 +2306,8 @@ export default function OddysseyPage() {
                                 <div className="flex flex-col md:flex-row items-start md:items-center gap-4 text-sm">
                                   <div className="flex items-center gap-2">
                                     <span className="text-text-muted">Total Odds:</span>
-                                    <span className="text-primary font-bold">
-                                      {totalOdds > 1e6 ? 'N/A' : totalOdds.toFixed(2)}x
+                                    <span className="text-cyan-300 font-bold">
+                                      {totalOdds > 1e6 ? 'N/A' : formatOdds(totalOdds)}x
                                     </span>
                                   </div>
                                   <div className="flex items-center gap-2">
@@ -2332,7 +2352,7 @@ export default function OddysseyPage() {
                                         {pick.team1 && pick.team2 ? 'Teams' : 'Match ID'}
                                       </span>
                                       <span className="text-white font-bold text-sm">
-                                        {typeof pick.odd === 'number' ? pick.odd.toFixed(2) : '0.00'}
+                                        {typeof pick.odd === 'number' ? getDisplayOdds(pick) : '0.00'}
                                       </span>
                                     </div>
                                   </div>
@@ -2454,7 +2474,13 @@ export default function OddysseyPage() {
                 exit={{ opacity: 0, x: -20 }}
                 className="lg:col-span-3"
               >
-                <OddysseyResults />
+                <div className="glass-card p-6 bg-gradient-to-br from-magenta-500/5 to-violet-500/5 border border-magenta-500/20 shadow-lg shadow-magenta-500/10">
+                  <h2 className="text-2xl font-bold text-magenta-300 mb-6 flex items-center gap-2">
+                    <DocumentTextIcon className="h-6 w-6 text-magenta-400" />
+                    Match Results & Leaderboards
+                  </h2>
+                  <OddysseyResults />
+                </div>
               </motion.div>
             ) : (
               <motion.div
