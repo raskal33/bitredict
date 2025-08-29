@@ -19,6 +19,8 @@ export interface GuidedMarketTransactionData {
   parameters: any[];
   value: string;
   gasEstimate: string;
+  totalRequiredWei?: string; // Total amount needed for approval/transfer (includes fee)
+  creationFeeWei?: string;   // Fee amount
   marketDetails: any;
 }
 
@@ -79,8 +81,11 @@ export class GuidedMarketWalletService {
       if (marketData.useBitr) {
         console.log('🪙 Step 2: Handling BITR token approval...');
         
+        // Use totalRequiredWei which includes the 50 BITR creation fee
+        const totalRequiredWei = transactionData.totalRequiredWei || transactionData.parameters[2];
+        
         const approvalResult = await this.handleBitrApproval(
-          transactionData.parameters[2], // stakeAmount
+          totalRequiredWei, // totalRequiredWei (creatorStake + 50 BITR fee)
           walletClient,
           publicClient,
           address
@@ -102,6 +107,7 @@ export class GuidedMarketWalletService {
       const txResult = await this.executeTransaction(
         transactionData,
         walletClient,
+        publicClient,
         address
       );
       
@@ -222,6 +228,7 @@ export class GuidedMarketWalletService {
   private static async executeTransaction(
     transactionData: GuidedMarketTransactionData,
     walletClient: any,
+    publicClient: any,
     address: Address
   ): Promise<{ success: boolean; hash?: string; error?: string }> {
     try {
@@ -246,8 +253,8 @@ export class GuidedMarketWalletService {
       
       console.log('⏳ Waiting for transaction confirmation...');
       
-      // Wait for transaction confirmation
-      const receipt = await walletClient.waitForTransactionReceipt({ hash });
+      // Wait for transaction confirmation using publicClient (correct wagmi v2 API)
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
       
       if (receipt.status !== 'success') {
         throw new Error(`Transaction failed with status: ${receipt.status}`);
