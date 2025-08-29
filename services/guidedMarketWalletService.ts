@@ -1,4 +1,4 @@
-import { useAccount, useWalletClient, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useWalletClient, useWriteContract, useWaitForTransactionReceipt, usePublicClient } from 'wagmi';
 import { parseEther, parseUnits, type Address } from 'viem';
 import { CONTRACT_ADDRESSES } from '@/config/wagmi';
 import { CONTRACTS } from '@/contracts';
@@ -45,6 +45,7 @@ export class GuidedMarketWalletService {
   static async createFootballMarketWithWallet(
     marketData: CreateFootballMarketParams,
     walletClient: any,
+    publicClient: any,
     address: Address
   ): Promise<{
     success: boolean;
@@ -81,6 +82,7 @@ export class GuidedMarketWalletService {
         const approvalResult = await this.handleBitrApproval(
           transactionData.parameters[2], // stakeAmount
           walletClient,
+          publicClient,
           address
         );
         
@@ -148,13 +150,14 @@ export class GuidedMarketWalletService {
   private static async handleBitrApproval(
     stakeAmount: string,
     walletClient: any,
+    publicClient: any,
     address: Address
   ): Promise<{ success: boolean; error?: string; hash?: string }> {
     try {
       console.log('🔍 Checking BITR allowance...');
       
-      // Check current allowance
-      const currentAllowance = await walletClient.readContract({
+      // Check current allowance using publicClient (correct wagmi v2 API)
+      const currentAllowance = await publicClient.readContract({
         address: CONTRACT_ADDRESSES.BITR_TOKEN,
         abi: CONTRACTS.BITR_TOKEN.abi,
         functionName: 'allowance',
@@ -172,7 +175,7 @@ export class GuidedMarketWalletService {
       console.log(`   Required: ${requiredAmount.toString()}`);
       console.log(`   Current: ${currentAllowance.toString()}`);
       
-      // Request approval
+      // Request approval using walletClient (correct wagmi v2 API)
       const approvalHash = await walletClient.writeContract({
         address: CONTRACT_ADDRESSES.BITR_TOKEN,
         abi: CONTRACTS.BITR_TOKEN.abi,
@@ -183,8 +186,8 @@ export class GuidedMarketWalletService {
       
       console.log('⏳ Waiting for approval confirmation...');
       
-      // Wait for approval transaction
-      const approvalReceipt = await walletClient.waitForTransactionReceipt({
+      // Wait for approval transaction using publicClient
+      const approvalReceipt = await publicClient.waitForTransactionReceipt({
         hash: approvalHash
       });
       
@@ -280,6 +283,7 @@ export class GuidedMarketWalletService {
 export function useGuidedMarketCreation() {
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
+  const publicClient = usePublicClient();
   
   const createFootballMarket = async (marketData: CreateFootballMarketParams) => {
     if (!isConnected || !address) {
@@ -290,9 +294,14 @@ export function useGuidedMarketCreation() {
       throw new Error('Wallet client not available');
     }
     
+    if (!publicClient) {
+      throw new Error('Public client not available');
+    }
+    
     return await GuidedMarketWalletService.createFootballMarketWithWallet(
       marketData,
       walletClient,
+      publicClient,
       address
     );
   };
@@ -301,7 +310,8 @@ export function useGuidedMarketCreation() {
     createFootballMarket,
     isConnected,
     address,
-    walletClient: !!walletClient
+    walletClient: !!walletClient,
+    publicClient: !!publicClient
   };
 }
 

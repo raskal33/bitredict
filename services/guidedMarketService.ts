@@ -502,6 +502,30 @@ export class GuidedMarketService {
   }
 
   // Backend API Integration Methods - Updated to use prepare/confirm flow
+  static async createFootballMarket(marketData: {
+    fixtureId: string;
+    homeTeam: string;
+    awayTeam: string;
+    league: string;
+    matchDate: string;
+    outcome: string;
+    predictedOutcome: string;
+    odds: number;
+    creatorStake: number;
+    useBitr?: boolean;
+    description?: string;
+    isPrivate?: boolean;
+    maxBetPerUser?: number;
+  }): Promise<{ success: boolean; data?: any; error?: string }> {
+    console.warn('⚠️ createFootballMarket is deprecated. Use prepareFootballMarket + wallet transaction + confirmFootballMarket instead.');
+    
+    // For now, just prepare the transaction data
+    return this.prepareFootballMarket(marketData);
+  }
+
+  /**
+   * Prepare football market transaction data for frontend wallet integration
+   */
   static async prepareFootballMarket(marketData: {
     fixtureId: string;
     homeTeam: string;
@@ -548,7 +572,13 @@ export class GuidedMarketService {
     }
   }
 
-  static async confirmFootballMarket(transactionHash: string, marketDetails: any): Promise<{ success: boolean; data?: any; error?: string }> {
+  /**
+   * Confirm football market creation after successful transaction
+   */
+  static async confirmFootballMarket(
+    transactionHash: string,
+    marketDetails: any
+  ): Promise<{ success: boolean; data?: any; error?: string }> {
     try {
       const response = await fetch(`${API_BASE_URL}/guided-markets/football/confirm`, {
         method: 'POST',
@@ -581,28 +611,6 @@ export class GuidedMarketService {
         error: error instanceof Error ? error.message : 'Network error'
       };
     }
-  }
-
-  // Legacy method for backward compatibility - now uses prepare/confirm flow
-  static async createFootballMarket(marketData: {
-    fixtureId: string;
-    homeTeam: string;
-    awayTeam: string;
-    league: string;
-    matchDate: string;
-    outcome: string;
-    predictedOutcome: string;
-    odds: number;
-    creatorStake: number;
-    useBitr?: boolean;
-    description?: string;
-    isPrivate?: boolean;
-    maxBetPerUser?: number;
-  }): Promise<{ success: boolean; data?: any; error?: string }> {
-    console.warn('⚠️ createFootballMarket is deprecated. Use prepareFootballMarket + wallet transaction + confirmFootballMarket instead.');
-    
-    // For now, just prepare the transaction data
-    return this.prepareFootballMarket(marketData);
   }
 
   static async createCryptoMarket(marketData: {
