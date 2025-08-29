@@ -1288,15 +1288,15 @@ export default function OddysseyPage() {
 
   // Helper function to format odds correctly (contract uses 1000x scaling)
   const formatOdds = (odds: number) => {
-    // Contract odds are scaled by 1000, so divide by 1000 to get actual odds
-    return (odds / 1000).toFixed(2);
+    // Backend already sends correct odds, no need to divide by 1000
+    return odds.toFixed(2);
   };
 
 
 
   // Helper function to calculate total odds correctly
   const calculateTotalOdds = (picks: Pick[]) => {
-    const total = picks.reduce((acc, pick) => acc * (pick.odd / 1000 || 1), 1);
+    const total = picks.reduce((acc, pick) => acc * (pick.odd || 1), 1);
     return total.toFixed(2);
   };
 
