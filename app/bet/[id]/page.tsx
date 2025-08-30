@@ -145,52 +145,9 @@ export default function BetPage() {
       
     } catch (error) {
       console.error('Error fetching pool data:', error);
-      // Fallback to demo data if contract data fails
-      const fallbackPool: Pool = {
-        id: poolId,
-        title: "Demo Pool",
-        description: "This is a demo pool for testing purposes",
-        category: "demo",
-        creator: {
-          address: "0x1234...5678",
-          username: "DemoCreator",
-          avatar: "/logo.png",
-          reputation: 4.0,
-          totalPools: 5,
-          successRate: 70.0,
-          challengeScore: 80,
-          totalVolume: 10000,
-          badges: ["demo"],
-          createdAt: new Date().toISOString(),
-          bio: "Demo creator"
-        },
-        challengeScore: 80,
-        qualityScore: 85,
-        difficultyTier: "easy",
-        predictedOutcome: "Demo outcome",
-        creatorPrediction: "no",
-        odds: 1.5,
-        participants: 10,
-        volume: 10000,
-        image: "🎯",
-        cardTheme: "blue",
-        tags: ["demo"],
-        trending: false,
-        boosted: false,
-        boostTier: 0,
-        socialStats: {
-          comments: 0,
-          likes: 0,
-          views: 10,
-          shares: 0
-        },
-        defeated: 0,
-        currency: "BITR",
-        endDate: new Date().toISOString().split('T')[0],
-        poolType: "single",
-        comments: []
-      };
-      setPool(fallbackPool);
+      // If no pool data available, show error
+      console.error('Pool not found or failed to load:', poolId);
+      setPool(null);
     } finally {
       setLoading(false);
     }
@@ -475,11 +432,11 @@ export default function BetPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+    <div className="min-h-screen" style={{ background: 'var(--gradient-main)' }}>
       <div className="container mx-auto px-4 py-4 sm:py-8 space-y-4 sm:space-y-8">
         {/* Header Section */}
         <div className="relative">
-          <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/30 rounded-2xl p-4 sm:p-8 space-y-4 sm:space-y-6 relative overflow-hidden">
+          <div className="glass-card space-y-4 sm:space-y-6 relative overflow-hidden">
             {/* Boost indicator - Fixed positioning inside container */}
             {pool.boosted && (
               <div className="absolute top-2 right-2 sm:top-4 sm:right-4 z-10">
@@ -771,7 +728,7 @@ export default function BetPage() {
                           </div>
                         </div>
                                                   <div className="text-sm sm:text-base font-bold text-white bg-blue-500/20 rounded-lg py-2 px-3">
-                            Provide liquidity &amp; earn fees
+                            Add liquidity
                           </div>
                       </div>
                     </div>
@@ -795,12 +752,12 @@ export default function BetPage() {
                         value={betAmount}
                         onChange={(e) => setBetAmount(Number(e.target.value))}
                         placeholder="0.00"
-                        className="w-full px-4 py-3 sm:py-4 bg-gradient-to-r from-gray-700/50 to-gray-600/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 text-lg sm:text-xl group-hover:border-cyan-500/30 transition-all"
+                        className="w-full px-4 py-3 sm:py-4 bg-bg-card border border-border-input rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 text-lg sm:text-xl group-hover:border-primary/30 transition-all backdrop-blur-sm"
                       />
                       <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm sm:text-base font-medium">
                         {pool.currency}
                       </div>
-                      <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-cyan-500/5 to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+                      <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-primary/5 to-secondary/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
                     </div>
 
                     {/* Quick Amount Buttons */}
@@ -811,8 +768,8 @@ export default function BetPage() {
                           onClick={() => setBetAmount(amount)}
                           className={`px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm transition-all font-medium ${
                             betAmount === amount 
-                              ? 'bg-cyan-500 text-black shadow-lg' 
-                              : 'bg-gray-700/50 hover:bg-gray-600/50 text-white hover:scale-105'
+                              ? 'bg-primary text-black shadow-lg' 
+                              : 'bg-bg-card hover:bg-bg-card/80 text-white hover:scale-105 border border-border-card'
                           }`}
                         >
                           {amount}
@@ -822,17 +779,17 @@ export default function BetPage() {
 
                     {/* Bet Preview */}
                     {betAmount > 0 && betType && (
-                      <div className="p-4 bg-gradient-to-br from-gray-700/40 to-gray-600/40 rounded-xl border border-gray-600/30 backdrop-blur-sm">
+                      <div className="p-4 bg-bg-card rounded-xl border border-border-card backdrop-blur-sm">
                         <div className="text-sm sm:text-base font-medium text-white mb-3 flex items-center gap-2">
                           <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
                           Bet Preview
                         </div>
                         <div className="space-y-3 text-sm">
-                          <div className="flex justify-between items-center p-2 bg-gray-800/30 rounded-lg">
+                          <div className="flex justify-between items-center p-2 bg-bg-card/50 rounded-lg border border-border-card/30">
                             <span className="text-gray-400">Your Stake:</span>
                             <span className="text-white font-bold">{betAmount.toLocaleString()} {pool.currency}</span>
                           </div>
-                          <div className="flex justify-between items-center p-2 bg-green-500/10 rounded-lg">
+                          <div className="flex justify-between items-center p-2 bg-success/10 rounded-lg border border-success/20">
                             <span className="text-gray-400">Potential Win:</span>
                             <span className="text-green-400 font-bold">
                               {betType === 'yes' 
@@ -841,7 +798,7 @@ export default function BetPage() {
                               } {pool.currency}
                             </span>
                           </div>
-                          <div className="flex justify-between items-center p-2 bg-cyan-500/10 rounded-lg">
+                          <div className="flex justify-between items-center p-2 bg-primary/10 rounded-lg border border-primary/20">
                             <span className="text-gray-400">Profit:</span>
                             <span className="text-cyan-400 font-bold">
                               +{betType === 'yes' 
@@ -865,7 +822,7 @@ export default function BetPage() {
                   className={`
                     relative px-8 py-3 sm:py-4 rounded-xl font-bold text-lg sm:text-xl transition-all transform group overflow-hidden
                     ${betType && betAmount > 0
-                      ? 'bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-black shadow-lg hover:shadow-cyan-500/25 hover:scale-105 active:scale-95'
+                      ? 'bg-gradient-primary hover:brightness-110 text-black shadow-lg hover:shadow-primary/25 hover:scale-105 active:scale-95'
                       : 'bg-gray-600 text-gray-400 cursor-not-allowed'
                     }
                   `}
@@ -1019,7 +976,7 @@ export default function BetPage() {
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Social Stats */}
-            <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/30 rounded-2xl p-6">
+            <div className="glass-card">
               <h3 className="text-lg font-bold text-white mb-4">Community</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="text-center">
@@ -1043,7 +1000,7 @@ export default function BetPage() {
 
             {/* Event Details */}
             {pool.eventDetails && (
-              <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/30 rounded-2xl p-6">
+              <div className="glass-card">
                 <h3 className="text-lg font-bold text-white mb-4">Event Details</h3>
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between">
@@ -1073,7 +1030,7 @@ export default function BetPage() {
                   </div>
 
         {/* Comments Section */}
-        <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/30 rounded-2xl p-6 space-y-6">
+        <div className="glass-card space-y-6">
           <div className="flex items-center justify-between">
             <h3 className="text-xl font-bold text-white">Discussion</h3>
             <div className="text-sm text-gray-400">
@@ -1100,12 +1057,12 @@ export default function BetPage() {
                     </div>
 
               {showCommentBox && (
-                <div className="p-4 bg-gray-700/30 rounded-lg border border-gray-600/30 space-y-4">
+                <div className="p-4 bg-bg-card/50 rounded-lg border border-border-card/30 space-y-4 backdrop-blur-sm">
                   <textarea
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
                     placeholder="Share your analysis and reasoning..."
-                    className="w-full px-4 py-3 bg-gray-600/50 border border-gray-500/50 rounded-lg text-white focus:outline-none focus:border-cyan-500/50 resize-none"
+                    className="w-full px-4 py-3 bg-bg-card border border-border-input rounded-lg text-white focus:outline-none focus:border-primary/50 resize-none backdrop-blur-sm"
                     rows={3}
                   />
 
@@ -1115,7 +1072,7 @@ export default function BetPage() {
                       <select
                         value={commentSentiment}
                         onChange={(e) => setCommentSentiment(e.target.value as 'bullish' | 'bearish' | 'neutral')}
-                        className="px-3 py-1 bg-gray-600/50 border border-gray-500/50 rounded text-white text-sm"
+                        className="px-3 py-1 bg-bg-card border border-border-input rounded text-white text-sm backdrop-blur-sm"
                       >
                         <option value="bullish">Bullish</option>
                         <option value="neutral">Neutral</option>
@@ -1147,7 +1104,7 @@ export default function BetPage() {
                     <button
                       onClick={handleAddComment}
                       disabled={!comment.trim() || submittingComment}
-                      className="px-4 py-2 bg-cyan-500 text-black rounded-lg hover:bg-cyan-400 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                      className="px-4 py-2 bg-primary text-black rounded-lg hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                     >
                       {submittingComment ? (
                         <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />

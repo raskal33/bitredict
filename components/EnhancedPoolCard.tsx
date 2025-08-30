@@ -272,6 +272,11 @@ export default function EnhancedPoolCard({
                         pool.odds >= 200 ? 'ADVANCED' : 
                         pool.odds >= 150 ? 'INTERMEDIATE' : 'BEGINNER';
   
+  // Generate a proper title from the pool data
+  const displayTitle = pool.predictedOutcome && pool.predictedOutcome !== '0x' && pool.predictedOutcome.length > 10 
+    ? generateProfessionalTitle(pool.predictedOutcome, pool.category)
+    : `${pool.category.charAt(0).toUpperCase() + pool.category.slice(1)} Pool #${pool.id}`;
+  
   const formatStake = (stake: string) => {
     try {
       const amount = parseFloat(formatEther(BigInt(stake)));
@@ -335,8 +340,6 @@ export default function EnhancedPoolCard({
     return icons[category] || '🎯';
   };
 
-  const professionalTitle = generateProfessionalTitle(pool.predictedOutcome, pool.category);
-  
   return (
     <motion.div
       initial={{ opacity: 0, y: 30, scale: 0.9 }}
@@ -346,9 +349,9 @@ export default function EnhancedPoolCard({
       onClick={handleClick}
       className={`
         relative overflow-hidden group cursor-pointer min-h-[480px] max-h-[520px] flex flex-col
-        ${theme.background} ${theme.border} ${theme.glow} ${theme.hoverGlow}
+        glass-card ${theme.glow} ${theme.hoverGlow}
         ${pool.boostTier && pool.boostTier !== 'NONE' ? getBoostGlow(pool.boostTier) : ''}
-        transition-all duration-500 p-4 rounded-2xl border backdrop-blur-sm
+        transition-all duration-500 backdrop-blur-card
         ${className}
       `}
     >
@@ -419,8 +422,8 @@ export default function EnhancedPoolCard({
       </div>
 
       {/* Professional Title */}
-      <h3 className="text-base font-bold text-white line-clamp-2 mb-3 group-hover:text-cyan-400 transition-colors flex-shrink-0" style={{ minHeight: '2.5rem' }}>
-        {professionalTitle}
+      <h3 className="text-base font-bold text-white line-clamp-2 mb-3 group-hover:text-primary transition-colors flex-shrink-0" style={{ minHeight: '2.5rem' }}>
+        {displayTitle}
       </h3>
 
       {/* Progress Bar - Indexed Data */}
@@ -440,13 +443,13 @@ export default function EnhancedPoolCard({
       )}
 
       {/* Creator Prediction Section */}
-      <div className="mb-3 p-3 bg-gradient-to-r from-gray-800/40 to-gray-700/40 rounded-lg border border-gray-600/30 flex-shrink-0">
+              <div className="mb-3 p-3 bg-bg-card/50 rounded-lg border border-border-card/30 flex-shrink-0 backdrop-blur-sm">
         <div className="mb-2">
-          <div className="text-xs text-orange-400 mb-1 flex items-center gap-1">
+          <div className="text-xs text-warning mb-1 flex items-center gap-1">
             <BoltIcon className="w-3 h-3" />
             Creator believes this WON&apos;T happen
           </div>
-          <div className="text-xs text-gray-400">
+          <div className="text-xs text-text-muted">
             Challenging users who think it WILL happen
           </div>
         </div>
@@ -463,7 +466,7 @@ export default function EnhancedPoolCard({
           {/* Challenging Option */}
           <div className="text-center">
             <div className="text-xs text-gray-400">Challenge</div>
-            <div className="px-3 py-1 rounded text-xs font-medium bg-green-500/20 border border-green-500/30 text-green-400">
+            <div className="px-3 py-1 rounded text-xs font-medium bg-success/20 border border-success/30 text-success">
               YES
             </div>
           </div>
