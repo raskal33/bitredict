@@ -49,37 +49,37 @@ export default function MarketsPage() {
   // Convert service Pool to EnhancedPool format
   const convertToEnhancedPool = (pool: Pool): EnhancedPool => {
     return {
-      id: pool.id,
+      id: pool.poolId, // Use poolId from backend
       creator: pool.creator,
       odds: pool.odds,
       settled: pool.settled,
-      creatorSideWon: pool.creatorSideWon,
+      creatorSideWon: pool.creatorSideWon || false, // Handle null
       isPrivate: pool.isPrivate,
       usesBitr: pool.usesBitr,
-      filledAbove60: false, // Default value
-      oracleType: 'GUIDED' as const, // Default value
+      filledAbove60: pool.filledAbove60 || false, // Use from backend or default
+      oracleType: (pool.oracleType as 'GUIDED' | 'OPEN') || 'GUIDED', // Use from backend or default
       
       creatorStake: pool.creatorStake,
-      totalCreatorSideStake: pool.creatorStake, // Same as creator stake for now
-      maxBettorStake: pool.totalBettorStake, // Use total bettor stake as max
+      totalCreatorSideStake: pool.totalCreatorSideStake || pool.creatorStake, // Use from backend or fallback
+      maxBettorStake: pool.maxBettorStake || pool.totalBettorStake, // Use from backend or fallback
       totalBettorStake: pool.totalBettorStake,
       predictedOutcome: pool.predictedOutcome,
-      result: '', // Empty for now
+      result: pool.result || '', // Use from backend or empty
       marketId: pool.marketId,
       
-      eventStartTime: pool.eventStartTime,
-      eventEndTime: pool.eventEndTime,
-      bettingEndTime: pool.bettingEndTime,
-      resultTimestamp: 0, // Default value
-      arbitrationDeadline: pool.eventEndTime + (24 * 60 * 60), // 24 hours after event end
+      eventStartTime: typeof pool.eventStartTime === 'string' ? new Date(pool.eventStartTime).getTime() / 1000 : pool.eventStartTime,
+      eventEndTime: typeof pool.eventEndTime === 'string' ? new Date(pool.eventEndTime).getTime() / 1000 : pool.eventEndTime,
+      bettingEndTime: typeof pool.bettingEndTime === 'string' ? new Date(pool.bettingEndTime).getTime() / 1000 : pool.bettingEndTime,
+      resultTimestamp: pool.resultTimestamp ? new Date(pool.resultTimestamp).getTime() / 1000 : 0, // Convert ISO to timestamp
+      arbitrationDeadline: pool.arbitrationDeadline ? new Date(pool.arbitrationDeadline).getTime() / 1000 : (typeof pool.eventEndTime === 'string' ? new Date(pool.eventEndTime).getTime() / 1000 + (24 * 60 * 60) : pool.eventEndTime + (24 * 60 * 60)), // Use from backend or calculate
       
       league: pool.league,
       category: pool.category,
       region: pool.region,
       maxBetPerUser: pool.maxBetPerUser,
       
-      boostTier: pool.boostTier,
-      boostExpiry: pool.boostExpiry,
+      boostTier: pool.boostTier || 'NONE', // Use from backend or default
+      boostExpiry: pool.boostExpiry || 0, // Use from backend or default
       trending: false, // Default value
       socialStats: {
         likes: 0,
@@ -397,9 +397,8 @@ export default function MarketsPage() {
                   {filteredPools.map((pool) => (
                     <EnhancedPoolCard
                       key={pool.id}
-                      pool={convertToEnhancedPool(pool)}
+                      pool={pool}
                       index={pool.id}
-
                     />
                   ))}
                 </AnimatePresence>

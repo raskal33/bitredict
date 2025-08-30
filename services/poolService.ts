@@ -97,26 +97,37 @@ const MOCK_POOLS = [
 ];
 
 export interface Pool {
-  id: number;
+  poolId: number; // Changed from 'id' to match backend
   creator: string;
   odds: number;
   creatorStake: string;
   totalBettorStake: string;
   predictedOutcome: string;
   marketId: string;
-  eventStartTime: number;
-  eventEndTime: number;
-  bettingEndTime: number;
+  eventStartTime: string; // Changed from number to string to match backend ISO format
+  eventEndTime: string; // Changed from number to string to match backend ISO format
+  bettingEndTime: string; // Changed from number to string to match backend ISO format
   league: string;
   category: string;
   region: string;
   isPrivate: boolean;
   usesBitr: boolean;
   settled: boolean;
-  creatorSideWon: boolean;
-  boostTier: "NONE" | "BRONZE" | "SILVER" | "GOLD";
-  boostExpiry: number;
+  creatorSideWon: boolean | null; // Changed to match backend
+  boostTier?: "NONE" | "BRONZE" | "SILVER" | "GOLD"; // Made optional
+  boostExpiry?: number; // Made optional
   maxBetPerUser: string;
+  // Additional fields from backend
+  filledAbove60?: boolean;
+  oracleType?: string;
+  totalCreatorSideStake?: string;
+  maxBettorStake?: string;
+  result?: string | null;
+  resultTimestamp?: string | null;
+  arbitrationDeadline?: string | null;
+  txHash?: string;
+  blockNumber?: number;
+  createdAt?: string;
 }
 
 export interface PoolStats {
@@ -277,6 +288,60 @@ export class PoolService {
       return { success: true };
     } catch (error) {
       console.error('Error placing bet:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Network error'
+      };
+    }
+  }
+
+  static async getPoolProgress(poolId: number): Promise<{
+    success: boolean;
+    data?: {
+      totalPoolSize: string;
+      currentBettorStake: string;
+      maxBettorCapacity: string;
+      creatorSideStake: string;
+      fillPercentage: number;
+      bettorCount: number;
+      lpCount: number;
+      creatorStake: string;
+      totalCreatorSideStake: string;
+      totalBettorStake: string;
+      maxBettorStake: string;
+      odds: number;
+      usesBitr: boolean;
+      poolData: {
+        id: number;
+        creator: string;
+        predictedOutcome: string;
+        league: string;
+        category: string;
+        region: string;
+        isPrivate: boolean;
+        status: string;
+        createdAt: string;
+      };
+    };
+    error?: string;
+  }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/guided-markets/pools/${poolId}/progress`);
+      const result = await response.json();
+      
+      if (!result.success) {
+        return {
+          success: false,
+          error: result.error || 'Failed to get pool progress'
+        };
+      }
+
+      return {
+        success: true,
+        data: result.data
+      };
+    } catch (error) {
+      console.error('Error getting pool progress:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Network error'

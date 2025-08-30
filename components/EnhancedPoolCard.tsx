@@ -5,10 +5,13 @@ import {
   BoltIcon,
   StarIcon,
   UserIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  ClockIcon,
+  CurrencyDollarIcon
 } from "@heroicons/react/24/outline";
 import { formatEther } from "viem";
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 
 // Enhanced Pool interface with indexed data
 export interface EnhancedPool {
@@ -80,16 +83,32 @@ export default function EnhancedPoolCard({
   showSocialStats = true, 
   className = ""
 }: EnhancedPoolCardProps) {
+  const router = useRouter();
   const [isLoadingIndexedData, setIsLoadingIndexedData] = useState(false);
   const [indexedData, setIndexedData] = useState(pool.indexedData);
 
   const fetchIndexedData = useCallback(async () => {
     setIsLoadingIndexedData(true);
     try {
-      const response = await fetch(`/api/pools/${pool.id}/analytics`);
-      if (response.ok) {
-        const data = await response.json();
-        setIndexedData(data);
+      // Get pool progress data
+      const progressResponse = await fetch(`/api/guided-markets/pools/${pool.id}/progress`);
+      if (progressResponse.ok) {
+        const progressData = await progressResponse.json();
+        if (progressData.success && progressData.data) {
+          setIndexedData({
+            participantCount: progressData.data.bettorCount + progressData.data.lpCount,
+            fillPercentage: progressData.data.fillPercentage,
+            totalVolume: progressData.data.totalPoolSize,
+            betCount: progressData.data.bettorCount,
+            avgBetSize: progressData.data.currentBettorStake && progressData.data.bettorCount > 0 
+              ? (parseFloat(progressData.data.currentBettorStake) / progressData.data.bettorCount).toString()
+              : '0',
+            creatorReputation: 0, // TODO: Implement reputation system
+            categoryRank: 0, // TODO: Implement ranking
+            isHot: progressData.data.fillPercentage > 50,
+            lastActivity: new Date()
+          });
+        }
       }
     } catch (error) {
       console.error('Failed to fetch indexed data:', error);
@@ -188,7 +207,8 @@ export default function EnhancedPoolCard({
   
   const formatStake = (stake: string) => {
     const amount = parseFloat(formatEther(BigInt(stake)));
-    if (amount >= 1000) return `${(amount / 1000).toFixed(1)}k`;
+    if (amount >= 1000000) return `${(amount / 1000000).toFixed(1)}M`;
+    if (amount >= 1000) return `${(amount / 1000).toFixed(1)}K`;
     return amount.toFixed(1);
   };
 
@@ -207,9 +227,14 @@ export default function EnhancedPoolCard({
     return `${minutes}m`;
   };
 
+  const formatAddress = (address: string) => {
+    if (!address) return "Unknown";
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
+
   const handleClick = () => {
     // Navigate to the specific bet page for this pool
-    window.location.href = `/bet/${pool.id}`;
+    router.push(`/bet/${pool.id}`);
   };
 
   const getProgressColor = (percentage: number) => {
@@ -217,6 +242,20 @@ export default function EnhancedPoolCard({
     if (percentage >= 60) return 'bg-yellow-500';
     if (percentage >= 40) return 'bg-orange-500';
     return 'bg-red-500';
+  };
+
+  const getCategoryIcon = (category: string) => {
+    const icons: { [key: string]: string } = {
+      'football': '⚽',
+      'cryptocurrency': '₿',
+      'basketball': '🏀',
+      'politics': '🏛️',
+      'entertainment': '🎬',
+      'technology': '💻',
+      'finance': '💰',
+      'sports': '🏆'
+    };
+    return icons[category] || '🎯';
   };
   
   return (
@@ -240,7 +279,7 @@ export default function EnhancedPoolCard({
         {pool.trending && (
           <div className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
             <BoltIcon className="w-3 h-3" />
-            HOT
+            TRENDING
           </div>
         )}
 
@@ -276,10 +315,10 @@ export default function EnhancedPoolCard({
 
       {/* Header */}
       <div className="flex items-center gap-2 mb-3 mt-4">
-        <div className="text-2xl">⚽</div>
+        <div className="text-2xl">{getCategoryIcon(pool.category)}</div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <span className={`text-xs px-2 py-1 rounded-full ${theme.accent} bg-current/10 truncate`}>
+            <span className={`text-xs px-2 py-1 rounded-full ${theme.accent} bg-current/10 truncate capitalize`}>
               {pool.category}
             </span>
             <div className={`flex items-center gap-1 text-xs ${difficultyColor}`}>
@@ -288,12 +327,12 @@ export default function EnhancedPoolCard({
             </div>
           </div>
           <div className="text-xs text-gray-400 truncate">
-            by {pool.creator.slice(0, 6)}...{pool.creator.slice(-4)} • {pool.oracleType} Oracle
+            by {formatAddress(pool.creator)} • {pool.oracleType} Oracle
             {indexedData?.creatorReputation && ` • ${indexedData.creatorReputation} rep`}
           </div>
         </div>
         <div className="text-right flex-shrink-0">
-          <div className="text-xs text-gray-400">Pool ID</div>
+          <div className="text-xs text-gray-400">Pool</div>
           <div className={`text-lg font-bold ${theme.accent}`}>
             #{pool.id}
           </div>
@@ -322,9 +361,12 @@ export default function EnhancedPoolCard({
       )}
 
       {/* Creator Prediction Section */}
-      <div className="mb-3 p-2 bg-gradient-to-r from-gray-800/40 to-gray-700/40 rounded-lg border border-gray-600/30 flex-shrink-0">
+      <div className="mb-3 p-3 bg-gradient-to-r from-gray-800/40 to-gray-700/40 rounded-lg border border-gray-600/30 flex-shrink-0">
         <div className="mb-2">
-          <div className="text-xs text-orange-400 mb-1">💡 Creator believes this WON&apos;T happen</div>
+          <div className="text-xs text-orange-400 mb-1 flex items-center gap-1">
+            <BoltIcon className="w-3 h-3" />
+            Creator believes this WON&apos;T happen
+          </div>
           <div className="text-xs text-gray-400">
             Challenging users who think it WILL happen
           </div>
@@ -352,11 +394,15 @@ export default function EnhancedPoolCard({
       {/* Enhanced Stats with Indexed Data */}
       <div className="grid grid-cols-3 gap-3 mb-3 text-center flex-shrink-0">
         <div>
-          <div className="text-xs text-gray-400">Creator Stake</div>
+          <div className="text-xs text-gray-400 flex items-center justify-center gap-1">
+            <CurrencyDollarIcon className="w-3 h-3" />
+            Creator Stake
+          </div>
           <div className="text-sm font-bold text-white">{formatStake(pool.creatorStake)} {pool.usesBitr ? 'BITR' : 'STT'}</div>
         </div>
         <div>
-          <div className="text-xs text-gray-400">
+          <div className="text-xs text-gray-400 flex items-center justify-center gap-1">
+            <UserIcon className="w-3 h-3" />
             {indexedData ? 'Participants' : 'Total Stake'}
           </div>
           <div className="text-sm font-bold text-white">
@@ -364,7 +410,10 @@ export default function EnhancedPoolCard({
           </div>
         </div>
         <div>
-          <div className="text-xs text-gray-400">Time Left</div>
+          <div className="text-xs text-gray-400 flex items-center justify-center gap-1">
+            <ClockIcon className="w-3 h-3" />
+            Time Left
+          </div>
           <div className="text-sm font-bold text-white">{formatTimeLeft(pool.bettingEndTime)}</div>
         </div>
       </div>

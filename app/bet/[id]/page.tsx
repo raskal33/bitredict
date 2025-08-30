@@ -24,6 +24,8 @@ import {
   HandThumbDownIcon as ThumbDownSolid
 } from "@heroicons/react/24/solid";
 import { Pool, Comment } from "@/lib/types";
+import { PoolService } from "@/services/poolService";
+import { toast } from "react-hot-toast";
 
 export default function BetPage() {
   const { address } = useAccount();
@@ -275,14 +277,28 @@ export default function BetPage() {
   };
 
   const handlePlaceBet = async () => { 
-    if(!betType || betAmount <= 0) return;
+    if(!betType || betAmount <= 0 || !address) return;
     
     try {
       console.log('Placing bet:', { address, poolId, betType, betAmount });
-      // Add actual bet placement logic here
-      // For now, just log the action
+      
+      // Convert amount to wei (assuming 18 decimals)
+      const amountInWei = (betAmount * 1e18).toString();
+      
+      // Place bet using the pool service
+      const result = await PoolService.placeBet(parseInt(poolId), amountInWei, pool?.currency === 'BITR');
+      
+      if (result.success) {
+        toast.success('Bet placed successfully!');
+        // Refresh pool data to show updated progress
+        fetchPoolData();
+        checkUserBetStatus();
+      } else {
+        toast.error(result.error || 'Failed to place bet');
+      }
     } catch (error: unknown) {
       console.error('Error placing bet:', error);
+      toast.error('Failed to place bet. Please try again.');
     }
   };
 

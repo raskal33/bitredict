@@ -8,32 +8,57 @@ export async function GET(
   try {
     const poolId = id;
     
-    // For now, return mock analytics data
-    // In a real implementation, you would fetch this from your database
-    const mockAnalytics = {
-      success: true,
-      data: {
-        pool_id: parseInt(poolId),
-        total_volume: 0,
-        participant_count: 0,
-        volume_24h: 0,
-        volume_7d: 0,
-        volume_30d: 0,
-        price_history: [],
-        betting_distribution: {
-          yes: 0,
-          no: 0
-        },
-        recent_activity: []
-      }
+    // Fetch analytics data from backend
+    const backendUrl = process.env.BACKEND_URL || 'https://bitredict-backend.fly.dev';
+    const response = await fetch(`${backendUrl}/api/pools/${poolId}/analytics`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Backend responded with status: ${response.status}`);
+    }
+
+    const backendData = await response.json();
+    
+    if (!backendData.success) {
+      throw new Error(backendData.error || 'Failed to fetch analytics from backend');
+    }
+
+    // Transform backend data to match frontend expectations
+    const analyticsData = {
+      participantCount: backendData.data.participantCount || 0,
+      fillPercentage: backendData.data.fillPercentage || 0,
+      totalVolume: backendData.data.totalVolume || '0',
+      timeToFill: backendData.data.timeToFill || null,
+      betCount: backendData.data.betCount || 0,
+      avgBetSize: backendData.data.avgBetSize || '0',
+      creatorReputation: backendData.data.creatorReputation || 0,
+      categoryRank: backendData.data.categoryRank || 0,
+      isHot: backendData.data.isHot || false,
+      lastActivity: backendData.data.lastActivity ? new Date(backendData.data.lastActivity) : new Date()
     };
 
-    return NextResponse.json(mockAnalytics);
+    return NextResponse.json(analyticsData);
   } catch (error) {
     console.error('Error fetching pool analytics:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch pool analytics' },
-      { status: 500 }
-    );
+    
+    // Return fallback data if backend is unavailable
+    const fallbackData = {
+      participantCount: 0,
+      fillPercentage: 0,
+      totalVolume: '0',
+      timeToFill: null,
+      betCount: 0,
+      avgBetSize: '0',
+      creatorReputation: 0,
+      categoryRank: 0,
+      isHot: false,
+      lastActivity: new Date()
+    };
+
+    return NextResponse.json(fallbackData);
   }
 }
