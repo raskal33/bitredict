@@ -75,9 +75,14 @@ export default function BetPage() {
         return "easy";
       };
       
+      // Create a better title using bet market type and readable outcome
+      const title = poolData.betMarketType 
+        ? `${poolData.betMarketType}: ${poolData.predictedOutcome}`
+        : poolData.predictedOutcome || `${poolData.league} - ${poolData.category}`;
+      
       const transformedPool: Pool = {
         id: poolId,
-        title: poolData.predictedOutcome || `${poolData.league} - ${poolData.category}`,
+        title: title,
         description: `Creator believes "${poolData.predictedOutcome}" WON'T happen. Challenge them if you think it WILL!`,
         category: poolData.category || "sports",
         creator: {
@@ -103,7 +108,7 @@ export default function BetPage() {
         volume: parseFloat(progressInfo.totalPoolSize || poolData.creatorStake || "0"),
         image: poolData.category === "football" ? "⚽" : poolData.category === "basketball" ? "🏀" : "🎯",
         cardTheme: poolData.category === "football" ? "green" : poolData.category === "basketball" ? "orange" : "purple",
-        tags: [poolData.category, poolData.league, poolData.region].filter(Boolean),
+        tags: [poolData.category, poolData.league, poolData.region, poolData.betMarketType].filter(Boolean),
         trending: progressInfo.fillPercentage > 50,
         boosted: false,
         boostTier: 0,
@@ -289,7 +294,7 @@ export default function BetPage() {
     switch (sentiment) {
       case 'bullish': return 'text-green-400';
       case 'bearish': return 'text-red-400';
-      default: return 'text-gray-400';
+      default: return 'text-blue-400';
     }
   };
 
@@ -308,7 +313,7 @@ export default function BetPage() {
       case 'hard': return 'text-orange-400';
       case 'very_hard': return 'text-red-400';
       case 'legendary': return 'text-purple-400';
-      default: return 'text-gray-400';
+      default: return 'text-blue-400';
     }
   };
 
@@ -432,7 +437,7 @@ export default function BetPage() {
   );
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--gradient-main)' }}>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       <div className="container mx-auto px-4 py-4 sm:py-8 space-y-4 sm:space-y-8">
         {/* Header Section */}
         <div className="relative">
@@ -694,7 +699,7 @@ export default function BetPage() {
                         </div>
                         <div>
                           <div className="text-lg sm:text-xl font-bold text-green-400 mb-1">YES - CHALLENGE</div>
-                          <div className="text-xs sm:text-sm text-gray-400">I think it WILL happen</div>
+                          <div className="text-xs sm:text-sm text-blue-400">I think it WILL happen</div>
                           <div className="text-xs text-green-400/80 mt-1">
                             Challenge the creator&apos;s prediction
                           </div>
@@ -722,7 +727,7 @@ export default function BetPage() {
                         </div>
                         <div>
                           <div className="text-lg sm:text-xl font-bold text-blue-400 mb-1">NO - AGREE</div>
-                          <div className="text-xs sm:text-sm text-gray-400">I think it WON&apos;T happen</div>
+                          <div className="text-xs sm:text-sm text-blue-400">I think it WON&apos;T happen</div>
                           <div className="text-xs text-blue-400/80 mt-1">
                             Support the creator&apos;s prediction
                           </div>
@@ -739,7 +744,7 @@ export default function BetPage() {
                 <div className="space-y-4">
                   <div className="text-center">
                     <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">Bet Amount</h3>
-                    <p className="text-sm sm:text-base text-gray-400">
+                    <p className="text-sm sm:text-base text-blue-400">
                       Enter your stake amount
                     </p>
                       </div>
@@ -754,7 +759,7 @@ export default function BetPage() {
                         placeholder="0.00"
                         className="w-full px-4 py-3 sm:py-4 bg-bg-card border border-border-input rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 text-lg sm:text-xl group-hover:border-primary/30 transition-all backdrop-blur-sm"
                       />
-                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm sm:text-base font-medium">
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-blue-400 text-sm sm:text-base font-medium">
                         {pool.currency}
                       </div>
                       <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-primary/5 to-secondary/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
