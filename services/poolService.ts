@@ -420,28 +420,43 @@ export class PoolService {
   }
 
   static formatStake(stake: string): string {
-    return (parseFloat(stake) / 1e18).toFixed(2);
+    try {
+      const amount = parseFloat(stake) / 1e18;
+      if (amount >= 1000000) return `${(amount / 1000000).toFixed(1)}M`;
+      if (amount >= 1000) return `${(amount / 1000).toFixed(1)}K`;
+      return amount.toFixed(1);
+    } catch (error) {
+      return '0';
+    }
   }
 
   static formatOdds(odds: number): string {
-    return (odds / 100).toFixed(2);
+    try {
+      return (odds / 100).toFixed(2);
+    } catch (error) {
+      return '1.00';
+    }
   }
 
   static formatTimeLeft(endTime: number): string {
-    const now = Math.floor(Date.now() / 1000);
-    const timeLeft = endTime - now;
-    
-    if (timeLeft <= 0) return "Ended";
-    
-    const hours = Math.floor(timeLeft / 3600);
-    const minutes = Math.floor((timeLeft % 3600) / 60);
-    
-    if (hours > 24) {
-      const days = Math.floor(hours / 24);
-      return `${days}d ${hours % 24}h`;
+    try {
+      const now = Math.floor(Date.now() / 1000);
+      const timeLeft = endTime - now;
+      
+      if (timeLeft <= 0) return "Ended";
+      if (isNaN(timeLeft) || !isFinite(timeLeft)) return "TBD";
+      
+      const days = Math.floor(timeLeft / 86400);
+      const hours = Math.floor((timeLeft % 86400) / 3600);
+      const minutes = Math.floor((timeLeft % 3600) / 60);
+      
+      if (days > 0) return `${days}d ${hours}h`;
+      if (hours > 0) return `${hours}h ${minutes}m`;
+      if (minutes > 0) return `${minutes}m`;
+      return `${Math.floor(timeLeft)}s`;
+    } catch (error) {
+      return "TBD";
     }
-    
-    return `${hours}h ${minutes}m`;
   }
 
   static getBoostBadge(tier: string) {

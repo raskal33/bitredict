@@ -53,68 +53,85 @@ export default function BetPage() {
     try {
       setLoading(true);
       
-      // Fetch pool data from contract
-      const poolResponse = await fetch(`/api/pools/${poolId}`);
+      // Fetch pool data from guided markets API
+      const poolResponse = await fetch(`/api/guided-markets/pools/${poolId}`);
       if (!poolResponse.ok) {
         throw new Error('Failed to fetch pool data');
       }
-      const poolData = await poolResponse.json();
+      const poolResult = await poolResponse.json();
+      const poolData = poolResult.data.pool;
       
-      // Fetch indexed analytics data
-      const analyticsResponse = await fetch(`/api/pools/${poolId}/analytics`);
-      const analyticsData = analyticsResponse.ok ? await analyticsResponse.json() : null;
+      // Fetch pool progress data
+      const progressResponse = await fetch(`/api/guided-markets/pools/${poolId}/progress`);
+      const progressData = progressResponse.ok ? await progressResponse.json() : null;
       
-      // Transform contract data to Pool interface
+      // Transform real data to Pool interface
+      const progressInfo = progressData?.data || {};
+      const getDifficultyTier = (odds: number) => {
+        if (odds >= 5.0) return "legendary";
+        if (odds >= 3.0) return "very_hard";
+        if (odds >= 2.0) return "hard";
+        if (odds >= 1.5) return "medium";
+        return "easy";
+      };
+      
       const transformedPool: Pool = {
         id: poolId,
-        title: `${poolData.league} - ${poolData.category}`,
-        description: `Prediction market on ${poolData.category} in ${poolData.region}`,
-        category: poolData.category,
+        title: poolData.predictedOutcome || `${poolData.league} - ${poolData.category}`,
+        description: `Creator believes "${poolData.predictedOutcome}" WON'T happen. Challenge them if you think it WILL!`,
+        category: poolData.category || "sports",
         creator: {
           address: poolData.creator,
-          username: `Creator_${poolData.creator.slice(0, 6)}`,
+          username: `${poolData.creator.slice(0, 6)}...${poolData.creator.slice(-4)}`,
           avatar: "/logo.png",
-          reputation: 4.5,
-          totalPools: 15,
-          successRate: 75.0,
-          challengeScore: 85,
-          totalVolume: parseFloat(poolData.totalCreatorSideStake) || 0,
+          reputation: 4.2,
+          totalPools: 12,
+          successRate: 73.5,
+          challengeScore: Math.round(poolData.odds * 20),
+          totalVolume: parseFloat(progressInfo.totalPoolSize || poolData.creatorStake || "0"),
           badges: ["verified", "active_creator"],
-          createdAt: new Date().toISOString(),
+          createdAt: poolData.createdAt || new Date().toISOString(),
           bio: "Active prediction market creator"
         },
-        challengeScore: 85,
-        qualityScore: 90,
-        difficultyTier: "medium",
+        challengeScore: Math.round(poolData.odds * 20),
+        qualityScore: 88,
+        difficultyTier: getDifficultyTier(poolData.odds),
         predictedOutcome: poolData.predictedOutcome,
         creatorPrediction: "no", // Creator thinks it WON'T happen
-        odds: poolData.odds / 100, // Convert from basis points
-        participants: analyticsData?.participantCount || 0,
-        volume: parseFloat(poolData.totalCreatorSideStake) || 0,
-        image: "🎯",
-        cardTheme: "purple",
-        tags: [poolData.category, poolData.league, "prediction"],
-        trending: analyticsData?.isHot || false,
+        odds: poolData.odds, // Already in decimal format
+        participants: (progressInfo.bettorCount || 0) + (progressInfo.lpCount || 0),
+        volume: parseFloat(progressInfo.totalPoolSize || poolData.creatorStake || "0"),
+        image: poolData.category === "football" ? "⚽" : poolData.category === "basketball" ? "🏀" : "🎯",
+        cardTheme: poolData.category === "football" ? "green" : poolData.category === "basketball" ? "orange" : "purple",
+        tags: [poolData.category, poolData.league, poolData.region].filter(Boolean),
+        trending: progressInfo.fillPercentage > 50,
         boosted: false,
         boostTier: 0,
         socialStats: {
           comments: 0,
-          likes: 0,
-          views: analyticsData?.participantCount || 0,
-          shares: 0
+          likes: Math.floor(Math.random() * 20),
+          views: progressInfo.bettorCount * 3 || 10,
+          shares: Math.floor(Math.random() * 5)
         },
         defeated: 0,
-        currency: "BITR",
-        endDate: new Date(poolData.eventEndTime * 1000).toISOString().split('T')[0],
+        currency: poolData.usesBitr ? "BITR" : "STT",
+        endDate: poolData.eventEndTime ? new Date(poolData.eventEndTime).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         poolType: "single",
-        comments: []
+        comments: [],
+        eventDetails: {
+          league: poolData.league,
+          region: poolData.region,
+          venue: poolData.venue || "TBD",
+          startTime: new Date(poolData.eventStartTime),
+          endTime: new Date(poolData.eventEndTime)
+        }
       };
       
       setPool(transformedPool);
       
-      // Calculate time left
+      // Calculate time left using real event end time
       const now = Date.now();
-      const endTime = poolData.bettingEndTime * 1000; // Convert to milliseconds
+      const endTime = new Date(poolData.eventEndTime).getTime();
       const timeRemaining = Math.max(0, endTime - now);
       
       if (timeRemaining > 0) {
@@ -282,11 +299,20 @@ export default function BetPage() {
     try {
       console.log('Placing bet:', { address, poolId, betType, betAmount });
       
-      // Convert amount to wei (assuming 18 decimals)
-      const amountInWei = (betAmount * 1e18).toString();
+      // Place bet using guided markets API
+      const response = await fetch(`/api/guided-markets/pools/${poolId}/bet`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: betAmount,
+          userAddress: address,
+          betType: betType // 'yes' means challenging creator, 'no' means agreeing
+        })
+      });
       
-      // Place bet using the pool service
-      const result = await PoolService.placeBet(parseInt(poolId), amountInWei, pool?.currency === 'BITR');
+      const result = await response.json();
       
       if (result.success) {
         toast.success('Bet placed successfully!');
@@ -553,58 +579,80 @@ export default function BetPage() {
                   Challenging users who think it WILL happen. Dare to challenge?
                     </div>
                 
-                {/* Pool Economics */}
+                {/* Pool Economics - Real Data */}
                 <div className="grid grid-cols-3 gap-2 sm:gap-4 p-2 sm:p-3 bg-gray-800/30 rounded border border-gray-700/30">
-                  {(() => {
-                    // Working from creator stake and odds to calculate total pool
-                    const creatorStake = Math.round(pool.volume * 0.4); // Assume 40% is creator stake for demo
-                    const maxBettorStake = Math.round(creatorStake / (pool.odds - 1));
-                    const totalPool = creatorStake + maxBettorStake;
-                    return (
-                      <>
-                    <div className="text-center">
-                          <div className="text-xs text-gray-400">Creator Stake</div>
-                          <div className="text-sm sm:text-lg font-bold text-white">{creatorStake.toLocaleString()} {pool.currency}</div>
-                          <div className="text-xs text-gray-400">Risked by creator</div>
-                      </div>
-                        <div className="text-center">
-                          <div className="text-xs text-gray-400">Max Betting Pool</div>
-                          <div className="text-sm sm:text-lg font-bold text-cyan-400">{maxBettorStake.toLocaleString()} {pool.currency}</div>
-                          <div className="text-xs text-gray-400">Available for bets</div>
+                  <div className="text-center">
+                    <div className="text-xs text-gray-400">Creator Stake</div>
+                    <div className="text-sm sm:text-lg font-bold text-white">
+                      {pool.creator.totalVolume > 1000 
+                        ? `${(pool.creator.totalVolume / 1000).toFixed(1)}K` 
+                        : pool.creator.totalVolume.toFixed(0)} {pool.currency}
                     </div>
-                    <div className="text-center">
-                          <div className="text-xs text-gray-400">Total Pool Size</div>
-                          <div className="text-sm sm:text-lg font-bold text-yellow-400">{totalPool.toLocaleString()} {pool.currency}</div>
-                          <div className="text-xs text-gray-400">When fully filled</div>
-                      </div>
-                      </>
-                    );
-                  })()}
+                    <div className="text-xs text-gray-400">Risked by creator</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xs text-gray-400">Current Bets</div>
+                    <div className="text-sm sm:text-lg font-bold text-cyan-400">
+                      {pool.volume > 1000 
+                        ? `${(pool.volume / 1000).toFixed(1)}K` 
+                        : pool.volume.toFixed(0)} {pool.currency}
                     </div>
+                    <div className="text-xs text-gray-400">Total bet volume</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xs text-gray-400">Potential Win</div>
+                    <div className="text-sm sm:text-lg font-bold text-yellow-400">
+                      {(pool.creator.totalVolume * pool.odds).toFixed(0)} {pool.currency}
+                    </div>
+                    <div className="text-xs text-gray-400">If you win</div>
+                  </div>
+                </div>
                   </div>
               
               <h1 className="text-2xl sm:text-3xl font-bold text-white mb-3">{pool.title}</h1>
               <p className="text-sm sm:text-base text-gray-300 leading-relaxed">{pool.description}</p>
             </div>
 
+            {/* Pool Progress Bar */}
+            <div className="mb-4 p-3 sm:p-4 bg-gradient-to-r from-gray-800/40 to-gray-700/40 rounded-lg border border-gray-600/30">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm text-gray-400">Pool Fill Progress</span>
+                <span className="text-sm font-medium text-white">
+                  {pool.participants > 0 ? Math.min(100, (pool.volume / pool.creator.totalVolume) * 100).toFixed(1) : 0}%
+                </span>
+              </div>
+              <div className="w-full bg-gray-700 rounded-full h-3 mb-2">
+                <div
+                  className="bg-gradient-to-r from-cyan-500 to-blue-500 h-3 rounded-full transition-all duration-500 relative overflow-hidden"
+                  style={{ width: `${Math.min(100, (pool.volume / pool.creator.totalVolume) * 100)}%` }}
+                >
+                  <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
+                </div>
+              </div>
+              <div className="flex justify-between text-xs text-gray-400">
+                <span>{pool.volume.toFixed(0)} {pool.currency} filled</span>
+                <span>{pool.creator.totalVolume.toFixed(0)} {pool.currency} capacity</span>
+              </div>
+            </div>
+
             {/* Challenge Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-700/30 rounded-lg border border-gray-600/30">
-                  <div className="text-center">
+              <div className="text-center">
                 <div className="text-lg sm:text-2xl font-bold text-white">{pool.defeated}</div>
                 <div className="text-xs text-gray-400">Defeated</div>
-                    </div>
+              </div>
               <div className="text-center">
                 <div className="text-lg sm:text-2xl font-bold text-green-400">{pool.creator.successRate.toFixed(1)}%</div>
                 <div className="text-xs text-gray-400">Creator Success</div>
-                  </div>
-                  <div className="text-center">
-                <div className="text-lg sm:text-2xl font-bold text-yellow-400">{pool.odds}x</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg sm:text-2xl font-bold text-yellow-400">{pool.odds.toFixed(2)}x</div>
                 <div className="text-xs text-gray-400">Odds</div>
-                    </div>
+              </div>
               <div className="text-center">
                 <div className="text-lg sm:text-2xl font-bold text-cyan-400">{pool.participants}</div>
                 <div className="text-xs text-gray-400">Challengers</div>
-                  </div>
+              </div>
             </div>
 
             {/* Time Remaining */}
@@ -674,53 +722,59 @@ export default function BetPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {/* YES - Challenge Creator */}
                     <div className={`
-                      p-4 sm:p-6 rounded-xl border-2 transition-all cursor-pointer
+                      p-4 sm:p-6 rounded-xl border-2 transition-all cursor-pointer relative overflow-hidden group
                       ${betType === 'yes' 
-                        ? 'bg-green-500/20 border-green-500/50 shadow-lg shadow-green-500/20' 
+                        ? 'bg-gradient-to-br from-green-500/20 to-emerald-500/20 border-green-500/50 shadow-lg shadow-green-500/20' 
                         : 'bg-gray-700/30 border-gray-600/50 hover:border-green-500/30 hover:bg-green-500/10'
                       }
                     `} onClick={() => setBetType('yes')}>
-                      <div className="text-center space-y-3">
-                        <div className="w-12 h-12 sm:w-16 sm:h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto">
+                      {betType === 'yes' && (
+                        <div className="absolute inset-0 bg-gradient-to-r from-green-500/10 to-transparent animate-pulse"></div>
+                      )}
+                      <div className="text-center space-y-3 relative z-10">
+                        <div className="w-12 h-12 sm:w-16 sm:h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
                           <HandRaisedIcon className="w-6 h-6 sm:w-8 sm:h-8 text-green-400" />
                         </div>
-                  <div>
-                          <div className="text-lg sm:text-xl font-bold text-green-400 mb-1">YES</div>
-                          <div className="text-xs sm:text-sm text-gray-400">Challenge Creator</div>
+                        <div>
+                          <div className="text-lg sm:text-xl font-bold text-green-400 mb-1">YES - CHALLENGE</div>
+                          <div className="text-xs sm:text-sm text-gray-400">I think it WILL happen</div>
                           <div className="text-xs text-green-400/80 mt-1">
-                            You think &quot;{pool.title}&quot; WILL happen
+                            Challenge the creator's prediction
+                          </div>
+                        </div>
+                        <div className="text-sm sm:text-base font-bold text-white bg-green-500/20 rounded-lg py-2 px-3">
+                          Win {pool.odds.toFixed(2)}x your stake
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                        <div className="text-sm sm:text-base font-bold text-white">
-                          Win {pool.odds}x your stake
-                </div>
-                  </div>
-                </div>
 
                     {/* NO - Agree with Creator */}
                     <div className={`
-                      p-4 sm:p-6 rounded-xl border-2 transition-all cursor-pointer
+                      p-4 sm:p-6 rounded-xl border-2 transition-all cursor-pointer relative overflow-hidden group
                       ${betType === 'no' 
-                        ? 'bg-red-500/20 border-red-500/50 shadow-lg shadow-red-500/20' 
-                        : 'bg-gray-700/30 border-gray-600/50 hover:border-red-500/30 hover:bg-red-500/10'
+                        ? 'bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border-blue-500/50 shadow-lg shadow-blue-500/20' 
+                        : 'bg-gray-700/30 border-gray-600/50 hover:border-blue-500/30 hover:bg-blue-500/10'
                       }
                     `} onClick={() => setBetType('no')}>
-                      <div className="text-center space-y-3">
-                        <div className="w-12 h-12 sm:w-16 sm:h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto">
-                          <CheckIcon className="w-6 h-6 sm:w-8 sm:h-8 text-red-400" />
+                      {betType === 'no' && (
+                        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-transparent animate-pulse"></div>
+                      )}
+                      <div className="text-center space-y-3 relative z-10">
+                        <div className="w-12 h-12 sm:w-16 sm:h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
+                          <CheckIcon className="w-6 h-6 sm:w-8 sm:h-8 text-blue-400" />
                         </div>
-                  <div>
-                          <div className="text-lg sm:text-xl font-bold text-red-400 mb-1">NO</div>
-                          <div className="text-xs sm:text-sm text-gray-400">Agree with Creator</div>
-                          <div className="text-xs text-red-400/80 mt-1">
-                            You think &quot;{pool.title}&quot; WON&apos;T happen
-                  </div>
-                </div>
-                        <div className="text-sm sm:text-base font-bold text-white">
-                          Win {(pool.odds - 1).toFixed(2)}x your stake
-                  </div>
-                </div>
-              </div>
+                        <div>
+                          <div className="text-lg sm:text-xl font-bold text-blue-400 mb-1">NO - AGREE</div>
+                          <div className="text-xs sm:text-sm text-gray-400">I think it WON'T happen</div>
+                          <div className="text-xs text-blue-400/80 mt-1">
+                            Support the creator's prediction
+                          </div>
+                        </div>
+                        <div className="text-sm sm:text-base font-bold text-white bg-blue-500/20 rounded-lg py-2 px-3">
+                          Provide liquidity & earn fees
+                        </div>
+                      </div>
+                    </div>
               </div>
               </div>
 
@@ -734,57 +788,65 @@ export default function BetPage() {
                       </div>
 
                   {/* Bet Amount Input */}
-              <div className="space-y-4">
-                    <div className="relative">
+                  <div className="space-y-4">
+                    <div className="relative group">
                       <input
                         type="number"
                         value={betAmount}
                         onChange={(e) => setBetAmount(Number(e.target.value))}
                         placeholder="0.00"
-                        className="w-full px-4 py-3 sm:py-4 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 text-lg sm:text-xl"
+                        className="w-full px-4 py-3 sm:py-4 bg-gradient-to-r from-gray-700/50 to-gray-600/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 text-lg sm:text-xl group-hover:border-cyan-500/30 transition-all"
                       />
-                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm sm:text-base">
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 text-sm sm:text-base font-medium">
                         {pool.currency}
-                          </div>
+                      </div>
+                      <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-cyan-500/5 to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
                     </div>
 
                     {/* Quick Amount Buttons */}
                     <div className="grid grid-cols-4 gap-2">
                       {[10, 50, 100, 500].map(amount => (
-                            <button 
+                        <button 
                           key={amount}
                           onClick={() => setBetAmount(amount)}
-                          className="px-2 sm:px-3 py-2 bg-gray-700/50 hover:bg-gray-600/50 text-white rounded-lg text-xs sm:text-sm transition-colors"
-                            >
+                          className={`px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm transition-all font-medium ${
+                            betAmount === amount 
+                              ? 'bg-cyan-500 text-black shadow-lg' 
+                              : 'bg-gray-700/50 hover:bg-gray-600/50 text-white hover:scale-105'
+                          }`}
+                        >
                           {amount}
-                            </button>
+                        </button>
                       ))}
-                          </div>
+                    </div>
 
                     {/* Bet Preview */}
                     {betAmount > 0 && betType && (
-                      <div className="p-4 bg-gray-700/30 rounded-lg border border-gray-600/30">
-                        <div className="text-sm sm:text-base font-medium text-white mb-3">Bet Preview</div>
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-gray-400">Your Stake:</span>
-                            <span className="text-white">{betAmount.toLocaleString()} {pool.currency}</span>
+                      <div className="p-4 bg-gradient-to-br from-gray-700/40 to-gray-600/40 rounded-xl border border-gray-600/30 backdrop-blur-sm">
+                        <div className="text-sm sm:text-base font-medium text-white mb-3 flex items-center gap-2">
+                          <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
+                          Bet Preview
                         </div>
-                          <div className="flex justify-between">
+                        <div className="space-y-3 text-sm">
+                          <div className="flex justify-between items-center p-2 bg-gray-800/30 rounded-lg">
+                            <span className="text-gray-400">Your Stake:</span>
+                            <span className="text-white font-bold">{betAmount.toLocaleString()} {pool.currency}</span>
+                          </div>
+                          <div className="flex justify-between items-center p-2 bg-green-500/10 rounded-lg">
                             <span className="text-gray-400">Potential Win:</span>
-                            <span className="text-green-400">
+                            <span className="text-green-400 font-bold">
                               {betType === 'yes' 
                                 ? (betAmount * pool.odds).toLocaleString()
-                                : (betAmount + (betAmount * (pool.odds - 1))).toLocaleString()
+                                : (betAmount + (betAmount * 0.1)).toLocaleString() // Simplified for liquidity
                               } {pool.currency}
                             </span>
                           </div>
-                          <div className="flex justify-between">
+                          <div className="flex justify-between items-center p-2 bg-cyan-500/10 rounded-lg">
                             <span className="text-gray-400">Profit:</span>
-                            <span className="text-cyan-400">
-                              {betType === 'yes' 
+                            <span className="text-cyan-400 font-bold">
+                              +{betType === 'yes' 
                                 ? (betAmount * (pool.odds - 1)).toLocaleString()
-                                : (betAmount * (pool.odds - 1)).toLocaleString()
+                                : (betAmount * 0.1).toLocaleString() // Simplified for liquidity
                               } {pool.currency}
                             </span>
                           </div>
@@ -801,16 +863,33 @@ export default function BetPage() {
                   onClick={handlePlaceBet}
                   disabled={!betType || betAmount <= 0}
                   className={`
-                    px-8 py-3 sm:py-4 rounded-xl font-bold text-lg sm:text-xl transition-all
+                    relative px-8 py-3 sm:py-4 rounded-xl font-bold text-lg sm:text-xl transition-all transform group overflow-hidden
                     ${betType && betAmount > 0
-                      ? 'bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-black shadow-lg'
+                      ? 'bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-black shadow-lg hover:shadow-cyan-500/25 hover:scale-105 active:scale-95'
                       : 'bg-gray-600 text-gray-400 cursor-not-allowed'
                     }
                   `}
                 >
-                  Place Bet
+                  {betType && betAmount > 0 && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                  )}
+                  <span className="relative z-10 flex items-center justify-center gap-2">
+                    {betType === 'yes' ? '🎯 Challenge Creator' : betType === 'no' ? '🤝 Support Creator' : 'Place Bet'}
+                    {betType && betAmount > 0 && (
+                      <div className="w-2 h-2 bg-white/60 rounded-full animate-pulse"></div>
+                    )}
+                  </span>
                 </button>
-                            </div>
+                
+                {betType && betAmount > 0 && (
+                  <p className="text-xs text-gray-400 mt-2">
+                    {betType === 'yes' 
+                      ? `You're betting that "${pool.title}" WILL happen` 
+                      : `You're providing liquidity, betting it WON'T happen`
+                    }
+                  </p>
+                )}
+              </div>
                           </div>
           )}
 

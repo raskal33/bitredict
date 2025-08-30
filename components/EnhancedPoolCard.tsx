@@ -91,7 +91,7 @@ export default function EnhancedPoolCard({
     setIsLoadingIndexedData(true);
     try {
       // Get pool progress data
-      const progressResponse = await fetch(`/api/guided-markets/pools/${pool.id}/progress`);
+      const progressResponse = await fetch(`/api/pools/${pool.id}/progress`);
       if (progressResponse.ok) {
         const progressData = await progressResponse.json();
         if (progressData.success && progressData.data) {
@@ -198,6 +198,73 @@ export default function EnhancedPoolCard({
     return themes[category] || themes['football'];
   };
 
+  // Generate professional betting market title
+  const generateProfessionalTitle = (predictedOutcome: string, category: string, league?: string) => {
+    // For football markets, try to extract team names and create proper format
+    if (category === 'football') {
+      // Common patterns for football predictions
+      const patterns = [
+        /(.+?)\s+(?:will\s+)?(?:NOT\s+)?(?:win|beat|defeat)\s+(.+?)(?:\s+in\s+.+)?$/i,
+        /(.+?)\s+vs\s+(.+?)\s+(.+)/i,
+        /(.+?)\s+and\s+(.+?)\s+(.+)/i
+      ];
+      
+      for (const pattern of patterns) {
+        const match = predictedOutcome.match(pattern);
+        if (match) {
+          const team1 = match[1]?.trim();
+          const team2 = match[2]?.trim();
+          const outcome = match[3]?.trim();
+          
+          if (team1 && team2) {
+            // Clean up team names
+            const cleanTeam1 = team1.replace(/\s+(?:will\s+)?(?:NOT\s+)?(?:win|beat|defeat)/i, '').trim();
+            const cleanTeam2 = team2.replace(/\s+(?:will\s+)?(?:NOT\s+)?(?:win|beat|defeat)/i, '').trim();
+            
+            if (outcome && outcome.includes('2.5')) {
+              return `${cleanTeam1} vs ${cleanTeam2} 2.5 Over?`;
+            } else if (outcome && outcome.includes('1.5')) {
+              return `${cleanTeam1} vs ${cleanTeam2} 1.5 Over?`;
+            } else if (outcome && outcome.includes('3.5')) {
+              return `${cleanTeam1} vs ${cleanTeam2} 3.5 Over?`;
+            } else if (outcome && outcome.includes('win')) {
+              return `${cleanTeam1} vs ${cleanTeam2} Winner`;
+            } else {
+              return `${cleanTeam1} vs ${cleanTeam2}`;
+            }
+          }
+        }
+      }
+    }
+    
+    // For cryptocurrency markets
+    if (category === 'cryptocurrency') {
+      const cryptoMatch = predictedOutcome.match(/(.+?)\s+(?:will\s+)?(?:NOT\s+)?(?:reach|hit|exceed)\s+(\$[\d,]+)/i);
+      if (cryptoMatch) {
+        const crypto = cryptoMatch[1]?.trim();
+        const price = cryptoMatch[2]?.trim();
+        return `${crypto} ${price} Target`;
+      }
+    }
+    
+    // For basketball markets
+    if (category === 'basketball') {
+      const bballMatch = predictedOutcome.match(/(.+?)\s+(?:will\s+)?(?:NOT\s+)?(?:beat|defeat)\s+(.+?)/i);
+      if (bballMatch) {
+        const team1 = bballMatch[1]?.trim();
+        const team2 = bballMatch[2]?.trim();
+        return `${team1} vs ${team2}`;
+      }
+    }
+    
+    // Fallback: clean up the predicted outcome
+    return predictedOutcome
+      .replace(/\s+(?:will\s+)?(?:NOT\s+)?(?:happen|occur|take place)/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .substring(0, 50) + (predictedOutcome.length > 50 ? '...' : '');
+  };
+
   const theme = getCardTheme(pool.category);
   const difficultyColor = getDifficultyColor(pool.odds);
   const difficultyTier = pool.odds >= 500 ? 'LEGENDARY' : 
@@ -206,25 +273,35 @@ export default function EnhancedPoolCard({
                         pool.odds >= 150 ? 'INTERMEDIATE' : 'BEGINNER';
   
   const formatStake = (stake: string) => {
-    const amount = parseFloat(formatEther(BigInt(stake)));
-    if (amount >= 1000000) return `${(amount / 1000000).toFixed(1)}M`;
-    if (amount >= 1000) return `${(amount / 1000).toFixed(1)}K`;
-    return amount.toFixed(1);
+    try {
+      const amount = parseFloat(formatEther(BigInt(stake)));
+      if (amount >= 1000000) return `${(amount / 1000000).toFixed(1)}M`;
+      if (amount >= 1000) return `${(amount / 1000).toFixed(1)}K`;
+      return amount.toFixed(1);
+    } catch (error) {
+      return '0';
+    }
   };
 
   const formatTimeLeft = (endTime: number) => {
-    const now = Math.floor(Date.now() / 1000);
-    const timeLeft = endTime - now;
-    
-    if (timeLeft <= 0) return "Ended";
-    
-    const days = Math.floor(timeLeft / 86400);
-    const hours = Math.floor((timeLeft % 86400) / 3600);
-    const minutes = Math.floor((timeLeft % 3600) / 60);
-    
-    if (days > 0) return `${days}d ${hours}h`;
-    if (hours > 0) return `${hours}h ${minutes}m`;
-    return `${minutes}m`;
+    try {
+      const now = Math.floor(Date.now() / 1000);
+      const timeLeft = endTime - now;
+      
+      if (timeLeft <= 0) return "Ended";
+      if (isNaN(timeLeft)) return "TBD";
+      
+      const days = Math.floor(timeLeft / 86400);
+      const hours = Math.floor((timeLeft % 86400) / 3600);
+      const minutes = Math.floor((timeLeft % 3600) / 60);
+      
+      if (days > 0) return `${days}d ${hours}h`;
+      if (hours > 0) return `${hours}h ${minutes}m`;
+      if (minutes > 0) return `${minutes}m`;
+      return `${Math.floor(timeLeft)}s`;
+    } catch (error) {
+      return "TBD";
+    }
   };
 
   const formatAddress = (address: string) => {
@@ -257,6 +334,8 @@ export default function EnhancedPoolCard({
     };
     return icons[category] || '🎯';
   };
+
+  const professionalTitle = generateProfessionalTitle(pool.predictedOutcome, pool.category, pool.league);
   
   return (
     <motion.div
@@ -266,7 +345,7 @@ export default function EnhancedPoolCard({
       whileHover={{ y: -4, scale: 1.01 }}
       onClick={handleClick}
       className={`
-        relative overflow-hidden group cursor-pointer h-[420px] flex flex-col
+        relative overflow-hidden group cursor-pointer min-h-[480px] max-h-[520px] flex flex-col
         ${theme.background} ${theme.border} ${theme.glow} ${theme.hoverGlow}
         ${pool.boostTier && pool.boostTier !== 'NONE' ? getBoostGlow(pool.boostTier) : ''}
         transition-all duration-500 p-4 rounded-2xl border backdrop-blur-sm
@@ -332,21 +411,21 @@ export default function EnhancedPoolCard({
           </div>
         </div>
         <div className="text-right flex-shrink-0">
-          <div className="text-xs text-gray-400">Pool</div>
+          <div className="text-xs text-gray-400">Pool ID</div>
           <div className={`text-lg font-bold ${theme.accent}`}>
             #{pool.id}
           </div>
         </div>
       </div>
 
-      {/* Title */}
+      {/* Professional Title */}
       <h3 className="text-base font-bold text-white line-clamp-2 mb-3 group-hover:text-cyan-400 transition-colors flex-shrink-0" style={{ minHeight: '2.5rem' }}>
-        {pool.predictedOutcome}
+        {professionalTitle}
       </h3>
 
       {/* Progress Bar - Indexed Data */}
       {indexedData && (
-        <div className="mb-3">
+        <div className="mb-3 flex-shrink-0">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs text-gray-400">Pool Progress</span>
             <span className="text-xs text-white font-medium">{indexedData.fillPercentage}%</span>
@@ -423,7 +502,7 @@ export default function EnhancedPoolCard({
         <div className="grid grid-cols-2 gap-2 mb-3 text-center flex-shrink-0">
           <div>
             <div className="text-xs text-gray-400">Avg Bet</div>
-            <div className="text-xs font-bold text-white">{indexedData.avgBetSize} {pool.usesBitr ? 'BITR' : 'STT'}</div>
+            <div className="text-xs font-bold text-white">{formatStake(indexedData.avgBetSize)} {pool.usesBitr ? 'BITR' : 'STT'}</div>
           </div>
           <div>
             <div className="text-xs text-gray-400">Total Bets</div>
