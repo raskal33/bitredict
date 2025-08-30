@@ -4,10 +4,10 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const poolId = params.id;
+    const { id: poolId } = await params;
 
     if (!poolId || isNaN(parseInt(poolId))) {
       return NextResponse.json(
