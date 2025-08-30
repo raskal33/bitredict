@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const limit = searchParams.get('limit') || '50';
     const offset = searchParams.get('offset') || '0';
-    const category = searchParams.get('category') || 'all';
+    // const category = searchParams.get('category') || 'all'; // Unused variable
 
     // Fetch pools from backend
     const response = await fetch(`${API_BASE_URL}/api/guided-markets/pools?limit=${limit}&offset=${offset}`, {
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Transform and format the data for frontend
-    const formattedPools = data.data.pools.map((pool: any) => ({
+    const formattedPools = data.data.pools.map((pool: Record<string, unknown>) => ({
       poolId: pool.id,
       creator: pool.creator,
       odds: pool.odds,

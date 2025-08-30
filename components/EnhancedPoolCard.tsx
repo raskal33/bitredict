@@ -199,7 +199,7 @@ export default function EnhancedPoolCard({
   };
 
   // Generate professional betting market title
-  const generateProfessionalTitle = (predictedOutcome: string, category: string, league?: string) => {
+  const generateProfessionalTitle = (predictedOutcome: string, category: string, _league?: string) => {
     // For football markets, try to extract team names and create proper format
     if (category === 'football') {
       // Common patterns for football predictions
@@ -278,7 +278,7 @@ export default function EnhancedPoolCard({
       if (amount >= 1000000) return `${(amount / 1000000).toFixed(1)}M`;
       if (amount >= 1000) return `${(amount / 1000).toFixed(1)}K`;
       return amount.toFixed(1);
-    } catch (error) {
+    } catch (_error) {
       return '0';
     }
   };
@@ -299,7 +299,7 @@ export default function EnhancedPoolCard({
       if (hours > 0) return `${hours}h ${minutes}m`;
       if (minutes > 0) return `${minutes}m`;
       return `${Math.floor(timeLeft)}s`;
-    } catch (error) {
+    } catch (_error) {
       return "TBD";
     }
   };

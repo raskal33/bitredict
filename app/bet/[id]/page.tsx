@@ -24,7 +24,7 @@ import {
   HandThumbDownIcon as ThumbDownSolid
 } from "@heroicons/react/24/solid";
 import { Pool, Comment } from "@/lib/types";
-import { PoolService } from "@/services/poolService";
+// import { PoolService } from "@/services/poolService"; // Unused import
 import { toast } from "react-hot-toast";
 
 export default function BetPage() {
@@ -739,7 +739,7 @@ export default function BetPage() {
                           <div className="text-lg sm:text-xl font-bold text-green-400 mb-1">YES - CHALLENGE</div>
                           <div className="text-xs sm:text-sm text-gray-400">I think it WILL happen</div>
                           <div className="text-xs text-green-400/80 mt-1">
-                            Challenge the creator's prediction
+                            Challenge the creator&apos;s prediction
                           </div>
                         </div>
                         <div className="text-sm sm:text-base font-bold text-white bg-green-500/20 rounded-lg py-2 px-3">
@@ -765,14 +765,14 @@ export default function BetPage() {
                         </div>
                         <div>
                           <div className="text-lg sm:text-xl font-bold text-blue-400 mb-1">NO - AGREE</div>
-                          <div className="text-xs sm:text-sm text-gray-400">I think it WON'T happen</div>
+                          <div className="text-xs sm:text-sm text-gray-400">I think it WON&apos;T happen</div>
                           <div className="text-xs text-blue-400/80 mt-1">
-                            Support the creator's prediction
+                            Support the creator&apos;s prediction
                           </div>
                         </div>
-                        <div className="text-sm sm:text-base font-bold text-white bg-blue-500/20 rounded-lg py-2 px-3">
-                          Provide liquidity & earn fees
-                        </div>
+                                                  <div className="text-sm sm:text-base font-bold text-white bg-blue-500/20 rounded-lg py-2 px-3">
+                            Provide liquidity &amp; earn fees
+                          </div>
                       </div>
                     </div>
               </div>
