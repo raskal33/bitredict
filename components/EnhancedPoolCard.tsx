@@ -13,7 +13,7 @@ import { formatEther } from "viem";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
-// Enhanced Pool interface with indexed data
+  // Enhanced Pool interface with indexed data
 export interface EnhancedPool {
   id: number;
   creator: string;
@@ -24,6 +24,7 @@ export interface EnhancedPool {
   usesBitr: boolean;
   filledAbove60: boolean;
   oracleType: 'GUIDED' | 'OPEN';
+  status?: 'active' | 'closed' | 'settled' | 'cancelled';
   
   creatorStake: string; // BigInt as string
   totalCreatorSideStake: string;
@@ -393,6 +394,19 @@ export default function EnhancedPoolCard({
             HOT
           </div>
         )}
+
+        {/* Pool Status Badge */}
+        {pool.status && (
+          <div className={`px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${
+            pool.status === 'active' ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white' :
+            pool.status === 'closed' ? 'bg-gradient-to-r from-red-500 to-pink-500 text-white' :
+            pool.status === 'settled' ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white' :
+            'bg-gradient-to-r from-gray-500 to-gray-600 text-white'
+          }`}>
+            <ClockIcon className="w-3 h-3" />
+            {pool.status.toUpperCase()}
+          </div>
+        )}
       </div>
 
       {/* Header */}
@@ -433,7 +447,7 @@ export default function EnhancedPoolCard({
             <span className="text-xs text-gray-400">Pool Progress</span>
             <span className="text-xs text-white font-medium">{indexedData.fillPercentage}%</span>
           </div>
-          <div className="w-full bg-gray-700 rounded-full h-2">
+          <div className="w-full glass-card rounded-full h-2 bg-bg-card/30 border border-border-card/20">
             <div
               className={`h-2 rounded-full transition-all duration-300 ${getProgressColor(indexedData.fillPercentage)}`}
               style={{ width: `${Math.min(indexedData.fillPercentage, 100)}%` }}
