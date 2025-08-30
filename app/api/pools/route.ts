@@ -50,8 +50,8 @@ export async function GET(request: NextRequest) {
       eventStartTime: typeof pool.eventStartTime === 'string' ? new Date(pool.eventStartTime).getTime() / 1000 : pool.eventStartTime,
       eventEndTime: typeof pool.eventEndTime === 'string' ? new Date(pool.eventEndTime).getTime() / 1000 : pool.eventEndTime,
       bettingEndTime: typeof pool.bettingEndTime === 'string' ? new Date(pool.bettingEndTime).getTime() / 1000 : pool.bettingEndTime,
-      resultTimestamp: pool.resultTimestamp ? new Date(pool.resultTimestamp).getTime() / 1000 : 0,
-      arbitrationDeadline: pool.arbitrationDeadline ? new Date(pool.arbitrationDeadline).getTime() / 1000 : (typeof pool.eventEndTime === 'string' ? new Date(pool.eventEndTime).getTime() / 1000 + (24 * 60 * 60) : pool.eventEndTime + (24 * 60 * 60)),
+      resultTimestamp: pool.resultTimestamp ? new Date(pool.resultTimestamp as string).getTime() / 1000 : 0,
+      arbitrationDeadline: pool.arbitrationDeadline ? new Date(pool.arbitrationDeadline as string).getTime() / 1000 : (typeof pool.eventEndTime === 'string' ? new Date(pool.eventEndTime as string).getTime() / 1000 + (24 * 60 * 60) : (pool.eventEndTime as number) + (24 * 60 * 60)),
       
       league: pool.league || 'Unknown',
       category: pool.category || 'sports',
