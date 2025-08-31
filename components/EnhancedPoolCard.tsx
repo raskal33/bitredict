@@ -275,8 +275,8 @@ export default function EnhancedPoolCard({
   
   // Generate a proper title from the pool data
   const displayTitle = pool.predictedOutcome && pool.predictedOutcome !== '0x' && pool.predictedOutcome.length > 10 
-    ? generateProfessionalTitle(pool.predictedOutcome, pool.category)
-    : `${pool.category.charAt(0).toUpperCase() + pool.category.slice(1)} Pool #${pool.id}`;
+    ? generateProfessionalTitle(pool.predictedOutcome, pool.category || 'sports')
+    : `${(pool.category || 'sports').charAt(0).toUpperCase() + (pool.category || 'sports').slice(1)} Pool #${pool.id}`;
   
   const formatStake = (stake: string) => {
     try {

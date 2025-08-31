@@ -343,7 +343,7 @@ export default function BetPage() {
         <div className="flex items-start gap-3">
           <div className="w-8 h-8 bg-gradient-to-br from-cyan-500/20 to-blue-500/20 rounded-full flex items-center justify-center">
             <span className="text-xs font-bold text-cyan-400">
-              {comment.author.username.charAt(0).toUpperCase()}
+              {(comment.author.username || 'U').charAt(0).toUpperCase()}
             </span>
           </div>
           
@@ -483,7 +483,7 @@ export default function BetPage() {
                       {pool.creator.badges.slice(0, 2).map((badge, index) => (
                         <div key={index} className={`px-1 sm:px-2 py-1 rounded-full text-xs font-bold text-black ${getBadgeColor(badge)}`}>
                           <span className="hidden sm:inline">{badge.replace('_', ' ').toUpperCase()}</span>
-                          <span className="sm:hidden">{badge.charAt(0).toUpperCase()}</span>
+                          <span className="sm:hidden">{(badge || 'B').charAt(0).toUpperCase()}</span>
                     </div>
                       ))}
                       </div>

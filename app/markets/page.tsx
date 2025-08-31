@@ -22,7 +22,7 @@ import {
   FaGift
 } from "react-icons/fa";
 
-type MarketCategory = "all" | "boosted" | "trending" | "private" | "combo";
+type MarketCategory = "all" | "boosted" | "trending" | "private" | "combo" | "active" | "closed" | "settled";
 type SortBy = "newest" | "oldest" | "volume" | "ending-soon";
 
 
@@ -37,6 +37,8 @@ export default function MarketsPage() {
   const [filteredPools, setFilteredPools] = useState<EnhancedPool[]>([]);
   const [stats, setStats] = useState<PoolStats>({
     totalVolume: "0",
+    bitrVolume: "0",
+    sttVolume: "0",
     activeMarkets: 0,
     participants: 0,
     totalPools: 0,
@@ -127,6 +129,27 @@ export default function MarketsPage() {
       description: "Browse all available prediction markets"
     },
     { 
+      id: "active" as MarketCategory, 
+      label: "Active", 
+      icon: FaFire, 
+      color: "text-green-400",
+      description: "Currently active markets accepting bets"
+    },
+    { 
+      id: "closed" as MarketCategory, 
+      label: "Closed", 
+      icon: FaClock, 
+      color: "text-orange-400",
+      description: "Markets that have ended, awaiting results"
+    },
+    { 
+      id: "settled" as MarketCategory, 
+      label: "Settled", 
+      icon: FaTrophy, 
+      color: "text-purple-400",
+      description: "Completed markets with final results"
+    },
+    { 
       id: "boosted" as MarketCategory, 
       label: "Boosted", 
       icon: FaBolt, 
@@ -134,24 +157,10 @@ export default function MarketsPage() {
       description: "Markets with enhanced rewards and visibility"
     },
     { 
-      id: "trending" as MarketCategory, 
-      label: "Trending", 
-      icon: FaFire, 
-      color: "text-orange-400",
-      description: "Popular and high-activity markets"
-    },
-    { 
-      id: "combo" as MarketCategory, 
-      label: "Combo", 
-      icon: FaStar, 
-      color: "text-green-400",
-      description: "Multi-event parlay predictions"
-    },
-    { 
       id: "private" as MarketCategory, 
       label: "Private", 
       icon: FaLock, 
-      color: "text-purple-400",
+      color: "text-gray-400",
       description: "Exclusive whitelisted markets"
     },
   ];
@@ -194,12 +203,14 @@ export default function MarketsPage() {
     if (activeCategory !== "all") {
       filtered = filtered.filter(pool => {
         switch (activeCategory) {
+          case "active":
+            return !pool.settled && new Date(pool.eventStartTime).getTime() > Date.now();
+          case "closed":
+            return !pool.settled && new Date(pool.eventStartTime).getTime() <= Date.now();
+          case "settled":
+            return pool.settled;
           case "boosted":
             return pool.boostTier !== "NONE";
-          case "trending":
-            return parseFloat(pool.totalBettorStake) > 500000000000000000000; // High volume
-          case "combo":
-            return pool.category === "combo";
           case "private":
             return pool.isPrivate;
           default:
@@ -307,7 +318,7 @@ export default function MarketsPage() {
                 placeholder="Search markets..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-bg-input border border-border-input rounded-lg text-white placeholder-text-muted focus:outline-none focus:border-primary"
+                className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               />
             </div>
           </div>
@@ -318,7 +329,7 @@ export default function MarketsPage() {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as SortBy)}
-                className="bg-bg-input border border-border-input rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-primary"
+                className="bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               >
                 {sortOptions.map((option) => (
                   <option key={option.id} value={option.id} className="bg-gray-800">
@@ -415,8 +426,12 @@ export default function MarketsPage() {
               <h3 className="text-xl font-bold text-white mb-4">Market Stats</h3>
               <div className="space-y-3">
                 <div className="flex justify-between">
-                  <span className="text-gray-300">Total Volume</span>
-                  <span className="text-white font-semibold">{stats.totalVolume} STT</span>
+                  <span className="text-gray-300">BITR Volume</span>
+                  <span className="text-white font-semibold">{stats.bitrVolume || "0"} BITR</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-300">STT Volume</span>
+                  <span className="text-white font-semibold">{stats.sttVolume || "0"} STT</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-300">Active Markets</span>
@@ -427,8 +442,8 @@ export default function MarketsPage() {
                   <span className="text-white font-semibold">{stats.participants}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-300">Boosted Pools</span>
-                  <span className="text-white font-semibold">{stats.boostedPools}</span>
+                  <span className="text-gray-300">Total Pools</span>
+                  <span className="text-white font-semibold">{stats.totalPools}</span>
                 </div>
               </div>
             </div>

@@ -177,7 +177,7 @@ export default function Component({ id }: { id: number }) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-white">
-              {thread.author.charAt(0).toUpperCase()}
+              {(thread.author || 'A').charAt(0).toUpperCase()}
             </div>
       <div>
               <p className="font-medium text-text-secondary">{thread.author}</p>
@@ -235,7 +235,7 @@ export default function Component({ id }: { id: number }) {
                   <div className="mb-3 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-bold text-black">
-                        {comment.user.charAt(0).toUpperCase()}
+                        {(comment.user || 'U').charAt(0).toUpperCase()}
                       </div>
                       <div>
                         <p className="font-medium text-text-secondary">{comment.user}</p>
@@ -273,7 +273,7 @@ export default function Component({ id }: { id: number }) {
                       <div key={reply.id} className="rounded-lg bg-bg-card bg-opacity-30 p-3">
                         <div className="mb-2 flex items-center gap-2">
                           <div className="flex h-6 w-6 items-center justify-center rounded-full bg-secondary text-xs font-bold text-white">
-                            {reply.user.charAt(0).toUpperCase()}
+                            {(reply.user || 'R').charAt(0).toUpperCase()}
                           </div>
                           <div>
                             <p className="text-sm font-medium text-text-secondary">{reply.user}</p>

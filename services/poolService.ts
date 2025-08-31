@@ -132,6 +132,8 @@ export interface Pool {
 
 export interface PoolStats {
   totalVolume: string;
+  bitrVolume?: string;
+  sttVolume?: string;
   activeMarkets: number;
   participants: number;
   totalPools: number;
@@ -387,6 +389,8 @@ export class PoolService {
         console.error('Failed to fetch pool stats:', data.error);
         return {
           totalVolume: "0",
+          bitrVolume: "0",
+          sttVolume: "0",
           activeMarkets: 0,
           participants: 0,
           totalPools: 0,
@@ -398,6 +402,8 @@ export class PoolService {
       
       return data.data.stats || {
         totalVolume: "0",
+        bitrVolume: "0",
+        sttVolume: "0",
         activeMarkets: 0,
         participants: 0,
         totalPools: 0,
@@ -409,6 +415,8 @@ export class PoolService {
       console.error('Error fetching pool stats:', error);
       return {
         totalVolume: "0",
+        bitrVolume: "0",
+        sttVolume: "0",
         activeMarkets: 0,
         participants: 0,
         totalPools: 0,
