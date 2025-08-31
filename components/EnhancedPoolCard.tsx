@@ -447,9 +447,9 @@ export default function EnhancedPoolCard({
             <span className="text-xs text-gray-400">Pool Progress</span>
             <span className="text-xs text-white font-medium">{indexedData.fillPercentage}%</span>
           </div>
-          <div className="w-full glass-card rounded-full h-2 bg-bg-card/30 border border-border-card/20">
+          <div className="w-full glass-card rounded-full h-1 bg-gray-800/30 border border-gray-600/20 shadow-inner">
             <div
-              className={`h-2 rounded-full transition-all duration-300 ${getProgressColor(indexedData.fillPercentage)}`}
+              className={`h-1 rounded-full transition-all duration-500 shadow-sm ${getProgressColor(indexedData.fillPercentage)}`}
               style={{ width: `${Math.min(indexedData.fillPercentage, 100)}%` }}
             />
           </div>
@@ -457,7 +457,7 @@ export default function EnhancedPoolCard({
       )}
 
       {/* Creator Prediction Section */}
-              <div className="mb-3 p-3 bg-bg-card/50 rounded-lg border border-border-card/30 flex-shrink-0 backdrop-blur-sm">
+              <div className="mb-3 p-3 glass-card bg-gradient-to-br from-gray-800/40 to-gray-900/40 rounded-lg border border-gray-600/30 flex-shrink-0 backdrop-blur-md shadow-lg">
         <div className="mb-2">
           <div className="text-xs text-warning mb-1 flex items-center gap-1">
             <BoltIcon className="w-3 h-3" />
