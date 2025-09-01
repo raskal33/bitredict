@@ -2,7 +2,7 @@
 
 import Button from "@/components/button";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useAccount, useChainId } from "wagmi";
 import { toast } from "react-hot-toast";
 

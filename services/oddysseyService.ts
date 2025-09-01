@@ -476,7 +476,183 @@ class OddysseyService {
         auto_claim: boolean;
         notifications: boolean;
       };
-    }>(`${this.baseEndpoint}/preferences/${address}`);
+    }>(`${this.baseEndpoint}/user-preferences/${address}`);
+  }
+
+  /**
+   * Get real evaluated slip data from contract
+   */
+  async getEvaluatedSlip(slipId: number): Promise<{
+    success: boolean;
+    data: {
+      slipId: number;
+      cycleId: number;
+      playerAddress: string;
+      placedAt: string;
+      predictions: Array<{
+        matchId: number;
+        betType: 'MONEYLINE' | 'OVER_UNDER';
+        selection: string;
+        selectedOdd: number;
+        isCorrect: boolean | null;
+        actualResult: string | null;
+        matchResult: {
+          homeScore: number | null;
+          awayScore: number | null;
+          result: string | null;
+          status: string;
+        } | null;
+      }>;
+      finalScore: number;
+      correctCount: number;
+      isEvaluated: boolean;
+      leaderboardRank?: number;
+      prizeClaimed: boolean;
+      txHash?: string;
+    };
+  }> {
+    return apiRequest<{
+      success: boolean;
+      data: {
+        slipId: number;
+        cycleId: number;
+        playerAddress: string;
+        placedAt: string;
+        predictions: Array<{
+          matchId: number;
+          betType: 'MONEYLINE' | 'OVER_UNDER';
+          selection: string;
+          selectedOdd: number;
+          isCorrect: boolean | null;
+          actualResult: string | null;
+          matchResult: {
+            homeScore: number | null;
+            awayScore: number | null;
+            result: string | null;
+            status: string;
+          } | null;
+        }>;
+        finalScore: number;
+        correctCount: number;
+        isEvaluated: boolean;
+        leaderboardRank?: number;
+        prizeClaimed: boolean;
+        txHash?: string;
+      };
+    }>(`${this.baseEndpoint}/slips/${slipId}/evaluated`);
+  }
+
+  /**
+   * Get all user slips with real evaluation data
+   */
+  async getUserSlipsWithEvaluation(address: string): Promise<{
+    success: boolean;
+    data: Array<{
+      slipId: number;
+      cycleId: number;
+      playerAddress: string;
+      placedAt: string;
+      predictions: Array<{
+        matchId: number;
+        betType: 'MONEYLINE' | 'OVER_UNDER';
+        selection: string;
+        selectedOdd: number;
+        isCorrect: boolean | null;
+        actualResult: string | null;
+        matchResult: {
+          homeScore: number | null;
+          awayScore: number | null;
+          result: string | null;
+          status: string;
+        } | null;
+      }>;
+      finalScore: number;
+      correctCount: number;
+      isEvaluated: boolean;
+      leaderboardRank?: number;
+      prizeClaimed: boolean;
+      txHash?: string;
+    }>;
+  }> {
+    return apiRequest<{
+      success: boolean;
+      data: Array<{
+        slipId: number;
+        cycleId: number;
+        playerAddress: string;
+        placedAt: string;
+        predictions: Array<{
+          matchId: number;
+          betType: 'MONEYLINE' | 'OVER_UNDER';
+          selection: string;
+          selectedOdd: number;
+          isCorrect: boolean | null;
+          actualResult: string | null;
+          matchResult: {
+            homeScore: number | null;
+            awayScore: number | null;
+            result: string | null;
+            status: string;
+          } | null;
+        }>;
+        finalScore: number;
+        correctCount: number;
+        isEvaluated: boolean;
+        leaderboardRank?: number;
+        prizeClaimed: boolean;
+        txHash?: string;
+      }>;
+    }>(`${this.baseEndpoint}/user-slips/${address}/evaluated`);
+  }
+
+  /**
+   * Check cycle synchronization status between DB and contract
+   */
+  async checkCycleSync(): Promise<{
+    success: boolean;
+    data: {
+      dbCycleId: number;
+      contractCycleId: number;
+      isSynced: boolean;
+      dbCycleExists: boolean;
+      contractCycleExists: boolean;
+      lastSyncCheck: string;
+    };
+  }> {
+    return apiRequest<{
+      success: boolean;
+      data: {
+        dbCycleId: number;
+        contractCycleId: number;
+        isSynced: boolean;
+        dbCycleExists: boolean;
+        contractCycleExists: boolean;
+        lastSyncCheck: string;
+      };
+    }>(`${this.baseEndpoint}/cycle-sync-status`);
+  }
+
+  /**
+   * Force cycle synchronization (admin only)
+   */
+  async forceCycleSync(): Promise<{
+    success: boolean;
+    data: {
+      message: string;
+      syncedCycleId: number;
+      txHash?: string;
+    };
+  }> {
+    return apiRequest<{
+      success: boolean;
+      data: {
+        message: string;
+        syncedCycleId: number;
+        txHash?: string;
+      };
+    }>(`${this.baseEndpoint}/admin/force-cycle-sync`, {
+      method: 'POST'
+    });
   }
 
   /**

@@ -183,15 +183,21 @@ export function useOddyssey() {
     staleTime: 120000, // Consider data fresh for 2 minutes
   });
 
+  // NEW: Get user slips with real evaluation data
   const { data: backendUserSlips, refetch: refetchBackendSlips } = useQuery({
-    queryKey: ['oddyssey', 'backend', 'slips', address, dailyCycleId?.toString()],
-    queryFn: async () => {
-      if (!address) return { success: true, data: [], meta: undefined };
-      return oddysseyService.getUserSlips(address);
-    },
-    enabled: !!address && !!dailyCycleId,
-    refetchInterval: 300000, // Only refetch every 5 minutes for user slips
-    staleTime: 180000, // Consider data fresh for 3 minutes
+    queryKey: ['oddyssey', 'user-slips', address],
+    queryFn: () => address ? oddysseyService.getUserSlipsWithEvaluation(address) : null,
+    enabled: !!address,
+    refetchInterval: 60000, // Every minute for real-time updates
+    staleTime: 30000, // Consider data fresh for 30 seconds
+  });
+
+  // NEW: Check cycle synchronization status
+  const { data: cycleSyncStatus, refetch: refetchCycleSync } = useQuery({
+    queryKey: ['oddyssey', 'cycle-sync'],
+    queryFn: () => oddysseyService.checkCycleSync(),
+    refetchInterval: 300000, // Every 5 minutes
+    staleTime: 120000, // Consider data fresh for 2 minutes
   });
 
   const { data: backendStats, refetch: refetchBackendStats } = useQuery({
