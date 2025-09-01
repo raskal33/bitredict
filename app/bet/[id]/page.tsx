@@ -25,12 +25,14 @@ import {
 } from "@heroicons/react/24/solid";
 import { Pool, Comment } from "@/lib/types";
 // import { PoolService } from "@/services/poolService"; // Unused import
+import { usePools } from "@/hooks/usePools";
 import { toast } from "react-hot-toast";
 
 export default function BetPage() {
   const { address } = useAccount();
   const params = useParams();
   const poolId = params.id as string;
+  const { placeBet } = usePools();
   
   const [activeTab, setActiveTab] = useState<"bet" | "liquidity" | "analysis">("bet");
   const [betAmount, setBetAmount] = useState<number>(0);
@@ -279,32 +281,24 @@ export default function BetPage() {
     try {
       console.log('Placing bet:', { address, poolId, betType, betAmount });
       
-      // Place bet using guided markets API
-      const response = await fetch(`/api/guided-markets/pools/${poolId}/bet`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          amount: betAmount,
-          userAddress: address,
-          betType: betType // 'yes' means challenging creator, 'no' means agreeing
-        })
-      });
+      // Show loading toast
+      toast.loading('Preparing transaction...', { id: 'bet-tx' });
       
-      const result = await response.json();
+      // Place bet using smart contract interaction
+      await placeBet(parseInt(poolId), betAmount.toString());
       
-      if (result.success) {
-        toast.success('Bet placed successfully!');
-        // Refresh pool data to show updated progress
+      // Success will be handled by the wagmi transaction hooks
+      toast.success('Transaction submitted! Please wait for confirmation.', { id: 'bet-tx' });
+      
+      // Refresh pool data after a delay to allow for blockchain confirmation
+      setTimeout(() => {
         fetchPoolData();
         checkUserBetStatus();
-      } else {
-        toast.error(result.error || 'Failed to place bet');
-      }
+      }, 3000);
+      
     } catch (error: unknown) {
       console.error('Error placing bet:', error);
-      toast.error('Failed to place bet. Please try again.');
+      toast.error('Failed to place bet. Please try again.', { id: 'bet-tx' });
     }
   };
 
@@ -819,12 +813,12 @@ export default function BetPage() {
                         </div>
                         <div className="space-y-3 text-sm">
                           <div className="flex justify-between items-center p-2 bg-bg-card/50 rounded-lg border border-border-card/30">
-                            <span className="text-gray-400">Your Stake:</span>
-                            <span className="text-white font-bold">{betAmount.toLocaleString()} {pool.currency}</span>
+                            <span className="text-text-secondary">Your Stake:</span>
+                            <span className="text-text-primary font-bold">{betAmount.toLocaleString()} {pool.currency}</span>
                           </div>
                           <div className="flex justify-between items-center p-2 bg-success/10 rounded-lg border border-success/20">
-                            <span className="text-gray-400">Potential Win:</span>
-                            <span className="text-green-400 font-bold">
+                            <span className="text-text-secondary">Potential Win:</span>
+                            <span className="text-success font-bold">
                               {betType === 'yes' 
                                 ? (betAmount * pool.odds).toLocaleString()
                                 : (betAmount + (betAmount * 0.1)).toLocaleString() // Simplified for liquidity
@@ -832,8 +826,8 @@ export default function BetPage() {
                             </span>
                           </div>
                           <div className="flex justify-between items-center p-2 bg-primary/10 rounded-lg border border-primary/20">
-                            <span className="text-gray-400">Profit:</span>
-                            <span className="text-cyan-400 font-bold">
+                            <span className="text-text-secondary">Profit:</span>
+                            <span className="text-primary font-bold">
                               +{betType === 'yes' 
                                 ? (betAmount * (pool.odds - 1)).toLocaleString()
                                 : (betAmount * 0.1).toLocaleString() // Simplified for liquidity
