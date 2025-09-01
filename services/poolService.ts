@@ -145,8 +145,17 @@ export interface PoolStats {
 export class PoolService {
   static async getPools(limit: number = 50, offset: number = 0): Promise<Pool[]> {
     try {
+      console.log('Fetching pools from:', `${API_BASE_URL}/guided-markets/pools?limit=${limit}&offset=${offset}`);
       const response = await fetch(`${API_BASE_URL}/guided-markets/pools?limit=${limit}&offset=${offset}`);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Failed to fetch pools:', response.status, errorText);
+        return [];
+      }
+      
       const data = await response.json();
+      console.log('Pools response:', data);
       
       if (!data.success) {
         console.error('Failed to fetch pools:', data.error);
@@ -179,8 +188,17 @@ export class PoolService {
 
   static async getPoolById(poolId: number): Promise<Pool | null> {
     try {
+      console.log('Fetching pool by ID:', poolId, 'from:', `${API_BASE_URL}/guided-markets/pools/${poolId}`);
       const response = await fetch(`${API_BASE_URL}/guided-markets/pools/${poolId}`);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Failed to fetch pool:', response.status, errorText);
+        return null;
+      }
+      
       const data = await response.json();
+      console.log('Pool by ID response:', data);
       
       if (!data.success) {
         console.error('Failed to fetch pool:', data.error);

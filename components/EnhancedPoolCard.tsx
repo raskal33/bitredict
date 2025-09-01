@@ -137,7 +137,7 @@ export default function EnhancedPoolCard({
     }, 30000); // Refresh every 30 seconds instead of continuous polling
 
     return () => clearInterval(interval);
-  }, [pool.settled, pool.bettingEndTime, fetchIndexedData]);
+  }, [pool.settled, pool.bettingEndTime, pool.indexedData, fetchIndexedData]);
 
   const getDifficultyColor = (odds: number) => {
     if (odds >= 500) return 'text-purple-400'; // Legendary
@@ -339,6 +339,7 @@ export default function EnhancedPoolCard({
 
   const handleClick = () => {
     // Navigate to the specific bet page for this pool
+    console.log('Navigating to pool:', pool.id);
     router.push(`/bet/${pool.id}`);
   };
 
