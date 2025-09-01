@@ -46,6 +46,12 @@ export default function BetPage() {
   const [pool, setPool] = useState<Pool | null>(null);
   const [comments] = useState<Comment[]>([]);
   const [betType, setBetType] = useState<'yes' | 'no' | null>(null);
+  
+  // Backend formatted data to avoid scientific notation
+  const [creatorStakeFormatted, setCreatorStakeFormatted] = useState<number>(0);
+  const [totalBettorStakeFormatted, setTotalBettorStakeFormatted] = useState<number>(0);
+  const [potentialWinFormatted, setPotentialWinFormatted] = useState<number>(0);
+  const [poolFillProgressFormatted, setPoolFillProgressFormatted] = useState<number>(0);
 
 
 
@@ -65,8 +71,20 @@ export default function BetPage() {
       const progressResponse = await fetch(`/api/guided-markets/pools/${poolId}/progress`);
       const progressData = progressResponse.ok ? await progressResponse.json() : null;
       
-      // Transform real data to Pool interface
+      // Transform real data to Pool interface - use backend formatted data
       const progressInfo = progressData?.data || {};
+      
+      // Use backend formatted numbers to avoid scientific notation
+      const creatorStakeNum = parseFloat(poolData.creatorStake || "0");
+      const totalBettorStakeNum = parseFloat(poolData.totalBettorStake || "0");
+      const potentialWinNum = parseFloat(poolData.potentialWinAmount || "0");
+      const poolFillProgressNum = poolData.poolFillProgress || 0;
+      
+      // Set state variables
+      setCreatorStakeFormatted(creatorStakeNum);
+      setTotalBettorStakeFormatted(totalBettorStakeNum);
+      setPotentialWinFormatted(potentialWinNum);
+      setPoolFillProgressFormatted(poolFillProgressNum);
       const getDifficultyTier = (odds: number) => {
         if (odds >= 5.0) return "legendary";
         if (odds >= 3.0) return "very_hard";
@@ -93,7 +111,7 @@ export default function BetPage() {
           totalPools: 12,
           successRate: 73.5,
           challengeScore: Math.round(poolData.odds * 20),
-          totalVolume: parseFloat(progressInfo.totalPoolSize || poolData.creatorStake || "0"),
+          totalVolume: creatorStakeNum, // Use formatted backend data
           badges: ["verified", "active_creator"],
           createdAt: poolData.createdAt || new Date().toISOString(),
           bio: "Active prediction market creator"
@@ -105,7 +123,7 @@ export default function BetPage() {
         creatorPrediction: "no", // Creator thinks it WON'T happen
         odds: poolData.odds, // Already in decimal format
         participants: (progressInfo.bettorCount || 0) + (progressInfo.lpCount || 0),
-        volume: parseFloat(progressInfo.totalPoolSize || poolData.creatorStake || "0"),
+        volume: totalBettorStakeNum, // Use formatted backend data for bettor stakes
         image: poolData.category === "football" ? "⚽" : poolData.category === "basketball" ? "🏀" : "🎯",
         cardTheme: poolData.category === "football" ? "green" : poolData.category === "basketball" ? "orange" : "purple",
         tags: [poolData.category, poolData.league, poolData.region, poolData.betMarketType].filter(Boolean),
@@ -546,25 +564,27 @@ export default function BetPage() {
                   <div className="text-center">
                     <div className="text-xs text-gray-400">Creator Stake</div>
                     <div className="text-sm sm:text-lg font-bold text-white">
-                      {pool.creator.totalVolume > 1000 
-                        ? `${(pool.creator.totalVolume / 1000).toFixed(1)}K` 
-                        : pool.creator.totalVolume.toFixed(0)} {pool.currency}
+                      {creatorStakeFormatted > 1000 
+                        ? `${(creatorStakeFormatted / 1000).toFixed(1)}K` 
+                        : creatorStakeFormatted.toFixed(0)} {pool.currency}
                     </div>
                     <div className="text-xs text-gray-400">Risked by creator</div>
                   </div>
                   <div className="text-center">
                     <div className="text-xs text-gray-400">Current Bets</div>
                     <div className="text-sm sm:text-lg font-bold text-cyan-400">
-                      {pool.volume > 1000 
-                        ? `${(pool.volume / 1000).toFixed(1)}K` 
-                        : pool.volume.toFixed(0)} {pool.currency}
+                      {totalBettorStakeFormatted > 1000 
+                        ? `${(totalBettorStakeFormatted / 1000).toFixed(1)}K` 
+                        : totalBettorStakeFormatted.toFixed(0)} {pool.currency}
                     </div>
                     <div className="text-xs text-gray-400">Total bet volume</div>
                   </div>
                   <div className="text-center">
                     <div className="text-xs text-gray-400">Potential Win</div>
                     <div className="text-sm sm:text-lg font-bold text-yellow-400">
-                      {(pool.creator.totalVolume * pool.odds).toFixed(0)} {pool.currency}
+                      {potentialWinFormatted > 1000 
+                        ? `${(potentialWinFormatted / 1000).toFixed(1)}K` 
+                        : potentialWinFormatted.toFixed(0)} {pool.currency}
                     </div>
                     <div className="text-xs text-gray-400">If you win</div>
                   </div>
@@ -580,20 +600,28 @@ export default function BetPage() {
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm text-gray-400">Pool Fill Progress</span>
                 <span className="text-sm font-medium text-white">
-                  {pool.participants > 0 ? Math.min(100, (pool.volume / pool.creator.totalVolume) * 100).toFixed(1) : 0}%
+                  {poolFillProgressFormatted.toFixed(1)}%
                 </span>
               </div>
               <div className="w-full bg-gray-700 rounded-full h-3 mb-2">
                 <div
                   className="bg-gradient-to-r from-cyan-500 to-blue-500 h-3 rounded-full transition-all duration-500 relative overflow-hidden"
-                  style={{ width: `${Math.min(100, (pool.volume / pool.creator.totalVolume) * 100)}%` }}
+                  style={{ width: `${Math.min(100, poolFillProgressFormatted)}%` }}
                 >
                   <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
                 </div>
               </div>
               <div className="flex justify-between text-xs text-gray-400">
-                <span>{pool.volume.toFixed(0)} {pool.currency} filled</span>
-                <span>{pool.creator.totalVolume.toFixed(0)} {pool.currency} capacity</span>
+                <span>
+                  {totalBettorStakeFormatted > 1000 
+                    ? `${(totalBettorStakeFormatted / 1000).toFixed(1)}K` 
+                    : totalBettorStakeFormatted.toFixed(0)} {pool.currency} filled
+                </span>
+                <span>
+                  {creatorStakeFormatted > 1000 
+                    ? `${(creatorStakeFormatted / 1000).toFixed(1)}K` 
+                    : creatorStakeFormatted.toFixed(0)} {pool.currency} capacity
+                </span>
               </div>
             </div>
 
