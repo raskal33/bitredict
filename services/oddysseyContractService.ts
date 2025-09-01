@@ -31,7 +31,7 @@ const somniaChain: Chain = {
       http: [
         process.env.NODE_ENV === 'development' 
           ? 'http://localhost:3000/api/rpc-proxy'
-          : 'https://bitredict.vercel.app/api/rpc-proxy'
+          : process.env.NEXT_PUBLIC_RPC_URL || 'https://dream-rpc.somnia.network/'
       ],
     },
   },

@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "https://bitredict-backend.fly.dev/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ],
+  "env": {
+    "NEXT_PUBLIC_API_URL": "https://bitredict-backend.fly.dev",
+    "NEXT_PUBLIC_API_BASE_URL": "https://bitredict-backend.fly.dev",
+    "BACKEND_URL": "https://bitredict-backend.fly.dev",
+    "NEXT_PUBLIC_BACKEND_URL": "https://bitredict-backend.fly.dev",
+    "NEXT_PUBLIC_RPC_URL": "https://dream-rpc.somnia.network/",
+    "NEXT_PUBLIC_CHAIN_ID": "50312"
+  }
+}
