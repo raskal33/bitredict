@@ -118,12 +118,26 @@ export default function EnhancedPoolCard({
     }
   }, [pool.id]);
 
-  // Fetch indexed data if not provided
+  // Fetch indexed data if not provided, with reduced polling frequency
   useEffect(() => {
     if (!pool.indexedData && !isLoadingIndexedData) {
       fetchIndexedData();
     }
   }, [pool.id, pool.indexedData, isLoadingIndexedData, fetchIndexedData]);
+
+  // Set up periodic refresh with longer intervals to reduce API calls
+  useEffect(() => {
+    if (!pool.indexedData) return;
+
+    const interval = setInterval(() => {
+      // Only refresh if the pool is active and not settled
+      if (!pool.settled && pool.bettingEndTime > Date.now() / 1000) {
+        fetchIndexedData();
+      }
+    }, 30000); // Refresh every 30 seconds instead of continuous polling
+
+    return () => clearInterval(interval);
+  }, [pool.settled, pool.bettingEndTime, fetchIndexedData]);
 
   const getDifficultyColor = (odds: number) => {
     if (odds >= 500) return 'text-purple-400'; // Legendary
@@ -280,6 +294,14 @@ export default function EnhancedPoolCard({
   
   const formatStake = (stake: string) => {
     try {
+      // If stake is already formatted (contains decimal), use as-is
+      if (stake.includes('.')) {
+        const amount = parseFloat(stake);
+        if (amount >= 1000000) return `${(amount / 1000000).toFixed(1)}M`;
+        if (amount >= 1000) return `${(amount / 1000).toFixed(1)}K`;
+        return amount.toFixed(1);
+      }
+      // If stake is in wei format, convert it
       const amount = parseFloat(formatEther(BigInt(stake)));
       if (amount >= 1000000) return `${(amount / 1000000).toFixed(1)}M`;
       if (amount >= 1000) return `${(amount / 1000).toFixed(1)}K`;
@@ -447,9 +469,9 @@ export default function EnhancedPoolCard({
             <span className="text-xs text-gray-400">Pool Progress</span>
             <span className="text-xs text-white font-medium">{indexedData.fillPercentage}%</span>
           </div>
-          <div className="w-full glass-card rounded-full h-1 bg-gray-800/30 border border-gray-600/20 shadow-inner">
+          <div className="w-full glass-card rounded-full h-0.5 bg-gray-800/30 border border-gray-600/20 shadow-inner">
             <div
-              className={`h-1 rounded-full transition-all duration-500 shadow-sm ${getProgressColor(indexedData.fillPercentage)}`}
+              className={`h-0.5 rounded-full transition-all duration-500 shadow-sm ${getProgressColor(indexedData.fillPercentage)}`}
               style={{ width: `${Math.min(indexedData.fillPercentage, 100)}%` }}
             />
           </div>
@@ -473,7 +495,7 @@ export default function EnhancedPoolCard({
           <div className="text-center">
             <div className="text-xs text-gray-400">Odds</div>
             <div className={`text-lg font-bold ${theme.accent}`}>
-              {(pool.odds / 100).toFixed(2)}x
+              {pool.odds.toFixed(2)}x
             </div>
           </div>
           
