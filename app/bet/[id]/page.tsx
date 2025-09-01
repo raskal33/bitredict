@@ -36,7 +36,7 @@ export default function BetPage() {
   const params = useParams();
   const poolId = params.id as string;
   const { placeBet } = usePools();
-  const { approve, isPending: isApprovePending, isConfirmed: isApproveConfirmed, getAllowance } = useBITRToken();
+  const { approve, isConfirmed: isApproveConfirmed, getAllowance } = useBITRToken();
   
   // Helper function to check if BITR approval is needed
   const needsApproval = (amount: string): boolean => {
@@ -235,7 +235,7 @@ export default function BetPage() {
       
       proceedWithBet();
     }
-  }, [isApproveConfirmed, betAmount, betType, address, poolId, placeBet, fetchPoolData, checkUserBetStatus]);
+  }, [isApproveConfirmed, betAmount, betType, address, poolId, placeBet, fetchPoolData, checkUserBetStatus, pool?.currency]);
 
   useEffect(() => {
     if (pool && pool.eventDetails) {
