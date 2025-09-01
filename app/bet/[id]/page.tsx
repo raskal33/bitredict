@@ -67,24 +67,52 @@ export default function BetPage() {
   const [totalBettorStakeFormatted, setTotalBettorStakeFormatted] = useState<number>(0);
   const [potentialWinFormatted, setPotentialWinFormatted] = useState<number>(0);
   const [poolFillProgressFormatted, setPoolFillProgressFormatted] = useState<number>(0);
+  
+  // Rate limiting for API calls
+  const [lastFetchTime, setLastFetchTime] = useState<number>(0);
+  const FETCH_COOLDOWN = 5000; // 5 seconds between fetches
 
 
 
   const fetchPoolData = useCallback(async () => {
+    // Rate limiting check
+    const now = Date.now();
+    if (now - lastFetchTime < FETCH_COOLDOWN) {
+      console.log('Fetch cooldown active, skipping request');
+      return;
+    }
+    setLastFetchTime(now);
+    
     try {
       setLoading(true);
       
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+      
       // Fetch pool data from guided markets API
-      const poolResponse = await fetch(`/api/guided-markets/pools/${poolId}`);
+      const poolResponse = await fetch(`/api/guided-markets/pools/${poolId}`, {
+        signal: controller.signal,
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
+      
       if (!poolResponse.ok) {
-        throw new Error('Failed to fetch pool data');
+        throw new Error(`Failed to fetch pool data: HTTP ${poolResponse.status}`);
       }
       const poolResult = await poolResponse.json();
       const poolData = poolResult.data.pool;
       
       // Fetch pool progress data
-      const progressResponse = await fetch(`/api/guided-markets/pools/${poolId}/progress`);
+      const progressResponse = await fetch(`/api/guided-markets/pools/${poolId}/progress`, {
+        signal: controller.signal,
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
       const progressData = progressResponse.ok ? await progressResponse.json() : null;
+      
+      clearTimeout(timeoutId);
       
       // Transform real data to Pool interface - use backend formatted data
       const progressInfo = progressData?.data || {};
@@ -182,20 +210,38 @@ export default function BetPage() {
       }
       
     } catch (error) {
-      console.error('Error fetching pool data:', error);
-      // If no pool data available, show error
-      console.error('Pool not found or failed to load:', poolId);
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.warn('Pool data fetch timed out');
+      } else {
+        console.error('Error fetching pool data:', error);
+        console.error('Pool not found or failed to load:', poolId);
+      }
       setPool(null);
     } finally {
       setLoading(false);
     }
-  }, [poolId]);
+  }, [poolId, lastFetchTime, FETCH_COOLDOWN]);
 
   const checkUserBetStatus = useCallback(async () => {
     if (!address) return;
     
     try {
-      const response = await fetch(`/api/pools/${poolId}/user-bet?address=${address}`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      const response = await fetch(`/api/pools/${poolId}/user-bet?address=${address}`, {
+        signal: controller.signal,
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       const data = await response.json();
       
       if (data.success && data.data.hasBet) {
@@ -203,7 +249,11 @@ export default function BetPage() {
         setUserBetAmount(data.data.betAmount);
       }
     } catch (error) {
-      console.error('Error checking bet status:', error);
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.warn('User bet status check timed out');
+      } else {
+        console.error('Error checking bet status:', error);
+      }
     }
   }, [poolId, address]);
 
@@ -212,30 +262,42 @@ export default function BetPage() {
     checkUserBetStatus();
   }, [fetchPoolData, checkUserBetStatus]);
 
+  // State to track if we're waiting for approval to complete
+  const [waitingForApproval, setWaitingForApproval] = useState(false);
+  const [pendingBetData, setPendingBetData] = useState<{amount: number, type: 'yes' | 'no'} | null>(null);
+
   // Handle BITR approval confirmation and proceed with bet
   useEffect(() => {
-    if (isApproveConfirmed && betAmount > 0 && betType && address) {
+    if (isApproveConfirmed && waitingForApproval && pendingBetData && address) {
       const proceedWithBet = async () => {
         try {
+          console.log('Approval confirmed, placing bet with data:', pendingBetData);
           toast.loading('Placing bet...', { id: 'bet-tx' });
           const useBitr = pool?.currency === 'BITR';
-          await placeBet(parseInt(poolId), betAmount.toString(), useBitr);
+          await placeBet(parseInt(poolId), pendingBetData.amount.toString(), useBitr);
           toast.success('Bet placed successfully!', { id: 'bet-tx' });
           
-          // Refresh pool data
+          // Clear pending state
+          setWaitingForApproval(false);
+          setPendingBetData(null);
+          
+          // Refresh pool data after a longer delay to respect rate limiting
           setTimeout(() => {
+            setLastFetchTime(0); // Reset rate limit for manual refresh
             fetchPoolData();
             checkUserBetStatus();
-          }, 3000);
+          }, 6000);
         } catch (error) {
           console.error('Error placing bet after approval:', error);
           toast.error('Failed to place bet after approval. Please try again.', { id: 'bet-tx' });
+          setWaitingForApproval(false);
+          setPendingBetData(null);
         }
       };
       
       proceedWithBet();
     }
-  }, [isApproveConfirmed, betAmount, betType, address, poolId, placeBet, fetchPoolData, checkUserBetStatus, pool?.currency]);
+  }, [isApproveConfirmed, waitingForApproval, pendingBetData, address, poolId, placeBet, fetchPoolData, checkUserBetStatus, pool?.currency]);
 
   useEffect(() => {
     if (pool && pool.eventDetails) {
@@ -324,17 +386,22 @@ export default function BetPage() {
       
       // Check if this is a BITR pool and if approval is needed
       if (pool?.currency === 'BITR' && needsApproval(betAmount.toString())) {
+        console.log('BITR approval needed, starting approval process...');
+        
+        // Store bet data for after approval
+        setPendingBetData({ amount: betAmount, type: betType });
+        setWaitingForApproval(true);
+        
         toast.loading('Approving BITR tokens...', { id: 'bet-tx' });
         await approve(CONTRACTS.BITREDICT_POOL.address, betAmount.toString());
         
-        // Wait for approval confirmation
-        if (!isApproveConfirmed) {
-          toast.loading('Waiting for approval confirmation...', { id: 'bet-tx' });
-          return; // Exit and wait for approval to complete
-        }
+        // The useEffect will handle the bet placement after approval
+        toast.loading('Waiting for approval confirmation...', { id: 'bet-tx' });
+        return;
       }
       
-      // Place bet using smart contract interaction
+      // For STT pools or if no approval needed, place bet directly
+      console.log('No approval needed, placing bet directly...');
       const useBitr = pool?.currency === 'BITR';
       await placeBet(parseInt(poolId), betAmount.toString(), useBitr);
       
@@ -343,13 +410,17 @@ export default function BetPage() {
       
       // Refresh pool data after a delay to allow for blockchain confirmation
       setTimeout(() => {
+        setLastFetchTime(0); // Reset rate limit for manual refresh
         fetchPoolData();
         checkUserBetStatus();
-      }, 3000);
+      }, 6000);
       
     } catch (error: unknown) {
       console.error('Error placing bet:', error);
       toast.error('Failed to place bet. Please try again.', { id: 'bet-tx' });
+      // Clear pending state on error
+      setWaitingForApproval(false);
+      setPendingBetData(null);
     }
   };
 
