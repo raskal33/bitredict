@@ -91,7 +91,7 @@ export default function CycleMonitoring() {
   const [adminResponses, setAdminResponses] = useState<AdminResponse[]>([]);
   const [activeTab, setActiveTab] = useState<'overview' | 'cycles' | 'issues' | 'stats'>('overview');
 
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://bitredict-backend.fly.dev';
 
   // Fetch cycle status
   const fetchCycleStatus = useCallback(async () => {
