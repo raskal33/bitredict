@@ -229,26 +229,30 @@ export function usePools() {
     }
   };
 
-  const placeBet = async (poolId: number, amount: string) => {
-    const betAmount = parseUnits(amount, 18);
-    
-    // Get pool data to check if it uses BITR
-    const { pool } = getPool(poolId);
-    const useBitr = pool?.usesBitr ?? true;
+  const placeBet = async (poolId: number, amount: string, useBitr: boolean = false) => {
+    try {
+      const betAmount = parseUnits(amount, 18);
 
-    if (useBitr) {
-      writeContract({
-        ...CONTRACTS.BITREDICT_POOL,
-        functionName: 'placeBet',
-        args: [BigInt(poolId), betAmount],
-      });
-    } else {
-      writeContract({
-        ...CONTRACTS.BITREDICT_POOL,
-        functionName: 'placeBet',
-        args: [BigInt(poolId), betAmount],
-        value: betAmount,
-      });
+      if (useBitr) {
+        // For BITR pools, we need to handle token approval first
+        // The contract will handle the transferFrom internally
+        writeContract({
+          ...CONTRACTS.BITREDICT_POOL,
+          functionName: 'placeBet',
+          args: [BigInt(poolId), betAmount],
+        });
+      } else {
+        // For STT pools, send native token as value
+        writeContract({
+          ...CONTRACTS.BITREDICT_POOL,
+          functionName: 'placeBet',
+          args: [BigInt(poolId), betAmount],
+          value: betAmount,
+        });
+      }
+    } catch (error) {
+      console.error('Error in placeBet:', error);
+      throw error;
     }
   };
 

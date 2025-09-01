@@ -26,6 +26,9 @@ import {
 import { Pool, Comment } from "@/lib/types";
 // import { PoolService } from "@/services/poolService"; // Unused import
 import { usePools } from "@/hooks/usePools";
+import { useBITRToken } from "@/hooks/useBITRToken";
+import { CONTRACTS } from "@/contracts";
+import { parseUnits } from "viem";
 import { toast } from "react-hot-toast";
 
 export default function BetPage() {
@@ -33,6 +36,16 @@ export default function BetPage() {
   const params = useParams();
   const poolId = params.id as string;
   const { placeBet } = usePools();
+  const { approve, isPending: isApprovePending, isConfirmed: isApproveConfirmed, getAllowance } = useBITRToken();
+  
+  // Helper function to check if BITR approval is needed
+  const needsApproval = (amount: string): boolean => {
+    if (!pool || pool.currency !== 'BITR') return false;
+    const allowance = getAllowance(CONTRACTS.BITREDICT_POOL.address);
+    if (!allowance) return true;
+    const requiredAmount = parseUnits(amount, 18);
+    return allowance < requiredAmount;
+  };
   
   const [activeTab, setActiveTab] = useState<"bet" | "liquidity" | "analysis">("bet");
   const [betAmount, setBetAmount] = useState<number>(0);
@@ -199,6 +212,31 @@ export default function BetPage() {
     checkUserBetStatus();
   }, [fetchPoolData, checkUserBetStatus]);
 
+  // Handle BITR approval confirmation and proceed with bet
+  useEffect(() => {
+    if (isApproveConfirmed && betAmount > 0 && betType && address) {
+      const proceedWithBet = async () => {
+        try {
+          toast.loading('Placing bet...', { id: 'bet-tx' });
+          const useBitr = pool?.currency === 'BITR';
+          await placeBet(parseInt(poolId), betAmount.toString(), useBitr);
+          toast.success('Bet placed successfully!', { id: 'bet-tx' });
+          
+          // Refresh pool data
+          setTimeout(() => {
+            fetchPoolData();
+            checkUserBetStatus();
+          }, 3000);
+        } catch (error) {
+          console.error('Error placing bet after approval:', error);
+          toast.error('Failed to place bet after approval. Please try again.', { id: 'bet-tx' });
+        }
+      };
+      
+      proceedWithBet();
+    }
+  }, [isApproveConfirmed, betAmount, betType, address, poolId, placeBet, fetchPoolData, checkUserBetStatus]);
+
   useEffect(() => {
     if (pool && pool.eventDetails) {
     const timer = setInterval(() => {
@@ -284,8 +322,21 @@ export default function BetPage() {
       // Show loading toast
       toast.loading('Preparing transaction...', { id: 'bet-tx' });
       
+      // Check if this is a BITR pool and if approval is needed
+      if (pool?.currency === 'BITR' && needsApproval(betAmount.toString())) {
+        toast.loading('Approving BITR tokens...', { id: 'bet-tx' });
+        await approve(CONTRACTS.BITREDICT_POOL.address, betAmount.toString());
+        
+        // Wait for approval confirmation
+        if (!isApproveConfirmed) {
+          toast.loading('Waiting for approval confirmation...', { id: 'bet-tx' });
+          return; // Exit and wait for approval to complete
+        }
+      }
+      
       // Place bet using smart contract interaction
-      await placeBet(parseInt(poolId), betAmount.toString());
+      const useBitr = pool?.currency === 'BITR';
+      await placeBet(parseInt(poolId), betAmount.toString(), useBitr);
       
       // Success will be handled by the wagmi transaction hooks
       toast.success('Transaction submitted! Please wait for confirmation.', { id: 'bet-tx' });
