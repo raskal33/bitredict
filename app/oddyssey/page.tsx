@@ -124,7 +124,7 @@ const DEFAULT_ENTRY_FEE = "0.5";
 export default function OddysseyPage() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
-  const { 
+    const {
     placeSlip, 
     isPending, 
     isSuccess, 
@@ -136,7 +136,8 @@ export default function OddysseyPage() {
     currentMatches,
     isInitialized,
     isInitializing,
-    refetchAll
+    refetchAll,
+    resetTransactionState
   } = useOddysseyContract();
   
   // Add useOddyssey hook for prize claiming
@@ -148,6 +149,12 @@ export default function OddysseyPage() {
   
   // Enhanced transaction feedback system
   const { transactionStatus, showSuccess, showError, showInfo, showPending, showConfirming, clearStatus } = useTransactionFeedback();
+  
+  // Custom clear function that also resets transaction state
+  const handleModalClose = useCallback(() => {
+    clearStatus();
+    resetTransactionState();
+  }, [clearStatus, resetTransactionState]);
   const [picks, setPicks] = useState<Pick[]>([]);
   const [slips, setSlips] = useState<Pick[][]>([]);
   const [activeTab, setActiveTab] = useState<"today" | "slips" | "stats" | "results">("today");
@@ -287,16 +294,9 @@ export default function OddysseyPage() {
         hash
       );
       // Don't reset picks here - let the backend submission handle it
-      
-      // Auto-close the success message after 5 seconds
-      const timer = setTimeout(() => {
-        clearStatus();
-      }, 5000);
-      
-      // Cleanup timer on unmount or when dependencies change
-      return () => clearTimeout(timer);
+      // Note: Auto-close is handled by the TransactionFeedback component
     }
-  }, [isSuccess, hash, showSuccess, clearStatus]);
+  }, [isSuccess, hash, showSuccess]);
 
   useEffect(() => {
     if (error) {
@@ -1308,7 +1308,7 @@ export default function OddysseyPage() {
       {/* Enhanced Transaction Feedback */}
       <TransactionFeedback
         status={transactionStatus}
-        onClose={clearStatus}
+        onClose={handleModalClose}
         autoClose={true}
         autoCloseDelay={5000}
         showProgress={true}

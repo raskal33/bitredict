@@ -95,7 +95,7 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
       setIsVisible(false);
       setIsClosing(false); // Reset closing state when status is cleared
     }
-  }, [status, autoClose, autoCloseDelay, handleClose, isClosing]);
+  }, [status, autoClose, autoCloseDelay, isClosing, handleClose]);
 
   const getIcon = () => {
     switch (status?.type) {

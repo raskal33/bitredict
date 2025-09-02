@@ -810,12 +810,22 @@ export function useOddysseyContract() {
     await fetchInitialData();
   }, [isInitialized, fetchInitialData]);
 
+  // Reset transaction state
+  const resetTransactionState = useCallback(() => {
+    setIsSuccess(false);
+    setError(null);
+    setHash(null);
+    setIsPending(false);
+    setIsConfirming(false);
+  }, []);
+
   return {
     placeSlip,
     getEntryFee,
     getCurrentCycleId,
     getCurrentMatches,
     refetchAll,
+    resetTransactionState,
     isConnected,
     address,
     // Wagmi-style properties
