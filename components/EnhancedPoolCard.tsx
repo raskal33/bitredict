@@ -92,7 +92,7 @@ export default function EnhancedPoolCard({
     setIsLoadingIndexedData(true);
     try {
       // Get pool progress data
-      const progressResponse = await fetch(`/api/pools/${pool.id}/progress`);
+      const progressResponse = await fetch(`/api/guided-markets/pools/${pool.id}/progress`);
       if (progressResponse.ok) {
         const progressData = await progressResponse.json();
         if (progressData.success && progressData.data) {
