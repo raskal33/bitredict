@@ -3,7 +3,7 @@ export const API_CONFIG = {
   endpoints: {
     airdrop: '/api/airdrop',
     faucet: '/api/faucet', 
-    pools: '/api/pools',
+    pools: '/api/guided-markets/pools',
     analytics: '/api/analytics',
     social: '/api/social',
     health: '/health',
