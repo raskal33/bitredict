@@ -412,13 +412,13 @@ export default function CreateMarketPage() {
       
       // Reset form data for next market creation
       try {
-        setData({
-          category: '',
-          odds: 200,
-          creatorStake: 20,
-          description: ''
-        });
-        setStep(1);
+      setData({
+        category: '',
+        odds: 200,
+        creatorStake: 20,
+        description: ''
+      });
+      setStep(1);
       } catch (error) {
         console.error('Error resetting form data:', error);
         // Fallback: just reset to step 1 without changing data
@@ -732,10 +732,10 @@ export default function CreateMarketPage() {
       showError('Wallet Not Connected', 'Please connect your wallet to create markets');
       try {
         await connectWallet();
-        return;
+      return;
       } catch {
         showError('Connection Failed', 'Failed to connect wallet. Please try again.');
-        return;
+      return;
       }
     }
     
@@ -765,8 +765,8 @@ export default function CreateMarketPage() {
           matchDate: data.selectedFixture.matchDate,
           outcome: data.outcome || '',
           predictedOutcome: predictedOutcome,
-          odds: data.odds,
-          creatorStake: data.creatorStake,
+        odds: data.odds,
+        creatorStake: data.creatorStake,
           useBitr: useBitr,
           description: data.description,
           isPrivate: data.isPrivate || false,
@@ -823,10 +823,10 @@ export default function CreateMarketPage() {
         
         if (!result.success) {
           showError('Market Creation Failed', result.error || 'Failed to create crypto market');
-          setIsLoading(false);
-          return;
-        }
-
+        setIsLoading(false);
+        return;
+      }
+      
         console.log('Crypto market created successfully:', result.data);
         showSuccess('Market Created!', 'Your cryptocurrency prediction market has been created successfully!', result.data.transactionHash);
         
@@ -844,7 +844,7 @@ export default function CreateMarketPage() {
         setIsLoading(false);
         return;
       }
-
+      
       // Reset form data for next market creation
       try {
         setData({
