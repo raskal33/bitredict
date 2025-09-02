@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 
 interface ProgressData {
-  bettor_count: number;
-  lp_count: number;
-  fill_percentage: number;
-  total_volume: string;
+  bettor_count: string;
+  lp_count: string;
+  total_yes_volume: string;
+  total_no_volume: string;
+  creator_stake: string;
 }
 
 export async function GET(
@@ -16,7 +17,7 @@ export async function GET(
     const { id: poolId } = await params;
 
     // Get pool progress data
-    const progressData = (await query(`
+    const progressData = await query(`
       SELECT 
         COUNT(DISTINCT CASE WHEN bet_side = 'yes' THEN user_address END) as bettor_count,
         COUNT(DISTINCT CASE WHEN bet_side = 'no' THEN user_address END) as lp_count,
@@ -29,7 +30,7 @@ export async function GET(
         ) as creator_stake
       FROM pool_bets 
       WHERE pool_id = ?
-    `, [poolId, poolId]) as unknown) as any[];
+    `, [poolId, poolId]) as unknown as ProgressData[];
 
     if (progressData.length === 0) {
       return NextResponse.json({
