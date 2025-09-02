@@ -4,98 +4,6 @@ import { API_CONFIG } from '@/config/api';
 // Backend API Base URL
 const API_BASE_URL = `${API_CONFIG.baseURL}/api`;
 
-// Mock data for development - replace with actual contract integration
-const MOCK_POOLS = [
-  {
-    id: 1,
-    creator: "0x1234...5678",
-    odds: 250,
-    creatorStake: "1000000000000000000000", // 1000 tokens
-    totalBettorStake: "500000000000000000000", // 500 tokens
-    predictedOutcome: "Manchester United will NOT win",
-    marketId: "0x1234567890abcdef",
-    eventStartTime: Math.floor(Date.now() / 1000) + 86400, // 24 hours from now
-    eventEndTime: Math.floor(Date.now() / 1000) + 90000,
-    bettingEndTime: Math.floor(Date.now() / 1000) + 85800,
-    league: "Premier League",
-    category: "football",
-    region: "England",
-    isPrivate: false,
-    usesBitr: false,
-    settled: false,
-    creatorSideWon: false,
-    boostTier: "SILVER" as const,
-    boostExpiry: Math.floor(Date.now() / 1000) + 86400,
-    maxBetPerUser: "100000000000000000000" // 100 tokens
-  },
-  {
-    id: 2,
-    creator: "0x8765...4321",
-    odds: 180,
-    creatorStake: "500000000000000000000", // 500 tokens
-    totalBettorStake: "300000000000000000000", // 300 tokens
-    predictedOutcome: "Bitcoin will NOT reach $50,000",
-    marketId: "0xabcdef1234567890",
-    eventStartTime: Math.floor(Date.now() / 1000) + 172800, // 48 hours from now
-    eventEndTime: Math.floor(Date.now() / 1000) + 176400,
-    bettingEndTime: Math.floor(Date.now() / 1000) + 171800,
-    league: "Cryptocurrency",
-    category: "cryptocurrency",
-    region: "Global",
-    isPrivate: true,
-    usesBitr: true,
-    settled: false,
-    creatorSideWon: false,
-    boostTier: "GOLD" as const,
-    boostExpiry: Math.floor(Date.now() / 1000) + 172800,
-    maxBetPerUser: "50000000000000000000" // 50 tokens
-  },
-  {
-    id: 3,
-    creator: "0xabcd...efgh",
-    odds: 320,
-    creatorStake: "2000000000000000000000", // 2000 tokens
-    totalBettorStake: "800000000000000000000", // 800 tokens
-    predictedOutcome: "Lakers will NOT beat Warriors",
-    marketId: "0x9876543210fedcba",
-    eventStartTime: Math.floor(Date.now() / 1000) + 43200, // 12 hours from now
-    eventEndTime: Math.floor(Date.now() / 1000) + 46800,
-    bettingEndTime: Math.floor(Date.now() / 1000) + 42600,
-    league: "NBA",
-    category: "basketball",
-    region: "USA",
-    isPrivate: false,
-    usesBitr: false,
-    settled: false,
-    creatorSideWon: false,
-    boostTier: "BRONZE" as const,
-    boostExpiry: Math.floor(Date.now() / 1000) + 43200,
-    maxBetPerUser: "200000000000000000000" // 200 tokens
-  },
-  {
-    id: 4,
-    creator: "0xdef0...1234",
-    odds: 150,
-    creatorStake: "300000000000000000000", // 300 tokens
-    totalBettorStake: "150000000000000000000", // 150 tokens
-    predictedOutcome: "Ethereum will NOT reach $3,000",
-    marketId: "0xfedcba0987654321",
-    eventStartTime: Math.floor(Date.now() / 1000) + 259200, // 72 hours from now
-    eventEndTime: Math.floor(Date.now() / 1000) + 262800,
-    bettingEndTime: Math.floor(Date.now() / 1000) + 258600,
-    league: "Cryptocurrency",
-    category: "cryptocurrency",
-    region: "Global",
-    isPrivate: false,
-    usesBitr: false,
-    settled: false,
-    creatorSideWon: false,
-    boostTier: "NONE" as const,
-    boostExpiry: 0,
-    maxBetPerUser: "50000000000000000000" // 50 tokens
-  }
-];
-
 export interface Pool {
   poolId: number; // Changed from 'id' to match backend
   creator: string;
@@ -246,8 +154,7 @@ export class PoolService {
     boostTier: "NONE" | "BRONZE" | "SILVER" | "GOLD" = "NONE"
   ): Promise<{ success: boolean; poolId?: number; error?: string }> {
     try {
-      // Mock implementation - replace with actual contract calls
-      console.log('Creating pool with params:', {
+      console.log('Creating pool with backend API:', {
         predictedOutcome,
         odds,
         creatorStake,
@@ -264,8 +171,42 @@ export class PoolService {
         boostTier
       });
       
-      // Simulate success
-      return { success: true, poolId: MOCK_POOLS.length + 1 };
+      const response = await fetch(`${API_BASE_URL}/bitredict-pool/pools`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          predictedOutcome,
+          odds,
+          creatorStake,
+          eventStartTime,
+          eventEndTime,
+          league,
+          category,
+          region,
+          isPrivate,
+          maxBetPerUser,
+          useBitr,
+          oracleType,
+          marketId,
+          boostTier
+        }),
+      });
+
+      const result = await response.json();
+      
+      if (!result.success) {
+        return {
+          success: false,
+          error: result.error?.message || result.error || 'Failed to create pool'
+        };
+      }
+
+      return { 
+        success: true, 
+        poolId: result.data?.poolId || result.data?.id 
+      };
     } catch (error) {
       console.error('Error creating pool:', error);
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
@@ -274,8 +215,39 @@ export class PoolService {
 
   static async boostPool(poolId: number, tier: "BRONZE" | "SILVER" | "GOLD"): Promise<{ success: boolean; error?: string }> {
     try {
-      // Mock implementation - replace with actual contract calls
-      console.log('Boosting pool:', poolId, 'with tier:', tier);
+      console.log('Boosting pool via web3 service:', poolId, 'with tier:', tier);
+      
+      // Since there's no direct backend endpoint for boosting, we'll use the web3 service
+      // This would typically be done through a wallet connection and contract interaction
+      const response = await fetch(`${API_BASE_URL}/guided-markets/pools/${poolId}/boost`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tier,
+          poolId
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Failed to boost pool:', response.status, errorText);
+        return { 
+          success: false, 
+          error: `Failed to boost pool: ${response.status} - ${errorText}` 
+        };
+      }
+
+      const result = await response.json();
+      
+      if (!result.success) {
+        return {
+          success: false,
+          error: result.error || 'Failed to boost pool'
+        };
+      }
+
       return { success: true };
     } catch (error) {
       console.error('Error boosting pool:', error);
