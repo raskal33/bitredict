@@ -624,61 +624,75 @@ class OddysseyService {
   async getUserSlipsWithEvaluation(address: string): Promise<{
     success: boolean;
     data: Array<{
-      slipId: number;
-      cycleId: number;
-      playerAddress: string;
-      placedAt: string;
+      slip_id: string;
+      cycle_id: string;
+      player_address: string;
+      created_at: string;
       predictions: Array<{
         matchId: number;
-        betType: 'MONEYLINE' | 'OVER_UNDER';
-        selection: string;
+        match_id: number;
+        prediction: string;
+        pick: string;
         selectedOdd: number;
-        isCorrect: boolean | null;
-        actualResult: string | null;
-        matchResult: {
-          homeScore: number | null;
-          awayScore: number | null;
-          result: string | null;
-          status: string;
-        } | null;
+        home_team: string;
+        away_team: string;
+        team1: string;
+        team2: string;
+        league_name: string;
+        match_time: string;
+        time: string;
+        odds: number;
+        odd: number;
+        id: number;
+        isCorrect?: boolean | null;
+        actualResult?: string | null;
       }>;
-      finalScore: number;
-      correctCount: number;
-      isEvaluated: boolean;
-      leaderboardRank?: number;
-      prizeClaimed: boolean;
-      txHash?: string;
+      final_score: string;
+      correct_count: number;
+      is_evaluated: boolean;
+      leaderboard_rank?: number;
+      prize_claimed: boolean;
+      tx_hash?: string;
+      status: string;
+      total_odds: number;
     }>;
   }> {
     return apiRequest<{
       success: boolean;
       data: Array<{
-        slipId: number;
-        cycleId: number;
-        playerAddress: string;
-        placedAt: string;
+        slip_id: string;
+        cycle_id: string;
+        player_address: string;
+        created_at: string;
         predictions: Array<{
           matchId: number;
-          betType: 'MONEYLINE' | 'OVER_UNDER';
-          selection: string;
+          match_id: number;
+          prediction: string;
+          pick: string;
           selectedOdd: number;
-          isCorrect: boolean | null;
-          actualResult: string | null;
-          matchResult: {
-            homeScore: number | null;
-            awayScore: number | null;
-            result: string | null;
-            status: string;
-          } | null;
+          home_team: string;
+          away_team: string;
+          team1: string;
+          team2: string;
+          league_name: string;
+          match_time: string;
+          time: string;
+          odds: number;
+          odd: number;
+          id: number;
+          isCorrect?: boolean | null;
+          actualResult?: string | null;
         }>;
-        finalScore: number;
-        correctCount: number;
-        isEvaluated: boolean;
-        leaderboardRank?: number;
-        prizeClaimed: boolean;
-        txHash?: string;
+        final_score: string;
+        correct_count: number;
+        is_evaluated: boolean;
+        leaderboard_rank?: number;
+        prize_claimed: boolean;
+        tx_hash?: string;
+        status: string;
+        total_odds: number;
       }>;
-    }>(`${this.baseEndpoint}/user-slips/${address}/evaluated`);
+    }>(`${this.baseEndpoint}/user-slips/${address}`);
   }
 
   /**

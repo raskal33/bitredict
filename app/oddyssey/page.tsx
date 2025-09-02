@@ -183,6 +183,7 @@ export default function OddysseyPage() {
   const [currentPrizePool, setCurrentPrizePool] = useState<CurrentPrizePool | null>(null);
   const [dailyStats, setDailyStats] = useState<DailyStats | null>(null);
   const [collapsedSlips, setCollapsedSlips] = useState<Set<number>>(new Set());
+  const [teamNamesCache, setTeamNamesCache] = useState<Map<number, {home: string, away: string}>>(new Map());
   
   // Helper function to toggle slip collapse
   const toggleSlipCollapse = (slipIndex: number) => {
@@ -196,6 +197,63 @@ export default function OddysseyPage() {
       return newSet;
     });
   };
+
+  // Function to fetch team names for match IDs
+  const fetchTeamNames = useCallback(async (matchIds: number[]) => {
+    try {
+      // Filter out match IDs we already have
+      const missingIds = matchIds.filter(id => !teamNamesCache.has(id));
+      if (missingIds.length === 0) return;
+
+      // Fetch fixtures data using batch endpoint
+      const response = await fetch('https://bitredict-backend.fly.dev/api/oddyssey/batch-fixtures', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ matchIds: missingIds }),
+      });
+
+      let results: { matchId: number; home: string; away: string; }[] = [];
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data) {
+          results = missingIds.map(matchId => ({
+            matchId,
+            home: data.data[matchId]?.home_team || `Home Team ${matchId}`,
+            away: data.data[matchId]?.away_team || `Away Team ${matchId}`
+          }));
+        } else {
+          // Fallback if batch endpoint fails
+          results = missingIds.map(matchId => ({
+            matchId,
+            home: `Home Team ${matchId}`,
+            away: `Away Team ${matchId}`
+          }));
+        }
+      } else {
+        // Fallback if request fails
+        results = missingIds.map(matchId => ({
+          matchId,
+          home: `Home Team ${matchId}`,
+          away: `Away Team ${matchId}`
+        }));
+      }
+      
+      // Update cache
+      setTeamNamesCache(prev => {
+        const newCache = new Map(prev);
+        results.forEach(result => {
+          newCache.set(result.matchId, { home: result.home, away: result.away });
+        });
+        return newCache;
+      });
+
+    } catch (error) {
+      console.error('Error fetching team names:', error);
+    }
+  }, [teamNamesCache]);
   
   // Helper function to get enhanced slip status
   const getSlipStatusInfo = (firstPick: unknown) => {
@@ -565,9 +623,20 @@ export default function OddysseyPage() {
             const prediction = String(predObj.prediction || predObj.selection || predObj.betType || "1");
             const odds = Number(predObj.odds || predObj.selectedOdd || predObj.odd || 1);
             
-            // Get team names from enhanced data (now properly populated by backend)
-            const homeTeam = predObj.home_team || `Team ${matchId}`;
-            const awayTeam = predObj.away_team || `Team ${matchId}`;
+            // Get team names - use cached data if available, otherwise use backend data
+            let homeTeam = predObj.home_team || `Team ${matchId}`;
+            let awayTeam = predObj.away_team || `Team ${matchId}`;
+            
+            // Check if we have cached team names
+            const cachedTeams = teamNamesCache.get(matchId);
+            if (cachedTeams) {
+              homeTeam = cachedTeams.home;
+              awayTeam = cachedTeams.away;
+            } else if (homeTeam.startsWith('Home Team ') || homeTeam.startsWith('Team ')) {
+              // Use generic names for now, will be updated when cache is populated
+              homeTeam = `Home Team ${matchId}`;
+              awayTeam = `Away Team ${matchId}`;
+            }
             
             // Use enhanced match time from backend, fallback to calculated time
             let matchTime = predObj.match_time || '00:00';
@@ -612,6 +681,20 @@ export default function OddysseyPage() {
         // Keep slips as separate arrays, filter out empty slips
         const validSlips = convertedSlips.filter(slip => slip.length > 0) as Pick[][];
         setSlips(validSlips);
+        
+        // Extract all match IDs and fetch team names
+        const allMatchIds: number[] = [];
+        validSlips.forEach(slip => {
+          slip.forEach(pick => {
+            if (pick && pick.id) {
+              allMatchIds.push(pick.id);
+            }
+          });
+        });
+        
+        if (allMatchIds.length > 0) {
+          fetchTeamNames([...new Set(allMatchIds)]); // Remove duplicates
+        }
       } else {
         console.warn('⚠️ No user slips received');
         setSlips([]);
@@ -622,7 +705,7 @@ export default function OddysseyPage() {
     } finally {
       setApiCallInProgress(false);
     }
-  }, [address, apiCallInProgress]);
+  }, [address, apiCallInProgress, fetchTeamNames, teamNamesCache]);
 
   // Date filter handlers for My Slips tab
   const handleApplyDateFilter = useCallback(async () => {
@@ -762,6 +845,28 @@ export default function OddysseyPage() {
       fetchCurrentData();
     }
   }, [address, fetchStats, fetchUserSlips, fetchCurrentData]); // Include dependencies
+  
+  // Update slips when team names are fetched
+  useEffect(() => {
+    if (teamNamesCache.size > 0 && slips.length > 0) {
+      setSlips(prevSlips => 
+        prevSlips.map(slip => 
+          slip.map(pick => {
+            const cachedTeams = teamNamesCache.get(pick.id);
+            if (cachedTeams && (pick.team1.startsWith('Home Team ') || pick.team1.startsWith('Team '))) {
+              return {
+                ...pick,
+                team1: cachedTeams.home,
+                team2: cachedTeams.away,
+                match: `${cachedTeams.home} vs ${cachedTeams.away}`
+              };
+            }
+            return pick;
+          })
+        )
+      );
+    }
+  }, [teamNamesCache, slips.length]);
   
   // Winner notification system
   useEffect(() => {
