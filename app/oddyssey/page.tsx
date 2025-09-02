@@ -107,6 +107,23 @@ interface Stats {
   avgCorrect: number;
 }
 
+interface CurrentPrizePool {
+  cycleId: number | null;
+  prizePool: string;
+  formattedPrizePool: string;
+  matchesCount: number;
+  isActive: boolean;
+}
+
+interface DailyStats {
+  date: string;
+  dailyPlayers: number;
+  dailySlips: number;
+  avgCorrectToday: number;
+  currentCycleId: number | null;
+  currentPrizePool: string;
+}
+
 interface UserStats {
   totalSlips: number;
   totalWins: number;
@@ -163,6 +180,8 @@ export default function OddysseyPage() {
   const [matchesData, setMatchesData] = useState<MatchesData | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
+  const [currentPrizePool, setCurrentPrizePool] = useState<CurrentPrizePool | null>(null);
+  const [dailyStats, setDailyStats] = useState<DailyStats | null>(null);
   const [collapsedSlips, setCollapsedSlips] = useState<Set<number>>(new Set());
   
   // Helper function to toggle slip collapse
@@ -328,6 +347,36 @@ export default function OddysseyPage() {
       setMatchesData(null);
     } finally {
       setIsLoading(false);
+      setApiCallInProgress(false);
+    }
+  }, [apiCallInProgress]);
+
+  // Fetch current prize pool and daily stats
+  const fetchCurrentData = useCallback(async () => {
+    if (apiCallInProgress) return;
+    
+    try {
+      setApiCallInProgress(true);
+      console.log('💰 Fetching current prize pool and daily stats...');
+      
+      const [prizePoolResult, dailyStatsResult] = await Promise.all([
+        oddysseyService.getCurrentPrizePool(),
+        oddysseyService.getDailyStats()
+      ]);
+      
+      if (prizePoolResult.data) {
+        console.log('✅ Current prize pool received:', prizePoolResult.data);
+        setCurrentPrizePool(prizePoolResult.data);
+      }
+      
+      if (dailyStatsResult.data) {
+        console.log('✅ Daily stats received:', dailyStatsResult.data);
+        setDailyStats(dailyStatsResult.data);
+      }
+      
+    } catch (error) {
+      console.error('❌ Error fetching current data:', error);
+    } finally {
       setApiCallInProgress(false);
     }
   }, [apiCallInProgress]);
@@ -710,8 +759,9 @@ export default function OddysseyPage() {
     if (address) {
       fetchStats();
       fetchUserSlips();
+      fetchCurrentData();
     }
-  }, [address, fetchStats, fetchUserSlips]); // Include dependencies
+  }, [address, fetchStats, fetchUserSlips, fetchCurrentData]); // Include dependencies
   
   // Winner notification system
   useEffect(() => {
@@ -1406,6 +1456,65 @@ export default function OddysseyPage() {
         )}
 
         {/* Stats Cards */}
+        {/* Current Prize Pool - Prominent Display */}
+        {currentPrizePool && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+            className="mb-8"
+          >
+            <div className="glass-card text-center p-8 border-2 border-primary/30">
+              <div className="flex items-center justify-center mb-4">
+                <GiftIcon className="h-16 w-16 text-primary mr-4" />
+                <div>
+                  <h2 className="text-4xl font-bold text-white mb-2">
+                    {currentPrizePool.formattedPrizePool}
+                  </h2>
+                  <p className="text-xl font-semibold text-primary">Current Prize Pool</p>
+                  <p className="text-sm text-text-muted">
+                    Cycle {currentPrizePool.cycleId} • {currentPrizePool.matchesCount} Matches
+                  </p>
+                </div>
+              </div>
+              {currentPrizePool.isActive && (
+                <div className="flex items-center justify-center text-green-400">
+                  <BoltIcon className="h-5 w-5 mr-2" />
+                  <span className="font-semibold">Active Cycle - Place Your Slips Now!</span>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Daily Stats */}
+        {dailyStats && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.15 }}
+            className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
+          >
+            <div className="glass-card text-center p-4">
+              <UsersIcon className="h-10 w-10 mx-auto mb-3 text-secondary" />
+              <h3 className="text-2xl font-bold text-white mb-1">{dailyStats.dailyPlayers}</h3>
+              <p className="text-lg font-semibold text-text-secondary">Players Today</p>
+            </div>
+            
+            <div className="glass-card text-center p-4">
+              <DocumentTextIcon className="h-10 w-10 mx-auto mb-3 text-accent" />
+              <h3 className="text-2xl font-bold text-white mb-1">{dailyStats.dailySlips}</h3>
+              <p className="text-lg font-semibold text-text-secondary">Slips Today</p>
+            </div>
+            
+            <div className="glass-card text-center p-4">
+              <ChartBarIcon className="h-10 w-10 mx-auto mb-3 text-green-400" />
+              <h3 className="text-2xl font-bold text-white mb-1">{dailyStats.avgCorrectToday.toFixed(1)}</h3>
+              <p className="text-lg font-semibold text-text-secondary">Avg Correct Today</p>
+            </div>
+          </motion.div>
+        )}
+
         {stats && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}

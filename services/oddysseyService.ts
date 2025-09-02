@@ -388,6 +388,82 @@ class OddysseyService {
   }
 
   /**
+   * Get current prize pool
+   */
+  async getCurrentPrizePool(): Promise<{
+    data: {
+      cycleId: number | null;
+      prizePool: string;
+      formattedPrizePool: string;
+      matchesCount: number;
+      isActive: boolean;
+    };
+  }> {
+    try {
+      console.log('💰 OddysseyService: Fetching current prize pool...');
+      
+      const response = await apiRequest<{
+        success: boolean;
+        data: {
+          cycleId: number | null;
+          prizePool: string;
+          formattedPrizePool: string;
+          matchesCount: number;
+          isActive: boolean;
+        };
+      }>(`${this.baseEndpoint}/current-prize-pool`);
+      
+      console.log('✅ OddysseyService: Current prize pool result:', response);
+      
+      return {
+        data: response.data
+      };
+    } catch (error) {
+      console.error('❌ OddysseyService: Error fetching current prize pool:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get daily stats
+   */
+  async getDailyStats(): Promise<{
+    data: {
+      date: string;
+      dailyPlayers: number;
+      dailySlips: number;
+      avgCorrectToday: number;
+      currentCycleId: number | null;
+      currentPrizePool: string;
+    };
+  }> {
+    try {
+      console.log('📊 OddysseyService: Fetching daily stats...');
+      
+      const response = await apiRequest<{
+        success: boolean;
+        data: {
+          date: string;
+          dailyPlayers: number;
+          dailySlips: number;
+          avgCorrectToday: number;
+          currentCycleId: number | null;
+          currentPrizePool: string;
+        };
+      }>(`${this.baseEndpoint}/daily-stats`);
+      
+      console.log('✅ OddysseyService: Daily stats result:', response);
+      
+      return {
+        data: response.data
+      };
+    } catch (error) {
+      console.error('❌ OddysseyService: Error fetching daily stats:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get global or user statistics
    */
   async getStats(type: 'global' | 'user', address?: string): Promise<{
