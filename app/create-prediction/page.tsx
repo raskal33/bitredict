@@ -665,44 +665,115 @@ export default function CreateMarketPage() {
       const fixture = data.selectedFixture;
       switch (data.outcome) {
         case 'home':
-          return `${fixture.awayTeam.name}_wins`; // Predict away won't win (home will)
+          return `${fixture.homeTeam.name} wins`;
         case 'away':
-          return `${fixture.homeTeam.name}_wins`; // Predict home won't win (away will)  
+          return `${fixture.awayTeam.name} wins`;
         case 'draw':
-          return `no_draw`; // Predict there won't be a draw
+          return `Draw between ${fixture.homeTeam.name} and ${fixture.awayTeam.name}`;
         case 'over25':
-          return `under_25_goals`; // Predict under 2.5 goals (over won't happen)
+          return `Over 2.5 goals in ${fixture.homeTeam.name} vs ${fixture.awayTeam.name}`;
         case 'under25':
-          return `over_25_goals`; // Predict over 2.5 goals (under won't happen)
+          return `Under 2.5 goals in ${fixture.homeTeam.name} vs ${fixture.awayTeam.name}`;
         case 'over35':
-          return `over_35_goals`; // Predict over 3.5 goals (over won't happen)
+          return `Over 3.5 goals in ${fixture.homeTeam.name} vs ${fixture.awayTeam.name}`;
         case 'under35':
-          return `under_35_goals`; // Predict under 3.5 goals (under won't happen)
+          return `Under 3.5 goals in ${fixture.homeTeam.name} vs ${fixture.awayTeam.name}`;
         case 'bttsYes':
-          return `both_teams_to_score_yes`; // Predict both teams to score - Yes
+          return `Both teams to score in ${fixture.homeTeam.name} vs ${fixture.awayTeam.name}`;
         case 'bttsNo':
-          return `both_teams_to_score_no`; // Predict both teams to score - No
+          return `Not both teams to score in ${fixture.homeTeam.name} vs ${fixture.awayTeam.name}`;
         case 'htHome':
-          return `${fixture.homeTeam.name}_home_team_wins`; // Predict home team wins
+          return `${fixture.homeTeam.name} leading at half-time`;
         case 'htDraw':
-          return `draw_home_team_wins`; // Predict draw and home team wins
+          return `Draw at half-time in ${fixture.homeTeam.name} vs ${fixture.awayTeam.name}`;
         case 'htAway':
-          return `${fixture.awayTeam.name}_away_team_wins`; // Predict away team wins
+          return `${fixture.awayTeam.name} leading at half-time`;
         default:
-          return `${fixture.homeTeam.name}_vs_${fixture.awayTeam.name}`;
+          return `${fixture.homeTeam.name} vs ${fixture.awayTeam.name}`;
       }
     }
 
     if (data.category === 'cryptocurrency' && data.selectedCrypto) {
       const crypto = data.selectedCrypto;
       if (data.direction === 'above') {
-        return `${crypto.symbol}_below_${data.targetPrice}`; // Predict it won't go above
+        return `${crypto.symbol} above $${data.targetPrice}`;
       } else {
-        return `${crypto.symbol}_above_${data.targetPrice}`; // Predict it won't go below
+        return `${crypto.symbol} below $${data.targetPrice}`;
       }
     }
 
     return 'unknown_outcome';
+  };
+
+  // Generate the binary selection for the backend
+  const generateSelection = (): string => {
+    if (data.category === 'football') {
+      switch (data.outcome) {
+        case 'home':
+          return 'HOME';
+        case 'away':
+          return 'AWAY';
+        case 'draw':
+          return 'DRAW';
+        case 'over25':
+        case 'over35':
+          return 'OVER';
+        case 'under25':
+        case 'under35':
+          return 'UNDER';
+        case 'bttsYes':
+          return 'YES';
+        case 'bttsNo':
+          return 'NO';
+        case 'htHome':
+          return 'HOME';
+        case 'htDraw':
+          return 'DRAW';
+        case 'htAway':
+          return 'AWAY';
+        default:
+          return 'HOME';
+      }
+    }
+
+    if (data.category === 'cryptocurrency') {
+      return data.direction === 'above' ? 'ABOVE' : 'BELOW';
+    }
+
+    return 'YES';
+  };
+
+  // Generate the outcome type for the backend
+  const generateOutcomeType = (): string => {
+    if (data.category === 'football') {
+      switch (data.outcome) {
+        case 'home':
+        case 'away':
+        case 'draw':
+          return 'Full Time Result';
+        case 'over25':
+        case 'under25':
+          return 'Over/Under 2.5';
+        case 'over35':
+        case 'under35':
+          return 'Over/Under 3.5';
+        case 'bttsYes':
+        case 'bttsNo':
+          return 'Both Teams To Score';
+        case 'htHome':
+        case 'htDraw':
+        case 'htAway':
+          return 'Half Time Result';
+        default:
+          return 'Full Time Result';
+      }
+    }
+
+    if (data.category === 'cryptocurrency') {
+      return 'Price Direction';
+    }
+
+    return 'Full Time Result';
   };
 
   // BITR Token approval function (commented out as not currently used)
@@ -763,10 +834,11 @@ export default function CreateMarketPage() {
           awayTeam: data.selectedFixture.awayTeam.name,
           league: data.selectedFixture.league.name,
           matchDate: data.selectedFixture.matchDate,
-          outcome: data.outcome || '',
+          outcome: generateOutcomeType(), // Use the proper outcome type format
           predictedOutcome: predictedOutcome,
-        odds: data.odds,
-        creatorStake: data.creatorStake,
+          selection: generateSelection(), // Add the missing selection field
+          odds: data.odds,
+          creatorStake: data.creatorStake,
           useBitr: useBitr,
           description: data.description,
           isPrivate: data.isPrivate || false,
