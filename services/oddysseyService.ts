@@ -909,6 +909,55 @@ class OddysseyService {
       };
     }>(endpoint);
   }
+
+  /**
+   * Get detailed evaluation for a specific slip
+   */
+  async getSlipEvaluation(slipId: number): Promise<{
+    success: boolean;
+    data: {
+      slipId: number;
+      cycleId: number;
+      playerAddress: string;
+      finalScore: number;
+      correctCount: number;
+      totalPredictions: number;
+      isEvaluated: boolean;
+      predictions: Array<{
+        matchId: number;
+        betType: string;
+        selection: string;
+        odds: number;
+        isCorrect: boolean;
+        actualResult: string;
+        homeScore: number | null;
+        awayScore: number | null;
+      }>;
+    };
+  }> {
+    return apiRequest<{
+      success: boolean;
+      data: {
+        slipId: number;
+        cycleId: number;
+        playerAddress: string;
+        finalScore: number;
+        correctCount: number;
+        totalPredictions: number;
+        isEvaluated: boolean;
+        predictions: Array<{
+          matchId: number;
+          betType: string;
+          selection: string;
+          odds: number;
+          isCorrect: boolean;
+          actualResult: string;
+          homeScore: number | null;
+          awayScore: number | null;
+        }>;
+      };
+    }>(`${this.baseEndpoint}/slip-evaluation/${slipId}`);
+  }
 }
 
 export const oddysseyService = new OddysseyService(); 

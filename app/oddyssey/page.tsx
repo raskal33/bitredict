@@ -616,6 +616,14 @@ export default function OddysseyPage() {
               match_date?: string;
               league_name?: string;
               status?: string;
+              isCorrect?: boolean;
+              actualResult?: string;
+              matchResult?: {
+                homeScore?: number;
+                awayScore?: number;
+                result?: string;
+                status?: string;
+              };
             };
             
             // Handle different prediction object structures
@@ -672,7 +680,11 @@ export default function OddysseyPage() {
               isEvaluated: slipObj.is_evaluated,
               placedAt: slipObj.submitted_time || slipObj.placed_at, // Use enhanced submission time
               status: slipObj.status || (slipObj.is_evaluated ? "Evaluated" : "Pending"),
-              totalOdds: slipObj.total_odds
+              totalOdds: slipObj.total_odds,
+              // Add evaluation data
+              isCorrect: predObj.isCorrect,
+              actualResult: predObj.actualResult,
+              matchResult: predObj.matchResult
             };
           }).filter(Boolean); // Remove null entries
         });
@@ -766,6 +778,14 @@ export default function OddysseyPage() {
               match_date?: string;
               league_name?: string;
               status?: string;
+              isCorrect?: boolean;
+              actualResult?: string;
+              matchResult?: {
+                homeScore?: number;
+                awayScore?: number;
+                result?: string;
+                status?: string;
+              };
             };
             
             const matchId = Number(predObj.match_id || predObj.matchId || predObj.id || 0);
@@ -806,7 +826,11 @@ export default function OddysseyPage() {
               isEvaluated: slipObj.is_evaluated,
               placedAt: slipObj.placed_at || slipObj.submitted_time,
               status: slipObj.status,
-              totalOdds: slipObj.total_odds
+              totalOdds: slipObj.total_odds,
+              // Add evaluation data
+              isCorrect: predObj.isCorrect,
+              actualResult: predObj.actualResult,
+              matchResult: predObj.matchResult
             };
           }).filter(pred => pred !== null);
         }).filter(slip => slip.length > 0);
