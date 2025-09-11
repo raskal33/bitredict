@@ -31,7 +31,7 @@ export default function WalletProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     // Ensure AppKit is properly initialized on client side
     if (typeof window !== 'undefined') {
-      console.log('🔗 AppKit initialized for Somnia Network');
+      console.log('🔗 AppKit initialized for Monad Network');
     }
   }, []);
 

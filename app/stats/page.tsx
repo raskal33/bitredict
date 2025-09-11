@@ -35,6 +35,7 @@ import {
 } from "@heroicons/react/24/solid";
 import { useAnalyticsDashboard } from "@/hooks/useAnalytics";
 import AnimatedTitle from "@/components/AnimatedTitle";
+import EnhancedStatsDashboard from "@/components/EnhancedStatsDashboard";
 import { ChartBarIcon as ChartBarSolid, CurrencyDollarIcon as CurrencySolid } from "@heroicons/react/24/solid";
 
 ChartJS.register(
@@ -50,7 +51,7 @@ ChartJS.register(
 );
 
 export default function StatsPage() {
-  const [activeTab, setActiveTab] = useState<"overview" | "leaderboard" | "analytics">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "leaderboard" | "analytics" | "enhanced">("overview");
   const [timeframe, setTimeframe] = useState<"24h" | "7d" | "30d" | "all">("7d");
   
   // Use the real-time analytics hook
@@ -241,10 +242,11 @@ export default function StatsPage() {
           { id: "overview", label: "Overview", icon: GlobeAltIcon },
           { id: "leaderboard", label: "Leaderboard", icon: TrophyIcon },
           { id: "analytics", label: "Analytics", icon: ChartBarIcon },
+          { id: "enhanced", label: "Enhanced", icon: SparklesIcon },
         ].map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id as "overview" | "leaderboard" | "analytics")}
+            onClick={() => setActiveTab(tab.id as "overview" | "leaderboard" | "analytics" | "enhanced")}
             className={`flex items-center gap-2 px-6 py-3 text-sm font-medium rounded-button transition-all duration-200 ${
               activeTab === tab.id
                 ? "bg-gradient-primary text-black shadow-button"
@@ -531,6 +533,18 @@ export default function StatsPage() {
                 </motion.div>
               ))}
             </div>
+          </motion.div>
+        )}
+
+        {activeTab === "enhanced" && (
+          <motion.div
+            key="enhanced"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="space-y-8"
+          >
+            <EnhancedStatsDashboard />
           </motion.div>
         )}
       </AnimatePresence>

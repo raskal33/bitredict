@@ -198,7 +198,7 @@ export const useReputationStore = create<ReputationState>()(
       },
     }),
     {
-      name: 'bitredict-reputation',
+      name: 'bitr-reputation',
       partialize: (state) => ({ 
         userReputations: state.userReputations 
       }),

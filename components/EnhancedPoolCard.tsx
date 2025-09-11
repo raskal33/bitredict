@@ -517,7 +517,7 @@ export default function EnhancedPoolCard({
             <CurrencyDollarIcon className="w-3 h-3" />
             Creator Stake
           </div>
-          <div className="text-sm font-bold text-white">{formatStake(pool.creatorStake)} {pool.usesBitr ? 'BITR' : 'STT'}</div>
+          <div className="text-sm font-bold text-white">{formatStake(pool.creatorStake)} {pool.usesBitr ? 'BITR' : 'MON'}</div>
         </div>
         <div>
           <div className="text-xs text-gray-400 flex items-center justify-center gap-1">
@@ -525,7 +525,7 @@ export default function EnhancedPoolCard({
             {indexedData ? 'Participants' : 'Total Stake'}
           </div>
           <div className="text-sm font-bold text-white">
-            {indexedData ? indexedData.participantCount : formatStake(pool.totalBettorStake)} {indexedData ? '' : pool.usesBitr ? 'BITR' : 'STT'}
+            {indexedData ? indexedData.participantCount : formatStake(pool.totalBettorStake)} {indexedData ? '' : pool.usesBitr ? 'BITR' : 'MON'}
           </div>
         </div>
         <div>
@@ -542,7 +542,7 @@ export default function EnhancedPoolCard({
         <div className="grid grid-cols-2 gap-2 mb-3 text-center flex-shrink-0">
           <div>
             <div className="text-xs text-gray-400">Avg Bet</div>
-            <div className="text-xs font-bold text-white">{formatStake(indexedData.avgBetSize)} {pool.usesBitr ? 'BITR' : 'STT'}</div>
+            <div className="text-xs font-bold text-white">{formatStake(indexedData.avgBetSize)} {pool.usesBitr ? 'BITR' : 'MON'}</div>
           </div>
           <div>
             <div className="text-xs text-gray-400">Total Bets</div>

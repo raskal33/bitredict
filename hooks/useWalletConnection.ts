@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAccount, useDisconnect, useChainId } from 'wagmi';
 import { useAppKit, useAppKitState } from '@reown/appkit/react';
-import { somniaNetwork } from '@/config/wagmi';
+import { monadNetwork } from '@/config/wagmi';
 import { toast } from 'react-hot-toast';
 
 export interface WalletConnectionState {
   isConnected: boolean;
   address: string | undefined;
   chainId: number | undefined;
-  isOnSomnia: boolean;
+  isOnMonad: boolean;
   isConnecting: boolean;
   error: string | null;
 }
@@ -30,11 +30,11 @@ export function useWalletConnection() {
   const checkConnectionIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const cleanupTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Check if user is on Somnia network
-  const isOnSomnia = chainId === somniaNetwork.id;
+  // Check if user is on Monad network
+  const isOnMonad = chainId === monadNetwork.id;
 
-  // Switch to Somnia network
-  const switchToSomnia = useCallback(async () => {
+  // Switch to Monad network
+  const switchToMonad = useCallback(async () => {
     try {
       if (!window.ethereum) {
         throw new Error('MetaMask not detected');
@@ -42,7 +42,7 @@ export function useWalletConnection() {
 
       await window.ethereum.request({
         method: 'wallet_switchEthereumChain',
-        params: [{ chainId: `0x${somniaNetwork.id.toString(16)}` }],
+        params: [{ chainId: `0x${monadNetwork.id.toString(16)}` }],
       });
     } catch (error: unknown) {
       // If network doesn't exist, add it
@@ -51,11 +51,11 @@ export function useWalletConnection() {
           await window.ethereum?.request({
             method: 'wallet_addEthereumChain',
             params: [{
-              chainId: `0x${somniaNetwork.id.toString(16)}`,
-              chainName: somniaNetwork.name,
-              nativeCurrency: somniaNetwork.nativeCurrency,
-              rpcUrls: somniaNetwork.rpcUrls.default.http,
-              blockExplorerUrls: somniaNetwork.blockExplorers ? [somniaNetwork.blockExplorers.default.url] : [],
+              chainId: `0x${monadNetwork.id.toString(16)}`,
+                              chainName: monadNetwork.name,
+                nativeCurrency: monadNetwork.nativeCurrency,
+                              rpcUrls: monadNetwork.rpcUrls.default.http,
+                blockExplorerUrls: monadNetwork.blockExplorers ? [monadNetwork.blockExplorers.default.url] : [],
             }],
           });
         } catch (addError) {
@@ -183,9 +183,9 @@ export function useWalletConnection() {
 
   // Auto-switch to Somnia network when connected to wrong network
   useEffect(() => {
-    if (isConnected && !isOnSomnia && chainId) {
-      console.log(`⚠️ Connected to wrong network (${chainId}), switching to Somnia...`);
-      toast('Switching to Somnia network...', {
+          if (isConnected && !isOnMonad && chainId) {
+              console.log(`⚠️ Connected to wrong network (${chainId}), switching to Monad...`);
+        toast('Switching to Monad network...', {
         duration: 3000,
         icon: '🔄',
         style: {
@@ -194,15 +194,15 @@ export function useWalletConnection() {
         },
       });
       
-      switchToSomnia().catch(error => {
+      switchToMonad().catch(error => {
         console.error('Failed to switch network:', error);
-        setError('Please switch to Somnia network in your wallet');
-        toast.error('Please switch to Somnia network in your wallet', {
+        setError('Please switch to Monad network in your wallet');
+        toast.error('Please switch to Monad network in your wallet', {
           duration: 5000,
         });
       });
     }
-  }, [isConnected, isOnSomnia, chainId, switchToSomnia]);
+  }, [isConnected, isOnMonad, chainId, switchToMonad]);
 
   // Reset error when connection succeeds
   useEffect(() => {
@@ -236,14 +236,14 @@ export function useWalletConnection() {
     isConnected,
     address,
     chainId,
-    isOnSomnia,
+    isOnMonad,
     isConnecting,
     error,
     
     // Actions
     connectWallet,
     disconnectWallet,
-    switchToSomnia,
+    switchToMonad,
     
     // Utils
     connectionAttempts,

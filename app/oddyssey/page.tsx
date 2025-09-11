@@ -629,7 +629,9 @@ export default function OddysseyPage() {
             // Handle different prediction object structures
             const matchId = Number(predObj.match_id || predObj.matchId || predObj.id || 0);
             const prediction = String(predObj.prediction || predObj.selection || predObj.betType || "1");
-            const odds = Number(predObj.odds || predObj.selectedOdd || predObj.odd || 1);
+            // FIXED: Convert odds from backend format (1850 = 1.85) to decimal
+            const rawOdds = Number(predObj.odds || predObj.selectedOdd || predObj.odd || 1000);
+            const odds = rawOdds > 100 ? rawOdds / 1000 : rawOdds;
             
             // Get team names - use cached data if available, otherwise use backend data
             let homeTeam = predObj.home_team || `Team ${matchId}`;
@@ -790,7 +792,9 @@ export default function OddysseyPage() {
             
             const matchId = Number(predObj.match_id || predObj.matchId || predObj.id || 0);
             const prediction = String(predObj.prediction || predObj.selection || predObj.betType || "1");
-            const odds = Number(predObj.odds || predObj.selectedOdd || predObj.odd || 1);
+            // FIXED: Convert odds from backend format (1850 = 1.85) to decimal
+            const rawOdds = Number(predObj.odds || predObj.selectedOdd || predObj.odd || 1000);
+            const odds = rawOdds > 100 ? rawOdds / 1000 : rawOdds;
             
             const homeTeam = predObj.home_team || `Team ${matchId}`;
             const awayTeam = predObj.away_team || `Team ${matchId}`;
@@ -2634,9 +2638,22 @@ export default function OddysseyPage() {
                                       {pick.team1 && pick.team2 ? `${pick.team1} vs ${pick.team2}` : `Match ${pick.id}`}
                                     </div>
                                     
+                                    {/* Show final score if available */}
+                                    {isEvaluated && pick.matchResult && (
+                                      <div className="text-xs text-center mb-2 p-1 bg-slate-800/50 rounded">
+                                        <div className="text-white font-bold">
+                                          {pick.matchResult.homeScore !== undefined && pick.matchResult.awayScore !== undefined 
+                                            ? `${pick.matchResult.homeScore}-${pick.matchResult.awayScore}`
+                                            : pick.actualResult || 'N/A'
+                                          }
+                                        </div>
+                                        <div className="text-xs text-text-muted">Final Score</div>
+                                      </div>
+                                    )}
+                                    
                                     <div className="flex items-center justify-between">
                                       <span className="text-xs text-text-muted">
-                                        {pick.team1 && pick.team2 ? 'Teams' : 'Match ID'}
+                                        Odds
                                       </span>
                                       <span className="text-white font-bold text-xs sm:text-sm">
                                         {typeof pick.odd === 'number' ? pick.odd.toFixed(2) : '0.00'}

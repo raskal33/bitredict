@@ -1,6 +1,6 @@
-# BitRedict Frontend
+# BITR Frontend
 
-This is the frontend for BitRedict - a decentralized prediction market built on Solana blockchain.
+This is the frontend for BITR - a decentralized prediction market built on Solana blockchain.
 
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
@@ -24,9 +24,9 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Onest](https://fonts.google.com/specimen/Onest), a modern font family.
 
-## About BitRedict
+## About BITR
 
-BitRedict is a decentralized prediction market platform built on Solana that allows users to:
+BITR is a decentralized prediction market platform built on Solana that allows users to:
 - Create prediction markets
 - Place bets on outcomes
 - Earn rewards from accurate predictions

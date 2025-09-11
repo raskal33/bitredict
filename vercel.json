@@ -21,7 +21,7 @@
     "NEXT_PUBLIC_API_BASE_URL": "https://bitredict-backend.fly.dev",
     "BACKEND_URL": "https://bitredict-backend.fly.dev",
     "NEXT_PUBLIC_BACKEND_URL": "https://bitredict-backend.fly.dev",
-    "NEXT_PUBLIC_RPC_URL": "https://dream-rpc.somnia.network/",
-    "NEXT_PUBLIC_CHAIN_ID": "50312"
+    "NEXT_PUBLIC_RPC_URL": "https://testnet-rpc.monad.xyz/",
+    "NEXT_PUBLIC_CHAIN_ID": "10143"
   }
 }

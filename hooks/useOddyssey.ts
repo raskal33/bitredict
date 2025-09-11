@@ -467,12 +467,13 @@ export function useOddyssey() {
   };
 
   return {
-    // Contract data
+    // Contract data (fallback only)
     entryFee: formatAmount(entryFee as string | bigint | undefined),
     dailyCycleId: Number(dailyCycleId || 0),
     slipCount: Number(slipCount || 0),
     globalStats: globalStats as GlobalStats,
-    dailyMatches: backendOddysseyMatches?.data?.today?.matches || dailyMatchesWithLive || dailyMatches || [],
+    // PRIORITIZE DATABASE DATA: Use backend matches as primary source, contract as fallback
+    dailyMatches: backendOddysseyMatches?.data?.today?.matches || [],
     dailyLeaderboard: dailyLeaderboard as LeaderboardEntry[],
     cycleStats: cycleStats as CycleStats,
     prizePool: formatAmount(prizePool as string | bigint | undefined),

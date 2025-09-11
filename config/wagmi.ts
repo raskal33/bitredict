@@ -2,26 +2,26 @@ import { createAppKit } from '@reown/appkit/react'
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi'
 import { mainnet, sepolia, type AppKitNetwork } from '@reown/appkit/networks'
 
-// Somnia Network configuration - CORRECT SETTINGS FROM HARDHAT
-export const somniaNetwork: AppKitNetwork = {
-  id: 50312,
-  name: 'Somnia Testnet',
+// Monad Network configuration - CORRECT SETTINGS FROM HARDHAT
+export const monadNetwork: AppKitNetwork = {
+  id: 10143,
+  name: 'Monad Testnet',
   nativeCurrency: {
     decimals: 18,
-    name: 'STT',
-    symbol: 'STT',
+    name: 'MON',
+    symbol: 'MON',
   },
   rpcUrls: {
     default: {
       http: [
         process.env.NODE_ENV === 'development' 
           ? 'http://localhost:3000/api/rpc-proxy'
-          : process.env.NEXT_PUBLIC_RPC_URL || 'https://dream-rpc.somnia.network/'
+          : process.env.NEXT_PUBLIC_RPC_URL || 'https://testnet-rpc.monad.xyz/'
       ],
     },
   },
   blockExplorers: {
-    default: { name: 'Somnia Explorer', url: 'https://shannon-explorer.somnia.network' },
+    default: { name: 'Monad Explorer', url: 'https://explorer.monad.xyz' },
   },
   testnet: true,
 }
@@ -30,7 +30,7 @@ export const somniaNetwork: AppKitNetwork = {
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '6a0514d82fb621e41aa6cad5473883a3'
 
 // Create the networks array
-const networks = [somniaNetwork, mainnet, sepolia] as [AppKitNetwork, ...AppKitNetwork[]]
+const networks = [monadNetwork, mainnet, sepolia] as [AppKitNetwork, ...AppKitNetwork[]]
 
 // Create Wagmi Adapter
 export const wagmiAdapter = new WagmiAdapter({
@@ -45,10 +45,10 @@ export const appKit = createAppKit({
   networks,
   projectId,
   metadata: {
-    name: 'BitRedict - Connect Wallet',
-    description: 'Connect your wallet to access decentralized prediction markets on Somnia Network',
-    url: 'https://bitredict.vercel.app',
-    icons: ['https://bitredict.vercel.app/logo.png'],
+    name: 'BITR - Connect Wallet',
+    description: 'Connect your wallet to access decentralized prediction markets on Monad Network',
+    url: 'https://bitr-front.vercel.app',
+    icons: ['https://bitr-front.vercel.app/logo.png'],
   },
   features: {
     analytics: false, // Disable analytics to remove Reown tracking
@@ -93,15 +93,15 @@ export const CONTRACT_ADDRESSES = {
 
 // Network configuration for contract calls
 export const NETWORK_CONFIG = {
-  chainId: 50312,
+  chainId: 10143,
   rpcUrl: process.env.NODE_ENV === 'development' 
     ? 'http://localhost:3000/api/rpc-proxy'
-    : process.env.NEXT_PUBLIC_RPC_URL || 'https://dream-rpc.somnia.network/',
-  explorerUrl: 'https://shannon-explorer.somnia.network',
+    : process.env.NEXT_PUBLIC_RPC_URL || 'https://testnet-rpc.monad.xyz/',
+  explorerUrl: 'https://explorer.monad.xyz',
 }
 
-// Global gas settings - Optimized for Somnia Network
+// Global gas settings - Optimized for Monad Network
 export const GAS_SETTINGS = {
-  gas: BigInt(20000000), // 20M gas limit (sufficient for complex Oddyssey transactions)
-  gasPrice: BigInt(10000000000), // 10 gwei (max for Somnia)
+  gas: BigInt(3000000), // 3M gas limit (optimized based on successful transactions)
+  gasPrice: BigInt(50000000000), // 50 gwei (Monad testnet base fee)
 }

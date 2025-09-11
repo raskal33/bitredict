@@ -26,6 +26,63 @@ export interface CategoryStats {
   participantCount: number;
 }
 
+export interface EnhancedCategoryStats {
+  category_name: string;
+  total_pools: number;
+  total_volume: number;
+  total_participants: number;
+  avg_pool_size: number;
+  most_popular_market_type: number;
+  most_popular_market_type_name: string;
+  last_activity: string;
+  icon: string;
+  color: string;
+}
+
+export interface LeagueStats {
+  league_name: string;
+  total_pools: number;
+  total_volume: number;
+  total_participants: number;
+  avg_pool_size: number;
+  most_popular_market_type: number;
+  most_popular_market_type_name: string;
+  last_activity: string;
+}
+
+export interface UserStats {
+  user_address: string;
+  total_bets: number;
+  total_bet_amount: number;
+  total_liquidity: number;
+  total_liquidity_amount: number;
+  total_pools_created: number;
+  total_volume: number;
+  win_count: number;
+  loss_count: number;
+  reputation_score: number;
+  last_activity: string;
+  win_rate: string;
+  total_activity: number;
+  avg_bet_size: string;
+  avg_liquidity_size: string;
+  reputation_tier: string;
+}
+
+export interface MarketTypeStats {
+  market_type: number;
+  market_type_name: string;
+  total_pools: number;
+  total_volume: number;
+  total_participants: number;
+  avg_pool_size: number;
+  win_rate: number;
+  last_activity: string;
+  icon: string;
+  description: string;
+  color: string;
+}
+
 export interface CategoryDistribution {
   [category: string]: number;
 }
@@ -182,6 +239,114 @@ export class AnalyticsService {
       };
     } catch (error) {
       console.error('Error fetching leaderboards:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get enhanced category statistics
+   */
+  static async getEnhancedCategoryStats(
+    limit: number = 10,
+    offset: number = 0,
+    sortBy: string = 'total_volume',
+    sortOrder: string = 'desc'
+  ): Promise<{ categories: EnhancedCategoryStats[]; pagination: any }> {
+    const response = await apiRequest<AnalyticsResponse<{
+      categories: EnhancedCategoryStats[];
+      pagination: any;
+    }>>(
+      `${this.baseURL}/category-stats?limit=${limit}&offset=${offset}&sortBy=${sortBy}&sortOrder=${sortOrder}`
+    );
+    return response.data;
+  }
+
+  /**
+   * Get league statistics
+   */
+  static async getLeagueStats(
+    limit: number = 10,
+    offset: number = 0,
+    sortBy: string = 'total_volume',
+    sortOrder: string = 'desc'
+  ): Promise<{ leagues: LeagueStats[]; pagination: any }> {
+    const response = await apiRequest<AnalyticsResponse<{
+      leagues: LeagueStats[];
+      pagination: any;
+    }>>(
+      `${this.baseURL}/league-stats?limit=${limit}&offset=${offset}&sortBy=${sortBy}&sortOrder=${sortOrder}`
+    );
+    return response.data;
+  }
+
+  /**
+   * Get user statistics
+   */
+  static async getUserStats(
+    limit: number = 10,
+    offset: number = 0,
+    sortBy: string = 'total_volume',
+    sortOrder: string = 'desc',
+    userAddress?: string
+  ): Promise<{ users: UserStats[]; pagination: any }> {
+    const params = new URLSearchParams({
+      limit: limit.toString(),
+      offset: offset.toString(),
+      sortBy,
+      sortOrder
+    });
+    
+    if (userAddress) {
+      params.append('address', userAddress);
+    }
+
+    const response = await apiRequest<AnalyticsResponse<{
+      users: UserStats[];
+      pagination: any;
+    }>>(
+      `${this.baseURL}/user-stats?${params.toString()}`
+    );
+    return response.data;
+  }
+
+  /**
+   * Get market type statistics
+   */
+  static async getMarketTypeStats(
+    limit: number = 10,
+    offset: number = 0,
+    sortBy: string = 'total_volume',
+    sortOrder: string = 'desc'
+  ): Promise<{ marketTypes: MarketTypeStats[]; pagination: any }> {
+    const response = await apiRequest<AnalyticsResponse<{
+      marketTypes: MarketTypeStats[];
+      pagination: any;
+    }>>(
+      `${this.baseURL}/market-type-stats?limit=${limit}&offset=${offset}&sortBy=${sortBy}&sortOrder=${sortOrder}`
+    );
+    return response.data;
+  }
+
+  /**
+   * Get comprehensive stats overview
+   */
+  static async getComprehensiveStats() {
+    try {
+      const [categoryStats, leagueStats, marketTypeStats, userStats] = await Promise.all([
+        this.getEnhancedCategoryStats(5),
+        this.getLeagueStats(5),
+        this.getMarketTypeStats(8),
+        this.getUserStats(10)
+      ]);
+
+      return {
+        categoryStats,
+        leagueStats,
+        marketTypeStats,
+        userStats
+      };
+    } catch (error) {
+      console.error('Error fetching comprehensive stats:', error);
       throw error;
     }
   }

@@ -116,7 +116,7 @@ const getDemoPoolData = () => [
     odds: 2.1,
     participants: 189,
     volume: 89000,
-    currency: "STT",
+    currency: "MON",
     endDate: "2025-05-25",
     trending: false,
     boosted: false,
@@ -157,7 +157,7 @@ const getDemoPoolData = () => [
     odds: 1.9,
     participants: 156,
     volume: 67000,
-    currency: "STT",
+    currency: "MON",
     endDate: "2024-12-31",
     trending: true,
     boosted: true,
@@ -286,7 +286,7 @@ export async function GET(request: NextRequest) {
         volume24h: parseInt(pool.volume_24h || '0'),
         change24h: parseFloat(pool.price_change_24h || '0'),
         confidence: parseInt(pool.confidence_score || '75'),
-        currency: pool.currency || 'STT',
+        currency: pool.currency || 'MON',
         ...(includeSocial && {
           socialStats: {
             comments: parseInt(pool.comment_count || '0'),

@@ -18,7 +18,7 @@ export interface Stake {
   durationOption: number;
   claimedRewardBITR: bigint;
   rewardDebtBITR: bigint;
-  rewardDebtSTT: bigint;
+  rewardDebtMON: bigint;
 }
 
 export interface StakeWithRewards extends Stake {
@@ -89,9 +89,9 @@ export function useStaking() {
     query: { enabled: !!address }
   });
 
-  const { data: pendingRevenueSTT, refetch: refetchRevenueSTT } = useReadContract({
+  const { data: pendingRevenueMON, refetch: refetchRevenueMON } = useReadContract({
     ...CONTRACTS.BITREDICT_STAKING,
-    functionName: 'pendingRevenueSTT',
+    functionName: 'pendingRevenueMON',
     args: address ? [address] : undefined,
     query: { enabled: !!address }
   });
@@ -289,7 +289,7 @@ export function useStaking() {
               durationOption: 0,
               claimedRewardBITR: BigInt(0),
               rewardDebtBITR: BigInt(0),
-              rewardDebtSTT: BigInt(0),
+              rewardDebtMON: BigInt(0),
               index,
               pendingRewards: BigInt(0),
               canUnstake: false,
@@ -393,7 +393,7 @@ export function useStaking() {
             durationOption: 0,
             claimedRewardBITR: BigInt(0),
             rewardDebtBITR: BigInt(0),
-            rewardDebtSTT: BigInt(0),
+            rewardDebtMON: BigInt(0),
             index,
             pendingRewards: BigInt(0),
             canUnstake: false,
@@ -506,7 +506,7 @@ export function useStaking() {
     refetchTiers();
     refetchUserStakes();
     refetchRevenueBITR();
-    refetchRevenueSTT();
+    refetchRevenueMON();
   };
 
   return {
@@ -528,7 +528,7 @@ export function useStaking() {
     
     // Revenue sharing
     pendingRevenueBITR: formatReward(pendingRevenueBITR as bigint),
-    pendingRevenueSTT: formatReward(pendingRevenueSTT as bigint),
+          pendingRevenueMON: formatReward(pendingRevenueMON as bigint),
     
     // Actions
     stake,

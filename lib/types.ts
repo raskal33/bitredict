@@ -31,7 +31,7 @@ export interface Pool {
   odds: number;
   participants: number;
   volume: number;
-  currency: 'STT' | 'BITR';
+  currency: 'MON' | 'BITR';
   endDate: string;
   trending: boolean;
   boosted: boolean;

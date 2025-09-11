@@ -9,7 +9,7 @@ export type CreateMarketData = {
   // Market Configuration
   odds?: number; // 100-10000 (1.01x to 100x)
   creatorStake?: number;
-  usesBitr?: boolean; // true for BITR, false for STT
+  usesBitr?: boolean; // true for BITR, false for MON
   
   // Timing
   eventStartTime?: Date;
@@ -69,7 +69,7 @@ const initialData: CreateMarketData = {
   description: "",
   odds: 200, // 2.0x default
   creatorStake: 20, // Minimum stake
-  usesBitr: false, // Default to STT
+      usesBitr: false, // Default to MON
   category: "",
   league: "",
   region: "",
@@ -181,7 +181,7 @@ export const useCreateMarket = create<CreateMarketStore>((set, get) => ({
   },
   
   calculateCreationFee: () => {
-    return 1; // 1 STT or BITR as per contract
+    return 1; // 1 MON or BITR as per contract
   },
   
   estimateGas: () => {

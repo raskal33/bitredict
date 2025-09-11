@@ -242,7 +242,7 @@ export function usePools() {
           args: [BigInt(poolId), betAmount],
         });
       } else {
-        // For STT pools, send native token as value
+        // For MON pools, send native token as value
         writeContract({
           ...CONTRACTS.BITREDICT_POOL,
           functionName: 'placeBet',
@@ -277,9 +277,9 @@ export function usePools() {
   const boostPool = async (poolId: number, tier: number) => {
     // Get boost fees - these would need to be read from contract
     const boostFees: { [key: number]: bigint } = {
-      1: parseUnits("10", 18), // Bronze - 10 STT
-      2: parseUnits("25", 18), // Silver - 25 STT  
-      3: parseUnits("50", 18), // Gold - 50 STT
+            1: parseUnits("10", 18), // Bronze - 10 MON
+      2: parseUnits("25", 18), // Silver - 25 MON
+      3: parseUnits("50", 18), // Gold - 50 MON
     };
 
     writeContract({
