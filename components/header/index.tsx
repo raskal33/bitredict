@@ -582,6 +582,12 @@ const bitredictorLinks = [
     icon: UserIcon,
   },
   {
+    label: "Leaderboard",
+    href: "/leaderboard",
+    segment: "leaderboard",
+    icon: TrophyIcon,
+  },
+  {
     label: "Community",
     href: "/community",
     segment: "community",

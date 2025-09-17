@@ -7,11 +7,13 @@ import {
   UserIcon,
   ChartBarIcon,
   ClockIcon,
-  CurrencyDollarIcon
+  CurrencyDollarIcon,
+  SparklesIcon
 } from "@heroicons/react/24/outline";
 import { formatEther } from "viem";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useAccount } from "wagmi";
 
   // Enhanced Pool interface with indexed data
 export interface EnhancedPool {
@@ -56,6 +58,15 @@ export interface EnhancedPool {
   };
   change24h?: number;
   
+  // Combo pool fields
+  isComboPool?: boolean;
+  comboConditions?: Array<{
+    marketId: string;
+    expectedOutcome: string;
+    odds: number;
+  }>;
+  comboOdds?: number;
+  
   // Indexed data fields
   indexedData?: {
     participantCount: number;
@@ -76,17 +87,23 @@ interface EnhancedPoolCardProps {
   index?: number;
   showSocialStats?: boolean;
   className?: string;
+  showBoostButton?: boolean;
+  onBoostPool?: (poolId: number, tier: 'BRONZE' | 'SILVER' | 'GOLD') => void;
 }
 
 export default function EnhancedPoolCard({ 
   pool, 
   index = 0, 
   showSocialStats = true, 
-  className = ""
+  className = "",
+  showBoostButton = false,
+  onBoostPool
 }: EnhancedPoolCardProps) {
   const router = useRouter();
+  const { address } = useAccount();
   const [isLoadingIndexedData, setIsLoadingIndexedData] = useState(false);
   const [indexedData, setIndexedData] = useState(pool.indexedData);
+  const [showBoostModal, setShowBoostModal] = useState(false);
 
   const fetchIndexedData = useCallback(async () => {
     setIsLoadingIndexedData(true);
@@ -288,7 +305,9 @@ export default function EnhancedPoolCard({
                         pool.odds >= 150 ? 'INTERMEDIATE' : 'BEGINNER';
   
   // Generate a proper title from the pool data
-  const displayTitle = pool.predictedOutcome && pool.predictedOutcome !== '0x' && pool.predictedOutcome.length > 10 
+  const displayTitle = pool.isComboPool 
+    ? `Combo Pool #${pool.id} (${pool.comboConditions?.length || 0} conditions)`
+    : pool.predictedOutcome && pool.predictedOutcome !== '0x' && pool.predictedOutcome.length > 10 
     ? generateProfessionalTitle(pool.predictedOutcome, pool.category || 'sports')
     : `${(pool.category || 'sports').charAt(0).toUpperCase() + (pool.category || 'sports').slice(1)} Pool #${pool.id}`;
   
@@ -364,6 +383,33 @@ export default function EnhancedPoolCard({
     return icons[category] || '🎯';
   };
 
+  // Check if current user is the pool creator
+  const isCreator = address && address.toLowerCase() === pool.creator.toLowerCase();
+  
+  // Check if pool can be boosted (before event starts)
+  const canBoost = isCreator && pool.eventStartTime > Date.now() / 1000;
+  
+  // Boost tier costs
+  const boostCosts = {
+    'BRONZE': 2,
+    'SILVER': 3,
+    'GOLD': 5
+  };
+
+  const handleBoostClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click
+    if (canBoost && onBoostPool) {
+      setShowBoostModal(true);
+    }
+  };
+
+  const handleBoostTierSelect = (tier: 'BRONZE' | 'SILVER' | 'GOLD') => {
+    if (onBoostPool) {
+      onBoostPool(pool.id, tier);
+      setShowBoostModal(false);
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 30, scale: 0.9 }}
@@ -410,6 +456,14 @@ export default function EnhancedPoolCard({
           </div>
         )}
 
+        {/* Combo Pool Badge */}
+        {pool.isComboPool && (
+          <div className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+            <SparklesIcon className="w-3 h-3" />
+            COMBO
+          </div>
+        )}
+
         {/* Hot Badge from indexed data */}
         {indexedData?.isHot && (
           <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
@@ -429,6 +483,17 @@ export default function EnhancedPoolCard({
             <ClockIcon className="w-3 h-3" />
             {pool.status.toUpperCase()}
           </div>
+        )}
+
+        {/* Boost Button - Only show for creators */}
+        {showBoostButton && canBoost && (
+          <button
+            onClick={handleBoostClick}
+            className="px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 bg-gradient-to-r from-yellow-500 to-orange-500 text-black hover:from-yellow-400 hover:to-orange-400 transition-all transform hover:scale-105"
+          >
+            <BoltIcon className="w-3 h-3" />
+            BOOST
+          </button>
         )}
       </div>
 
@@ -479,36 +544,68 @@ export default function EnhancedPoolCard({
         </div>
       )}
 
-      {/* Creator Prediction Section */}
-              <div className="mb-3 p-3 glass-card bg-gradient-to-br from-gray-800/40 to-gray-900/40 rounded-lg border border-gray-600/30 flex-shrink-0 backdrop-blur-md shadow-lg">
-        <div className="mb-2">
-          <div className="text-xs text-warning mb-1 flex items-center gap-1">
-            <BoltIcon className="w-3 h-3" />
-            Creator believes this WON&apos;T happen
-          </div>
-          <div className="text-xs text-text-muted">
-            Challenging users who think it WILL happen
-          </div>
-        </div>
-        
-        {/* Betting Options */}
-        <div className="flex items-center justify-between">
-          <div className="text-center">
-            <div className="text-xs text-gray-400">Odds</div>
-            <div className={`text-lg font-bold ${theme.accent}`}>
-              {pool.odds.toFixed(2)}x
+      {/* Creator Prediction Section or Combo Pool Section */}
+      {pool.isComboPool ? (
+        <div className="mb-3 p-3 glass-card bg-gradient-to-br from-purple-800/40 to-indigo-900/40 rounded-lg border border-purple-600/30 flex-shrink-0 backdrop-blur-md shadow-lg">
+          <div className="mb-2">
+            <div className="text-xs text-purple-400 mb-1 flex items-center gap-1">
+              <SparklesIcon className="w-3 h-3" />
+              Multi-Condition Pool
+            </div>
+            <div className="text-xs text-gray-400">
+              All {pool.comboConditions?.length || 0} conditions must be correct to win
             </div>
           </div>
           
-          {/* Challenging Option */}
-          <div className="text-center">
-            <div className="text-xs text-gray-400">Challenge</div>
-            <div className="px-3 py-1 rounded text-xs font-medium bg-success/20 border border-success/30 text-success">
-              YES
+          {/* Combo Pool Info */}
+          <div className="flex items-center justify-between">
+            <div className="text-center">
+              <div className="text-xs text-gray-400">Combined Odds</div>
+              <div className={`text-lg font-bold ${theme.accent}`}>
+                {pool.comboOdds?.toFixed(2) || pool.odds.toFixed(2)}x
+              </div>
+            </div>
+            
+            {/* Conditions Count */}
+            <div className="text-center">
+              <div className="text-xs text-gray-400">Conditions</div>
+              <div className="px-3 py-1 rounded text-xs font-medium bg-purple-500/20 border border-purple-500/30 text-purple-400">
+                {pool.comboConditions?.length || 0}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="mb-3 p-3 glass-card bg-gradient-to-br from-gray-800/40 to-gray-900/40 rounded-lg border border-gray-600/30 flex-shrink-0 backdrop-blur-md shadow-lg">
+          <div className="mb-2">
+            <div className="text-xs text-warning mb-1 flex items-center gap-1">
+              <BoltIcon className="w-3 h-3" />
+              Creator believes this WON&apos;T happen
+            </div>
+            <div className="text-xs text-text-muted">
+              Challenging users who think it WILL happen
+            </div>
+          </div>
+          
+          {/* Betting Options */}
+          <div className="flex items-center justify-between">
+            <div className="text-center">
+              <div className="text-xs text-gray-400">Odds</div>
+              <div className={`text-lg font-bold ${theme.accent}`}>
+                {pool.odds.toFixed(2)}x
+              </div>
+            </div>
+            
+            {/* Challenging Option */}
+            <div className="text-center">
+              <div className="text-xs text-gray-400">Challenge</div>
+              <div className="px-3 py-1 rounded text-xs font-medium bg-success/20 border border-success/30 text-success">
+                YES
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Enhanced Stats with Indexed Data */}
       <div className="grid grid-cols-3 gap-3 mb-3 text-center flex-shrink-0">
@@ -576,6 +673,75 @@ export default function EnhancedPoolCard({
               {Math.abs(pool.change24h).toFixed(1)}%
             </div>
           )}
+        </div>
+      )}
+
+      {/* Boost Modal */}
+      {showBoostModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-gray-800 rounded-2xl p-6 max-w-md w-full border border-gray-600/30"
+          >
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <BoltIcon className="w-8 h-8 text-black" />
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">Boost Your Pool</h3>
+              <p className="text-gray-400 text-sm">
+                Increase visibility and attract more participants with a boost
+              </p>
+            </div>
+
+            <div className="space-y-3 mb-6">
+              {(['BRONZE', 'SILVER', 'GOLD'] as const).map((tier) => (
+                <button
+                  key={tier}
+                  onClick={() => handleBoostTierSelect(tier)}
+                  className={`w-full p-4 rounded-xl border-2 transition-all text-left ${
+                    tier === 'GOLD' 
+                      ? 'border-yellow-500/50 bg-yellow-500/10 hover:bg-yellow-500/20' 
+                      : tier === 'SILVER'
+                      ? 'border-gray-400/50 bg-gray-400/10 hover:bg-gray-400/20'
+                      : 'border-orange-500/50 bg-orange-500/10 hover:bg-orange-500/20'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                        tier === 'GOLD' ? 'bg-yellow-500' : 
+                        tier === 'SILVER' ? 'bg-gray-400' : 'bg-orange-500'
+                      }`}>
+                        <BoltIcon className="w-4 h-4 text-black" />
+                      </div>
+                      <div>
+                        <div className="font-bold text-white">{tier}</div>
+                        <div className="text-xs text-gray-400">
+                          {tier === 'GOLD' ? 'Pinned to top + Gold badge' :
+                           tier === 'SILVER' ? 'Front page + highlighted' :
+                           'Higher ranking'}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-bold text-white">{boostCosts[tier]} STT</div>
+                      <div className="text-xs text-gray-400">24h duration</div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowBoostModal(false)}
+                className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-500 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </motion.div>
         </div>
       )}
     </motion.div>

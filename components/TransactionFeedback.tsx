@@ -12,6 +12,9 @@ export interface TransactionStatus {
   onAction?: () => void;
   progress?: number; // For progress tracking
   estimatedTime?: number; // Estimated completion time in seconds
+  boostTier?: string; // For boost-related transactions
+  totalCost?: string; // Total cost including boost
+  poolId?: string; // Pool ID for successful creation
 }
 
 interface TransactionFeedbackProps {
@@ -250,6 +253,49 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
                 {status.message}
               </p>
 
+              {/* Boost Information */}
+              {status.boostTier && status.boostTier !== 'NONE' && (
+                <div className="p-4 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-semibold text-white mb-1">
+                        Boost Applied: {status.boostTier}
+                      </h4>
+                      <p className="text-xs text-gray-400">
+                        Your pool will have enhanced visibility and priority placement
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-lg font-bold text-white">
+                        {status.boostTier === 'BRONZE' && '🥉'}
+                        {status.boostTier === 'SILVER' && '🥈'}
+                        {status.boostTier === 'GOLD' && '🥇'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Total Cost Information */}
+              {status.totalCost && (
+                <div className="p-3 bg-gray-800/50 rounded-lg border border-gray-600">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-300">Total Cost:</span>
+                    <span className="text-sm font-bold text-white">{status.totalCost}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Pool ID */}
+              {status.poolId && (
+                <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-green-400">Pool ID:</span>
+                    <span className="text-sm font-bold text-white font-mono">{status.poolId}</span>
+                  </div>
+                </div>
+              )}
+
               {/* Transaction Hash */}
               {status.hash && (
                 <div className="space-y-3">
@@ -306,12 +352,15 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
 export const useTransactionFeedback = () => {
   const [transactionStatus, setTransactionStatus] = useState<TransactionStatus | null>(null);
 
-  const showSuccess = (title: string, message: string, hash?: string) => {
+  const showSuccess = (title: string, message: string, hash?: string, boostTier?: string, totalCost?: string, poolId?: string) => {
     setTransactionStatus({
       type: 'success',
       title,
       message,
-      hash
+      hash,
+      boostTier,
+      totalCost,
+      poolId
     });
   };
 

@@ -1,33 +1,36 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
-// Removed unused imports: parseEther, parseUnits, formatUnits, keccak256, solidityPacked, toUtf8Bytes
-
-
-import { toast } from "react-hot-toast";
-import { useTransactionFeedback, TransactionFeedback } from "@/components/TransactionFeedback";
+import { useRouter, useSearchParams } from "next/navigation";
 import { 
-  ExclamationTriangleIcon,
+  ArrowLeftIcon, 
+  XMarkIcon,
+  ChartBarIcon,
+  CubeIcon,
+  SparklesIcon,
   CheckCircleIcon,
   MagnifyingGlassIcon,
   ShieldCheckIcon,
   HandRaisedIcon,
   CheckIcon
 } from "@heroicons/react/24/outline";
+import { toast } from "react-hot-toast";
+import { useTransactionFeedback, TransactionFeedback } from "@/components/TransactionFeedback";
 import Button from "@/components/button";
 import AmountInput from "@/components/AmountInput";
 import Textarea from "@/components/textarea";
 import AnimatedTitle from "@/components/AnimatedTitle";
 import FixtureSelector from "@/components/FixtureSelector";
+import MarketTypeSelector from "@/components/MarketTypeSelector";
+import ComboPoolCreationForm from "@/components/ComboPoolCreationForm";
 import { useReputationStore } from "@/stores/useReputationStore";
 import ReputationBadge from "@/components/ReputationBadge";
 import { GuidedMarketService, Cryptocurrency, FootballMatch } from "@/services/guidedMarketService";
 import { useGuidedMarketCreation } from "@/services/guidedMarketWalletService";
 import { useWalletConnection } from "@/hooks/useWalletConnection";
-// import { CONTRACTS } from "@/contracts"; // Commented out as not currently used
 import { useBITRToken } from "@/hooks/useBITRToken";
 
 
@@ -122,7 +125,11 @@ interface GuidedMarketData {
   userEventStartTime?: Date;
 }
 
+type MarketType = 'guided' | 'combo' | null;
+
 export default function CreateMarketPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { address, isConnected } = useAccount();
 
   const { connectWallet, isConnecting } = useWalletConnection();
@@ -136,6 +143,9 @@ export default function CreateMarketPage() {
   
   // BITR Token approval state
   const [approvalConfirmed, setApprovalConfirmed] = useState(false);
+  
+  // Market type selection
+  const [selectedType, setSelectedType] = useState<MarketType>(null);
 
   const [data, setData] = useState<GuidedMarketData>({
     category: '',
@@ -161,6 +171,48 @@ export default function CreateMarketPage() {
   const canCreate = address ? canCreateMarket(address) : false;
 
   const token = useBITRToken();
+
+  // Check URL params for pre-selected type
+  useEffect(() => {
+    const type = searchParams.get('type');
+    if (type === 'guided' || type === 'combo') {
+      setSelectedType(type);
+    }
+  }, [searchParams]);
+
+  const handleTypeSelect = (type: 'guided' | 'combo') => {
+    setSelectedType(type);
+    // Update URL without page reload
+    const newUrl = new URL(window.location.href);
+    newUrl.searchParams.set('type', type);
+    window.history.replaceState({}, '', newUrl.toString());
+  };
+
+  const handleBack = () => {
+    if (selectedType) {
+      setSelectedType(null);
+      // Remove type from URL
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('type');
+      window.history.replaceState({}, '', newUrl.toString());
+    } else {
+      router.push('/markets');
+    }
+  };
+
+  const handleSuccess = (poolId: string) => {
+    setIsCreating(false);
+    // Navigate to the created pool
+    if (selectedType === 'combo') {
+      router.push(`/markets/combo/${poolId}`);
+    } else {
+      router.push(`/bet/${poolId}`);
+    }
+  };
+
+  const handleClose = () => {
+    router.push('/markets');
+  };
 
   // Notify backend about pool creation for immediate indexing
   const notifyPoolCreation = useCallback(async (transactionHash: string) => {
@@ -853,7 +905,23 @@ export default function CreateMarketPage() {
         const result = await createFootballMarket(marketData);
         
         if (result.success) {
-          showSuccess('Market Created!', 'Your football prediction market has been created successfully!', result.transactionHash);
+          // Calculate total cost for display
+          const creationFee = useBitr ? '50 BITR' : '1 STT';
+          const boostCost = data.boostTier && data.boostTier !== 'NONE' 
+            ? `${data.boostTier === 'BRONZE' ? '2' : data.boostTier === 'SILVER' ? '5' : '10'} ${useBitr ? 'BITR' : 'STT'}`
+            : '0';
+          const totalCost = data.boostTier && data.boostTier !== 'NONE' 
+            ? `${boostCost} + ${creationFee}`
+            : creationFee;
+
+          showSuccess(
+            'Market Created Successfully!', 
+            'Your football prediction market has been created and is now live on the blockchain!', 
+            result.transactionHash,
+            data.boostTier,
+            totalCost,
+            result.poolId || 'TBD'
+          );
           
           // Add reputation for market creation
           if (address) {
@@ -900,7 +968,24 @@ export default function CreateMarketPage() {
       }
       
         console.log('Crypto market created successfully:', result.data);
-        showSuccess('Market Created!', 'Your cryptocurrency prediction market has been created successfully!', result.data.transactionHash);
+        
+        // Calculate total cost for display
+        const creationFee = useBitr ? '50 BITR' : '1 STT';
+        const boostCost = data.boostTier && data.boostTier !== 'NONE' 
+          ? `${data.boostTier === 'BRONZE' ? '2' : data.boostTier === 'SILVER' ? '5' : '10'} ${useBitr ? 'BITR' : 'STT'}`
+          : '0';
+        const totalCost = data.boostTier && data.boostTier !== 'NONE' 
+          ? `${boostCost} + ${creationFee}`
+          : creationFee;
+
+        showSuccess(
+          'Market Created Successfully!', 
+          'Your cryptocurrency prediction market has been created and is now live on the blockchain!', 
+          result.data.transactionHash,
+          data.boostTier,
+          totalCost,
+          result.data.poolId || 'TBD'
+        );
         
         // Add reputation for market creation
         if (address) {
@@ -1511,7 +1596,9 @@ export default function CreateMarketPage() {
           <p className="text-xs text-gray-400 mb-3">
             Boost your market for better visibility and higher rewards. Boost fees are distributed to winners.
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+          
+          {/* Boost Tier Selection */}
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-4">
             <motion.button
               whileHover={{ scale: 1.02 }}
               onClick={() => handleInputChange('boostTier', 'NONE')}
@@ -1546,7 +1633,7 @@ export default function CreateMarketPage() {
               }`}
             >
               <div className="font-semibold text-sm">🥈 Silver</div>
-              <div className="text-xs mt-1">3 {useBitr ? 'BITR' : 'STT'}</div>
+              <div className="text-xs mt-1">5 {useBitr ? 'BITR' : 'STT'}</div>
             </motion.button>
             <motion.button
               whileHover={{ scale: 1.02 }}
@@ -1558,9 +1645,45 @@ export default function CreateMarketPage() {
               }`}
             >
               <div className="font-semibold text-sm">🥇 Gold</div>
-              <div className="text-xs mt-1">5 {useBitr ? 'BITR' : 'STT'}</div>
+              <div className="text-xs mt-1">10 {useBitr ? 'BITR' : 'STT'}</div>
             </motion.button>
           </div>
+
+          {/* Boost Cost Preview */}
+          {data.boostTier && data.boostTier !== 'NONE' && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="p-4 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20 rounded-lg"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-semibold text-white mb-1">
+                    Boost Cost Preview
+                  </h4>
+                  <p className="text-xs text-gray-400">
+                    {data.boostTier === 'BRONZE' && '🥉 Bronze Boost - Enhanced visibility'}
+                    {data.boostTier === 'SILVER' && '🥈 Silver Boost - Premium placement'}
+                    {data.boostTier === 'GOLD' && '🥇 Gold Boost - Maximum exposure'}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <div className="text-lg font-bold text-white">
+                    {data.boostTier === 'BRONZE' && '2'}
+                    {data.boostTier === 'SILVER' && '5'}
+                    {data.boostTier === 'GOLD' && '10'}
+                    <span className="text-sm text-gray-400 ml-1">
+                      {useBitr ? 'BITR' : 'STT'}
+                    </span>
+                  </div>
+                  <div className="text-xs text-gray-400">
+                    + Creation Fee
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
         </div>
 
         {/* Privacy and Limits */}
@@ -1761,6 +1884,33 @@ export default function CreateMarketPage() {
         <div className="p-4 sm:p-6 bg-gray-800/50 rounded-lg border border-gray-600">
           <h4 className="font-semibold text-white mb-4 text-base sm:text-lg">Market Summary</h4>
           
+          {/* Cost Summary */}
+          <div className="mb-4 p-3 bg-gray-700/50 rounded-lg border border-gray-600">
+            <h5 className="text-sm font-semibold text-white mb-2">Cost Breakdown</h5>
+            <div className="space-y-1 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-300">Creation Fee:</span>
+                <span className="text-white">{useBitr ? '50 BITR' : '1 STT'}</span>
+              </div>
+              {data.boostTier && data.boostTier !== 'NONE' && (
+                <div className="flex justify-between">
+                  <span className="text-gray-300">Boost Fee ({data.boostTier}):</span>
+                  <span className="text-white">
+                    {data.boostTier === 'BRONZE' ? '2' : data.boostTier === 'SILVER' ? '5' : '10'} {useBitr ? 'BITR' : 'STT'}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between border-t border-gray-600 pt-1">
+                <span className="text-gray-300 font-semibold">Total Cost:</span>
+                <span className="text-white font-bold">
+                  {data.boostTier && data.boostTier !== 'NONE' 
+                    ? `${data.boostTier === 'BRONZE' ? '2' : data.boostTier === 'SILVER' ? '5' : '10'} + ${useBitr ? '50' : '1'} = ${data.boostTier === 'BRONZE' ? '52' : data.boostTier === 'SILVER' ? '55' : '60'} ${useBitr ? 'BITR' : 'STT'}`
+                    : `${useBitr ? '50 BITR' : '1 STT'}`}
+                </span>
+              </div>
+            </div>
+          </div>
+          
           {data.selectedFixture && (
             <div className="space-y-3 text-sm sm:text-base">
               <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
@@ -1929,121 +2079,108 @@ export default function CreateMarketPage() {
     </div>
   );
 
-  if (!isConnected) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <ExclamationTriangleIcon className="h-12 w-12 text-yellow-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-white mb-2">Wallet Not Connected</h2>
-          <p className="text-gray-400 mb-6">Please connect your wallet to create prediction markets.</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!canCreate) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
-        <div className="text-center max-w-md">
-          <ShieldCheckIcon className="h-12 w-12 text-red-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-white mb-2">Insufficient Reputation</h2>
-          <p className="text-gray-400 mb-6">
-            You need at least 40 reputation points to create guided markets. 
-            Participate in existing markets to build your reputation.
-          </p>
-          {userReputation && (
-            <div className="mb-6">
-              <ReputationBadge 
-                reputation={userReputation} 
-                size="lg"
-              />
-            </div>
-          )}
-          <Button
-            onClick={() => window.location.href = '/markets'}
-            variant="primary"
+  const renderContent = () => {
+    if (!isConnected) {
+      return (
+        <div className="text-center py-16">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-md mx-auto"
           >
-            Browse Markets
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-      {/* Transaction Feedback */}
-      <TransactionFeedback
-        status={transactionStatus}
-        onClose={clearStatus}
-        autoClose={true}
-        autoCloseDelay={5000}
-      />
-      
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <AnimatedTitle>Create Prediction Market</AnimatedTitle>
-            <p className="text-gray-400 mt-4 max-w-2xl mx-auto px-4">
-              Create guided prediction markets with real-time data sources. 
-              Build your reputation and earn from accurate predictions.
+            <div className="w-20 h-20 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-6">
+              <SparklesIcon className="h-10 w-10 text-white" />
+            </div>
+            <h2 className="text-2xl font-bold text-text-primary mb-4">
+              Connect Your Wallet
+            </h2>
+            <p className="text-text-secondary mb-8">
+              Connect your wallet to start creating prediction markets and earning rewards.
             </p>
-            
+            <Button onClick={connectWallet} variant="primary" size="lg">
+              Connect Wallet
+            </Button>
+          </motion.div>
+        </div>
+      );
+    }
+
+    if (!canCreate) {
+      return (
+        <div className="text-center py-16">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-md mx-auto"
+          >
+            <ShieldCheckIcon className="h-12 w-12 text-error mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-text-primary mb-2">Insufficient Reputation</h2>
+            <p className="text-text-secondary mb-6">
+              You need higher reputation to create prediction markets. Participate in existing markets to build your reputation.
+            </p>
             {userReputation && (
-              <div className="mt-6 flex justify-center">
+              <div className="mb-6">
                 <ReputationBadge 
-                  reputation={userReputation}
+                  reputation={userReputation} 
+                  size="lg"
                 />
               </div>
             )}
-          </div>
+            <Button
+              onClick={() => router.push('/markets')}
+              variant="primary"
+            >
+              Browse Markets
+            </Button>
+          </motion.div>
+        </div>
+      );
+    }
 
+    if (!selectedType) {
+      return (
+        <MarketTypeSelector
+          selectedType={selectedType}
+          onSelectType={handleTypeSelect}
+        />
+      );
+    }
+
+    if (selectedType === 'guided') {
+      return (
+        <div className="space-y-6">
           {/* Progress Steps */}
-          <div className="mb-8 px-4">
-            <div className="flex items-center justify-center space-x-2 sm:space-x-4">
-              {[1, 2, 3].map((stepNumber) => (
-                <React.Fragment key={stepNumber}>
-                  <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold ${
-                    step >= stepNumber 
-                      ? 'bg-cyan-500 text-white' 
-                      : 'bg-gray-700 text-gray-400'
-                  }`}>
-                    {isSuccess && stepNumber === 3 ? (
-                      <CheckCircleIcon className="h-4 w-4 sm:h-5 sm:w-5" />
-                    ) : (
-                      stepNumber
-                    )}
-                  </div>
-                  {stepNumber < 3 && (
-                    <div className={`h-1 w-8 sm:w-16 ${
-                      step > stepNumber ? 'bg-cyan-500' : 'bg-gray-700'
-                    }`} />
+          <div className="flex items-center justify-center space-x-4">
+            {[1, 2, 3].map((stepNumber) => (
+              <React.Fragment key={stepNumber}>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold ${
+                  step >= stepNumber 
+                    ? 'bg-primary text-white' 
+                    : 'bg-bg-card text-text-muted'
+                }`}>
+                  {isSuccess && stepNumber === 3 ? (
+                    <CheckCircleIcon className="h-4 w-4" />
+                  ) : (
+                    stepNumber
                   )}
-                </React.Fragment>
-              ))}
-            </div>
-            <div className="flex justify-center space-x-8 sm:space-x-16 mt-2">
-              <div className="text-center w-16 sm:w-20">
-                <span className="text-xs text-gray-400">Select Market</span>
-              </div>
-              <div className="text-center w-16 sm:w-20">
-                <span className="text-xs text-gray-400">Configure</span>
-              </div>
-              <div className="text-center w-16 sm:w-20">
-                <span className="text-xs text-gray-400">Deploy</span>
-              </div>
-            </div>
+                </div>
+                {stepNumber < 3 && (
+                  <div className={`h-1 w-16 ${
+                    step > stepNumber ? 'bg-primary' : 'bg-bg-card'
+                  }`} />
+                )}
+              </React.Fragment>
+            ))}
           </div>
 
-          {/* Main Content */}
+          {/* Guided Market Creation Form */}
           <motion.div
             key={step}
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
             transition={{ duration: 0.3 }}
-            className="bg-gray-800/50 backdrop-blur-sm rounded-2xl p-4 sm:p-8 border border-gray-700 mx-4"
+            className="glass-card p-8 border border-border-card"
           >
             {step === 1 && renderCategorySelection()}
             {step === 2 && renderMarketDetails()}
@@ -2053,12 +2190,11 @@ export default function CreateMarketPage() {
 
           {/* Navigation */}
           {step < 3 && !isSuccess && (
-            <div className="flex flex-col sm:flex-row justify-between mt-8 gap-4 px-4">
+            <div className="flex justify-between">
               <Button
                 onClick={handlePrevStep}
                 variant="outline"
                 disabled={step === 1}
-                className="w-full sm:w-auto"
               >
                 Previous
               </Button>
@@ -2066,26 +2202,139 @@ export default function CreateMarketPage() {
               <Button
                 onClick={handleNextStep}
                 variant="primary"
-                className="w-full sm:w-auto"
               >
                 Next
               </Button>
             </div>
           )}
-          
-          {/* Deploy Page Navigation */}
-          {step === 3 && !isSuccess && (
-            <div className="flex flex-col sm:flex-row justify-between mt-8 gap-4 px-4">
-              <Button
-                onClick={handlePrevStep}
-                variant="outline"
-                className="w-full sm:w-auto"
-              >
-                Back to Configure
-              </Button>
-            </div>
-          )}
         </div>
+      );
+    }
+
+    if (selectedType === 'combo') {
+      return (
+        <ComboPoolCreationForm
+          onSuccess={handleSuccess}
+          onClose={handleClose}
+        />
+      );
+    }
+
+    return null;
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-main">
+      {/* Transaction Feedback */}
+      <TransactionFeedback
+        status={transactionStatus}
+        onClose={clearStatus}
+        autoClose={true}
+        autoCloseDelay={5000}
+      />
+      
+      {/* Header */}
+      <motion.header
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="sticky top-0 z-50 backdrop-blur-md bg-bg-main/80 border-b border-border-card"
+      >
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button
+                onClick={handleBack}
+                variant="ghost"
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <ArrowLeftIcon className="h-4 w-4" />
+                Back
+              </Button>
+              
+              {selectedType && (
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
+                    {selectedType === 'guided' ? (
+                      <ChartBarIcon className="h-4 w-4 text-white" />
+                    ) : (
+                      <CubeIcon className="h-4 w-4 text-white" />
+                    )}
+                  </div>
+                  <div>
+                    <h1 className="text-lg font-semibold text-text-primary">
+                      {selectedType === 'guided' ? 'Guided Single Pool' : 'Combo Pool'}
+                    </h1>
+                    <p className="text-sm text-text-muted">
+                      {selectedType === 'guided' 
+                        ? 'Create with real-time data integration' 
+                        : 'Combine multiple predictions for higher rewards'
+                      }
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <Button
+              onClick={handleClose}
+              variant="ghost"
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <XMarkIcon className="h-4 w-4" />
+              Close
+            </Button>
+          </div>
+        </div>
+      </motion.header>
+
+      {/* Main Content */}
+      <main className="container mx-auto px-6 py-8">
+        <AnimatePresence mode="wait">
+          {!selectedType && (
+            <motion.div
+              key="type-selector"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="text-center mb-12"
+            >
+              <AnimatedTitle>Create Prediction Market</AnimatedTitle>
+              <p className="text-xl text-text-secondary mt-4 max-w-3xl mx-auto">
+                Choose your market type and start creating prediction pools. 
+                Each type offers different risk levels and reward potential.
+              </p>
+              
+              {userReputation && (
+                <div className="mt-6 flex justify-center">
+                  <ReputationBadge 
+                    reputation={userReputation}
+                  />
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={selectedType || 'type-selector'}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            {renderContent()}
+          </motion.div>
+        </AnimatePresence>
+      </main>
+
+      {/* Background Effects */}
+      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl animate-float" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-accent/5 rounded-full blur-3xl animate-float" style={{ animationDelay: '2s' }} />
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-secondary/5 rounded-full blur-3xl animate-float" style={{ animationDelay: '4s' }} />
       </div>
     </div>
   );

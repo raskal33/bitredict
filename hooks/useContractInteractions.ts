@@ -1,0 +1,318 @@
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { CONTRACTS, CONTRACT_ADDRESSES } from '@/contracts';
+import { executeContractCall, getTransactionOptions } from '@/lib/network-connection';
+import { useCallback, useMemo } from 'react';
+import { toast } from 'react-hot-toast';
+
+// Enhanced contract interaction hooks for modular architecture
+
+// Pool Core Contract Hooks
+export function usePoolCore() {
+  const { address } = useAccount();
+  const { writeContractAsync } = useWriteContract();
+
+  const createPool = useCallback(async (poolData: {
+    predictedOutcome: string;
+    odds: bigint;
+    eventStartTime: bigint;
+    eventEndTime: bigint;
+    league: string;
+    category: string;
+    useBitr: boolean;
+    maxBetPerUser?: bigint;
+    isPrivate?: boolean;
+  }) => {
+    try {
+      const txHash = await writeContractAsync({
+        address: CONTRACT_ADDRESSES.POOL_CORE,
+        abi: CONTRACTS.POOL_CORE.abi,
+        functionName: 'createPool',
+        args: [
+          poolData.predictedOutcome,
+          poolData.odds,
+          poolData.eventStartTime,
+          poolData.eventEndTime,
+          poolData.league,
+          poolData.category,
+          poolData.useBitr,
+          poolData.maxBetPerUser || 0n,
+          poolData.isPrivate || false,
+        ],
+        ...getTransactionOptions(),
+      });
+      
+      toast.success('Pool creation transaction submitted!');
+      return txHash;
+    } catch (error) {
+      console.error('Error creating pool:', error);
+      toast.error('Failed to create pool');
+      throw error;
+    }
+  }, [writeContractAsync]);
+
+  const placeBet = useCallback(async (poolId: bigint, betAmount: bigint, isCreatorSide: boolean) => {
+    try {
+      const txHash = await writeContractAsync({
+        address: CONTRACT_ADDRESSES.POOL_CORE,
+        abi: CONTRACTS.POOL_CORE.abi,
+        functionName: 'placeBet',
+        args: [poolId, betAmount, isCreatorSide],
+        value: betAmount,
+        ...getTransactionOptions(),
+      });
+      
+      toast.success('Bet placed successfully!');
+      return txHash;
+    } catch (error) {
+      console.error('Error placing bet:', error);
+      toast.error('Failed to place bet');
+      throw error;
+    }
+  }, [writeContractAsync]);
+
+  const settlePool = useCallback(async (poolId: bigint, outcome: string) => {
+    try {
+      const txHash = await writeContractAsync({
+        address: CONTRACT_ADDRESSES.POOL_CORE,
+        abi: CONTRACTS.POOL_CORE.abi,
+        functionName: 'settlePool',
+        args: [poolId, outcome],
+        ...getTransactionOptions(),
+      });
+      
+      toast.success('Pool settled successfully!');
+      return txHash;
+    } catch (error) {
+      console.error('Error settling pool:', error);
+      toast.error('Failed to settle pool');
+      throw error;
+    }
+  }, [writeContractAsync]);
+
+  return {
+    createPool,
+    placeBet,
+    settlePool,
+  };
+}
+
+// Boost System Contract Hooks
+export function useBoostSystem() {
+  const { writeContractAsync } = useWriteContract();
+
+  const boostPool = useCallback(async (poolId: bigint, boostTier: number) => {
+    try {
+      const txHash = await writeContractAsync({
+        address: CONTRACT_ADDRESSES.BOOST_SYSTEM,
+        abi: CONTRACTS.BOOST_SYSTEM.abi,
+        functionName: 'boostPool',
+        args: [poolId, boostTier],
+        ...getTransactionOptions(),
+      });
+      
+      toast.success('Pool boosted successfully!');
+      return txHash;
+    } catch (error) {
+      console.error('Error boosting pool:', error);
+      toast.error('Failed to boost pool');
+      throw error;
+    }
+  }, [writeContractAsync]);
+
+  const canBoostPool = useCallback(async (poolId: bigint) => {
+    try {
+      const result = await executeContractCall(async (client) => {
+        return await client.readContract({
+          address: CONTRACT_ADDRESSES.BOOST_SYSTEM,
+          abi: CONTRACTS.BOOST_SYSTEM.abi,
+          functionName: 'canBoostPool',
+          args: [poolId],
+        });
+      });
+      return result as boolean;
+    } catch (error) {
+      console.error('Error checking boost eligibility:', error);
+      return false;
+    }
+  }, []);
+
+  return {
+    boostPool,
+    canBoostPool,
+  };
+}
+
+// Factory Contract Hooks
+export function usePoolFactory() {
+  const { writeContractAsync } = useWriteContract();
+
+  const createPoolWithBoost = useCallback(async (poolData: {
+    predictedOutcome: string;
+    odds: bigint;
+    eventStartTime: bigint;
+    eventEndTime: bigint;
+    league: string;
+    category: string;
+    useBitr: boolean;
+    maxBetPerUser?: bigint;
+    isPrivate?: boolean;
+    boostTier?: number;
+  }) => {
+    try {
+      const txHash = await writeContractAsync({
+        address: CONTRACT_ADDRESSES.FACTORY,
+        abi: CONTRACTS.FACTORY.abi,
+        functionName: 'createPoolWithBoost',
+        args: [
+          poolData.predictedOutcome,
+          poolData.odds,
+          poolData.eventStartTime,
+          poolData.eventEndTime,
+          poolData.league,
+          poolData.category,
+          poolData.useBitr,
+          poolData.maxBetPerUser || 0n,
+          poolData.isPrivate || false,
+          poolData.boostTier || 0,
+        ],
+        ...getTransactionOptions(),
+      });
+      
+      toast.success('Pool with boost created successfully!');
+      return txHash;
+    } catch (error) {
+      console.error('Error creating pool with boost:', error);
+      toast.error('Failed to create pool with boost');
+      throw error;
+    }
+  }, [writeContractAsync]);
+
+  return {
+    createPoolWithBoost,
+  };
+}
+
+// Reputation System Hooks
+export function useReputationSystem() {
+  const { address } = useAccount();
+  const { writeContractAsync } = useWriteContract();
+
+  const getUserReputation = useCallback(async (userAddress?: string) => {
+    try {
+      const result = await executeContractCall(async (client) => {
+        return await client.readContract({
+          address: CONTRACT_ADDRESSES.REPUTATION_SYSTEM,
+          abi: CONTRACTS.REPUTATION_SYSTEM.abi,
+          functionName: 'getUserReputation',
+          args: [userAddress || address || '0x0'],
+        });
+      });
+      return result as {
+        reputation: bigint;
+        tier: number;
+        influenceScore: bigint;
+        streak: bigint;
+        isVerified: boolean;
+      };
+    } catch (error) {
+      console.error('Error getting user reputation:', error);
+      return null;
+    }
+  }, [address]);
+
+  const getUserStats = useCallback(async (userAddress?: string) => {
+    try {
+      const result = await executeContractCall(async (client) => {
+        return await client.readContract({
+          address: CONTRACT_ADDRESSES.REPUTATION_SYSTEM,
+          abi: CONTRACTS.REPUTATION_SYSTEM.abi,
+          functionName: 'getUserStats',
+          args: [userAddress || address || '0x0'],
+        });
+      });
+      return result as {
+        totalPools: bigint;
+        totalBets: bigint;
+        totalWinnings: bigint;
+        winRate: bigint;
+        averageOdds: bigint;
+      };
+    } catch (error) {
+      console.error('Error getting user stats:', error);
+      return null;
+    }
+  }, [address]);
+
+  return {
+    getUserReputation,
+    getUserStats,
+  };
+}
+
+// Faucet Hooks
+export function useFaucet() {
+  const { address } = useAccount();
+  const { writeContractAsync } = useWriteContract();
+
+  const claimFaucet = useCallback(async () => {
+    if (!address) {
+      toast.error('Please connect your wallet first');
+      return;
+    }
+
+    try {
+      const txHash = await writeContractAsync({
+        address: CONTRACT_ADDRESSES.FAUCET,
+        abi: CONTRACTS.FAUCET.abi,
+        functionName: 'claimFaucet',
+        args: [],
+        ...getTransactionOptions(),
+      });
+      
+      toast.success('Faucet claimed successfully!');
+      return txHash;
+    } catch (error) {
+      console.error('Error claiming faucet:', error);
+      toast.error('Failed to claim from faucet');
+      throw error;
+    }
+  }, [address, writeContractAsync]);
+
+  const checkEligibility = useCallback(async () => {
+    if (!address) return false;
+
+    try {
+      const result = await executeContractCall(async (client) => {
+        return await client.readContract({
+          address: CONTRACT_ADDRESSES.FAUCET,
+          abi: CONTRACTS.FAUCET.abi,
+          functionName: 'checkEligibility',
+          args: [address],
+        });
+      });
+      return result as boolean;
+    } catch (error) {
+      console.error('Error checking faucet eligibility:', error);
+      return false;
+    }
+  }, [address]);
+
+  return {
+    claimFaucet,
+    checkEligibility,
+  };
+}
+
+// Transaction status hook
+export function useTransactionStatus(txHash?: `0x${string}`) {
+  const { data: receipt, isLoading, isSuccess, isError } = useWaitForTransactionReceipt({
+    hash: txHash,
+  });
+
+  return {
+    receipt,
+    isLoading,
+    isSuccess,
+    isError,
+  };
+}

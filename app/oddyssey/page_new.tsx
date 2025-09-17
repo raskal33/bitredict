@@ -10,13 +10,12 @@ import {
   ChartBarIcon, 
   ClockIcon,
   CheckCircleIcon,
-  XCircleIcon,
   UserGroupIcon,
   CalendarIcon,
   TableCellsIcon,
   GiftIcon,
   ChevronDownIcon,
-  ChevronUpIcon,
+  ChevronUpIcon
 } from "@heroicons/react/24/outline";
 
 import { useOddyssey } from "@/hooks/useOddyssey";
@@ -42,8 +41,8 @@ interface Match {
 }
 
 interface UserPrediction {
-  matchId: bigint;
-  betType: 0 | 1; // 0 = MONEYLINE, 1 = OVER_UNDER
+  matchId: number;
+  betType: 'MONEYLINE' | 'OVER_UNDER';
   selection: string;
   selectedOdd: number;
 }
@@ -93,6 +92,8 @@ export default function OddysseyPage() {
     prizePool,
     isBettingOpen,
     timeRemaining,
+    prizeDistribution,
+    
     // Backend data
     leaderboard,
     backendStats,
@@ -196,12 +197,12 @@ export default function OddysseyPage() {
 
   // Handle prediction selection
   const handlePredictionSelect = (matchId: number, prediction: string, odds: number) => {
-    const betType = ['1', 'X', '2'].includes(prediction) ? 0 : 1; // 0 = MONEYLINE, 1 = OVER_UNDER
+    const betType = ['1', 'X', '2'].includes(prediction) ? 'MONEYLINE' : 'OVER_UNDER';
     
     setPicks(prev => {
-      const existingIndex = prev.findIndex(p => p.matchId === BigInt(matchId));
+      const existingIndex = prev.findIndex(p => p.matchId === matchId);
       const newPick: UserPrediction = {
-        matchId: BigInt(matchId),
+        matchId,
         betType,
         selection: prediction,
         selectedOdd: Math.round(odds * 1000) // Contract uses 1000 scaling factor
@@ -543,7 +544,7 @@ export default function OddysseyPage() {
                               key={index}
                               className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm"
                             >
-                              Match {pick.matchId.toString()}: {getSelectionName(pick.selection, pick.betType)}
+                              Match {pick.matchId}: {getSelectionName(pick.selection, pick.betType)}
                             </div>
                           ))}
                         </div>
@@ -677,17 +678,12 @@ export default function OddysseyPage() {
                                     </div>
                                     
                                     {prediction.isCorrect !== null && (
-                                      <div className={`px-3 py-1 rounded-full text-sm flex items-center gap-1 ${
+                                      <div className={`px-3 py-1 rounded-full text-sm ${
                                         prediction.isCorrect
                                           ? 'bg-green-500/20 text-green-400'
                                           : 'bg-red-500/20 text-red-400'
                                       }`}>
-                                        {prediction.isCorrect ? (
-                                          <CheckCircleIcon className="w-4 h-4" />
-                                        ) : (
-                                          <XCircleIcon className="w-4 h-4" />
-                                        )}
-                                        {prediction.isCorrect ? 'Correct' : 'Wrong'}
+                                        {prediction.isCorrect ? '✓' : '✗'}
                                       </div>
                                     )}
                                   </div>
@@ -724,21 +720,21 @@ export default function OddysseyPage() {
                     <div className="flex justify-between">
                       <span className="text-gray-400">Total Players</span>
                       <span className="text-white font-semibold">
-                        {backendStats?.total_players?.toLocaleString() || 'N/A'}
+                        {backendStats?.totalPlayers?.toLocaleString() || 'N/A'}
                       </span>
                     </div>
                     
                     <div className="flex justify-between">
                       <span className="text-gray-400">Total Slips</span>
                       <span className="text-white font-semibold">
-                        {backendStats?.total_slips?.toLocaleString() || 'N/A'}
+                        {backendStats?.totalSlips?.toLocaleString() || 'N/A'}
                       </span>
                     </div>
                     
                     <div className="flex justify-between">
                       <span className="text-gray-400">Average Score</span>
                       <span className="text-white font-semibold">
-                        {backendStats?.avg_correct?.toFixed(1) || 'N/A'}x
+                        {backendStats?.avgCorrect?.toFixed(1) || 'N/A'}x
                       </span>
                     </div>
                   </div>

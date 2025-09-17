@@ -2,26 +2,26 @@ import { createAppKit } from '@reown/appkit/react'
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi'
 import { mainnet, sepolia, type AppKitNetwork } from '@reown/appkit/networks'
 
-// Monad Network configuration - CORRECT SETTINGS FROM HARDHAT
-export const monadNetwork: AppKitNetwork = {
-  id: 10143,
-  name: 'Monad Testnet',
+// Somnia Network configuration - PRODUCTION READY
+export const somniaNetwork: AppKitNetwork = {
+  id: 50312,
+  name: 'Somnia Testnet',
   nativeCurrency: {
     decimals: 18,
-    name: 'MON',
-    symbol: 'MON',
+    name: 'STT',
+    symbol: 'STT',
   },
   rpcUrls: {
     default: {
       http: [
         process.env.NODE_ENV === 'development' 
           ? 'http://localhost:3000/api/rpc-proxy'
-          : process.env.NEXT_PUBLIC_RPC_URL || 'https://testnet-rpc.monad.xyz/'
+          : process.env.NEXT_PUBLIC_RPC_URL || 'https://dream-rpc.somnia.network/'
       ],
     },
   },
   blockExplorers: {
-    default: { name: 'Monad Explorer', url: 'https://explorer.monad.xyz' },
+    default: { name: 'Somnia Explorer', url: 'https://explorer.somnia.network' },
   },
   testnet: true,
 }
@@ -30,7 +30,7 @@ export const monadNetwork: AppKitNetwork = {
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '6a0514d82fb621e41aa6cad5473883a3'
 
 // Create the networks array
-const networks = [monadNetwork, mainnet, sepolia] as [AppKitNetwork, ...AppKitNetwork[]]
+const networks = [somniaNetwork, mainnet, sepolia] as [AppKitNetwork, ...AppKitNetwork[]]
 
 // Create Wagmi Adapter
 export const wagmiAdapter = new WagmiAdapter({
@@ -79,29 +79,59 @@ export const appKit = createAppKit({
 
 export const config = wagmiAdapter.wagmiConfig
 
-// Contract addresses for smart contract integration - UPDATED WITH NEW DEPLOYMENT
+// Contract addresses for smart contract integration - UPDATED WITH NEW MODULAR ARCHITECTURE
 export const CONTRACT_ADDRESSES = {
-  BITR_TOKEN: (process.env.NEXT_PUBLIC_BITR_TOKEN_ADDRESS || '0xe10e734b6d475f4004C354CA5086CA7968efD4fd') as `0x${string}`,
-  FAUCET: (process.env.NEXT_PUBLIC_FAUCET_ADDRESS || '0xb0816D384EEC3c41dc75083b2B7C3771A01d0618') as `0x${string}`,
-  GUIDED_ORACLE: (process.env.NEXT_PUBLIC_GUIDED_ORACLE_ADDRESS || '0x9F91C01bB21385ac9959a1d51e33E65515688DC8') as `0x${string}`,
-  BITREDICT_POOL: (process.env.NEXT_PUBLIC_BITREDICT_POOL_ADDRESS || '0xBe9ad7A4CA367d45E61Fc20BbC5C44230e83E9f3') as `0x${string}`,
-  OPTIMISTIC_ORACLE: (process.env.NEXT_PUBLIC_OPTIMISTIC_ORACLE_ADDRESS || '0x114832D788b27c530deCe033c72286927036e7CF') as `0x${string}`,
-  BITREDICT_STAKING: (process.env.NEXT_PUBLIC_STAKING_CONTRACT_ADDRESS || '0x286A4690904fe9158a316Dfd5eA506d28F497395') as `0x${string}`,
-  REPUTATION_SYSTEM: (process.env.NEXT_PUBLIC_REPUTATION_SYSTEM_ADDRESS || '0x94DBC95350AaCcC9DeAbdd9cf60B189a149636C7') as `0x${string}`,
-  ODDYSSEY: (process.env.NEXT_PUBLIC_ODDYSSEY_ADDRESS || '0x9f9D719041C8F0EE708440f15AE056Cd858DCF4e') as `0x${string}`,
+  // Core Contracts
+  BITR_TOKEN: (process.env.NEXT_PUBLIC_BITR_TOKEN_ADDRESS || '0x67aa1549551ff4479B68F1eC19fD011571C7db10') as `0x${string}`,
+  POOL_CORE: (process.env.NEXT_PUBLIC_POOL_CORE_ADDRESS || '0x08C5da3b3D1eB4c4dd9D2fE50f63096e1AD3a800') as `0x${string}`,
+  BOOST_SYSTEM: (process.env.NEXT_PUBLIC_BOOST_SYSTEM_ADDRESS || '0x36fddb1844B89D4c0A00497A1C6B56B958bCcFB6') as `0x${string}`,
+  COMBO_POOLS: (process.env.NEXT_PUBLIC_COMBO_POOLS_ADDRESS || '0x9320ddf7CA7A2826DA3d557BD6A6661Ec7df13c0') as `0x${string}`,
+  FACTORY: (process.env.NEXT_PUBLIC_FACTORY_ADDRESS || '0x3a3e9bfcF32c585e0b79183ae306bC801C6B48d1') as `0x${string}`,
+  
+  // Oracle Contracts
+  GUIDED_ORACLE: (process.env.NEXT_PUBLIC_GUIDED_ORACLE_ADDRESS || '0x9CFB1097577480BD0eDe1795018c89786c541097') as `0x${string}`,
+  OPTIMISTIC_ORACLE: (process.env.NEXT_PUBLIC_OPTIMISTIC_ORACLE_ADDRESS || '0xa43e982eA27CD4B34E72E1B65A83E21A9eC777DC') as `0x${string}`,
+  
+  // System Contracts
+  REPUTATION_SYSTEM: (process.env.NEXT_PUBLIC_REPUTATION_SYSTEM_ADDRESS || '0xbB966Dd2696005c9e893304819237Ea4006A9380') as `0x${string}`,
+  STAKING_CONTRACT: (process.env.NEXT_PUBLIC_STAKING_CONTRACT_ADDRESS || '0xBA03cD2F1c150416C8d9cDf31778157B74010513') as `0x${string}`,
+  FAUCET: (process.env.NEXT_PUBLIC_FAUCET_ADDRESS || '0xd8f4A301B14Ce0619373b472C5e24c0A14a82c55') as `0x${string}`,
+  ODDYSSEY: (process.env.NEXT_PUBLIC_ODDYSSEY_ADDRESS || '0xc4715403c3c8e5C282009e5690ef3032e1f87b60') as `0x${string}`,
+  
+  // Legacy support (for backward compatibility)
+  BITREDICT_POOL: (process.env.NEXT_PUBLIC_BITREDICT_POOL_ADDRESS || '0x08C5da3b3D1eB4c4dd9D2fE50f63096e1AD3a800') as `0x${string}`,
+  BITREDICT_STAKING: (process.env.NEXT_PUBLIC_STAKING_CONTRACT_ADDRESS || '0xBA03cD2F1c150416C8d9cDf31778157B74010513') as `0x${string}`,
 }
 
 // Network configuration for contract calls
 export const NETWORK_CONFIG = {
-  chainId: 10143,
+  chainId: 50312,
   rpcUrl: process.env.NODE_ENV === 'development' 
     ? 'http://localhost:3000/api/rpc-proxy'
-    : process.env.NEXT_PUBLIC_RPC_URL || 'https://testnet-rpc.monad.xyz/',
-  explorerUrl: 'https://explorer.monad.xyz',
+    : process.env.NEXT_PUBLIC_RPC_URL || 'https://dream-rpc.somnia.network/',
+  explorerUrl: 'https://explorer.somnia.network',
 }
 
-// Global gas settings - Optimized for Monad Network
+// Global gas settings - Optimized for Somnia Network
 export const GAS_SETTINGS = {
-  gas: BigInt(3000000), // 3M gas limit (optimized based on successful transactions)
-  gasPrice: BigInt(50000000000), // 50 gwei (Monad testnet base fee)
+  gas: BigInt(5000000), // 5M gas limit (optimized for complex operations)
+  gasPrice: BigInt(6000000000), // 6 gwei (Somnia testnet optimized)
+  maxFeePerGas: BigInt(10000000000), // 10 gwei max fee
+  maxPriorityFeePerGas: BigInt(2000000000), // 2 gwei priority fee
+}
+
+// Robust network connection settings
+export const NETWORK_CONNECTION_CONFIG = {
+  // Multiple RPC endpoints for redundancy
+  rpcUrls: [
+    'https://dream-rpc.somnia.network/',
+    'https://rpc.ankr.com/somnia_testnet/c8e336679a7fe85909f310fbbdd5fbb18d3b7560b1d3eca7aa97874b0bb81e97',
+  ],
+  // Connection retry settings
+  retryAttempts: 3,
+  retryDelay: 1000, // 1 second
+  // Timeout settings
+  requestTimeout: 30000, // 30 seconds
+  // Health check settings
+  healthCheckInterval: 60000, // 1 minute
 }

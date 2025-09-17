@@ -188,7 +188,8 @@ export function usePools() {
     maxBetPerUser: string = "0",
     useBitr: boolean = true,
     oracleType: number = 0,
-    marketId: string = ""
+    marketId: string = "",
+    marketType: number = 0
   ) => {
     const startTimestamp = BigInt(Math.floor(eventStartTime.getTime() / 1000));
     const endTimestamp = BigInt(Math.floor(eventEndTime.getTime() / 1000));
@@ -208,7 +209,8 @@ export function usePools() {
       maxBetWei,
       useBitr,
       oracleType, // Remove BigInt wrapper - should be number
-      encodeBytes32String(marketId || '') // Properly encode bytes32
+      encodeBytes32String(marketId || ''), // Properly encode bytes32
+      marketType // MarketType enum value
     ] as const;
 
     if (useBitr) {

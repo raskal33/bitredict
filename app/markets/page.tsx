@@ -410,6 +410,11 @@ export default function MarketsPage() {
                       key={pool.id}
                       pool={pool}
                       index={pool.id}
+                      showBoostButton={true}
+                      onBoostPool={(poolId, tier) => {
+                        console.log(`Boosting pool ${poolId} with ${tier} tier`);
+                        // TODO: Implement boost pool functionality
+                      }}
                     />
                   ))}
                 </AnimatePresence>
