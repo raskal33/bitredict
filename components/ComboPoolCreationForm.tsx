@@ -565,7 +565,7 @@ export default function ComboPoolCreationForm({ onSuccess, onClose }: {
         {userReputation && (
           <div className="mb-6">
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg">
-              <span className="text-sm font-medium">Current Reputation: {userReputation}</span>
+              <span className="text-sm font-medium">Current Reputation: {userReputation?.score || 0}</span>
             </div>
           </div>
         )}

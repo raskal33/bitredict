@@ -15,7 +15,7 @@ async function debugNetworkDetection() {
   const expectedChainId = 50312;
   const expectedChainIdHex = '0xc4a8';
   const expectedRpcUrl = 'https://dream-rpc.somnia.network/';
-  const expectedContractAddress = '0x31AfDC3978317a1de606e76037429F3e456015C6';
+  const expectedContractAddress = '0xc4715403c3c8e5C282009e5690ef3032e1f87b60';
 
   console.log('🎯 Expected Values:');
   console.log('Chain ID (decimal):', expectedChainId);

@@ -77,7 +77,8 @@ export const CONTRACTS = {
   },
 } as const;
 
-// Export ABIs for direct use
+// Export contract addresses and ABIs for direct use
+export { CONTRACT_ADDRESSES } from '@/config/wagmi';
 export {
   BitredictTokenABI,
   BitrFaucetABI,

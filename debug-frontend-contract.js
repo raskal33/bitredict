@@ -29,7 +29,7 @@ const somniaChain = {
 };
 
 // Contract address from working backend
-const ODDYSSEY_ADDRESS = '0x31AfDC3978317a1de606e76037429F3e456015C6';
+const ODDYSSEY_ADDRESS = '0xc4715403c3c8e5C282009e5690ef3032e1f87b60';
 
 // Load ABI from the correct path
 const OddysseyArtifact = require('./contracts/abis/Oddyssey.json');

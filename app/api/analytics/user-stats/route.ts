@@ -68,7 +68,7 @@ export async function GET(request: Request) {
       ${whereClause}
       ORDER BY ${sortBy} ${sortOrder.toUpperCase()}
       LIMIT ? OFFSET ?
-    `, [...queryParams, limit, offset]) as UserStats[];
+    `, [...queryParams, limit, offset]) as unknown as UserStats[];
 
     // Get total count for pagination
     const totalCountResult = await query(`

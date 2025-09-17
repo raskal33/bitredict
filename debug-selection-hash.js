@@ -3,7 +3,7 @@
 const { ethers } = require('ethers');
 
 // Contract configuration
-const CONTRACT_ADDRESS = '0x31AfDC3978317a1de606e76037429F3e456015C6';
+const CONTRACT_ADDRESS = '0xc4715403c3c8e5C282009e5690ef3032e1f87b60';
 const RPC_URL = 'https://dream-rpc.somnia.network/';
 
 // Test the exact same logic as the frontend

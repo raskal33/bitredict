@@ -88,7 +88,7 @@ export default function LeaderboardPage() {
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as 'all' | 'daily' | 'weekly' | 'monthly')}
+              onClick={() => setActiveTab(tab.id as 'prediction' | 'reputation' | 'personal')}
               className={`flex items-center gap-2 px-6 py-3 rounded-button font-medium transition-all duration-200 ${
                 activeTab === tab.id
                   ? 'bg-gradient-primary text-black shadow-button'
@@ -157,7 +157,7 @@ export default function LeaderboardPage() {
                   {predictionMetrics.map((metric) => (
                     <button
                       key={metric.id}
-                      onClick={() => setActiveMetric(metric.id as 'totalWinnings' | 'winRate' | 'totalBets' | 'reputation')}
+                      onClick={() => setActiveMetric(metric.id as 'total_staked' | 'total_won' | 'success_rate' | 'volume_generated')}
                       className={`flex items-center gap-2 px-4 py-2 rounded-button font-medium transition-all duration-200 ${
                         activeMetric === metric.id
                           ? 'bg-gradient-primary text-black shadow-button'

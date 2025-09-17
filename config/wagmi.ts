@@ -46,7 +46,7 @@ export const appKit = createAppKit({
   projectId,
   metadata: {
     name: 'BITR - Connect Wallet',
-    description: 'Connect your wallet to access decentralized prediction markets on Monad Network',
+    description: 'Connect your wallet to access decentralized prediction markets on Somnia Network',
     url: 'https://bitr-front.vercel.app',
     icons: ['https://bitr-front.vercel.app/logo.png'],
   },

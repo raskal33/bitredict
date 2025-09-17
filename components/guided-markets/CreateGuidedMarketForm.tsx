@@ -157,7 +157,7 @@ export default function CreateGuidedMarketForm({ onSuccess, onClose }: CreateGui
         league: formData.league,
         category: formData.category,
         useBitr: formData.useBitr,
-        maxBetPerUser: formData.maxBetPerUser ? BigInt(parseFloat(formData.maxBetPerUser) * 1e18) : 0n,
+        maxBetPerUser: formData.maxBetPerUser ? BigInt(parseFloat(formData.maxBetPerUser) * 1e18) : BigInt(0),
         isPrivate: formData.isPrivate,
       };
 

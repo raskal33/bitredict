@@ -18,7 +18,7 @@ import {
   ChevronUpIcon
 } from "@heroicons/react/24/outline";
 
-import { useOddyssey } from "@/hooks/useOddyssey";
+import { useOddyssey, BetType } from "@/hooks/useOddyssey";
 import { useTransactionFeedback } from "@/components/TransactionFeedback";
 import { oddysseyService } from "@/services/oddysseyService";
 import Button from "@/components/button";
@@ -240,8 +240,8 @@ export default function OddysseyPage() {
     try {
       // Convert picks to the format expected by the contract
       const contractPredictions = picks.map(pick => ({
-        matchId: pick.matchId,
-        betType: pick.betType,
+        matchId: BigInt(pick.matchId),
+        betType: pick.betType === 'MONEYLINE' ? BetType.MONEYLINE : BetType.OVER_UNDER, // Convert string to BetType enum
         selection: pick.selection,
         selectedOdd: pick.selectedOdd
       }));
@@ -529,7 +529,11 @@ export default function OddysseyPage() {
                       </div>
                       <div className="text-right">
                         <div className="text-lg font-bold text-green-400">
-                          {picks.length > 0 ? calculatePotentialScore(picks).toFixed(0) : '0'}x
+                          {picks.length > 0 ? calculatePotentialScore(picks.map(pick => ({
+                            ...pick,
+                            matchId: BigInt(pick.matchId),
+                            betType: pick.betType === 'MONEYLINE' ? BetType.MONEYLINE : BetType.OVER_UNDER
+                          }))).toFixed(0) : '0'}x
                         </div>
                         <div className="text-sm text-gray-400">Potential Score</div>
                       </div>
@@ -544,7 +548,7 @@ export default function OddysseyPage() {
                               key={index}
                               className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm"
                             >
-                              Match {pick.matchId}: {getSelectionName(pick.selection, pick.betType)}
+                              Match {pick.matchId}: {getSelectionName(pick.selection, pick.betType === 'MONEYLINE' ? BetType.MONEYLINE : BetType.OVER_UNDER)}
                             </div>
                           ))}
                         </div>
@@ -720,21 +724,21 @@ export default function OddysseyPage() {
                     <div className="flex justify-between">
                       <span className="text-gray-400">Total Players</span>
                       <span className="text-white font-semibold">
-                        {backendStats?.totalPlayers?.toLocaleString() || 'N/A'}
+                        {backendStats?.leaderboard_participants?.toLocaleString() || 'N/A'}
                       </span>
                     </div>
                     
                     <div className="flex justify-between">
                       <span className="text-gray-400">Total Slips</span>
                       <span className="text-white font-semibold">
-                        {backendStats?.totalSlips?.toLocaleString() || 'N/A'}
+                        {backendStats?.total_slips?.toLocaleString() || 'N/A'}
                       </span>
                     </div>
                     
                     <div className="flex justify-between">
                       <span className="text-gray-400">Average Score</span>
                       <span className="text-white font-semibold">
-                        {backendStats?.avgCorrect?.toFixed(1) || 'N/A'}x
+                        {backendStats?.avg_correct_predictions?.toFixed(1) || 'N/A'}x
                       </span>
                     </div>
                   </div>

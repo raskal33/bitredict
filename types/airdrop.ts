@@ -2,7 +2,7 @@ export interface FaucetClaim {
   hasClaimed: boolean;
   amount?: string;
   claimedAt?: string;
-  hadPriorMONActivity: boolean;
+  hadPriorSTTActivity: boolean;
   sttActivityCountBeforeFaucet: number;
 }
 
@@ -69,7 +69,7 @@ export interface AirdropStatistics {
   };
   requirementFunnel: {
     claimedFaucet: number;
-    hadMONActivity: number;
+    hadSTTActivity: number;
     sufficientBITRActions: number;
     hasStaking: number;
     sufficientOddyssey: number;

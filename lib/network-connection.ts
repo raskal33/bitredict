@@ -1,5 +1,25 @@
-import { createPublicClient, http, type PublicClient } from 'viem';
-import { somniaNetwork, NETWORK_CONNECTION_CONFIG, GAS_SETTINGS } from '@/config/wagmi';
+import { createPublicClient, http, type PublicClient, defineChain } from 'viem';
+import { NETWORK_CONNECTION_CONFIG, GAS_SETTINGS } from '@/config/wagmi';
+
+// Define Somnia chain for Viem compatibility
+const somniaChain = defineChain({
+  id: 50312,
+  name: 'Somnia Testnet',
+  nativeCurrency: {
+    decimals: 18,
+    name: 'STT',
+    symbol: 'STT',
+  },
+  rpcUrls: {
+    default: {
+      http: ['https://dream-rpc.somnia.network/'],
+    },
+  },
+  blockExplorers: {
+    default: { name: 'Somnia Explorer', url: 'https://explorer.somnia.network' },
+  },
+  testnet: true,
+});
 
 // Network connection manager for robust Somnia connectivity
 class NetworkConnectionManager {
@@ -17,7 +37,7 @@ class NetworkConnectionManager {
     // Create multiple clients for redundancy
     this.clients = NETWORK_CONNECTION_CONFIG.rpcUrls.map((rpcUrl) => {
       return createPublicClient({
-        chain: somniaNetwork,
+        chain: somniaChain,
         transport: http(rpcUrl, {
           timeout: NETWORK_CONNECTION_CONFIG.requestTimeout,
           retryCount: NETWORK_CONNECTION_CONFIG.retryAttempts,
@@ -140,13 +160,13 @@ export async function estimateGasWithFallback(
   }
 }
 
-// Enhanced transaction options
+// Enhanced transaction options for wagmi compatibility
 export function getTransactionOptions() {
   return {
     gas: GAS_SETTINGS.gas,
     gasPrice: GAS_SETTINGS.gasPrice,
-    maxFeePerGas: GAS_SETTINGS.maxFeePerGas,
-    maxPriorityFeePerGas: GAS_SETTINGS.maxPriorityFeePerGas,
+    // Note: maxFeePerGas and maxPriorityFeePerGas are not compatible with wagmi's current version
+    // Using gasPrice for legacy compatibility
   };
 }
 

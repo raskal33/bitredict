@@ -52,7 +52,7 @@ export async function GET(request: Request) {
       FROM oracle.market_type_stats
       ORDER BY ${sortBy} ${sortOrder.toUpperCase()}
       LIMIT ? OFFSET ?
-    `, [limit, offset]) as MarketTypeStats[];
+    `, [limit, offset]) as unknown as MarketTypeStats[];
 
     // Get total count for pagination
     const totalCountResult = await query(`

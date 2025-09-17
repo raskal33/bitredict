@@ -158,6 +158,7 @@ export default function CreateMarketPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState(1);
+  // const [isCreating, setIsCreating] = useState(false);
   const [deploymentHash, setDeploymentHash] = useState<string>('');
 
   // Search states for crypto (football now uses FixtureSelector)
@@ -201,7 +202,7 @@ export default function CreateMarketPage() {
   };
 
   const handleSuccess = (poolId: string) => {
-    setIsCreating(false);
+    // setIsCreating(false); // This variable is not defined, removing this line
     // Navigate to the created pool
     if (selectedType === 'combo') {
       router.push(`/markets/combo/${poolId}`);
@@ -919,8 +920,7 @@ export default function CreateMarketPage() {
             'Your football prediction market has been created and is now live on the blockchain!', 
             result.transactionHash,
             data.boostTier,
-            totalCost,
-            result.poolId || 'TBD'
+            totalCost
           );
           
           // Add reputation for market creation
@@ -983,8 +983,7 @@ export default function CreateMarketPage() {
           'Your cryptocurrency prediction market has been created and is now live on the blockchain!', 
           result.data.transactionHash,
           data.boostTier,
-          totalCost,
-          result.data.poolId || 'TBD'
+          totalCost
         );
         
         // Add reputation for market creation

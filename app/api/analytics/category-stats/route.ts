@@ -50,7 +50,7 @@ export async function GET(request: Request) {
       FROM oracle.category_stats
       ORDER BY ${sortBy} ${sortOrder.toUpperCase()}
       LIMIT ? OFFSET ?
-    `, [limit, offset]) as CategoryStats[];
+    `, [limit, offset]) as unknown as CategoryStats[];
 
     // Get total count for pagination
     const totalCountResult = await query(`
@@ -63,7 +63,7 @@ export async function GET(request: Request) {
     const marketTypesResult = await query(`
       SELECT market_type, market_type_name 
       FROM oracle.market_type_stats
-    `) as { market_type: number; market_type_name: string }[];
+    `) as unknown as { market_type: number; market_type_name: string }[];
 
     const marketTypeMap = new Map(
       marketTypesResult.map(mt => [mt.market_type, mt.market_type_name])
