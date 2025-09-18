@@ -5,44 +5,6 @@ const nextConfig: NextConfig = {
   experimental: {
     // Optimize chunk loading to prevent build manifest issues
     optimizePackageImports: ['@heroicons/react', '@reown/appkit', 'framer-motion'],
-    // Turbopack optimizations
-    turbo: {
-      rules: {
-        // Optimize TypeScript compilation
-        '*.{ts,tsx}': {
-          loaders: ['swc-loader'],
-          as: '*.js',
-        },
-      },
-    },
-  },
-  
-  // Development server optimizations
-  devIndicators: {
-    buildActivity: false, // Reduce build activity indicators
-  },
-  
-  // Webpack optimizations for development
-  webpack: (config, { dev, isServer }) => {
-    if (dev && !isServer) {
-      // Optimize development builds to reduce manifest conflicts
-      config.optimization = {
-        ...config.optimization,
-        splitChunks: {
-          ...config.optimization.splitChunks,
-          cacheGroups: {
-            ...config.optimization.splitChunks?.cacheGroups,
-            vendor: {
-              test: /[\\/]node_modules[\\/]/,
-              name: 'vendors',
-              chunks: 'all',
-              priority: 10,
-            },
-          },
-        },
-      };
-    }
-    return config;
   },
   
   images: {
