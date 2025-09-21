@@ -17,6 +17,25 @@ import { format, parseISO } from 'date-fns';
 import { oddysseyService, ResultsByDate } from '@/services/oddysseyService';
 import DatePicker from './DatePicker';
 
+interface MatchResult {
+  id: string;
+  fixture_id: string;
+  home_team: string;
+  away_team: string;
+  league_name: string;
+  match_date: string;
+  status: string;
+  display_order: number;
+  result: {
+    home_score: number | null;
+    away_score: number | null;
+    outcome_1x2: string | null;
+    outcome_ou25: string | null;
+    finished_at: string | null;
+    is_finished: boolean;
+  };
+}
+
 interface OddysseyResultsProps {
   className?: string;
 }
@@ -38,8 +57,7 @@ export default function OddysseyResults({ className = "" }: OddysseyResultsProps
       const response = await oddysseyService.getAvailableDates();
       
       if (response.success && response.data) {
-        const dates = response.data.availableDates.map((date: { date: string }) => date.date);
-        setAvailableDates(dates);
+        setAvailableDates(response.data);
       }
     } catch (error) {
       console.error('❌ Error fetching available dates:', error);
@@ -57,9 +75,7 @@ export default function OddysseyResults({ className = "" }: OddysseyResultsProps
         setResults(response.data);
       } else {
         setResults(null);
-        if (response.message) {
-          toast.error(response.message);
-        }
+        toast.error('No results found for this date');
       }
     } catch (error) {
       console.error('❌ Error fetching results:', error);
@@ -207,7 +223,7 @@ export default function OddysseyResults({ className = "" }: OddysseyResultsProps
 
             {/* Matches List */}
             <div className="space-y-4">
-              {results.matches.map((match, index) => (
+              {results.matches.map((match: MatchResult, index: number) => (
                 <motion.div
                   key={match.id}
                   initial={{ opacity: 0, x: -20 }}

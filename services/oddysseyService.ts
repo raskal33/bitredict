@@ -86,6 +86,43 @@ export interface LeaderboardEntry {
   correctCount: bigint;
 }
 
+export interface OddysseyMatchWithResult {
+  id: string;
+  fixture_id: string;
+  home_team: string;
+  away_team: string;
+  league_name: string;
+  match_date: string;
+  status: string;
+  display_order: number;
+  result: {
+    home_score: number | null;
+    away_score: number | null;
+    outcome_1x2: string | null;
+    outcome_ou25: string | null;
+    finished_at: string | null;
+    is_finished: boolean;
+  };
+}
+
+export interface OddysseyCycle {
+  cycleId: number;
+  state: number;
+  endTime: string;
+  prizePool: string;
+  slipCount: number;
+  entryFee: string;
+}
+
+export interface ResultsByDate {
+  date: string;
+  cycleId: number;
+  isResolved: boolean;
+  matches: OddysseyMatchWithResult[];
+  totalMatches: number;
+  finishedMatches: number;
+}
+
 class OddysseyService {
   private publicClient: PublicClient;
   private walletClient: WalletClient | null = null;
@@ -227,8 +264,8 @@ class OddysseyService {
     }
   }
 
-  // Get user slips for current cycle
-  async getUserSlipsForCycle(userAddress: Address, cycleId: bigint): Promise<OddysseySlip[]> {
+  // Get user slips for current cycle from contract
+  async getUserSlipsForCycleFromContract(userAddress: Address, cycleId: bigint): Promise<OddysseySlip[]> {
     try {
       const result = await this.publicClient.readContract({
         address: CONTRACTS.ODDYSSEY.address,
@@ -523,6 +560,133 @@ class OddysseyService {
       };
     } catch (error) {
       console.error('Error getting matches:', error);
+      return {
+        success: false,
+        data: []
+      };
+    }
+  }
+
+  // Get cycle results from backend
+  async getCycleResults(cycleId: number): Promise<{ success: boolean; data: any }> {
+    try {
+      const response = await fetch(`https://bitredict-backend.fly.dev/api/oddyssey/results/${new Date().toISOString().split('T')[0]}`);
+      const data = await response.json();
+      return {
+        success: true,
+        data: data.data || []
+      };
+    } catch (error) {
+      console.error('Error getting cycle results:', error);
+      return {
+        success: false,
+        data: []
+      };
+    }
+  }
+
+  // Get available dates from backend
+  async getAvailableDates(): Promise<{ success: boolean; data: string[] }> {
+    try {
+      // For now, return current date and yesterday
+      const today = new Date().toISOString().split('T')[0];
+      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      return {
+        success: true,
+        data: [today, yesterday]
+      };
+    } catch (error) {
+      console.error('Error getting available dates:', error);
+      return {
+        success: false,
+        data: []
+      };
+    }
+  }
+
+  // Get results by date from backend
+  async getResultsByDate(date: string): Promise<{ success: boolean; data: any }> {
+    try {
+      const response = await fetch(`https://bitredict-backend.fly.dev/api/oddyssey/results/${date}`);
+      const data = await response.json();
+      return {
+        success: true,
+        data: data.data || null
+      };
+    } catch (error) {
+      console.error('Error getting results by date:', error);
+      return {
+        success: false,
+        data: null
+      };
+    }
+  }
+
+  // Get leaderboard from backend
+  async getLeaderboard(): Promise<{ success: boolean; data: LeaderboardEntry[] }> {
+    try {
+      const response = await fetch('https://bitredict-backend.fly.dev/api/oddyssey/leaderboard');
+      const data = await response.json();
+      return {
+        success: true,
+        data: data.data || []
+      };
+    } catch (error) {
+      console.error('Error getting leaderboard:', error);
+      return {
+        success: false,
+        data: []
+      };
+    }
+  }
+
+  // Check cycle sync status
+  async checkCycleSync(): Promise<{ success: boolean; data: any }> {
+    try {
+      const response = await fetch('https://bitredict-backend.fly.dev/api/oddyssey/cycle-sync');
+      const data = await response.json();
+      return {
+        success: true,
+        data: data.data || null
+      };
+    } catch (error) {
+      console.error('Error checking cycle sync:', error);
+      return {
+        success: false,
+        data: null
+      };
+    }
+  }
+
+  // Get cycle stats
+  async getCycleStats(): Promise<{ success: boolean; data: any }> {
+    try {
+      const response = await fetch('https://bitredict-backend.fly.dev/api/oddyssey/stats');
+      const data = await response.json();
+      return {
+        success: true,
+        data: data.data || null
+      };
+    } catch (error) {
+      console.error('Error getting cycle stats:', error);
+      return {
+        success: false,
+        data: null
+      };
+    }
+  }
+
+  // Get user slips for cycle from backend
+  async getUserSlipsForCycleFromBackend(cycleId: number, address: string): Promise<{ success: boolean; data: any }> {
+    try {
+      const response = await fetch(`https://bitredict-backend.fly.dev/api/oddyssey/user-slips/${address}/${cycleId}`);
+      const data = await response.json();
+      return {
+        success: true,
+        data: data.data || []
+      };
+    } catch (error) {
+      console.error('Error getting user slips for cycle:', error);
       return {
         success: false,
         data: []

@@ -9,11 +9,11 @@ import { formatEther } from "viem";
 
 import { oddysseyService, type OddysseyMatch } from "@/services/oddysseyService";
 import { useTransactionFeedback, TransactionFeedback } from "@/components/TransactionFeedback";
-import { safeStartTimeToISOString, safeStartTimeToLocaleString, safeStartTimeToDate } from "@/utils/time-helpers";
+import { safeStartTimeToISOString, safeStartTimeToDate } from "@/utils/time-helpers";
+import OddysseyMatchResults from "@/components/OddysseyMatchResults";
 import { 
   FireIcon, 
   TrophyIcon, 
-  ChartBarIcon, 
   CurrencyDollarIcon,
   UsersIcon,
   BoltIcon,
@@ -26,8 +26,9 @@ import {
   ArrowPathIcon,
   DocumentTextIcon,
   GiftIcon,
-  XMarkIcon,
-  CalendarDaysIcon
+  CalendarDaysIcon,
+  CheckCircleIcon,
+  XCircleIcon
 } from "@heroicons/react/24/outline";
 import { FaSpinner } from "react-icons/fa";
 
@@ -99,14 +100,14 @@ interface CurrentPrizePool {
   isActive: boolean;
 }
 
-interface DailyStats {
-  date: string;
-  dailyPlayers: number;
-  dailySlips: number;
-  avgCorrectToday: number;
-  currentCycleId: number | null;
-  currentPrizePool: string;
-}
+// interface DailyStats {
+//   date: string;
+//   dailyPlayers: number;
+//   dailySlips: number;
+//   avgCorrectToday: number;
+//   currentCycleId: number | null;
+//   currentPrizePool: string;
+// }
 
 
 // Default entry fee - will be updated with contract value
@@ -176,7 +177,7 @@ export default function OddysseyPage() {
       
       // Get user slips
       if (address) {
-        const userSlips = await oddysseyService.getUserSlipsForCycle(address, cycleId);
+        const userSlips = await oddysseyService.getUserSlipsForCycleFromContract(address, cycleId);
         // Convert slips to frontend format
         const convertedSlips = userSlips.map(slip => 
           slip.predictions.map(pred => ({
@@ -229,14 +230,14 @@ export default function OddysseyPage() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [currentPrizePool, setCurrentPrizePool] = useState<CurrentPrizePool | null>(null);
-  const [dailyStats, setDailyStats] = useState<DailyStats>({
-    date: new Date().toISOString().split('T')[0],
-    dailyPlayers: 0,
-    dailySlips: 0,
-    avgCorrectToday: 0,
-    currentCycleId: null,
-    currentPrizePool: '0'
-  });
+  // const [dailyStats, setDailyStats] = useState<DailyStats>({
+  //   date: new Date().toISOString().split('T')[0],
+  //   dailyPlayers: 0,
+  //   dailySlips: 0,
+  //   avgCorrectToday: 0,
+  //   currentCycleId: null,
+  //   currentPrizePool: '0'
+  // });
   
 
   
@@ -382,15 +383,15 @@ export default function OddysseyPage() {
         console.log('✅ Current prize pool received:', prizePoolResult.data);
         setCurrentPrizePool(prizePoolResult.data);
         
-        // Set daily stats from prize pool data
-        setDailyStats({
-          date: new Date().toISOString().split('T')[0],
-          dailyPlayers: 100, // Placeholder
-          dailySlips: 50, // Placeholder
-          avgCorrectToday: 8.5, // Placeholder
-          currentCycleId: prizePoolResult.data.cycleId,
-          currentPrizePool: prizePoolResult.data.prizePool
-        });
+        // Set daily stats from prize pool data - commented out as unused
+        // setDailyStats({
+        //   date: new Date().toISOString().split('T')[0],
+        //   dailyPlayers: 100, // Placeholder
+        //   dailySlips: 50, // Placeholder
+        //   avgCorrectToday: 8.5, // Placeholder
+        //   currentCycleId: prizePoolResult.data.cycleId,
+        //   currentPrizePool: prizePoolResult.data.prizePool
+        // });
       }
       
     } catch (error) {
@@ -1204,31 +1205,7 @@ export default function OddysseyPage() {
           </motion.div>
         )}
 
-        {/* Daily Stats */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.15 }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
-        >
-          <div className="glass-card text-center p-4">
-            <UsersIcon className="h-10 w-10 mx-auto mb-3 text-secondary" />
-            <h3 className="text-2xl font-bold text-white mb-1">100</h3>
-            <p className="text-lg font-semibold text-text-secondary">Players Today</p>
-          </div>
-          
-          <div className="glass-card text-center p-4">
-            <DocumentTextIcon className="h-10 w-10 mx-auto mb-3 text-accent" />
-            <h3 className="text-2xl font-bold text-white mb-1">50</h3>
-            <p className="text-lg font-semibold text-text-secondary">Slips Today</p>
-          </div>
-          
-          <div className="glass-card text-center p-4">
-            <ChartBarIcon className="h-10 w-10 mx-auto mb-3 text-green-400" />
-            <h3 className="text-2xl font-bold text-white mb-1">8.5</h3>
-            <p className="text-lg font-semibold text-text-secondary">Avg Correct Today</p>
-          </div>
-        </motion.div>
+        {/* Daily Stats - Removed mock data, using real contract data */}
 
         {stats && (
         <motion.div
@@ -1289,11 +1266,11 @@ export default function OddysseyPage() {
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-bold text-primary flex items-center gap-2">
               <ClockIcon className="h-6 w-6" />
-              {matches && matches.length > 0 ? (
+              {currentMatches && currentMatches.length > 0 ? (
                 <>
               Betting Closes In
                   <span className="text-sm font-normal text-text-secondary ml-2">
-                    (First match: {matches.sort((a, b) => new Date(a.match_date).getTime() - new Date(b.match_date).getTime())[0]?.home_team} vs {matches.sort((a, b) => new Date(a.match_date).getTime() - new Date(b.match_date).getTime())[0]?.away_team})
+                    (First match: {currentMatches[0]?.homeTeam} vs {currentMatches[0]?.awayTeam})
                   </span>
                 </>
               ) : (
@@ -1524,7 +1501,11 @@ export default function OddysseyPage() {
                                       : "text-text-secondary bg-primary/10"
                                   }`}>
                                     <div className="font-bold">
-                                      {safeStartTimeToLocaleString(match.startTime, 'Time TBD')}
+                                      {new Date(safeStartTimeToISOString(match.startTime)).toLocaleTimeString('en-US', { 
+                                        hour: '2-digit', 
+                                        minute: '2-digit',
+                                        hour12: false
+                                      })}
                                     </div>
                                     {isMatchStarted(safeStartTimeToISOString(match.startTime)) ? (
                                       <div className="text-[8px] text-red-400 font-bold">STARTED</div>
@@ -1639,7 +1620,11 @@ export default function OddysseyPage() {
                                       : "text-text-secondary bg-primary/10"
                                   }`}>
                                     <div className="font-bold">
-                                      {safeStartTimeToLocaleString(match.startTime, 'Time TBD')}
+                                      {new Date(safeStartTimeToISOString(match.startTime)).toLocaleTimeString('en-US', { 
+                                        hour: '2-digit', 
+                                        minute: '2-digit',
+                                        hour12: false
+                                      })}
                                     </div>
                                     {isMatchStarted(safeStartTimeToISOString(match.startTime)) ? (
                                       <div className="text-[8px] text-red-400 font-bold">STARTED</div>
@@ -1988,7 +1973,7 @@ export default function OddysseyPage() {
             )}
 
             {/* My Slips Tab */}
-            {activeTab === "slips" && (
+            {activeTab === "slips" ? (
               <motion.div
                 key="slips"
                 initial={{ opacity: 0, x: 20 }}
@@ -2170,9 +2155,83 @@ export default function OddysseyPage() {
                   </AnimatePresence>
                 </div>
               </motion.div>
-            )}
-                  </AnimatePresence>
+            ) : activeTab === "results" ? (
+              <motion.div
+                key="results"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="lg:col-span-3"
+              >
+                <div className="glass-card p-6 bg-gradient-to-br from-magenta-500/5 to-violet-500/5 border border-magenta-500/20 shadow-lg shadow-magenta-500/10">
+                  <h2 className="text-2xl font-bold text-magenta-300 mb-6 flex items-center gap-2">
+                    <DocumentTextIcon className="h-6 w-6 text-magenta-400" />
+                    Match Results & Leaderboards
+                  </h2>
+                  <OddysseyMatchResults cycleId={1} />
                 </div>
+              </motion.div>
+            ) : activeTab === "stats" ? (
+              <motion.div
+                key="stats"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="lg:col-span-3"
+              >
+                <div className="space-y-6">
+                  {/* Global Stats */}
+                  {stats && (
+                    <div className="glass-card p-6">
+                      <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
+                        <ArrowTrendingUpIcon className="h-6 w-6" />
+                        Global Statistics
+                      </h2>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-primary mb-2">{(stats.totalPlayers || 0).toLocaleString()}</div>
+                          <div className="text-lg text-text-secondary">Total Players</div>
+                          <div className="text-sm text-text-muted">All-time registered</div>
+                        </div>
+                        
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-secondary mb-2">{stats.totalCycles || 0}</div>
+                          <div className="text-lg text-text-secondary">Total Cycles</div>
+                          <div className="text-sm text-text-muted">Completed competitions</div>
+                        </div>
+                        
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-accent mb-2">{stats.activeCycles || 0}</div>
+                          <div className="text-lg text-text-secondary">Active Cycles</div>
+                          <div className="text-sm text-text-muted">Currently running</div>
+                        </div>
+                        
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-green-400 mb-2">{(stats.avgPrizePool || 0).toFixed(1)} STT</div>
+                          <div className="text-lg text-text-secondary">Avg Prize Pool</div>
+                          <div className="text-sm text-text-muted">Per cycle</div>
+                        </div>
+                        
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-yellow-400 mb-2">{(stats.winRate || 0).toFixed(1)}%</div>
+                          <div className="text-lg text-text-secondary">Global Win Rate</div>
+                          <div className="text-sm text-text-muted">Average success</div>
+                        </div>
+                        
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-blue-400 mb-2">{stats.avgCorrect || 0}x</div>
+                          <div className="text-lg text-text-secondary">Avg Odds</div>
+                          <div className="text-sm text-text-muted">Winning slips</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   );

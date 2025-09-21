@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
@@ -127,7 +127,7 @@ interface GuidedMarketData {
 
 type MarketType = 'guided' | 'combo' | null;
 
-export default function CreateMarketPage() {
+function CreateMarketPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { address, isConnected } = useAccount();
@@ -2336,5 +2336,15 @@ export default function CreateMarketPage() {
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-secondary/5 rounded-full blur-3xl animate-float" style={{ animationDelay: '4s' }} />
       </div>
     </div>
+  );
+}
+
+export default function CreateMarketPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="text-white">Loading...</div>
+    </div>}>
+      <CreateMarketPageContent />
+    </Suspense>
   );
 }

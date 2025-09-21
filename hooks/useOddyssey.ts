@@ -3,7 +3,7 @@ import { useAccount, useReadContract, useWriteContract, useWaitForTransactionRec
 import { CONTRACTS } from '@/contracts';
 import { formatUnits, parseUnits } from 'viem';
 import { useQuery } from '@tanstack/react-query';
-import { oddysseyService, type OddysseyCycle, type OddysseyMatch } from '@/services/oddysseyService';
+import { oddysseyService, type OddysseyMatch } from '@/services/oddysseyService';
 import { transformContractData } from '@/utils/bigint-serializer';
 
 export enum BetType {
@@ -185,7 +185,7 @@ export function useOddyssey() {
   // Get user slips from contract
   const { data: contractUserSlips, refetch: refetchContractSlips } = useQuery({
     queryKey: ['oddyssey', 'contract', 'user-slips', address, dailyCycleId],
-    queryFn: () => address && dailyCycleId ? oddysseyService.getUserSlipsForCycle(Number(dailyCycleId), address) : null,
+    queryFn: () => address && dailyCycleId ? oddysseyService.getUserSlipsForCycleFromBackend(Number(dailyCycleId), address as string) : null,
     enabled: !!(address && dailyCycleId),
     refetchInterval: 60000, // Every minute for real-time updates
     staleTime: 30000, // Consider data fresh for 30 seconds
@@ -454,11 +454,11 @@ export function useOddyssey() {
     userSlips: userSlips || [],
     
     // Contract data
-    contractCycleData: contractCycleData?.cycle,
+    contractCycleData: contractCycleData,
     contractLoading,
-    leaderboard: contractLeaderboardData?.leaderboard || [],
-    contractUserSlips: contractUserSlips?.data || [],
-    contractStats: contractStats?.stats,
+    leaderboard: contractLeaderboardData?.data || [],
+    contractUserSlips: contractUserSlips || [],
+    contractStats: contractStats?.data,
     
     // Calculated data
     isBettingOpen: isBettingOpen(),
