@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { safeStartTimeToISOString } from '@/utils/time-helpers';
 
 export async function GET() {
   try {
@@ -48,7 +49,7 @@ export async function GET() {
           fixture_id: match.id,
           home_team: match.homeTeam,
           away_team: match.awayTeam,
-          match_date: new Date(match.startTime * 1000).toISOString(),
+          match_date: safeStartTimeToISOString(match.startTime),
           league_name: match.leagueName,
           home_odds: match.oddsHome / 1000, // Convert from scaled format
           draw_odds: match.oddsDraw / 1000,

@@ -14,8 +14,6 @@ import {
 } from 'viem';
 import { CONTRACTS } from '@/contracts';
 import { GAS_SETTINGS } from '@/config/wagmi';
-import { serializeBigInts } from '@/utils/bigint-helpers';
-
 
 // Convert somniaNetwork to viem Chain format
 const somniaChain: Chain = {
@@ -30,7 +28,7 @@ const somniaChain: Chain = {
     default: {
       http: [
         process.env.NODE_ENV === 'development' 
-          ? 'http://localhost:3000/api/rpc-proxy'
+          ? 'http://localhost:8080/api/rpc-proxy'
           : process.env.NEXT_PUBLIC_RPC_URL || 'https://dream-rpc.somnia.network/'
       ],
     },
@@ -44,20 +42,13 @@ const somniaChain: Chain = {
 // Use the actual Oddyssey ABI from the contract
 const ODDYSSEY_ABI = CONTRACTS.ODDYSSEY.abi;
 
-// Enums from contract (matching backend script)
+// Enums from contract
 const BetType = {
   MONEYLINE: 0,
   OVER_UNDER: 1
 } as const;
 
-const CycleState = {
-  NotStarted: 0,
-  Active: 1,
-  Ended: 2,
-  Resolved: 3
-} as const;
-
-// Selection constants (matching contract exactly - same as backend script)
+// Selection constants (matching contract exactly)
 const SELECTIONS = {
   MONEYLINE: {
     HOME_WIN: keccak256(stringToHex('1')),
@@ -77,7 +68,7 @@ export interface UserPrediction {
   selectedOdd: number;
 }
 
-// Wagmi-style client wrapper (matching backend script)
+// Wagmi-style client wrapper
 class WagmiStyleClient {
   private publicClient: PublicClient;
   private walletClient: WalletClient | null = null;
@@ -92,9 +83,6 @@ class WagmiStyleClient {
 
   async initialize() {
     console.log('🔧 Initializing WagmiStyleClient...');
-    
-    // For frontend, we'll use the connected wallet
-    // The wallet client will be provided by the calling component
     console.log('✅ WagmiStyleClient initialized');
   }
 
@@ -165,7 +153,7 @@ class WagmiStyleClient {
   }
 }
 
-// Wagmi-style contract hooks (adapted for frontend)
+// Wagmi-style contract hooks
 class OddysseyContract {
   private client: WagmiStyleClient;
 
@@ -179,7 +167,7 @@ class OddysseyContract {
       abi: ODDYSSEY_ABI,
       functionName: 'getCurrentCycleInfo'
     });
-    return serializeBigInts(result);
+    return result;
   }
 
   async getDailyMatches(cycleId: bigint) {
@@ -189,7 +177,7 @@ class OddysseyContract {
       functionName: 'getDailyMatches',
       args: [cycleId]
     });
-    return serializeBigInts(result);
+    return result;
   }
 
   async getEntryFee() {
@@ -198,7 +186,7 @@ class OddysseyContract {
       abi: ODDYSSEY_ABI,
       functionName: 'entryFee'
     });
-    return serializeBigInts(result);
+    return result;
   }
 
   async getSlipCount() {
@@ -207,7 +195,7 @@ class OddysseyContract {
       abi: ODDYSSEY_ABI,
       functionName: 'slipCount'
     });
-    return serializeBigInts(result);
+    return result;
   }
 
   async getSlip(slipId: bigint) {
@@ -217,7 +205,7 @@ class OddysseyContract {
       functionName: 'getSlip',
       args: [slipId]
     });
-    return serializeBigInts(result);
+    return result;
   }
 
   async placeSlip(predictions: UserPrediction[], value: string) {
@@ -292,8 +280,7 @@ export class OddysseyContractService {
   }
 
   /**
-   * Convert frontend prediction to contract format with proper validation
-   * This matches the exact logic from the working backend script
+   * Convert frontend prediction to contract format
    */
   static formatPredictionForContract(prediction: {
     matchId: number;
@@ -303,7 +290,7 @@ export class OddysseyContractService {
     let betType: 0 | 1;
     let selection: `0x${string}`;
 
-    // Determine bet type and selection with proper validation (matching backend script)
+    // Determine bet type and selection
     if (['1', 'X', '2'].includes(prediction.prediction)) {
       betType = BetType.MONEYLINE;
       switch (prediction.prediction) {
@@ -335,7 +322,7 @@ export class OddysseyContractService {
       throw new Error(`Invalid prediction type: ${prediction.prediction}`);
     }
 
-    // Validate odds (matching backend script validation)
+    // Validate odds
     if (!prediction.odds || prediction.odds <= 0) {
       throw new Error(`Invalid odds: ${prediction.odds}`);
     }
@@ -344,219 +331,34 @@ export class OddysseyContractService {
       matchId: BigInt(prediction.matchId),
       betType,
       selection,
-      selectedOdd: Math.round(prediction.odds * 1000) // Contract uses 1000 scaling factor (matching backend)
+      selectedOdd: Math.round(prediction.odds * 1000) // Contract uses 1000 scaling factor
     };
   }
 
   /**
-   * Validate predictions against contract data
-   * This matches the validation logic from the working backend script
-   */
-  static validatePredictions(predictions: any[], contractMatches: any[]): {
-    isValid: boolean;
-    errors: string[];
-    orderedPredictions: any[];
-  } {
-    const errors: string[] = [];
-    
-    // Check if we have exactly 10 predictions (matching backend validation)
-    if (!predictions || predictions.length !== 10) {
-      errors.push(`Exactly 10 predictions required. You have ${predictions?.length || 0} predictions.`);
-      return { isValid: false, errors, orderedPredictions: [] };
-    }
-
-    // Check if we have exactly 10 contract matches (matching backend validation)
-    if (!contractMatches || contractMatches.length !== 10) {
-      errors.push(`Contract validation failed: expected 10 matches, got ${contractMatches?.length || 0}`);
-      return { isValid: false, errors, orderedPredictions: [] };
-    }
-
-    // CRITICAL FIX: Instead of trying to match by ID (which causes data loss),
-    // we'll use the predictions in the order they were selected and map them to contract order
-    // This ensures all 10 predictions are preserved
-    
-    console.log('🔍 Validating predictions:', {
-      predictionsCount: predictions.length,
-      contractMatchesCount: contractMatches.length,
-      predictions: predictions.map(p => ({ matchId: p.matchId, prediction: p.prediction })),
-      contractMatches: contractMatches.map(m => ({ id: m.id, displayOrder: m.displayOrder || 'N/A' }))
-    });
-
-    // Create ordered predictions by mapping frontend predictions to contract order
-    const orderedPredictions: any[] = [];
-    const usedPredictionIndices = new Set<number>();
-
-    // Map each contract match position to a frontend prediction
-    for (let i = 0; i < contractMatches.length; i++) {
-      const contractMatch = contractMatches[i];
-      
-      // Find the corresponding frontend prediction by matching fixture_id
-      // Frontend uses fixture_id, contract might use different ID format
-      let matchedPrediction = null;
-      let matchedIndex = -1;
-      
-      // Try to find by exact ID match first
-      for (let j = 0; j < predictions.length; j++) {
-        if (usedPredictionIndices.has(j)) continue;
-        
-        const pred = predictions[j];
-        if (pred.matchId.toString() === contractMatch.id.toString()) {
-          matchedPrediction = pred;
-          matchedIndex = j;
-          break;
-        }
-      }
-      
-      // If no exact match, use the next available prediction (fallback)
-      if (!matchedPrediction) {
-        for (let j = 0; j < predictions.length; j++) {
-          if (usedPredictionIndices.has(j)) continue;
-          
-          matchedPrediction = predictions[j];
-          matchedIndex = j;
-          break;
-        }
-      }
-      
-      if (matchedPrediction && matchedIndex >= 0) {
-        usedPredictionIndices.add(matchedIndex);
-        orderedPredictions.push(matchedPrediction);
-        console.log(`✅ Mapped prediction ${matchedIndex + 1} to contract position ${i + 1}:`, {
-          matchId: matchedPrediction.matchId,
-          prediction: matchedPrediction.prediction,
-          contractMatchId: contractMatch.id
-        });
-      } else {
-        errors.push(`Could not map prediction to contract position ${i + 1}`);
-      }
-    }
-
-    // Verify we have exactly 10 ordered predictions
-    if (orderedPredictions.length !== 10) {
-      errors.push(`Ordering failed: expected 10 predictions, got ${orderedPredictions.length}`);
-    }
-
-    // Check for unused predictions (should be 0 if ordering worked correctly)
-    const unusedPredictions = predictions.filter((_, index) => !usedPredictionIndices.has(index));
-    if (unusedPredictions.length > 0) {
-      console.warn(`⚠️ Unused predictions found: ${unusedPredictions.length}`, unusedPredictions);
-      // Don't add this as an error since we're using fallback mapping
-    }
-
-    console.log('📊 Validation result:', {
-      isValid: errors.length === 0,
-      errorCount: errors.length,
-      orderedPredictionsCount: orderedPredictions.length,
-      errors: errors
-    });
-
-    return {
-      isValid: errors.length === 0,
-      errors,
-      orderedPredictions
-    };
-  }
-
-  /**
-   * Place slip using the working backend approach
+   * Place slip using contract calls only
    */
   static async placeSlip(predictions: any[], entryFee: string) {
     this.ensureInitialized();
 
-    // CRITICAL: Ensure exactly 10 predictions before any processing (matching backend validation)
+    // Validate predictions
     if (!predictions || predictions.length !== 10) {
       throw new Error(`Exactly 10 predictions are required. You have ${predictions?.length || 0} predictions.`);
     }
 
-    // Get contract validation data from contract directly (matching backend approach)
-    let contractMatchesData;
-    try {
-      const cycleInfo = await this.oddysseyContract!.getCurrentCycleInfo() as [bigint, number, bigint, bigint, bigint];
-      
-      // Check if cycle exists and is active (matching backend validation)
-      if (!cycleInfo || cycleInfo[0] === BigInt(0)) {
-        throw new Error('No active cycle found in contract. Please wait for the next cycle.');
-      }
-
-      // Check if cycle is active (matching backend validation)
-      if (cycleInfo[1] !== 1) {
-        throw new Error('Cycle is not active. Please wait for the next active cycle.');
-      }
-
-      const currentCycleId = cycleInfo[0];
-      const currentMatches = await this.oddysseyContract!.getDailyMatches(currentCycleId);
-      
-      if (!currentMatches || !Array.isArray(currentMatches) || currentMatches.length !== 10) {
-        throw new Error('No active matches found in contract. Please wait for the next cycle.');
-      }
-
-      contractMatchesData = currentMatches;
-      console.log('✅ Contract validation successful - 10 matches available');
-      console.log(`✅ Current Cycle ID: ${currentCycleId}`);
-      console.log(`✅ Cycle State: ${cycleInfo[1]}`);
-    } catch (error) {
-      console.error('❌ Contract validation failed:', error);
-      throw new Error('No active matches found in contract. Please wait for the next cycle.');
-    }
-
-    // Validate and order predictions (matching backend validation logic)
-    const validation = this.validatePredictions(predictions, contractMatchesData);
-    
-    let finalPredictions = validation.orderedPredictions;
-    
-    // CRITICAL FALLBACK: If validation fails but we have exactly 10 predictions, use them directly
-    if (!validation.isValid && predictions.length === 10) {
-      console.warn('⚠️ Validation failed but we have exactly 10 predictions. Using fallback approach.');
-      console.warn('⚠️ Validation errors:', validation.errors);
-      finalPredictions = predictions; // Use original predictions in order
-    } else if (!validation.isValid) {
-      throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
-    }
-
-    console.log('🔍 CRITICAL: Prediction count after validation:', {
-      inputPredictions: predictions.length,
-      orderedPredictions: validation.orderedPredictions.length,
-      finalPredictions: finalPredictions.length,
-      validationErrors: validation.errors.length,
-      usingFallback: !validation.isValid && predictions.length === 10
-    });
-
-    // Convert predictions to contract format in the correct order (matching backend format)
-    const contractPredictions = finalPredictions.map((pred, index) => {
+    // Convert predictions to contract format
+    const contractPredictions = predictions.map((pred, index) => {
       try {
-        const formatted = this.formatPredictionForContract(pred);
-        console.log(`✅ Formatted prediction ${index + 1}:`, {
-          original: { matchId: pred.matchId, prediction: pred.prediction, odds: pred.odds },
-          formatted: { matchId: formatted.matchId, betType: formatted.betType, selection: formatted.selection, selectedOdd: formatted.selectedOdd }
-        });
-        return formatted;
+        return this.formatPredictionForContract(pred);
       } catch (error) {
         throw new Error(`Error formatting prediction ${index + 1}: ${(error as Error).message}`);
       }
     });
 
-    // FINAL CRITICAL CHECK: Ensure we have exactly 10 predictions (matching backend validation)
-    console.log('🔍 FINAL CHECK: Contract predictions count:', contractPredictions.length);
-    
-    if (contractPredictions.length !== 10) {
-      console.error('❌ CRITICAL ERROR: Prediction count mismatch!', {
-        expected: 10,
-        actual: contractPredictions.length,
-        inputPredictions: predictions.length,
-        orderedPredictions: validation.orderedPredictions.length,
-        contractPredictions: contractPredictions.length
-      });
-      throw new Error(`Final validation failed: exactly 10 predictions required, got ${contractPredictions.length}`);
-    }
-
-    console.log('✅ CRITICAL: All 10 predictions successfully formatted and ready for contract submission');
-
     try {
       console.log('🎯 Placing slip with predictions:', contractPredictions);
       console.log('💰 Entry fee:', entryFee);
-      console.log('⛽ Gas settings:', { gas: GAS_SETTINGS.gas.toString(), gasPrice: GAS_SETTINGS.gasPrice.toString() });
       
-      // Use the working backend approach
       const result = await this.oddysseyContract!.placeSlip(contractPredictions, entryFee);
       
       console.log('✅ Slip placed successfully:', result.hash);
@@ -564,7 +366,6 @@ export class OddysseyContractService {
     } catch (error) {
       console.error('❌ Error placing slip:', error);
       
-      // Provide more specific error messages (matching backend error handling)
       const errorMessage = (error as Error).message || 'Unknown error';
       
       if (errorMessage.includes('insufficient funds')) {
@@ -588,8 +389,7 @@ export class OddysseyContractService {
     this.ensureInitialized();
     
     const entryFee = await this.oddysseyContract!.getEntryFee();
-    // entryFee is now a serialized string, convert back to BigInt for formatEther
-    return formatEther(BigInt(entryFee as string));
+    return formatEther(entryFee as bigint);
   }
 
   /**
@@ -598,8 +398,8 @@ export class OddysseyContractService {
   static async getCurrentCycleId(): Promise<number> {
     this.ensureInitialized();
     
-    const cycleInfo = await this.oddysseyContract!.getCurrentCycleInfo() as [string, number, string, string, string];
-    return Number(cycleInfo[0]); // Return the cycle ID from the array (now serialized as string)
+    const cycleInfo = await this.oddysseyContract!.getCurrentCycleInfo() as [bigint, number, bigint, bigint, bigint];
+    return Number(cycleInfo[0]);
   }
 
   /**
@@ -608,17 +408,17 @@ export class OddysseyContractService {
   static async getCurrentMatches(): Promise<any[]> {
     this.ensureInitialized();
     
-    const cycleInfo = await this.oddysseyContract!.getCurrentCycleInfo() as [string, number, string, string, string];
-    const cycleId = BigInt(cycleInfo[0]); // Convert back to BigInt for the contract call
+    const cycleInfo = await this.oddysseyContract!.getCurrentCycleInfo() as [bigint, number, bigint, bigint, bigint];
+    const cycleId = cycleInfo[0];
     const matches = await this.oddysseyContract!.getDailyMatches(cycleId);
-    return matches as any[]; // matches are already serialized by getDailyMatches
+    return matches as any[];
   }
 }
 
 import { useAccount, useWalletClient } from 'wagmi';
 import { useEffect, useState, useCallback } from 'react';
 
-// React hook for contract interactions (updated to use the fixed service)
+// React hook for contract interactions
 export function useOddysseyContract() {
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
@@ -645,7 +445,6 @@ export function useOddysseyContract() {
         .then(() => {
           setIsInitialized(true);
           setIsInitializing(false);
-          // Fetch initial data after successful initialization
           return fetchInitialData();
         })
         .catch(err => {
@@ -673,11 +472,10 @@ export function useOddysseyContract() {
       console.log('🎯 Fetching initial contract data...');
       
       // Fetch data individually to handle failures gracefully
-      let entryFee = '0.5'; // Default fallback
+      let entryFee = '0.5';
       let cycleId = 0;
       let matches: any[] = [];
       
-      // Try to get entry fee (but don't fail if it doesn't work)
       try {
         entryFee = await OddysseyContractService.getEntryFee();
         console.log('✅ Entry fee fetched:', entryFee);
@@ -685,23 +483,19 @@ export function useOddysseyContract() {
         console.warn('⚠️ Could not fetch entry fee, using default:', err);
       }
       
-      // Try to get cycle ID
       try {
         cycleId = await OddysseyContractService.getCurrentCycleId();
         console.log('✅ Cycle ID fetched:', cycleId);
       } catch (err) {
         console.error('❌ Could not fetch cycle ID:', err);
-        // Don't throw here, just set default and continue
         cycleId = 0;
       }
       
-      // Try to get matches
       try {
         matches = await OddysseyContractService.getCurrentMatches();
         console.log('✅ Matches fetched:', matches.length);
       } catch (err) {
         console.error('❌ Could not fetch matches:', err);
-        // Don't throw here, just set empty array and continue
         matches = [];
       }
       
@@ -711,7 +505,6 @@ export function useOddysseyContract() {
       console.log('✅ Initial contract data fetched successfully');
     } catch (err) {
       console.error('Error fetching initial data:', err);
-      // Set default values on error
       setContractEntryFee('0.5');
       setCurrentCycleId(0);
       setCurrentMatches([]);
@@ -739,23 +532,19 @@ export function useOddysseyContract() {
     setHash(null);
 
     try {
-      // Start transaction
       const result = await OddysseyContractService.placeSlip(predictions, entryFee);
       setHash(result.hash);
       setIsPending(false);
       setIsConfirming(true);
 
-      // Wait for transaction receipt and check status
       const receipt = await OddysseyContractService.waitForTransactionReceipt({ hash: result.hash });
       
       setIsConfirming(false);
       
-      // Check if transaction was successful
       if (receipt.status === 'success') {
         setIsSuccess(true);
         console.log('✅ Transaction confirmed successfully:', result.hash);
       } else {
-        // Transaction failed on blockchain
         const errorMsg = `Transaction failed on blockchain. Status: ${receipt.status}. Hash: ${result.hash}`;
         console.error('❌ Transaction failed:', errorMsg);
         const error = new Error(errorMsg);
@@ -768,13 +557,10 @@ export function useOddysseyContract() {
       setIsPending(false);
       setIsConfirming(false);
       
-      // Enhanced error handling with transaction receipt checking
       if (err instanceof Error && err.message.includes('Transaction failed on blockchain')) {
-        // This is already a properly formatted blockchain failure error
         setError(err);
         throw err;
       } else {
-        // This is a different type of error (network, validation, etc.)
         const error = err as Error;
         setError(error);
         throw error;
@@ -810,7 +596,6 @@ export function useOddysseyContract() {
     await fetchInitialData();
   }, [isInitialized, fetchInitialData]);
 
-  // Reset transaction state
   const resetTransactionState = useCallback(() => {
     setIsSuccess(false);
     setError(null);
@@ -828,7 +613,6 @@ export function useOddysseyContract() {
     resetTransactionState,
     isConnected,
     address,
-    // Wagmi-style properties
     isPending,
     isSuccess,
     isConfirming,
@@ -837,7 +621,6 @@ export function useOddysseyContract() {
     contractEntryFee,
     currentCycleId,
     currentMatches,
-    // Initialization state
     isInitialized,
     isInitializing
   };

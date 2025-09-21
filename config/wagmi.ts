@@ -15,8 +15,9 @@ export const somniaNetwork: AppKitNetwork = {
     default: {
       http: [
         process.env.NODE_ENV === 'development' 
-          ? 'http://localhost:3000/api/rpc-proxy'
-          : process.env.NEXT_PUBLIC_RPC_URL || 'https://dream-rpc.somnia.network/'
+          ? 'http://localhost:8080/api/rpc-proxy'
+          : process.env.NEXT_PUBLIC_RPC_URL || 'https://dream-rpc.somnia.network/',
+        'https://rpc.ankr.com/somnia_testnet/c8e336679a7fe85909f310fbbdd5fbb18d3b7560b1d3eca7aa97874b0bb81e97'
       ],
     },
   },
@@ -47,8 +48,8 @@ export const appKit = createAppKit({
   metadata: {
     name: 'BITR - Connect Wallet',
     description: 'Connect your wallet to access decentralized prediction markets on Somnia Network',
-    url: 'https://bitr-front.vercel.app',
-    icons: ['https://bitr-front.vercel.app/logo.png'],
+    url: 'http://localhost:8080',
+    icons: ['http://localhost:8080/logo.png'],
   },
   features: {
     analytics: false, // Disable analytics to remove Reown tracking
@@ -95,8 +96,8 @@ export const CONTRACT_ADDRESSES = {
   // System Contracts
   REPUTATION_SYSTEM: (process.env.NEXT_PUBLIC_REPUTATION_SYSTEM_ADDRESS || '0xbB966Dd2696005c9e893304819237Ea4006A9380') as `0x${string}`,
   STAKING_CONTRACT: (process.env.NEXT_PUBLIC_STAKING_CONTRACT_ADDRESS || '0xBA03cD2F1c150416C8d9cDf31778157B74010513') as `0x${string}`,
-  FAUCET: (process.env.NEXT_PUBLIC_FAUCET_ADDRESS || '0xd8f4A301B14Ce0619373b472C5e24c0A14a82c55') as `0x${string}`,
-  ODDYSSEY: (process.env.NEXT_PUBLIC_ODDYSSEY_ADDRESS || '0xc4715403c3c8e5C282009e5690ef3032e1f87b60') as `0x${string}`,
+  FAUCET: (process.env.NEXT_PUBLIC_FAUCET_ADDRESS || '0x93042C9D81E33fEc7Cc75820F0F5Aa6C335d398F') as `0x${string}`,
+  ODDYSSEY: (process.env.NEXT_PUBLIC_ODDYSSEY_ADDRESS || '0xfe20e7dAcff3Ca602ba27fCE3052a505278E489b') as `0x${string}`,
   
   // Legacy support (for backward compatibility)
   BITREDICT_POOL: (process.env.NEXT_PUBLIC_BITREDICT_POOL_ADDRESS || '0x08C5da3b3D1eB4c4dd9D2fE50f63096e1AD3a800') as `0x${string}`,
@@ -107,7 +108,7 @@ export const CONTRACT_ADDRESSES = {
 export const NETWORK_CONFIG = {
   chainId: 50312,
   rpcUrl: process.env.NODE_ENV === 'development' 
-    ? 'http://localhost:3000/api/rpc-proxy'
+    ? 'http://localhost:8080/api/rpc-proxy'
     : process.env.NEXT_PUBLIC_RPC_URL || 'https://dream-rpc.somnia.network/',
   explorerUrl: 'https://explorer.somnia.network',
 }

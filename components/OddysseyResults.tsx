@@ -38,7 +38,7 @@ export default function OddysseyResults({ className = "" }: OddysseyResultsProps
       const response = await oddysseyService.getAvailableDates();
       
       if (response.success && response.data) {
-        const dates = response.data.availableDates.map(date => date.date);
+        const dates = response.data.availableDates.map((date: { date: string }) => date.date);
         setAvailableDates(dates);
       }
     } catch (error) {
@@ -224,7 +224,7 @@ export default function OddysseyResults({ className = "" }: OddysseyResultsProps
                           {getStatusText(match.status)}
                         </span>
                         <span className="ml-2 text-xs text-text-muted">
-                          {format(parseISO(match.match_date), 'HH:mm')}
+                          {format(parseISO(match.match_date || ''), 'HH:mm')}
                         </span>
                       </div>
                       

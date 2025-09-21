@@ -3,7 +3,6 @@ import { useAccount, useReadContract, useWriteContract, useWaitForTransactionRec
 import { CONTRACTS } from '@/contracts';
 import { formatUnits, parseUnits } from 'viem';
 import { useQuery } from '@tanstack/react-query';
-import { API_CONFIG } from '@/config/api';
 import { oddysseyService, type OddysseyCycle, type OddysseyMatch } from '@/services/oddysseyService';
 import { transformContractData } from '@/utils/bigint-serializer';
 
@@ -159,53 +158,53 @@ export function useOddyssey() {
     }
   });
 
-  // Backend API queries for additional data - optimized intervals
-  const { data: backendCycleData, isLoading: backendLoading, refetch: refetchBackendData } = useQuery({
-    queryKey: ['oddyssey', 'backend', 'currentCycle'],
+  // Contract-based data queries using the new contract-only service
+  const { data: contractCycleData, isLoading: contractLoading, refetch: refetchContractData } = useQuery({
+    queryKey: ['oddyssey', 'contract', 'currentCycle'],
     queryFn: () => oddysseyService.getCurrentCycle(),
-    refetchInterval: 120000, // Reduced to every 2 minutes
-    staleTime: 60000, // Consider data fresh for 1 minute
+    refetchInterval: 60000, // Every minute for contract data
+    staleTime: 30000, // Consider data fresh for 30 seconds
   });
 
-  // Fetch Oddyssey matches from backend API using the working contract-matches endpoint
-  const { data: backendOddysseyMatches, refetch: refetchBackendOddysseyMatches } = useQuery({
-    queryKey: ['oddyssey', 'backend', 'matches'],
+  // Fetch Oddyssey matches directly from contract
+  const { data: contractOddysseyMatches, refetch: refetchContractOddysseyMatches } = useQuery({
+    queryKey: ['oddyssey', 'contract', 'matches'],
     queryFn: () => oddysseyService.getMatches(),
-    refetchInterval: 120000, // Reduced to every 2 minutes
-    staleTime: 60000, // Consider data fresh for 1 minute
+    refetchInterval: 60000, // Every minute for contract data
+    staleTime: 30000, // Consider data fresh for 30 seconds
   });
 
-  const { data: leaderboardData, refetch: refetchBackendLeaderboard } = useQuery({
-    queryKey: ['oddyssey', 'leaderboard', dailyCycleId?.toString()],
+  const { data: contractLeaderboardData, refetch: refetchContractLeaderboard } = useQuery({
+    queryKey: ['oddyssey', 'contract', 'leaderboard', dailyCycleId?.toString()],
     queryFn: () => oddysseyService.getLeaderboard(),
     enabled: !!dailyCycleId,
-    refetchInterval: 180000, // Reduced to every 3 minutes
-    staleTime: 120000, // Consider data fresh for 2 minutes
+    refetchInterval: 120000, // Every 2 minutes
+    staleTime: 60000, // Consider data fresh for 1 minute
   });
 
-  // NEW: Get user slips with real evaluation data
-  const { data: backendUserSlips, refetch: refetchBackendSlips } = useQuery({
-    queryKey: ['oddyssey', 'user-slips', address],
-    queryFn: () => address ? oddysseyService.getUserSlipsWithEvaluation(address) : null,
-    enabled: !!address,
+  // Get user slips from contract
+  const { data: contractUserSlips, refetch: refetchContractSlips } = useQuery({
+    queryKey: ['oddyssey', 'contract', 'user-slips', address, dailyCycleId],
+    queryFn: () => address && dailyCycleId ? oddysseyService.getUserSlipsForCycle(Number(dailyCycleId), address) : null,
+    enabled: !!(address && dailyCycleId),
     refetchInterval: 60000, // Every minute for real-time updates
     staleTime: 30000, // Consider data fresh for 30 seconds
   });
 
-  // NEW: Check cycle synchronization status
-  const { data: cycleSyncStatus, refetch: refetchCycleSync } = useQuery({
-    queryKey: ['oddyssey', 'cycle-sync'],
+  // Contract synchronization status (always synced in contract-only mode)
+  const { data: contractSyncStatus, refetch: refetchContractSync } = useQuery({
+    queryKey: ['oddyssey', 'contract', 'sync'],
     queryFn: () => oddysseyService.checkCycleSync(),
     refetchInterval: 300000, // Every 5 minutes
     staleTime: 120000, // Consider data fresh for 2 minutes
   });
 
-  const { data: backendStats, refetch: refetchBackendStats } = useQuery({
-    queryKey: ['oddyssey', 'backend', 'stats', dailyCycleId?.toString()],
+  const { data: contractStats, refetch: refetchContractStats } = useQuery({
+    queryKey: ['oddyssey', 'contract', 'stats', dailyCycleId?.toString()],
     queryFn: () => oddysseyService.getCycleStats(),
     enabled: !!dailyCycleId,
-    refetchInterval: 180000, // Reduced to every 3 minutes
-    staleTime: 120000, // Consider data fresh for 2 minutes
+    refetchInterval: 120000, // Every 2 minutes
+    staleTime: 60000, // Consider data fresh for 1 minute
   });
 
   // Get current cycle end time
@@ -246,23 +245,10 @@ export function useOddyssey() {
     if (!entryFee || !address) return;
     
     try {
-      // Convert predictions to backend format
-      const backendPredictions = predictions.map(pred => ({
-        matchId: Number(pred.matchId),
-        betType: pred.betType === BetType.MONEYLINE ? 'MONEYLINE' : 'OVER_UNDER',
-        selection: pred.selection,
-        selectedOdd: pred.selectedOdd
-      }));
+      console.log('⚠️ placeSlip via useOddyssey is deprecated. Use OddysseyContractService.placeSlip directly.');
       
-      // Call backend API (this will handle both contract call and database tracking)
-      const result = await oddysseyService.placeSlip(address, backendPredictions, dailyCycleId as number);
-      
-      console.log('✅ Slip placed successfully:', result);
-      
-      // Refresh data after successful placement
-      refetchAll();
-      
-      return result;
+      // For now, just return a warning
+      throw new Error('Please use the OddysseyContractService.placeSlip method for placing slips');
       
     } catch (error) {
       console.error('Error placing slip:', error);
@@ -286,51 +272,38 @@ export function useOddyssey() {
     });
   };
 
-  // Add new function to fetch live match data
+  // Contract-based live match data (stub for now)
   const fetchLiveMatchData = useCallback(async (matches: Match[]) => {
     try {
       if (!matches || matches.length === 0) return {};
 
-      const response = await fetch(`${API_CONFIG.baseURL}/api/oddyssey/live-matches`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          matchIds: matches.map(m => Number(m.id))
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch live match data');
-      }
-
-      const liveData = await response.json();
-      return liveData.matches || {};
+      // In contract-only mode, we don't have live match data
+      // Return empty object for now
+      console.log('📊 Contract-only mode: Live match data not available');
+      return {};
     } catch (error) {
-      console.error('Error fetching live match data:', error);
+      console.error('Error in fetchLiveMatchData:', error);
       return {};
     }
   }, []);
 
-  // Enhanced daily matches with live data - optimized for performance
+  // Contract-based daily matches (no live data integration)
   const { data: dailyMatchesWithLive, refetch: refetchDailyMatches } = useQuery({
-    queryKey: ['oddyssey-daily-matches-live', dailyCycleId],
+    queryKey: ['oddyssey-daily-matches-contract', dailyCycleId],
     queryFn: async () => {
       const matches = Array.isArray(dailyMatches) ? dailyMatches : [];
       if (matches.length === 0) return [];
       
-      const liveData = await fetchLiveMatchData(matches);
-      
+      // In contract-only mode, just return the matches without live data
       return matches.map((match: any) => ({
         ...match,
-        liveData: liveData[Number(match.id)] || null,
-        isLive: liveData[Number(match.id)]?.status === 'LIVE' || false,
-        currentScore: liveData[Number(match.id)]?.score || null
+        liveData: null,
+        isLive: false,
+        currentScore: null
       }));
     },
     enabled: !!dailyMatches && Array.isArray(dailyMatches) && dailyMatches.length > 0,
-    refetchInterval: 60000, // Reduced to every 1 minute for live data
+    refetchInterval: 60000, // Every minute
     staleTime: 30000, // Consider data fresh for 30 seconds
   });
 
@@ -457,35 +430,35 @@ export function useOddyssey() {
     refetchPrizePool();
     refetchUserSlips();
     refetchGlobalStats();
-    refetchDailyMatches(); // Refetch live matches
-    // Backend data
-    refetchBackendData();
-    refetchBackendOddysseyMatches(); // Refetch backend Oddyssey matches
-    refetchBackendLeaderboard();
-    refetchBackendSlips();
-    refetchBackendStats();
+    refetchDailyMatches();
+    // Contract data
+    refetchContractData();
+    refetchContractOddysseyMatches();
+    refetchContractLeaderboard();
+    refetchContractSlips();
+    refetchContractStats();
   };
 
   return {
-    // Contract data (fallback only)
+    // Contract data (primary source)
     entryFee: formatAmount(entryFee as string | bigint | undefined),
     dailyCycleId: Number(dailyCycleId || 0),
     slipCount: Number(slipCount || 0),
     globalStats: globalStats as GlobalStats,
-    // PRIORITIZE DATABASE DATA: Use backend matches as primary source, contract as fallback
-    dailyMatches: backendOddysseyMatches?.data?.today?.matches || [],
+    // PRIORITIZE CONTRACT DATA: Use contract matches as primary source
+    dailyMatches: contractOddysseyMatches?.data?.today?.matches || [],
     dailyLeaderboard: dailyLeaderboard as LeaderboardEntry[],
     cycleStats: cycleStats as CycleStats,
     prizePool: formatAmount(prizePool as string | bigint | undefined),
     isCycleResolved: isCycleResolved as boolean,
     userSlips: userSlips || [],
     
-    // Backend data
-    backendCycleData: backendCycleData?.cycle,
-    backendLoading,
-    leaderboard: leaderboardData?.leaderboard || [],
-    backendUserSlips: backendUserSlips?.data || [],
-    backendStats: backendStats?.stats,
+    // Contract data
+    contractCycleData: contractCycleData?.cycle,
+    contractLoading,
+    leaderboard: contractLeaderboardData?.leaderboard || [],
+    contractUserSlips: contractUserSlips?.data || [],
+    contractStats: contractStats?.stats,
     
     // Calculated data
     isBettingOpen: isBettingOpen(),

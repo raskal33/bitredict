@@ -1,94 +1,192 @@
 #!/usr/bin/env node
 
-const { ethers } = require('ethers');
+const { createPublicClient, http } = require('viem');
 
-// Contract configuration
-const CONTRACT_ADDRESS = '0xc4715403c3c8e5C282009e5690ef3032e1f87b60';
-const RPC_URL = 'https://dream-rpc.somnia.network/';
-
-// Minimal ABI for the functions we need
-const ODDYSSEY_ABI = [
-  'function entryFee() view returns (uint256)',
-  'function dailyCycleId() view returns (uint256)',
-  'function oracle() view returns (address)',
-  'function devWallet() view returns (address)',
-  'function owner() view returns (address)',
-  'function getDailyMatches(uint256 cycleId) view returns (tuple(uint64 id, uint64 startTime, uint32 oddsHome, uint32 oddsDraw, uint32 oddsAway, uint32 oddsOver, uint32 oddsUnder, tuple(uint8 moneyline, uint8 overUnder) result)[])',
-  'function isCycleInitialized(uint256 cycleId) view returns (bool)'
-];
-
-async function debugContractState() {
-  console.log('🔍 Debugging Oddyssey Contract State');
-  console.log('=====================================');
-  
-  try {
-    // Create provider and contract instance
-    const provider = new ethers.JsonRpcProvider(RPC_URL);
-    const contract = new ethers.Contract(CONTRACT_ADDRESS, ODDYSSEY_ABI, provider);
-    
-    console.log('📍 Contract Address:', CONTRACT_ADDRESS);
-    console.log('🌐 RPC URL:', RPC_URL);
-    console.log('');
-    
-    // Check basic contract info
-    console.log('📊 Basic Contract Info:');
-    const entryFee = await contract.entryFee();
-    const dailyCycleId = await contract.dailyCycleId();
-    const oracle = await contract.oracle();
-    const devWallet = await contract.devWallet();
-    const owner = await contract.owner();
-    
-    console.log('  💰 Entry Fee:', ethers.formatEther(entryFee), 'STT');
-    console.log('  🔄 Current Cycle ID:', dailyCycleId.toString());
-    console.log('  🔮 Oracle Address:', oracle);
-    console.log('  👤 Dev Wallet:', devWallet);
-    console.log('  👑 Owner:', owner);
-    console.log('');
-    
-    // Check if current cycle is initialized
-    if (dailyCycleId > 0) {
-      console.log('🎯 Current Cycle Status:');
-      const isInitialized = await contract.isCycleInitialized(dailyCycleId);
-      console.log('  📋 Cycle', dailyCycleId.toString(), 'Initialized:', isInitialized);
-      
-      if (isInitialized) {
-        try {
-          const matches = await contract.getDailyMatches(dailyCycleId);
-          console.log('  🏆 Matches Count:', matches.length);
-          
-          if (matches.length > 0) {
-            console.log('  📅 First Match:');
-            console.log('    - ID:', matches[0].id.toString());
-            console.log('    - Start Time:', new Date(Number(matches[0].startTime) * 1000).toISOString());
-            console.log('    - Home Odds:', (Number(matches[0].oddsHome) / 1000).toFixed(3));
-            console.log('    - Draw Odds:', (Number(matches[0].oddsDraw) / 1000).toFixed(3));
-            console.log('    - Away Odds:', (Number(matches[0].oddsAway) / 1000).toFixed(3));
-          }
-        } catch (error) {
-          console.log('  ❌ Error fetching matches:', error.message);
-        }
+// Somnia network configuration
+const publicClient = createPublicClient({
+  chain: {
+    id: 50312,
+    name: 'Somnia',
+    nativeCurrency: {
+      decimals: 18,
+      name: 'ETH',
+      symbol: 'ETH',
+    },
+    rpcUrls: {
+      default: {
+        http: ['https://dream-rpc.somnia.network/']
       }
     }
-    
-    // Check network info
-    console.log('');
-    console.log('🌐 Network Info:');
-    const network = await provider.getNetwork();
-    console.log('  🆔 Chain ID:', network.chainId.toString());
-    console.log('  📛 Network Name:', network.name);
-    
-    // Check latest block
-    const latestBlock = await provider.getBlockNumber();
-    console.log('  📦 Latest Block:', latestBlock);
-    
-    console.log('');
-    console.log('✅ Contract state check completed successfully!');
+  },
+  transport: http('https://dream-rpc.somnia.network/')
+});
+
+const ODDYSSEY_ADDRESS = '0xc4715403c3c8e5C282009e5690ef3032e1f87b60';
+
+// Basic ABI for the functions we need to test
+const ODDYSSEY_ABI = [
+  {
+    "inputs": [],
+    "name": "getCurrentCycleInfo",
+    "outputs": [
+      {"internalType": "uint256", "name": "cycleId", "type": "uint256"},
+      {"internalType": "uint8", "name": "status", "type": "uint8"},
+      {"internalType": "uint256", "name": "startTime", "type": "uint256"},
+      {"internalType": "uint256", "name": "endTime", "type": "uint256"},
+      {"internalType": "uint256", "name": "prizePool", "type": "uint256"}
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "uint256", "name": "cycleId", "type": "uint256"}],
+    "name": "getDailyMatches",
+    "outputs": [
+      {
+        "components": [
+          {"internalType": "uint256", "name": "id", "type": "uint256"},
+          {"internalType": "uint256", "name": "startTime", "type": "uint256"},
+          {"internalType": "uint256", "name": "oddsHome", "type": "uint256"},
+          {"internalType": "uint256", "name": "oddsDraw", "type": "uint256"},
+          {"internalType": "uint256", "name": "oddsAway", "type": "uint256"},
+          {"internalType": "uint256", "name": "oddsOver", "type": "uint256"},
+          {"internalType": "uint256", "name": "oddsUnder", "type": "uint256"},
+          {"internalType": "string", "name": "homeTeam", "type": "string"},
+          {"internalType": "string", "name": "awayTeam", "type": "string"},
+          {"internalType": "string", "name": "league", "type": "string"}
+        ],
+        "internalType": "struct IOddyssey.Match[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "uint256", "name": "cycleId", "type": "uint256"}],
+    "name": "isCycleInitialized",
+    "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getCurrentCycle",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  }
+];
+
+async function checkContractState() {
+  try {
+    console.log('🔍 Checking Oddyssey Contract State...');
+    console.log('📍 Contract Address:', ODDYSSEY_ADDRESS);
+    console.log('🌐 Network: Somnia (Chain ID: 50312)');
+    console.log('=' .repeat(80));
+
+    // Check current cycle
+    console.log('\n1️⃣ Current Cycle Information:');
+    try {
+      const currentCycle = await publicClient.readContract({
+        address: ODDYSSEY_ADDRESS,
+        abi: ODDYSSEY_ABI,
+        functionName: 'getCurrentCycle'
+      });
+      console.log('   Current Cycle ID:', currentCycle.toString());
+
+      const cycleInfo = await publicClient.readContract({
+        address: ODDYSSEY_ADDRESS,
+        abi: ODDYSSEY_ABI,
+        functionName: 'getCurrentCycleInfo'
+      });
+      
+      console.log('   Cycle Info:');
+      console.log('     - Cycle ID:', cycleInfo[0].toString());
+      console.log('     - Status:', cycleInfo[1].toString());
+      console.log('     - Start Time:', new Date(Number(cycleInfo[2]) * 1000).toISOString());
+      console.log('     - End Time:', new Date(Number(cycleInfo[3]) * 1000).toISOString());
+      console.log('     - Prize Pool:', cycleInfo[4].toString());
+
+      // Check if cycle is initialized
+      const isInitialized = await publicClient.readContract({
+        address: ODDYSSEY_ADDRESS,
+        abi: ODDYSSEY_ABI,
+        functionName: 'isCycleInitialized',
+        args: [currentCycle]
+      });
+      console.log('     - Is Initialized:', isInitialized);
+
+      // Get matches for current cycle
+      console.log('\n2️⃣ Current Cycle Matches:');
+      try {
+        const matches = await publicClient.readContract({
+          address: ODDYSSEY_ADDRESS,
+          abi: ODDYSSEY_ABI,
+          functionName: 'getDailyMatches',
+          args: [currentCycle]
+        });
+
+        console.log(`   Found ${matches.length} matches:`);
+        matches.forEach((match, index) => {
+          console.log(`   
+   Match ${index + 1}:
+     - ID: ${match.id.toString()}
+     - Home Team: "${match.homeTeam}"
+     - Away Team: "${match.awayTeam}"
+     - League: "${match.league}"
+     - Start Time: ${new Date(Number(match.startTime) * 1000).toISOString()}
+     - Odds Home: ${match.oddsHome.toString()}
+     - Odds Draw: ${match.oddsDraw.toString()}  
+     - Odds Away: ${match.oddsAway.toString()}
+     - Odds Over 2.5: ${match.oddsOver.toString()}
+     - Odds Under 2.5: ${match.oddsUnder.toString()}`);
+        });
+      } catch (error) {
+        console.log('   ❌ Error fetching matches:', error.message);
+      }
+
+      // Check previous cycles if current is 0
+      if (currentCycle.toString() === '0') {
+        console.log('\n3️⃣ Checking for cycle 1 and 2 mentioned in logs:');
+        for (let i = 1; i <= 2; i++) {
+          try {
+            const isInit = await publicClient.readContract({
+              address: ODDYSSEY_ADDRESS,
+              abi: ODDYSSEY_ABI,
+              functionName: 'isCycleInitialized',
+              args: [i]
+            });
+            console.log(`   Cycle ${i} initialized: ${isInit}`);
+            
+            if (isInit) {
+              const cycleMatches = await publicClient.readContract({
+                address: ODDYSSEY_ADDRESS,
+                abi: ODDYSSEY_ABI,
+                functionName: 'getDailyMatches',
+                args: [i]
+              });
+              console.log(`   Cycle ${i} matches: ${cycleMatches.length}`);
+            }
+          } catch (error) {
+            console.log(`   Cycle ${i}: Error - ${error.message}`);
+          }
+        }
+      }
+
+    } catch (error) {
+      console.log('❌ Error getting cycle info:', error.message);
+    }
+
+    console.log('\n' + '=' .repeat(80));
+    console.log('✅ Contract state check completed');
     
   } catch (error) {
-    console.error('❌ Error checking contract state:', error);
+    console.error('💥 Fatal error:', error);
     process.exit(1);
   }
 }
 
-// Run the debug script
-debugContractState();
+// Run the check
+checkContractState().catch(console.error);

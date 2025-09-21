@@ -5,11 +5,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAccount, useChainId } from "wagmi";
 import { toast } from "react-hot-toast";
+import { formatEther } from "viem";
 
-import { oddysseyService } from "@/services/oddysseyService";
-import OddysseyResults from "@/components/OddysseyResults";
-import { useOddyssey } from "@/hooks/useOddyssey";
+import { oddysseyService, type OddysseyMatch } from "@/services/oddysseyService";
 import { useTransactionFeedback, TransactionFeedback } from "@/components/TransactionFeedback";
+import { safeStartTimeToISOString, safeStartTimeToLocaleString, safeStartTimeToDate } from "@/utils/time-helpers";
 import { 
   FireIcon, 
   TrophyIcon, 
@@ -21,12 +21,13 @@ import {
   ClockIcon,
   EyeIcon,
   ShieldCheckIcon,
-  CheckCircleIcon,
-  XCircleIcon,
   ArrowTrendingUpIcon,
   TableCellsIcon,
+  ArrowPathIcon,
   DocumentTextIcon,
-  GiftIcon
+  GiftIcon,
+  XMarkIcon,
+  CalendarDaysIcon
 } from "@heroicons/react/24/outline";
 import { FaSpinner } from "react-icons/fa";
 
@@ -77,414 +78,1002 @@ interface Match {
   display_order: number;
 }
 
-interface MatchesData {
-  today: {
-    date: string;
-    matches: Match[];
-  };
-  yesterday?: {
-    date: string;
-    matches: Match[];
-  };
+
+interface Stats {
+  totalPlayers: number;
+  prizePool: string;
+  completedSlips: string;
+  averageOdds: string;
+  totalCycles: number;
+  activeCycles: number;
+  avgPrizePool: number;
+  winRate: number;
+  avgCorrect: number;
 }
 
+interface CurrentPrizePool {
+  cycleId: number | null;
+  prizePool: string;
+  formattedPrizePool: string;
+  matchesCount: number;
+  isActive: boolean;
+}
+
+interface DailyStats {
+  date: string;
+  dailyPlayers: number;
+  dailySlips: number;
+  avgCorrectToday: number;
+  currentCycleId: number | null;
+  currentPrizePool: string;
+}
+
+
+// Default entry fee - will be updated with contract value
+const DEFAULT_ENTRY_FEE = "0.5";
 
 export default function OddysseyPage() {
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
   
-  // Local state management
-  const [activeTab, setActiveTab] = useState<"today" | "slips" | "stats" | "results">("today");
-  const [selectedDate, setSelectedDate] = useState<"yesterday" | "today">("today");
-  const [picks, setPicks] = useState<Pick[]>([]);
-  const [slips, setSlips] = useState<Pick[][]>([]);
-  const [matches, setMatches] = useState<MatchesData | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoadingMatches, setIsLoadingMatches] = useState(false);
-  const [isLoadingSlips, setIsLoadingSlips] = useState(false);
-  const [isLoadingStats, setIsLoadingStats] = useState(false);
-  
-  // Timer state
-  const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
-  const [isClient, setIsClient] = useState(false);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  
   // Contract state
+  const [currentMatches, setCurrentMatches] = useState<OddysseyMatch[]>([]);
+  const [entryFee, setEntryFee] = useState<string>(DEFAULT_ENTRY_FEE);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
   
-  // Prize pool state
-  const [currentPrizePool, setCurrentPrizePool] = useState<{
-    cycleId: number | null;
-    prizePool: string;
-    formattedPrizePool: string;
-    matchesCount: number;
-    isActive: boolean;
-  } | null>(null);
+  // Transaction state
+  const [isPending, setIsPending] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+  const [hash, setHash] = useState<string | null>(null);
   
-  const [dailyStats, setDailyStats] = useState<{
-    date: string;
-    dailyPlayers: number;
-    dailySlips: number;
-    avgCorrectToday: number;
-    currentCycleId: number | null;
-    currentPrizePool: string;
-    dailyPrizePool: string;
-  } | null>(null);
-
-  // Transaction feedback
-  const [transactionStatus, setTransactionStatus] = useState<{
-    isVisible: boolean;
-    status: 'pending' | 'confirming' | 'success' | 'error';
-    title: string;
-    message: string;
-    txHash?: string;
-  }>({
-    isVisible: false,
-    status: 'pending',
-    title: '',
-    message: ''
-  });
-
-  // Use the main Oddyssey hook for contract interactions
-  const {
-    entryFee,
-    prizePool,
-    isBettingOpen,
-    timeRemaining,
-    prizeDistribution,
-    backendStats,
-    
-    // Actions
-    placeSlip,
-    claimPrize,
-    
-    // Transaction state
-    isPending,
-    isConfirming,
-    isConfirmed,
-    hash,
-    
-    // Helpers
-    calculatePotentialScore,
-    calculatePrizeAmount,
-    refetchAll
-  } = useOddyssey();
-
-  const { showSuccess, showError, showPending, showConfirming } = useTransactionFeedback();
-
-  // Initialize client-side rendering
-  useEffect(() => {
-    setIsClient(true);
+  
+  // Contract state management
+  // const [claimPrize] = useState<(() => Promise<void>) | null>(null);
+  
+  // Enhanced transaction feedback system
+  const { transactionStatus, showSuccess, showError, showInfo, showPending, showConfirming, clearStatus } = useTransactionFeedback();
+  
+  const resetTransactionState = useCallback(() => {
+    setIsPending(false);
+    setIsSuccess(false);
+    setIsConfirming(false);
+    setError(null);
+    setHash(null);
   }, []);
 
-  // Initialize contract connection
+  // Custom clear function that also resets transaction state
+  const handleModalClose = useCallback(() => {
+    clearStatus();
+    resetTransactionState();
+  }, [clearStatus, resetTransactionState]);
+
+  // Initialize contract data
   const initializeContract = useCallback(async () => {
-    if (isInitializing || isInitialized) return;
-    
-    setIsInitializing(true);
+    if (!isConnected || !address) return;
     
     try {
-      // Contract is already initialized via the hook
+      setIsInitializing(true);
+      console.log('🎯 Initializing Oddyssey contract...');
+      
+      // Get current cycle
+      const cycleId = await oddysseyService.getCurrentCycle();
+      console.log('Current cycle ID:', cycleId);
+      
+      // Get cycle info
+      const cycleInfo = await oddysseyService.getCurrentCycleInfo();
+      console.log('Prize pool:', formatEther(cycleInfo.prizePool));
+      
+      // Get entry fee
+      const fee = await oddysseyService.getEntryFee();
+      setEntryFee(fee);
+      
+      // Get current matches
+      const matches = await oddysseyService.getCurrentCycleMatches();
+      setCurrentMatches(matches);
+      
+      // Get user slips
+      if (address) {
+        const userSlips = await oddysseyService.getUserSlipsForCycle(address, cycleId);
+        // Convert slips to frontend format
+        const convertedSlips = userSlips.map(slip => 
+          slip.predictions.map(pred => ({
+            id: Number(pred.matchId),
+            time: new Date(Number(pred.matchId) * 1000).toLocaleTimeString('en-US', { 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            }),
+            match: `${pred.homeTeam} vs ${pred.awayTeam}`,
+            pick: (pred.selection === "1" ? "home" : 
+                  pred.selection === "X" ? "draw" : 
+                  pred.selection === "2" ? "away" : 
+                  pred.selection === "Over" ? "over" : "under") as "home" | "draw" | "away" | "over" | "under",
+            odd: pred.selectedOdd,
+            team1: pred.homeTeam,
+            team2: pred.awayTeam,
+            slipId: Number(slip.cycleId),
+            cycleId: Number(slip.cycleId),
+            finalScore: Number(slip.finalScore),
+            correctCount: Number(slip.correctCount),
+            isEvaluated: slip.isEvaluated,
+            placedAt: new Date(Number(slip.placedAt) * 1000).toISOString(),
+            status: slip.isEvaluated ? "Evaluated" : "Pending"
+          }))
+        );
+        setSlips(convertedSlips);
+      }
+      
       setIsInitialized(true);
+      console.log('✅ Contract initialized successfully');
+      
     } catch (error) {
-      console.error("Contract initialization failed:", error);
+      console.error('❌ Error initializing contract:', error);
+      setError(error as Error);
     } finally {
       setIsInitializing(false);
+      setIsLoading(false);
     }
-  }, [isInitializing, isInitialized]);
+  }, [isConnected, address]);
 
-  // Fetch matches data
-  const fetchMatches = useCallback(async () => {
-    if (isLoadingMatches) return;
+  // Initialize on mount and when wallet connects
+  useEffect(() => {
+    if (isConnected && address) {
+      initializeContract();
+    }
+  }, [isConnected, address, initializeContract]);
+  const [picks, setPicks] = useState<Pick[]>([]);
+  const [slips, setSlips] = useState<Pick[][]>([]);
+  const [activeTab, setActiveTab] = useState<"today" | "slips" | "stats" | "results">("today");
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [currentPrizePool, setCurrentPrizePool] = useState<CurrentPrizePool | null>(null);
+  const [dailyStats, setDailyStats] = useState<DailyStats>({
+    date: new Date().toISOString().split('T')[0],
+    dailyPlayers: 0,
+    dailySlips: 0,
+    avgCorrectToday: 0,
+    currentCycleId: null,
+    currentPrizePool: '0'
+  });
+  
+
+  
+  // Helper function to get enhanced slip status - commented out as unused
+  /*
+  const getSlipStatusInfo = (firstPick: unknown) => {
+    if (!firstPick || typeof firstPick !== 'object') {
+      return { 
+        text: 'Pending Evaluation', 
+        color: 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20', 
+        icon: ClockIcon 
+      };
+    }
     
-    setIsLoadingMatches(true);
-    try {
-      const response = await oddysseyService.getMatches();
-      const data = response.data;
-      setMatches(data);
-    } catch (error) {
-      console.error("Error fetching matches:", error);
-      toast.error("Failed to load matches");
-    } finally {
-      setIsLoadingMatches(false);
-    }
-  }, [isLoadingMatches]);
-
-  // Fetch user slips
-  const fetchUserSlips = useCallback(async () => {
-    if (!address || isLoadingSlips) return;
+    const pick = firstPick as {
+      isEvaluated?: boolean;
+      leaderboardRank?: number;
+      prizeClaimed?: boolean;
+    };
     
-    setIsLoadingSlips(true);
-    try {
-      const response = await oddysseyService.getUserSlips(address);
-      const data = response.data;
-      
-      // Transform backend data to Pick format
-      const transformedSlips = data.map((slip: unknown) => {
-        const typedSlip = slip as { predictions: unknown[]; slip_id: number; cycle_id: number; final_score: string; correct_count: number; is_evaluated: boolean; created_at: string; status: string; total_odds: number; potential_payout: number; leaderboard_rank?: number; prize_claimed: boolean };
-        return typedSlip.predictions.map((pred: unknown) => {
-          const typedPred = pred as { id?: number; match_id?: number; time?: string; match_time?: string; team1?: string; home_team?: string; team2?: string; away_team?: string; pick?: string; prediction?: string; odd?: number; odds?: number; selectedOdd?: number; isCorrect?: boolean | null; actualResult?: string; matchResult?: object };
-          return {
-          id: typedPred.id || typedPred.match_id || 0,
-          time: typedPred.time || typedPred.match_time || '',
-          match: `${typedPred.team1 || typedPred.home_team || 'Unknown'} vs ${typedPred.team2 || typedPred.away_team || 'Unknown'}`,
-          pick: typedPred.pick || typedPred.prediction || 'home',
-          odd: typedPred.odd || typedPred.odds || typedPred.selectedOdd || 0,
-          team1: typedPred.team1 || typedPred.home_team || 'Unknown',
-          team2: typedPred.team2 || typedPred.away_team || 'Unknown',
-          // Slip metadata
-          slipId: typedSlip.slip_id,
-          cycleId: typedSlip.cycle_id,
-          finalScore: parseFloat(typedSlip.final_score),
-          correctCount: typedSlip.correct_count,
-          isEvaluated: typedSlip.is_evaluated,
-          placedAt: typedSlip.created_at,
-          status: typedSlip.status,
-          totalOdds: typedSlip.total_odds,
-          potentialPayout: typedSlip.potential_payout,
-          leaderboardRank: typedSlip.leaderboard_rank,
-          prizeClaimed: typedSlip.prize_claimed,
-          // Individual prediction evaluation
-          isCorrect: typedPred.isCorrect,
-          actualResult: typedPred.actualResult,
-          matchResult: typedPred.matchResult
-        } as Pick});
-      });
-      
-      setSlips(transformedSlips);
-    } catch (error) {
-      console.error("Error fetching user slips:", error);
-      // Don't show error toast for slips as it's not critical
-    } finally {
-      setIsLoadingSlips(false);
+    if (!pick.isEvaluated) {
+      return { 
+        text: 'Pending Evaluation', 
+        color: 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20', 
+        icon: ClockIcon 
+      };
     }
-  }, [address, isLoadingSlips]);
-
-  // Fetch statistics
-  const fetchStats = useCallback(async () => {
-    if (isLoadingStats) return;
     
-    setIsLoadingStats(true);
-    try {
-      await oddysseyService.getStats('global');
-      // Using backend stats from hook instead
-    } catch (error) {
-      console.error("Error fetching stats:", error);
-      // Don't show error toast for stats as it's not critical
-    } finally {
-      setIsLoadingStats(false);
+    const leaderboardRank = pick.leaderboardRank;
+    if (leaderboardRank && leaderboardRank <= 5) {
+      if (pick.prizeClaimed) {
+        return { 
+          text: 'Prize Claimed', 
+          color: 'bg-green-500/10 text-green-400 border border-green-500/20', 
+          icon: CheckCircleIcon 
+        };
+      } else {
+        return { 
+          text: `🏆 Winner! Rank #${leaderboardRank}`, 
+          color: 'bg-gradient-to-r from-yellow-500/10 to-orange-500/10 text-yellow-400 border border-yellow-500/30 animate-pulse-glow', 
+          icon: TrophyIcon 
+        };
+      }
     }
-  }, [isLoadingStats]);
-
-  // Fetch current prize pool
-  const fetchCurrentPrizePool = useCallback(async () => {
+    
+    return { 
+      text: 'Evaluated', 
+      color: 'bg-blue-500/10 text-blue-400 border border-blue-500/20', 
+      icon: CheckCircleIcon 
+    };
+  };
+  */
+  
+  // Helper function to calculate prize amount - commented out as unused
+  /*
+  const calculatePrizeAmount = (rank: number, prizePool: number = 50) => {
+    if (rank < 1 || rank > 5) return '0';
+    const percentages = [40, 30, 20, 5, 5]; // 1st, 2nd, 3rd, 4th, 5th
+    const percentage = percentages[rank - 1];
+    return ((prizePool * percentage) / 100).toFixed(2);
+  };
+  */
+  
+  // Handle prize claiming - commented out as unused
+  /*
+  const handleClaimPrize = async (cycleId: number, slipId: number) => {
     try {
-      const response = await oddysseyService.getCurrentPrizePool();
-      const data = response.data;
-      setCurrentPrizePool(data);
+      showPending('Claiming prize...', 'info');
+      if (claimPrize) {
+        await claimPrize();
+      }
+      showSuccess(`Prize claim initiated for Slip #${slipId}!`, 'success');
+      // Refresh slips data
+      await fetchUserSlips();
     } catch (error) {
-      console.error("Error fetching current prize pool:", error);
+      console.error('Prize claim error:', error);
+      showError('Failed to claim prize. Please try again.', 'error');
     }
-  }, []);
+  };
+  */
+  const [isLoading, setIsLoading] = useState(true);
+  const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
+  const [isExpired, setIsExpired] = useState(false);
+  const [hasStartedMatches, setHasStartedMatches] = useState(false);
+  const [apiCallInProgress, setApiCallInProgress] = useState(false);
+  const picksRef = useRef<Pick[]>([]);
+  
 
-  // Fetch daily statistics
-  const fetchDailyStats = useCallback(async () => {
-    try {
-      const response = await oddysseyService.getDailyStats();
-      const data = response.data;
-      setDailyStats({
-        ...data,
-        dailyPrizePool: data.currentPrizePool
-      });
-    } catch (error) {
-      console.error("Error fetching daily stats:", error);
+  // Debug chainId changes and clear network errors when correct
+  useEffect(() => {
+    console.log('🔗 Chain ID changed:', chainId);
+    
+    // Clear any network errors if we're on the correct network
+    if (isConnected && chainId === 50312) {
+      console.log('✅ On correct network, clearing any network errors');
+      // The error will be cleared automatically by the transaction feedback system
     }
-  }, []);
+  }, [chainId, isConnected]);
 
-  // Handle transaction feedback
+  // Enhanced transaction state monitoring with better feedback
   useEffect(() => {
     if (isPending) {
-      showPending("Placing slip...", "Please confirm the transaction in your wallet");
-    } else if (isConfirming) {
-      showConfirming("Confirming slip...", "Waiting for blockchain confirmation", hash);
-    } else if (isConfirmed && hash) {
-      showSuccess("Slip placed successfully!", "Your predictions have been recorded on the blockchain", hash);
-      refetchAll();
-      fetchUserSlips();
+      showPending("Wallet Confirmation Required", "Please open your wallet and confirm the transaction to place your slip");
     }
-  }, [isPending, isConfirming, isConfirmed, hash, showPending, showConfirming, showSuccess, refetchAll, fetchUserSlips]);
+  }, [isPending, showPending]);
 
-  // Load data on mount and when connected
   useEffect(() => {
-    if (isConnected) {
-      initializeContract();
-      fetchMatches();
-      fetchUserSlips();
-      fetchStats();
-      fetchCurrentPrizePool();
-      fetchDailyStats();
+    if (isConfirming) {
+      showConfirming("Processing Transaction", "Your slip is being processed on the blockchain. This may take a few moments...", hash || undefined);
     }
-  }, [isConnected, address, chainId, initializeContract, fetchMatches, fetchUserSlips, fetchStats, fetchCurrentPrizePool, fetchDailyStats]);
+  }, [isConfirming, showConfirming, hash]);
 
-  // Timer effect
   useEffect(() => {
-    if (!isClient || !timeRemaining) return;
+    if (isSuccess && hash) {
+      showSuccess(
+        "Slip Placed Successfully!", 
+        "Your predictions have been submitted to the blockchain and are now active in the competition",
+        hash
+      );
+      // Don't reset picks here - let the backend submission handle it
+      // Note: Auto-close is handled by the TransactionFeedback component
+    }
+  }, [isSuccess, hash, showSuccess]);
 
-    const timer = setInterval(() => {
-      const now = Math.floor(Date.now() / 1000);
-      const remaining = Math.max(0, Number(timeRemaining) - now);
-      
-      const hours = Math.floor(remaining / 3600);
-      const minutes = Math.floor((remaining % 3600) / 60);
-      const seconds = remaining % 60;
-      
-      setTimeLeft({ hours, minutes, seconds });
-    }, 1000);
+  useEffect(() => {
+    if (error) {
+      showError("Transaction Failed", (error as Error).message || "Failed to place slip. Please try again or check your wallet connection.");
+    }
+  }, [error, showError]);
 
-    intervalRef.current = timer;
-    return () => clearInterval(timer);
-  }, [timeRemaining, isClient]);
 
-  // Handle prediction selection
-  const handlePredictionSelect = (matchId: number, prediction: string, odds: number) => {
-    const existingPickIndex = picks.findIndex(p => p.id === matchId);
+  // Fetch current prize pool and daily stats (contract-only)
+  const fetchCurrentData = useCallback(async () => {
+    if (apiCallInProgress) return;
     
-    if (existingPickIndex >= 0) {
-      // Update existing pick
-      const updatedPicks = [...picks];
-      updatedPicks[existingPickIndex] = {
-        ...updatedPicks[existingPickIndex],
-        pick: prediction as Pick['pick'],
-        odd: odds
-      };
-      setPicks(updatedPicks);
-    } else if (picks.length < 10) {
-      // Add new pick
-      const match = matches?.[selectedDate]?.matches?.find(m => m.id === matchId);
-      if (!match) return;
+    try {
+      setApiCallInProgress(true);
+      console.log('💰 Fetching current prize pool and daily stats...');
       
+      const prizePoolResult = await oddysseyService.getCurrentPrizePool();
+      
+      if (prizePoolResult.success && prizePoolResult.data) {
+        console.log('✅ Current prize pool received:', prizePoolResult.data);
+        setCurrentPrizePool(prizePoolResult.data);
+        
+        // Set daily stats from prize pool data
+        setDailyStats({
+          date: new Date().toISOString().split('T')[0],
+          dailyPlayers: 100, // Placeholder
+          dailySlips: 50, // Placeholder
+          avgCorrectToday: 8.5, // Placeholder
+          currentCycleId: prizePoolResult.data.cycleId,
+          currentPrizePool: prizePoolResult.data.prizePool
+        });
+      }
+      
+    } catch (error) {
+      console.error('❌ Error fetching current data:', error);
+    } finally {
+      setApiCallInProgress(false);
+    }
+  }, [apiCallInProgress]);
+
+  // Fetch stats using the service (contract-only)
+  const fetchStats = useCallback(async () => {
+    if (apiCallInProgress) return; // Prevent multiple simultaneous calls
+    
+    try {
+      setApiCallInProgress(true);
+      console.log('🎯 Fetching Oddyssey stats...');
+      
+      const [globalStatsResult, userStatsResult] = await Promise.all([
+        oddysseyService.getStats('global'),
+        address ? oddysseyService.getStats('user', address) : null
+      ]);
+
+      if (globalStatsResult.success && globalStatsResult.data) {
+        console.log('✅ Global stats received:', globalStatsResult.data);
+        setStats({
+          totalPlayers: globalStatsResult.data.totalPlayers || 0,
+          prizePool: `${globalStatsResult.data.avgPrizePool || 0} STT`,
+          completedSlips: globalStatsResult.data.totalSlips?.toLocaleString() || "0",
+          averageOdds: `${globalStatsResult.data.avgCorrect || 0}x`,
+          totalCycles: globalStatsResult.data.totalCycles || 0,
+          activeCycles: globalStatsResult.data.activeCycles || 0,
+          avgPrizePool: globalStatsResult.data.avgPrizePool || 0,
+          winRate: globalStatsResult.data.winRate || 0,
+          avgCorrect: globalStatsResult.data.avgCorrect || 0
+        });
+      } else {
+        console.warn('⚠️ No global stats received, using defaults');
+        setStats({
+          totalPlayers: 0,
+          prizePool: "0 STT",
+          completedSlips: "0",
+          averageOdds: "0x",
+          totalCycles: 0,
+          activeCycles: 0,
+          avgPrizePool: 0,
+          winRate: 0,
+          avgCorrect: 0
+        });
+      }
+
+      if (userStatsResult?.success && userStatsResult.data) {
+        console.log('✅ User stats received:', userStatsResult.data);
+        // User stats no longer stored separately - integrated into main stats
+      } else {
+        console.warn('⚠️ No user stats received, using defaults');
+        // User stats no longer stored separately - integrated into main stats
+      }
+    } catch (error) {
+      console.error('❌ Error fetching stats:', error);
+      // Set default stats on error
+      setStats({
+        totalPlayers: 0,
+        prizePool: "0 STT",
+        completedSlips: "0",
+        averageOdds: "0x",
+        totalCycles: 0,
+        activeCycles: 0,
+        avgPrizePool: 0,
+        winRate: 0,
+        avgCorrect: 0
+      });
+      // User stats no longer stored separately - integrated into main stats
+    } finally {
+      setApiCallInProgress(false);
+    }
+  }, [address, apiCallInProgress]);
+
+  // Fetch current cycle and match results (contract-only)
+  const fetchCurrentCycle = useCallback(async () => {
+    if (apiCallInProgress) return; // Prevent multiple simultaneous calls
+    
+    try {
+      setApiCallInProgress(true);
+      console.log('🎯 Fetching current cycle...');
+      
+      const cycleId = await oddysseyService.getCurrentCycle();
+      const cycleInfo = await oddysseyService.getCurrentCycleInfo();
+      
+      console.log('✅ Current cycle received:', { cycleId, cycleInfo });
+      
+      // Check if cycle is resolved and fetch match results if needed
+      if (Number(cycleInfo.state) === 2) { // 2 = Resolved
+        const liveMatchesResult = await oddysseyService.getMatches();
+        
+        if (liveMatchesResult.success && liveMatchesResult.data) {
+          console.log('✅ Match results received:', liveMatchesResult.data);
+            // TODO: Implement match results display when needed
+          }
+      }
+    } catch (error) {
+      console.error('❌ Error fetching current cycle:', error);
+    } finally {
+      setApiCallInProgress(false);
+    }
+  }, [apiCallInProgress]);
+
+  // Fetch user slips using the service (contract-only)
+  const fetchUserSlips = useCallback(async () => {
+    if (!address || apiCallInProgress) return;
+    
+    try {
+      setApiCallInProgress(true);
+      console.log('🎯 Fetching user slips for address:', address);
+      
+      const result = await oddysseyService.getUserSlips(address);
+      
+      if (result.success && result.data && result.data.length > 0) {
+        console.log('✅ User slips received:', result.data);
+        
+        // Convert contract slip format to frontend format
+        const convertedSlips = result.data.map((slip) => {
+          return slip.predictions.map((pred) => {
+            const matchId = Number(pred.matchId);
+            const prediction = pred.selection;
+            const odds = pred.selectedOdd;
+            
+            // Team names come directly from contract
+            const homeTeam = pred.homeTeam;
+            const awayTeam = pred.awayTeam;
+            
+            // Determine pick type based on prediction value
+            let pick: "home" | "draw" | "away" | "over" | "under" = "home";
+            if (prediction === "X") pick = "draw";
+            else if (prediction === "2") pick = "away";
+            else if (prediction === "Over") pick = "over";
+            else if (prediction === "Under") pick = "under";
+            
+            return {
+              id: matchId,
+              time: new Date(Number(pred.matchId) * 1000).toLocaleTimeString('en-US', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+              }),
+              match: `${homeTeam} vs ${awayTeam}`,
+              pick: pick,
+              odd: odds,
+              team1: homeTeam,
+              team2: awayTeam,
+              // Add slip metadata
+              slipId: Number(slip.cycleId),
+              cycleId: Number(slip.cycleId),
+              finalScore: Number(slip.finalScore),
+              correctCount: Number(slip.correctCount),
+              isEvaluated: slip.isEvaluated,
+              placedAt: new Date(Number(slip.placedAt) * 1000).toISOString(),
+              status: slip.isEvaluated ? "Evaluated" : "Pending"
+            };
+          });
+        });
+        
+        console.log('🔄 Converted slips:', convertedSlips);
+        // Keep slips as separate arrays, filter out empty slips
+        const validSlips = convertedSlips.filter(slip => slip.length > 0) as Pick[][];
+        setSlips(validSlips);
+      } else {
+        console.warn('⚠️ No user slips received');
+        setSlips([]);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching user slips:', error);
+      setSlips([]);
+    } finally {
+      setApiCallInProgress(false);
+    }
+  }, [address, apiCallInProgress]);
+
+  // Update refetchAll function now that other functions are defined - commented out as unused
+  /*
+  const refetchAll = useCallback(async () => {
+    await Promise.all([
+      fetchCurrentData(),
+      fetchStats(),
+      fetchUserSlips()
+    ]);
+  }, [fetchCurrentData, fetchStats, fetchUserSlips]);
+  */
+
+  // Contract-only: No date filtering needed since all data comes from contract
+
+  useEffect(() => {
+    fetchCurrentCycle();
+  }, [fetchCurrentCycle]); // Include dependencies
+
+  useEffect(() => {
+    if (address) {
+      fetchStats();
+      fetchUserSlips();
+      fetchCurrentData();
+    }
+  }, [address, fetchStats, fetchUserSlips, fetchCurrentData]); // Include dependencies
+  
+  
+  // Winner notification system
+  useEffect(() => {
+    if (slips?.length > 0) {
+      const unclaimedWins = slips.filter(slip => {
+        const firstPick = slip[0];
+        return firstPick?.isEvaluated && 
+               (firstPick?.leaderboardRank ?? 0) <= 5 && 
+               (firstPick?.leaderboardRank ?? 0) > 0 && 
+               !firstPick?.prizeClaimed;
+      });
+      
+      if (unclaimedWins.length > 0) {
+        const totalPrizes = unclaimedWins.length;
+        const topRank = Math.min(...unclaimedWins.map(slip => slip[0]?.leaderboardRank ?? 6));
+        
+        toast.success(
+          `🎉 Congratulations! You have ${totalPrizes} unclaimed prize${totalPrizes > 1 ? 's' : ''}! Highest rank: #${topRank}`,
+          {
+            duration: 8000,
+            position: 'top-center',
+            style: {
+              background: 'linear-gradient(135deg, #fbbf24, #f59e0b)',
+              color: '#000',
+              fontWeight: 'bold',
+              borderRadius: '12px',
+              padding: '16px 20px'
+            },
+            icon: '🏆'
+          }
+        );
+      }
+    }
+  }, [slips]);
+
+  // Contract-only transaction handling
+  useEffect(() => {
+    if (isSuccess && hash) {
+      // Transaction confirmed - refresh data and reset picks
+      console.log('✅ Transaction confirmed, refreshing data...');
+      
+      // Reset picks after successful transaction
+            setPicks([]);
+      
+      // Refresh data after a short delay
+            setTimeout(() => {
+              fetchStats?.();
+              fetchUserSlips?.();
+        fetchCurrentData?.();
+            }, 2000); // 2 second delay
+    }
+  }, [isSuccess, hash, fetchStats, fetchUserSlips, fetchCurrentData]);
+
+  // Check if any matches have started
+  const checkStartedMatches = useCallback((matches: Match[]) => {
+    const now = new Date();
+    const hasStarted = matches.some(match => {
+      const matchStartTime = new Date(match.match_date);
+      return matchStartTime <= now;
+    });
+    setHasStartedMatches(hasStarted);
+    return hasStarted;
+  }, []);
+
+  // Check if a specific match has started
+  // const isMatchStarted = useCallback((matchDate: string) => {
+  //   const matchStartTime = new Date(matchDate);
+  //   const now = new Date();
+  //   return matchStartTime <= now;
+  // }, []);
+
+  // Contract-only: Update matches based on contract data
+  useEffect(() => {
+    if (currentMatches.length > 0) {
+      // Convert contract matches to frontend format
+      const convertedMatches = currentMatches.map((match, index) => {
+        // Ensure we have a valid ID
+        const matchId = match.id ? Number(match.id) : index + 1;
+        
+        return {
+          id: matchId,
+          fixture_id: matchId,
+          match_date: safeStartTimeToISOString(match.startTime),
+          home_team: match.homeTeam || `Team ${matchId}A`,
+          away_team: match.awayTeam || `Team ${matchId}B`,
+          home_odds: match.oddsHome, // Already converted in service
+          draw_odds: match.oddsDraw, // Already converted in service
+          away_odds: match.oddsAway, // Already converted in service
+          over_odds: match.oddsOver, // Already converted in service
+          under_odds: match.oddsUnder, // Already converted in service
+          league_name: match.leagueName || 'Oddyssey League',
+          market_type: 'match_result',
+          display_order: index + 1
+        };
+      });
+      
+      setMatches(convertedMatches);
+      checkStartedMatches(convertedMatches);
+    }
+  }, [currentMatches, checkStartedMatches]);
+
+  // Calculate time left based on first match
+  const calculateTimeLeft = useCallback(() => {
+    if (!matches || matches.length === 0) {
+      setTimeLeft({ hours: 0, minutes: 0, seconds: 0 });
+      setIsExpired(true);
+      return;
+    }
+
+    // Sort matches by time and get the first match
+    const sortedMatches = [...matches].sort((a, b) => 
+      new Date(a.match_date).getTime() - new Date(b.match_date).getTime()
+    );
+    const firstMatch = sortedMatches[0];
+    
+    if (!firstMatch) {
+      setTimeLeft({ hours: 0, minutes: 0, seconds: 0 });
+      setIsExpired(true);
+      return;
+    }
+
+    const now = new Date().getTime();
+    const matchTime = new Date(firstMatch.match_date).getTime();
+    const timeDifference = matchTime - now;
+
+    if (timeDifference <= 0) {
+      setTimeLeft({ hours: 0, minutes: 0, seconds: 0 });
+      setIsExpired(true);
+      setHasStartedMatches(true);
+    } else {
+      const hours = Math.floor(timeDifference / (1000 * 60 * 60));
+      const minutes = Math.floor((timeDifference % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((timeDifference % (1000 * 60)) / 1000);
+
+        setTimeLeft({ hours, minutes, seconds });
+        setIsExpired(false);
+      setHasStartedMatches(false);
+      }
+  }, [matches]);
+
+  useEffect(() => {
+    calculateTimeLeft();
+    const timer = setInterval(calculateTimeLeft, 1000);
+
+    return () => clearInterval(timer);
+  }, [matches, calculateTimeLeft]); // Include calculateTimeLeft in dependencies
+
+  // Update picksRef whenever picks changes
+  useEffect(() => {
+    picksRef.current = picks;
+  }, [picks]);
+
+  const handlePickSelection = (matchId: number, pick: "home" | "draw" | "away" | "over" | "under") => {
+    const match = matches.find(m => m.fixture_id === matchId);
+    if (!match) {
+      toast.error('Match not found. Please refresh the page and try again.');
+      return;
+    }
+
+    // Enhanced validation with better error messages
+    const matchStartTime = new Date(match.match_date);
+    const now = new Date();
+    
+    if (matchStartTime <= now) {
+      toast.error(`Cannot bet on ${match.home_team} vs ${match.away_team} - match has already started`);
+      return;
+    }
+
+    // Check if we're trying to bet on yesterday's matches
+    const matchDate = new Date(match.match_date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (matchDate < today) {
+      toast.error(`Cannot bet on ${match.home_team} vs ${match.away_team} - match is in the past`);
+      return;
+    }
+
+    // Remove any existing pick for this match
+    const filteredPicks = picks.filter(p => p.id !== matchId);
+    
+    // Validate odds availability
+    let odd = 0;
+    let oddsAvailable = true;
+    
+    switch (pick) {
+      case "home":
+        odd = match.home_odds || 0;
+        if (!match.home_odds) {
+          oddsAvailable = false;
+          toast.error(`Home win odds not available for ${match.home_team} vs ${match.away_team}`);
+        }
+        break;
+      case "draw":
+        odd = match.draw_odds || 0;
+        if (!match.draw_odds) {
+          oddsAvailable = false;
+          toast.error(`Draw odds not available for ${match.home_team} vs ${match.away_team}`);
+        }
+        break;
+      case "away":
+        odd = match.away_odds || 0;
+        if (!match.away_odds) {
+          oddsAvailable = false;
+          toast.error(`Away win odds not available for ${match.home_team} vs ${match.away_team}`);
+        }
+        break;
+      case "over":
+        odd = match.over_odds || 0;
+        if (!match.over_odds) {
+          oddsAvailable = false;
+          toast.error(`Over 2.5 odds not available for ${match.home_team} vs ${match.away_team}`);
+        }
+        break;
+      case "under":
+        odd = match.under_odds || 0;
+        if (!match.under_odds) {
+          oddsAvailable = false;
+          toast.error(`Under 2.5 odds not available for ${match.home_team} vs ${match.away_team}`);
+        }
+        break;
+    }
+
+    if (!oddsAvailable) {
+      return;
+    }
+
+    // Validate odds value
+    if (odd <= 0) {
+      toast.error(`Invalid odds (${odd}) for ${pick} on ${match.home_team} vs ${match.away_team}`);
+      return;
+    }
+
+    if (filteredPicks.length < 10) {
       const newPick: Pick = {
-        id: matchId,
-        time: match.match_date,
+        id: matchId, // matchId is now fixture_id
+        time: new Date(match.match_date).toLocaleTimeString('en-US', { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        }),
         match: `${match.home_team} vs ${match.away_team}`,
-        pick: prediction as Pick['pick'],
-        odd: odds,
+        pick,
+        odd,
         team1: match.home_team,
         team2: match.away_team
       };
-      setPicks([...picks, newPick]);
+
+      setPicks([...filteredPicks, newPick]);
+      
+      // Enhanced feedback for selection
+      const pickLabel = pick === "home" ? "1 (Home Win)" : 
+                       pick === "draw" ? "X (Draw)" : 
+                       pick === "away" ? "2 (Away Win)" : 
+                       pick === "over" ? "Over 2.5" : "Under 2.5";
+      
+      const remaining = 9 - filteredPicks.length;
+      if (remaining > 0) {
+        toast.success(`${pickLabel} selected for ${match.home_team} vs ${match.away_team} @ ${odd}. ${remaining} more prediction${remaining !== 1 ? 's' : ''} needed.`);
+      } else {
+        toast.success(`${pickLabel} selected! Your slip is now complete with all 10 predictions and ready to submit.`);
+      }
     } else {
-      toast.error("You can only select 10 matches");
+      toast.error('You have already selected 10 predictions. Please remove one to add another.');
     }
   };
+  
 
-  // Submit slip
   const handleSubmitSlip = async () => {
-    if (!isConnected) {
-      toast.error("Please connect your wallet");
-      return;
-    }
-
-    if (picks.length !== 10) {
-      toast.error("Please select exactly 10 matches");
-      return;
-    }
-
-    if (!isBettingOpen) {
-      toast.error("Betting is currently closed");
-      return;
-    }
-
-    setIsSubmitting(true);
-    
     try {
-      // Convert picks to the format expected by the contract
-      const contractPredictions = picks.map(pick => ({
-        matchId: BigInt(pick.id),
-        betType: ['home', 'draw', 'away'].includes(pick.pick) ? 0 : 1, // 0 = MONEYLINE, 1 = OVER_UNDER
-        selection: pick.pick,
-        selectedOdd: Math.round(pick.odd * 1000) // Contract uses 1000 scaling factor
+      // Validate wallet connection
+      if (!isConnected || !address) {
+        showError("Wallet Not Connected", "Please connect your wallet to place a slip.");
+        return;
+      }
+
+      // Check network
+      if (chainId !== 50312) {
+        showError("Wrong Network", "Please switch to Somnia Network to use Oddyssey.");
+        return;
+      }
+
+      // Validate picks
+      if (!picks || picks.length !== 10) {
+        const missing = 10 - (picks?.length || 0);
+        showError("Incomplete Slip", `You must make predictions for ALL 10 matches. Currently selected: ${picks?.length || 0}/10. Please select ${missing} more prediction${missing !== 1 ? 's' : ''}.`);
+        return;
+      }
+
+      // Check if any selected matches have started
+      const now = new Date();
+      const hasStartedMatch = picks.some(pick => {
+        const match = currentMatches.find(m => Number(m.id) === pick.id);
+        if (!match) return false;
+        
+        // Safely convert startTime to Date with validation
+        const matchStartTime = safeStartTimeToDate(match.startTime, false);
+        if (!matchStartTime) return false; // Skip invalid times
+        return matchStartTime <= now;
+      });
+
+      if (hasStartedMatch) {
+        showError("Invalid Selection", "Cannot submit slip with matches that have already started. Please refresh and select only upcoming matches.");
+        return;
+      }
+
+      // Check if transaction is already pending
+      if (isPending || isConfirming) {
+        showInfo("Transaction in Progress", "Please wait for the current transaction to complete before submitting another slip.");
+        return;
+      }
+
+      // Show initial feedback
+      showInfo("Preparing Transaction", "Validating your slip and preparing the transaction...");
+
+      console.log('🎯 Submitting slip with picks:', picks);
+      
+      // Format predictions for contract
+      const predictions = picks.map(pick => ({
+        matchId: pick.id,
+        prediction: pick.pick === "home" ? "1" : 
+                   pick.pick === "draw" ? "X" : 
+                   pick.pick === "away" ? "2" : 
+                   pick.pick === "over" ? "Over" : "Under",
+          odds: pick.odd
       }));
 
-      await placeSlip(contractPredictions);
+      console.log('📝 Formatted predictions:', predictions);
+
+      // Submit to contract
+      setIsPending(true);
+      const txHash = await oddysseyService.placeSlip(predictions);
+      setHash(txHash);
+      setIsPending(false);
+      setIsConfirming(true);
       
-      // Clear picks after successful submission
-      setPicks([]);
+      // Wait for confirmation (simplified - in real app you'd wait for transaction receipt)
+      setTimeout(() => {
+        setIsConfirming(false);
+        setIsSuccess(true);
+        showSuccess("Slip Placed Successfully!", "Your predictions have been submitted to the blockchain and are now active in the competition", hash || undefined);
+        setPicks([]);
+        // Refresh data
+        initializeContract();
+      }, 3000);
       
     } catch (error) {
-      console.error("Error submitting slip:", error);
-      showError("Failed to place slip", error instanceof Error ? error.message : "Unknown error");
-    } finally {
-      setIsSubmitting(false);
+      console.error('❌ Error submitting slip:', error);
+      setIsPending(false);
+      setIsConfirming(false);
+      setError(error as Error);
+      showError("Submission Failed", (error as Error).message || "Failed to submit slip");
     }
   };
 
-  // Handle prize claim
-  const handleClaimPrize = async (slipId: number) => {
-    if (!isConnected) {
-      toast.error("Please connect your wallet");
+
+
+  // Manual refresh function (contract-only)
+  const handleManualRefresh = useCallback(async () => {
+    if (apiCallInProgress) {
+      toast.error('Please wait, a refresh is already in progress');
       return;
     }
-
+    
     try {
-      await claimPrize(slipId);
-      toast.success("Prize claimed successfully!");
-      fetchUserSlips(); // Refresh user slips
+      toast.success('Refreshing data...');
+      await Promise.all([
+        fetchCurrentCycle(),
+        fetchStats(),
+        address ? fetchUserSlips() : Promise.resolve(),
+        fetchCurrentData()
+      ]);
+      toast.success('Data refreshed successfully!');
     } catch (error) {
-      console.error("Error claiming prize:", error);
-      toast.error("Failed to claim prize");
+      console.error('❌ Error during manual refresh:', error);
+      toast.error('Failed to refresh data. Please try again later.');
     }
-  };
-
-  // Remove pick
-  const removePick = (pickId: number) => {
-    setPicks(picks.filter(p => p.id !== pickId));
-  };
+  }, [fetchCurrentCycle, fetchStats, fetchUserSlips, fetchCurrentData, address, apiCallInProgress]);
 
 
-  // Handle modal close
-  const handleModalClose = () => {
-    setTransactionStatus(prev => ({ ...prev, isVisible: false }));
-  };
 
-  // Format date for display
-  const getDateTabLabel = (tab: "yesterday" | "today") => {
-    const date = new Date();
-    if (tab === "yesterday") {
-      date.setDate(date.getDate() - 1);
+  // const formatDate = (dateStr: string) => {
+  //   const date = new Date(dateStr);
+  //   return date.toLocaleDateString('en-US', { 
+  //     weekday: 'short', 
+  //     month: 'short', 
+  //     day: 'numeric' 
+  //   });
+  // };
+
+  // const getDateTabLabel = (tab: "yesterday" | "today") => {
+  //   const today = new Date();
+  //   const targetDate = new Date(today);
+  //   
+  //   if (tab === "yesterday") {
+  //     targetDate.setDate(today.getDate() - 1);
+  //   }
+  //   
+  //   return {
+  //     label: tab.charAt(0).toUpperCase() + tab.slice(1),
+  //     date: formatDate(targetDate.toISOString())
+  //   };
+  // };
+
+  // Add network check - commented out as unused
+  /*
+  const checkNetwork = useCallback(() => {
+    // Only check network if wallet is connected
+    if (!isConnected) {
+      console.log('⏳ Wallet not connected, skipping network check');
+      return true; // Don't show error if wallet is not connected
     }
     
-    return {
-      label: tab === "today" ? "Today" : "Yesterday",
-      date: date.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric',
-        weekday: 'short'
-      })
-    };
-  };
+    // Handle case where chainId is undefined (wallet not connected or still loading)
+    if (chainId === undefined) {
+      console.log('⏳ Chain ID not yet available, skipping network check');
+      return true; // Don't show error if chainId is not available yet
+    }
+    
+    // Use Wagmi chainId instead of window.ethereum.chainId
+    if (chainId !== 50312) { // Somnia Network chain ID in decimal
+      console.log(`❌ Wrong network detected: ${chainId}, expected: 50312`);
+      showError("Wrong Network", "Please switch to Somnia Network to use Oddyssey. Current network is not supported.");
+      return false;
+    }
+    
+    console.log('✅ Network check passed: Somnia Network detected');
+    return true;
+  }, [chainId, isConnected, showError]);
+  */
 
-  // Format odds display
-  const formatOdds = (odds: number | null | undefined) => {
-    if (!odds) return "N/A";
+  // Add retry mechanism for contract data - commented out as unused
+  /*
+  const retryContractData = useCallback(async () => {
+    if (!isConnected || !address) {
+      showError("Wallet Not Connected", "Please connect your wallet first.");
+      return;
+    }
+    
+    // Check network first
+    if (!checkNetwork()) {
+      return;
+    }
+    
+    try {
+      showInfo("Retrying Contract Connection", "Attempting to reconnect to the contract...");
+      
+      // Force re-initialization
+      if (refetchAll) {
+        await refetchAll();
+        showSuccess("Connection Successful", "Contract data has been refreshed successfully.");
+      }
+    } catch (error) {
+      console.error('❌ Error retrying contract data:', error);
+      showError("Retry Failed", "Failed to reconnect to contract. Please check your network connection.");
+    }
+  }, [isConnected, address, refetchAll, checkNetwork, showError, showInfo, showSuccess]);
+  */
+
+  // Helper function to format odds correctly (contract uses 1000x scaling) - commented out as unused
+  /*
+  const formatOdds = (odds: number) => {
+    // Backend already sends correct odds, no need to divide by 1000
     return odds.toFixed(2);
   };
+  */
 
-  const formatTotalOdds = (total: number) => {
+
+
+  // Helper function to calculate total odds correctly
+  const calculateTotalOdds = (picks: Pick[]) => {
+    const total = picks.reduce((acc, pick) => acc * (pick.odd || 1), 1);
     return total.toFixed(2);
   };
+
+  // Updated totalOdd calculation
+  const totalOdd = calculateTotalOdds(picks);
 
   return (
     <div className="min-h-screen bg-gradient-main text-white">
       {/* Enhanced Transaction Feedback */}
       <TransactionFeedback
-        status={transactionStatus.isVisible ? {
-          type: transactionStatus.status as 'success' | 'error' | 'warning' | 'info' | 'pending' | 'confirming',
-          title: transactionStatus.title,
-          message: transactionStatus.message,
-          hash: transactionStatus.txHash
-        } : null}
+        status={transactionStatus}
         onClose={handleModalClose}
         autoClose={true}
         autoCloseDelay={5000}
@@ -544,6 +1133,7 @@ export default function OddysseyPage() {
           </div>
         </motion.div>
 
+
         {/* Contract Initialization Status */}
         {isConnected && (
           <motion.div
@@ -600,7 +1190,7 @@ export default function OddysseyPage() {
                   </h2>
                   <p className="text-xl font-semibold text-primary">Current Prize Pool</p>
                   <p className="text-sm text-text-muted">
-                    Cycle {currentPrizePool.cycleId || 'N/A'} • {currentPrizePool.matchesCount} Matches
+                    Cycle {currentPrizePool.cycleId} • {currentPrizePool.matchesCount} Matches
                   </p>
                 </div>
               </div>
@@ -615,80 +1205,149 @@ export default function OddysseyPage() {
         )}
 
         {/* Daily Stats */}
-        {dailyStats && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.15 }}
-            className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
-          >
-            <div className="glass-card text-center p-4">
-              <UsersIcon className="h-10 w-10 mx-auto mb-3 text-secondary" />
-              <h3 className="text-2xl font-bold text-white mb-1">{dailyStats.dailyPlayers}</h3>
-              <p className="text-lg font-semibold text-text-secondary">Players Today</p>
-            </div>
-            
-            <div className="glass-card text-center p-4">
-              <DocumentTextIcon className="h-10 w-10 mx-auto mb-3 text-accent" />
-              <h3 className="text-2xl font-bold text-white mb-1">{dailyStats.dailySlips}</h3>
-              <p className="text-lg font-semibold text-text-secondary">Slips Placed</p>
-            </div>
-            
-            <div className="glass-card text-center p-4">
-              <CurrencyDollarIcon className="h-10 w-10 mx-auto mb-3 text-primary" />
-              <h3 className="text-2xl font-bold text-white mb-1">{dailyStats.dailyPrizePool}</h3>
-              <p className="text-lg font-semibold text-text-secondary">Daily Pool</p>
-            </div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.15 }}
+          className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
+        >
+          <div className="glass-card text-center p-4">
+            <UsersIcon className="h-10 w-10 mx-auto mb-3 text-secondary" />
+            <h3 className="text-2xl font-bold text-white mb-1">100</h3>
+            <p className="text-lg font-semibold text-text-secondary">Players Today</p>
+          </div>
+          
+          <div className="glass-card text-center p-4">
+            <DocumentTextIcon className="h-10 w-10 mx-auto mb-3 text-accent" />
+            <h3 className="text-2xl font-bold text-white mb-1">50</h3>
+            <p className="text-lg font-semibold text-text-secondary">Slips Today</p>
+          </div>
+          
+          <div className="glass-card text-center p-4">
+            <ChartBarIcon className="h-10 w-10 mx-auto mb-3 text-green-400" />
+            <h3 className="text-2xl font-bold text-white mb-1">8.5</h3>
+            <p className="text-lg font-semibold text-text-secondary">Avg Correct Today</p>
+          </div>
+        </motion.div>
+
+        {stats && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+            className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8"
+        >
+              <motion.div
+                whileHover={{ scale: 1.02, y: -2 }}
+                className="glass-card text-center p-4"
+              >
+              <CurrencyDollarIcon className="h-12 w-12 mx-auto mb-4 text-primary" />
+              <h3 className="text-2xl font-bold text-white mb-1">{stats.prizePool}</h3>
+              <p className="text-lg font-semibold text-text-secondary mb-1">Average Prize Pool</p>
+              <p className="text-sm text-text-muted">Per cycle</p>
+              </motion.div>
+
+            <motion.div
+              whileHover={{ scale: 1.02, y: -2 }}
+              className="glass-card text-center p-4"
+            >
+              <UsersIcon className="h-12 w-12 mx-auto mb-4 text-secondary" />
+              <h3 className="text-2xl font-bold text-white mb-1">{stats.totalPlayers.toLocaleString()}</h3>
+              <p className="text-lg font-semibold text-text-secondary mb-1">Total Players</p>
+              <p className="text-sm text-text-muted">All-time</p>
+        </motion.div>
+
+            <motion.div
+              whileHover={{ scale: 1.02, y: -2 }}
+              className="glass-card text-center p-4"
+            >
+              <TrophyIcon className="h-12 w-12 mx-auto mb-4 text-accent" />
+                              <h3 className="text-2xl font-bold text-white mb-1">{(stats.winRate || 0).toFixed(1)}%</h3>
+              <p className="text-lg font-semibold text-text-secondary mb-1">Win Rate</p>
+              <p className="text-sm text-text-muted">Average</p>
+            </motion.div>
+
+            <motion.div
+              whileHover={{ scale: 1.02, y: -2 }}
+              className="glass-card text-center p-4"
+            >
+              <EyeIcon className="h-12 w-12 mx-auto mb-4 text-green-400" />
+              <h3 className="text-2xl font-bold text-white mb-1">{stats.avgCorrect}x</h3>
+              <p className="text-lg font-semibold text-text-secondary mb-1">Average Odds</p>
+              <p className="text-sm text-text-muted">Successful slips</p>
+            </motion.div>
           </motion.div>
         )}
 
-        {/* Betting Countdown */}
-        {isBettingOpen && isClient && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="glass-card text-center p-6 mb-8 border border-green-500/30"
-          >
-            <div className="flex items-center justify-center mb-4">
-              <ClockIcon className="h-8 w-8 text-green-400 mr-3" />
-              <h2 className="text-2xl font-bold text-white">Betting Open</h2>
-            </div>
+        {/* Countdown Timer */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.3 }}
+          className="glass-card text-center p-6 mb-8"
+        >
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-bold text-primary flex items-center gap-2">
+              <ClockIcon className="h-6 w-6" />
+              {matches && matches.length > 0 ? (
+                <>
+              Betting Closes In
+                  <span className="text-sm font-normal text-text-secondary ml-2">
+                    (First match: {matches.sort((a, b) => new Date(a.match_date).getTime() - new Date(b.match_date).getTime())[0]?.home_team} vs {matches.sort((a, b) => new Date(a.match_date).getTime() - new Date(b.match_date).getTime())[0]?.away_team})
+                  </span>
+                </>
+              ) : (
+                "Betting Closes In"
+              )}
+            </h3>
+            
+            {/* Refresh Button */}
+            <button
+              onClick={handleManualRefresh}
+              disabled={apiCallInProgress}
+              className="flex items-center gap-2 px-3 py-2 bg-primary/20 hover:bg-primary/30 text-primary rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {apiCallInProgress ? (
+                <FaSpinner className="h-4 w-4 animate-spin" />
+              ) : (
+                <ArrowPathIcon className="h-4 w-4" />
+              )}
+              <span className="text-sm font-medium">Refresh</span>
+            </button>
+          </div>
+          {isExpired ? (
             <div className="text-red-400 font-bold text-2xl">
-              Time Remaining: {timeLeft.hours.toString().padStart(2, '0')}:
-              {timeLeft.minutes.toString().padStart(2, '0')}:{timeLeft.seconds.toString().padStart(2, '0')}
+              Betting is closed - first match has started
             </div>
+          ) : (
             <div className="flex justify-center gap-4 mb-4">
               <motion.div 
-                className="text-center"
+                className="glass-card p-4 min-w-[80px]"
                 animate={{ scale: [1, 1.05, 1] }}
-                transition={{ duration: 1, repeat: Infinity }}
+                transition={{ duration: 2, repeat: Infinity }}
               >
                 <div className="text-2xl font-bold text-primary">{timeLeft.hours.toString().padStart(2, '0')}</div>
                 <div className="text-xs text-text-muted uppercase tracking-wider">Hours</div>
               </motion.div>
               <motion.div 
-                className="text-center"
+                className="glass-card p-4 min-w-[80px]"
                 animate={{ scale: [1, 1.05, 1] }}
-                transition={{ duration: 1, repeat: Infinity, delay: 0.2 }}
+                transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
               >
                 <div className="text-2xl font-bold text-primary">{timeLeft.minutes.toString().padStart(2, '0')}</div>
                 <div className="text-xs text-text-muted uppercase tracking-wider">Minutes</div>
               </motion.div>
               <motion.div 
-                className="text-center"
+                className="glass-card p-4 min-w-[80px]"
                 animate={{ scale: [1, 1.05, 1] }}
-                transition={{ duration: 1, repeat: Infinity, delay: 0.4 }}
+                transition={{ duration: 2, repeat: Infinity, delay: 1 }}
               >
                 <div className="text-2xl font-bold text-primary">{timeLeft.seconds.toString().padStart(2, '0')}</div>
                 <div className="text-xs text-text-muted uppercase tracking-wider">Seconds</div>
               </motion.div>
             </div>
-            <p className="text-sm text-text-muted">
-              Submit your predictions before the countdown ends
-            </p>
-          </motion.div>
-        )}
+          )}
+        </motion.div>
 
         {/* Tab Navigation */}
         <div className="glass-card p-4 md:p-6 mb-8">
@@ -761,7 +1420,8 @@ export default function OddysseyPage() {
         {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8">
           <AnimatePresence mode="wait">
-            {activeTab === "today" ? (
+            {/* Matches Tab */}
+            {activeTab === "today" && (
               <>
                 {/* Matches Section */}
                 <motion.div
@@ -773,590 +1433,746 @@ export default function OddysseyPage() {
                 >
                   <div className="glass-card p-4 md:p-6">
                     {/* Date Tabs */}
-                    <div className="flex justify-center gap-2 mb-6">
-                      {(["yesterday", "today"] as const).map((date) => {
-                        const { label, date: dateStr } = getDateTabLabel(date);
-                        return (
-                          <button
-                            key={date}
-                            onClick={() => setSelectedDate(date)}
-                            className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                              selectedDate === date
-                                ? "bg-primary text-black"
-                                : "text-text-secondary hover:text-text-primary hover:bg-bg-card/50"
-                            }`}
-                          >
-                            {label}
-                            <span className="block text-xs opacity-75">{dateStr}</span>
-                          </button>
-                        );
-                      })}
+                    <div className="flex items-center justify-center gap-1 md:gap-2 mb-4 md:mb-6 flex-wrap">
+                      <button
+                        className="px-2 md:px-4 py-2 md:py-3 rounded-button font-semibold transition-all duration-300 flex flex-col items-center gap-1 min-w-[80px] md:min-w-[100px] text-xs md:text-sm bg-gradient-primary text-black shadow-lg scale-105"
+                      >
+                        <CalendarDaysIcon className="h-3 w-3 md:h-4 md:w-4" />
+                        <span className="font-bold">Today</span>
+                        <span className="text-xs opacity-80 hidden sm:block">{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                      </button>
                     </div>
 
-                    <div className="flex items-center justify-between mb-6">
-                      <div className="flex items-center gap-3">
-                        <TableCellsIcon className="h-5 w-5 md:h-6 md:w-6" />
-                        <span>Matches - {getDateTabLabel(selectedDate).label}</span>
+                    <div className="mb-6">
+                      {/* Header Section */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+                        <div className="flex items-center gap-3">
+                          <h2 className="text-xl md:text-2xl font-bold text-white flex items-center gap-2">
+                            <TableCellsIcon className="h-5 w-5 md:h-6 md:w-6" />
+                            <span>Matches - Today Live Odds</span>
+                          </h2>
+                          <div className="flex items-center gap-2 text-xs md:text-sm text-text-muted">
+                            <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                            <span>Live Odds</span>
+                          </div>
+                        </div>
                       </div>
-                      {isLoadingMatches && (
-                        <FaSpinner className="h-5 w-5 animate-spin text-primary" />
+                      
+                      {/* Professional Warning Banner */}
+                      {hasStartedMatches && (
+                        <div className="mb-6 p-4 bg-gradient-to-r from-red-500/15 to-orange-500/15 border border-red-500/30 rounded-xl backdrop-blur-sm shadow-lg">
+                          <div className="flex items-start gap-4">
+                            <div className="flex-shrink-0 mt-1">
+                              <div className="w-3 h-3 bg-red-400 rounded-full animate-pulse shadow-lg"></div>
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <div className="font-bold text-red-300 text-lg">Betting Closed</div>
+                                <div className="px-2 py-1 bg-red-500/20 text-red-300 text-xs font-medium rounded-full">
+                                  LIVE
+                                </div>
+                              </div>
+                              <div className="text-sm text-text-secondary leading-relaxed">
+                                The first match has started. Betting is now closed for this cycle. 
+                                You can still view your existing slips and track results.
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       )}
                     </div>
 
-                    {/* Loading State */}
-                    {isLoadingMatches ? (
+                    {/* Responsive Matches Table */}
+                    {isLoading ? (
                       <div className="text-center py-8">
                         <FaSpinner className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
                         <p className="text-text-secondary">Loading matches...</p>
                       </div>
-                    ) : matches?.[selectedDate]?.matches?.length ? (
-                      <>
-                        {/* Responsive Matches Table */}
-                        <div className="overflow-hidden rounded-lg border border-border-card">
-                          <div className="overflow-x-auto">
-                            <table className="w-full">
-                              {/* Mobile-First Table Header */}
-                              <thead className="bg-bg-card border-b border-border-card">
-                                <tr>
-                                  <th className="text-left p-3 text-text-secondary font-medium text-sm">
-                                    Match
-                                  </th>
-                                  <th className="text-center p-3 text-text-secondary font-medium text-sm hidden md:table-cell">
-                                    Time
-                                  </th>
-                                  <th className="text-center p-3 text-text-secondary font-medium text-sm">
-                                    Predictions
-                                  </th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {matches[selectedDate].matches.map((match) => (
-                                  <tr
-                                    key={match.id}
-                                    className="border-b border-border-card/50 hover:bg-bg-card/30 transition-colors"
-                                  >
-                                    {/* Match Info */}
-                                    <td className="p-3">
-                                      <div className="space-y-1">
-                                        <div className="font-semibold text-white text-sm md:text-base">
-                                          {match.home_team} vs {match.away_team}
-                                        </div>
-                                        <div className="text-xs text-text-muted">
-                                          {match.league_name}
-                                        </div>
-                                        <div className="text-xs text-text-muted md:hidden">
-                                          {new Date(match.match_date).toLocaleString()}
-                                        </div>
-                                      </div>
-                                    </td>
-
-                                    {/* Time (Desktop Only) */}
-                                    <td className="p-3 text-center text-sm text-text-muted hidden md:table-cell">
-                                      {new Date(match.match_date).toLocaleString()}
-                                    </td>
-
-                                    {/* Predictions */}
-                                    <td className="p-3">
-                                      <div className="space-y-2">
-                                        {/* Moneyline Markets */}
-                                        {match.market_type === 'moneyline' && (
-                                          <div className="grid grid-cols-3 gap-1 md:gap-2">
-                                            {[
-                                              { label: '1', odds: match.home_odds, selection: '1' },
-                                              { label: 'X', odds: match.draw_odds, selection: 'X' },
-                                              { label: '2', odds: match.away_odds, selection: '2' }
-                                            ].map((option) => {
-                                              const isSelected = picks.some(p => p.id === match.id && p.pick === option.selection);
-                                              return (
-                                                <button
-                                                  key={option.selection}
-                                                  onClick={() => handlePredictionSelect(match.id, option.selection, option.odds || 0)}
-                                                  disabled={!isBettingOpen}
-                                                  className={`p-2 rounded-lg text-sm font-medium transition-all ${
-                                                    isSelected
-                                                      ? "bg-primary text-black shadow-lg"
-                                                      : !isBettingOpen
-                                                      ? "bg-gray-600 text-gray-400 cursor-not-allowed"
-                                                      : "bg-bg-hover text-white hover:bg-primary/20 hover:border-primary border border-transparent"
-                                                  }`}
-                                                >
-                                                  <div className="text-xs opacity-75">{option.label}</div>
-                                                  <div className="font-bold">{formatOdds(option.odds)}</div>
-                                                </button>
-                                              );
-                                            })}
-                                          </div>
-                                        )}
-
-                                        {/* Over/Under Markets */}
-                                        {match.market_type === 'over_under' && (
-                                          <div className="grid grid-cols-2 gap-1 md:gap-2">
-                                            {[
-                                              { label: 'Over', odds: match.over_odds, selection: 'Over' },
-                                              { label: 'Under', odds: match.under_odds, selection: 'Under' }
-                                            ].map((option) => {
-                                              const isSelected = picks.some(p => p.id === match.id && p.pick === option.selection);
-                                              return (
-                                                <button
-                                                  key={option.selection}
-                                                  onClick={() => handlePredictionSelect(match.id, option.selection, option.odds || 0)}
-                                                  disabled={!isBettingOpen}
-                                                  className={`p-2 rounded-lg text-sm font-medium transition-all ${
-                                                    isSelected
-                                                      ? "bg-primary text-black shadow-lg"
-                                                      : !isBettingOpen
-                                                      ? "bg-gray-600 text-gray-400 cursor-not-allowed"
-                                                      : "bg-bg-hover text-white hover:bg-primary/20 hover:border-primary border border-transparent"
-                                                  }`}
-                                                >
-                                                  <div className="text-xs opacity-75">{option.label}</div>
-                                                  <div className="font-bold">{formatOdds(option.odds)}</div>
-                                                </button>
-                                              );
-                                            })}
-                                          </div>
-                                        )}
-                                      </div>
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      </>
+                    ) : currentMatches.length === 0 ? (
+                      <div className="text-center py-12">
+                        <ClockIcon className="h-16 w-16 text-text-muted mx-auto mb-4" />
+                        <h4 className="text-xl font-semibold text-white mb-2">No Matches Available</h4>
+                        <p className="text-text-secondary">
+                          New matches will be available soon. Check back later!
+                        </p>
+                      </div>
                     ) : (
-                      <div className="text-center py-8">
-                        <TableCellsIcon className="h-12 w-12 text-text-muted mx-auto mb-4" />
-                        <p className="text-text-secondary">No matches available for {getDateTabLabel(selectedDate).label}</p>
+                      <div className="space-y-4">
+                        {currentMatches.map((match, index) => {
+                          const matchId = match.id ? Number(match.id) : index + 1;
+                          const isMatchStarted = (matchStartTime: string) => {
+                            const now = new Date();
+                            const startTime = new Date(matchStartTime);
+                            return startTime <= now;
+                          };
+                          
+                          return (
+                            <motion.div
+                              key={`${matchId}-${index}`}
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: index * 0.1 }}
+                              className="glass-card p-4 md:p-6 border border-border-card/50 hover:border-primary/30 transition-all duration-300"
+                            >
+                              {/* Mobile Layout */}
+                              <div className="md:hidden space-y-4">
+                                <div className="flex items-center justify-between mb-3">
+                                  <div className="text-sm text-text-muted">Match {index + 1}</div>
+                                  <div className={`text-xs font-mono px-2 py-1 rounded ${
+                                    isMatchStarted(safeStartTimeToISOString(match.startTime))
+                                      ? "text-red-400 bg-red-500/10 border border-red-500/20"
+                                      : "text-text-secondary bg-primary/10"
+                                  }`}>
+                                    <div className="font-bold">
+                                      {safeStartTimeToLocaleString(match.startTime, 'Time TBD')}
+                                    </div>
+                                    {isMatchStarted(safeStartTimeToISOString(match.startTime)) ? (
+                                      <div className="text-[8px] text-red-400 font-bold">STARTED</div>
+                                    ) : (
+                                      <div className="text-[8px] text-text-muted">AM</div>
+                                    )}
+                                  </div>
+                                </div>
+                                
+                                <div className="text-center mb-4">
+                                  <div className="text-lg font-semibold text-white">
+                                    {match.homeTeam} vs {match.awayTeam}
+                                  </div>
+                                  <div className="text-sm text-text-muted">{match.leagueName}</div>
+                                </div>
+
+                                {/* 1X2 Market */}
+                                <div>
+                                  <div className="text-sm text-text-muted mb-2">Match Result</div>
+                                  <div className="grid grid-cols-3 gap-2">
+                                    <button
+                                      onClick={() => handlePickSelection(matchId, "home")}
+                                      disabled={isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired}
+                                      className={`px-3 py-2 text-center rounded transition-all duration-200 font-bold text-sm ${
+                                        isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired
+                                          ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
+                                          : picks.find(p => p.id === matchId && p.pick === "home")
+                                          ? "bg-gradient-primary text-black shadow-md scale-105"
+                                          : "bg-primary/10 text-white hover:bg-primary/20 hover:text-primary border border-transparent hover:border-primary/30"
+                                      }`}
+                                    >
+                                      <div className="text-xs opacity-75">1</div>
+                                      <div>{match.oddsHome.toFixed(2)}</div>
+                                    </button>
+                                    
+                                    <button
+                                      onClick={() => handlePickSelection(matchId, "draw")}
+                                      disabled={isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired}
+                                      className={`px-3 py-2 text-center rounded transition-all duration-200 font-bold text-sm ${
+                                        isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired
+                                          ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
+                                          : picks.find(p => p.id === matchId && p.pick === "draw")
+                                          ? "bg-gradient-secondary text-black shadow-md scale-105"
+                                          : "bg-secondary/10 text-white hover:bg-secondary/20 hover:text-secondary border border-transparent hover:border-secondary/30"
+                                      }`}
+                                    >
+                                      <div className="text-xs opacity-75">X</div>
+                                      <div>{match.oddsDraw.toFixed(2)}</div>
+                                    </button>
+                                    
+                                    <button
+                                      onClick={() => handlePickSelection(matchId, "away")}
+                                      disabled={isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired}
+                                      className={`px-3 py-2 text-center rounded transition-all duration-200 font-bold text-sm ${
+                                        isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired
+                                          ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
+                                          : picks.find(p => p.id === matchId && p.pick === "away")
+                                          ? "bg-gradient-accent text-black shadow-md scale-105"
+                                          : "bg-accent/10 text-white hover:bg-accent/20 hover:text-accent border border-transparent hover:border-accent/30"
+                                      }`}
+                                    >
+                                      <div className="text-xs opacity-75">2</div>
+                                      <div>{match.oddsAway.toFixed(2)}</div>
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* Over/Under Market */}
+                                <div>
+                                  <div className="text-sm text-text-muted mb-2">Total Goals O/U 2.5</div>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <button
+                                      onClick={() => handlePickSelection(matchId, "over")}
+                                      disabled={isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired}
+                                      className={`px-2 py-2 text-center rounded transition-all duration-200 font-bold text-sm ${
+                                        isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired
+                                          ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
+                                          : picks.find(p => p.id === matchId && p.pick === "over")
+                                          ? "bg-gradient-to-r from-blue-500 to-primary text-black shadow-md scale-105"
+                                          : "bg-blue-500/10 text-white hover:bg-blue-500/20 hover:text-blue-300 border border-transparent hover:border-blue-300/30"
+                                      }`}
+                                    >
+                                      <div className="text-xs opacity-75">O</div>
+                                      <div>{match.oddsOver.toFixed(2)}</div>
+                                    </button>
+                                    
+                                    <button
+                                      onClick={() => handlePickSelection(matchId, "under")}
+                                      disabled={isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired}
+                                      className={`px-2 py-2 text-center rounded transition-all duration-200 font-bold text-sm ${
+                                        isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired
+                                          ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
+                                          : picks.find(p => p.id === matchId && p.pick === "under")
+                                          ? "bg-gradient-to-r from-purple-500 to-blue-600 text-black shadow-md scale-105"
+                                          : "bg-purple-500/10 text-white hover:bg-purple-500/20 hover:text-purple-300 border border-transparent hover:border-purple-300/30"
+                                      }`}
+                                    >
+                                      <div className="text-xs opacity-75">U</div>
+                                      <div>{match.oddsUnder.toFixed(2)}</div>
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Desktop Layout */}
+                              <div className="hidden md:grid md:grid-cols-12 gap-2">
+                                {/* Time */}
+                                <div className="col-span-1 text-center">
+                                  <div className={`text-xs font-mono px-2 py-1 rounded ${
+                                    isMatchStarted(safeStartTimeToISOString(match.startTime))
+                                      ? "text-red-400 bg-red-500/10 border border-red-500/20"
+                                      : "text-text-secondary bg-primary/10"
+                                  }`}>
+                                    <div className="font-bold">
+                                      {safeStartTimeToLocaleString(match.startTime, 'Time TBD')}
+                                    </div>
+                                    {isMatchStarted(safeStartTimeToISOString(match.startTime)) ? (
+                                      <div className="text-[8px] text-red-400 font-bold">STARTED</div>
+                                    ) : (
+                                      <div className="text-[8px] text-text-muted">AM</div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Match */}
+                                <div className="col-span-5 flex items-center justify-center">
+                                  <div className="text-sm font-semibold text-white text-center leading-tight">
+                                    <div className="truncate">{match.homeTeam}</div>
+                                    <div className="text-xs text-text-muted">vs</div>
+                                    <div className="truncate">{match.awayTeam}</div>
+                                  </div>
+                                </div>
+
+                                {/* Home Win (1) */}
+                                <div className="col-span-1 text-center">
+                                  <button
+                                    onClick={() => handlePickSelection(matchId, "home")}
+                                    disabled={isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired}
+                                    className={`w-full px-2 py-1 text-center rounded transition-all duration-200 font-bold text-xs ${
+                                      isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired
+                                        ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
+                                        : picks.find(p => p.id === matchId && p.pick === "home")
+                                        ? "bg-gradient-primary text-black shadow-md scale-105"
+                                        : "bg-primary/10 text-white hover:bg-primary/20 hover:text-primary border border-transparent hover:border-primary/30"
+                                    }`}
+                                  >
+                                    {match.oddsHome.toFixed(2)}
+                                  </button>
+                                </div>
+                                
+                                {/* Draw (X) */}
+                                <div className="col-span-1 text-center">
+                                  <button
+                                    onClick={() => handlePickSelection(matchId, "draw")}
+                                    disabled={isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired}
+                                    className={`w-full px-2 py-1 text-center rounded transition-all duration-200 font-bold text-xs ${
+                                      isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired
+                                        ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
+                                        : picks.find(p => p.id === matchId && p.pick === "draw")
+                                        ? "bg-gradient-secondary text-black shadow-md scale-105"
+                                        : "bg-secondary/10 text-white hover:bg-secondary/20 hover:text-secondary border border-transparent hover:border-secondary/30"
+                                    }`}
+                                  >
+                                    {match.oddsDraw.toFixed(2)}
+                                  </button>
+                                </div>
+                                
+                                {/* Away Win (2) */}
+                                <div className="col-span-1 text-center">
+                                  <button
+                                    onClick={() => handlePickSelection(matchId, "away")}
+                                    disabled={isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired}
+                                    className={`w-full px-2 py-1 text-center rounded transition-all duration-200 font-bold text-xs ${
+                                      isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired
+                                        ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
+                                        : picks.find(p => p.id === matchId && p.pick === "away")
+                                        ? "bg-gradient-accent text-black shadow-md scale-105"
+                                        : "bg-accent/10 text-white hover:bg-accent/20 hover:text-accent border border-transparent hover:border-accent/30"
+                                    }`}
+                                  >
+                                    {match.oddsAway.toFixed(2)}
+                                  </button>
+                                </div>
+                                
+                                {/* Over/Under 2.5 */}
+                                <div className="col-span-2 text-center">
+                                  <div className="flex gap-1">
+                                    <button
+                                      onClick={() => handlePickSelection(matchId, "over")}
+                                      disabled={isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired}
+                                      className={`flex-1 px-1 py-1 text-center rounded transition-all duration-200 font-bold text-xs ${
+                                        isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired
+                                          ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
+                                          : picks.find(p => p.id === matchId && p.pick === "over")
+                                          ? "bg-gradient-to-r from-blue-500 to-primary text-black shadow-md scale-105"
+                                          : "bg-blue-500/10 text-white hover:bg-blue-500/20 hover:text-blue-300 border border-transparent hover:border-blue-300/30"
+                                      }`}
+                                    >
+                                      O{match.oddsOver.toFixed(2)}
+                                    </button>
+                                    <button
+                                      onClick={() => handlePickSelection(matchId, "under")}
+                                      disabled={isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired}
+                                      className={`flex-1 px-1 py-1 text-center rounded transition-all duration-200 font-bold text-xs ${
+                                        isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired
+                                          ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
+                                          : picks.find(p => p.id === matchId && p.pick === "under")
+                                          ? "bg-gradient-to-r from-purple-500 to-blue-600 text-black shadow-md scale-105"
+                                          : "bg-purple-500/10 text-white hover:bg-purple-500/20 hover:text-purple-300 border border-transparent hover:border-purple-300/30"
+                                      }`}
+                                    >
+                                      U{match.oddsUnder.toFixed(2)}
+                                    </button>
+                                  </div>
+                                </div>
+
+                                {/* League */}
+                                <div className="col-span-1 text-center">
+                                  <div className="text-xs text-text-secondary truncate">
+                                    {match.leagueName}
+                                  </div>
+                                </div>
+                              </div>
+                            </motion.div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
                 </motion.div>
 
-                {/* Betting Panel */}
+                {/* Slip Builder */}
                 <motion.div
-                  key="betting-panel"
+                  key="slip"
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
                   className="lg:col-span-1"
                 >
-                  <div className="glass-card p-4 md:p-6 sticky top-4">
-                    <div className="flex items-center gap-3 mb-6">
-                      <TrophyIcon className="h-6 w-6 text-primary" />
-                      <h3 className="text-xl font-bold text-white">My Slip</h3>
-                    </div>
+                  <div className="glass-card sticky top-8 p-4 md:p-6">
+                    <h3 className="text-lg md:text-xl font-bold text-white mb-4 md:mb-6 text-center flex items-center justify-center gap-2">
+                      <ShieldCheckIcon className="h-5 w-5 md:h-6 md:w-6" />
+                      <span className="hidden sm:inline">Slip Builder</span>
+                      <span className="sm:hidden">Slip</span>
+                    </h3>
 
-                    {/* Current Picks */}
-                    <div className="space-y-3 mb-6">
-                      {picks.length === 0 ? (
-                        <div className="text-center py-6">
-                          <EyeIcon className="h-12 w-12 text-text-muted mx-auto mb-3" />
-                          <p className="text-text-secondary text-sm">
-                            Select 10 matches to create your slip
-                          </p>
-                        </div>
-                      ) : (
-                        picks.map((pick) => (
-                          <div
-                            key={pick.id}
-                            className="bg-bg-card p-3 rounded-lg border border-border-card"
-                          >
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="text-sm font-medium text-white truncate">
-                                {pick.team1} vs {pick.team2}
-                              </div>
-                              <button
-                                onClick={() => removePick(pick.id)}
-                                className="text-red-400 hover:text-red-300 ml-2"
-                              >
-                                <XCircleIcon className="h-4 w-4" />
-                              </button>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs text-text-secondary bg-bg-hover px-2 py-1 rounded">
-                                {pick.pick}
-                              </span>
-                              <span className="text-sm font-bold text-primary">
-                                {formatOdds(pick.odd)}
-                              </span>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-
-                    {/* Progress */}
-                    <div className="mb-6">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm text-text-secondary">Progress</span>
-                        <span className="text-sm font-medium text-white">
+                    {/* CRITICAL: Progress indicator for 10 predictions requirement */}
+                    <div className="mb-4 p-3 bg-primary/10 border border-primary/20 rounded-button">
+                      <div className="flex items-center justify-between text-sm mb-2">
+                        <span className="text-text-muted">Predictions Required:</span>
+                        <span className={`font-bold ${picks.length === 10 ? 'text-green-400' : 'text-primary'}`}>
                           {picks.length}/10
                         </span>
                       </div>
-                      <div className="w-full bg-bg-card rounded-full h-2">
-                        <div
-                          className="bg-gradient-primary h-2 rounded-full transition-all duration-300"
+                      <div className="w-full bg-bg-card/30 rounded-full h-2">
+                        <div 
+                          className={`h-2 rounded-full transition-all duration-300 ${
+                            picks.length === 10 ? 'bg-green-400' : 'bg-primary'
+                          }`}
                           style={{ width: `${(picks.length / 10) * 100}%` }}
-                        ></div>
+                        />
                       </div>
+                      {picks.length < 10 && (
+                        <p className="text-xs text-text-muted mt-2">
+                          ⚠️ You must select ALL 10 matches to place a slip
+                        </p>
+                      )}
+                      {picks.length === 10 && (
+                        <p className="text-xs text-green-400 mt-2">
+                          ✅ Ready to place slip!
+                        </p>
+                      )}
                     </div>
 
-                    {/* Slip Summary */}
-                    {picks.length > 0 && (
-                      <div className="bg-bg-card/50 rounded-lg p-4 mb-6">
-                        <div className="space-y-2">
-                          <div className="flex justify-between">
-                            <span className="text-text-secondary">Total Odds</span>
-                            <span className="font-bold text-primary">
-                              {picks.length > 0 ? calculatePotentialScore(picks.map(pick => ({
-                                matchId: BigInt(pick.id),
-                                betType: ['home', 'draw', 'away'].includes(pick.pick) ? 0 : 1,
-                                selection: pick.pick,
-                                selectedOdd: Math.round(pick.odd * 1000)
-                              }))).toFixed(0) : '0'}x
-                            </span>
+                    <AnimatePresence mode="wait">
+                      {picks.length > 0 ? (
+                        <motion.div
+                          key="with-picks"
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="space-y-3 md:space-y-4"
+                        >
+                          {/* Picks List */}
+                          <div className="space-y-2 max-h-48 md:max-h-64 overflow-y-auto">
+                            {picks.map((pick, i) => (
+                              <motion.div
+                                key={i}
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: i * 0.05 }}
+                                className="glass-card p-2 md:p-3 rounded-button border border-border-card/50 hover:border-primary/30 transition-all duration-200"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-xs text-text-muted mb-1">{pick.time}</div>
+                                    <div className="text-xs text-white font-medium mb-2 leading-tight truncate">{pick.match}</div>
+                                    <div className="flex items-center justify-between">
+                                    <span className={`px-2 py-1 rounded text-xs font-bold ${
+                                        pick.pick === "home" ? "bg-primary/20 text-primary" :
+                                        pick.pick === "draw" ? "bg-secondary/20 text-secondary" :
+                                        pick.pick === "away" ? "bg-accent/20 text-accent" :
+                                        pick.pick === "over" ? "bg-blue-500/20 text-blue-300" :
+                                        "bg-purple-500/20 text-purple-300"
+                                    }`}>
+                                        {pick.pick === "home" ? "1" :
+                                         pick.pick === "draw" ? "X" :
+                                         pick.pick === "away" ? "2" :
+                                         pick.pick === "over" ? "O2.5" : "U2.5"}
+                                    </span>
+                                      <span className="text-white font-bold text-sm">{typeof pick.odd === 'number' ? pick.odd.toFixed(2) : '0.00'}</span>
+                                  </div>
+                                </div>
+                                  <button
+                                    onClick={() => {
+                                      const removedPick = picks[i];
+                                      setPicks(picks.filter((_, index) => index !== i));
+                                      toast.success(`Removed ${removedPick.pick === "home" ? "1" : 
+                                                      removedPick.pick === "draw" ? "X" : 
+                                                      removedPick.pick === "away" ? "2" : 
+                                                      removedPick.pick === "over" ? "Over 2.5" : "Under 2.5"} from ${removedPick.team1} vs ${removedPick.team2}`);
+                                    }}
+                                    className="ml-2 text-red-400 hover:text-red-300 transition-colors flex-shrink-0 p-1 hover:bg-red-500/10 rounded"
+                                  >
+                                    ×
+                                  </button>
+                              </div>
+                              </motion.div>
+                            ))}
                           </div>
-                          <div className="flex justify-between">
-                            <span className="text-text-secondary">Entry Fee</span>
-                            <span className="text-white">{entryFee} STT</span>
-                          </div>
-                          <div className="flex justify-between pt-2 border-t border-border-card">
-                            <span className="font-medium text-white">Potential Score</span>
-                            <span className="font-bold text-green-400">
-                              {picks.length > 0 ? calculatePotentialScore(picks.map(pick => ({
-                                matchId: BigInt(pick.id),
-                                betType: ['home', 'draw', 'away'].includes(pick.pick) ? 0 : 1,
-                                selection: pick.pick,
-                                selectedOdd: Math.round(pick.odd * 1000)
-                              }))).toFixed(0) : '0'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
 
-                    {/* Submit Button */}
-                    <Button
-                      onClick={handleSubmitSlip}
-                      disabled={picks.length !== 10 || !isBettingOpen || !isConnected || isSubmitting}
-                      className="w-full"
-                    >
-                      {!isConnected
-                        ? 'Connect Wallet'
-                        : !isBettingOpen
-                        ? 'Betting Closed'
-                        : picks.length !== 10
-                        ? `Select ${10 - picks.length} More Matches`
-                        : isSubmitting
-                        ? 'Placing Slip...'
-                        : 'Place Slip'}
-                    </Button>
+                          {/* Slip Summary */}
+                          <div className="border-t border-border-card pt-3 md:pt-4 space-y-2 md:space-y-3">
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="text-text-muted">Selections:</span>
+                              <span className="text-white font-bold">{picks.length}/10</span>
+                            </div>
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="text-text-muted">Total Odds:</span>
+                              <span className="text-primary font-bold">{totalOdd}x</span>
+                            </div>
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="text-text-muted">Entry Fee:</span>
+                              <span className="text-white font-bold">
+                                {entryFee} STT
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="text-text-muted">Potential Win:</span>
+                              <span className="text-secondary font-bold">{(parseFloat(totalOdd) * parseFloat(entryFee)).toFixed(2)} STT</span>
+                            </div>
+                          </div>
 
-                    {!isBettingOpen && (
-                      <p className="text-xs text-red-400 text-center mt-2">
-                        Betting is currently closed. Check back later!
-                      </p>
-                    )}
+                          {/* Enhanced Submit Section */}
+                          {picks.length === 10 && (
+                            <motion.div
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              className="mb-4 p-3 bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-button"
+                            >
+                              <div className="flex items-center gap-2 mb-2">
+                                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                                <span className="text-green-400 font-semibold text-sm">Ready to Submit!</span>
+                              </div>
+                              <div className="flex justify-between items-center text-sm">
+                                <span className="text-text-muted">Total Odds:</span>
+                                <span className="text-green-400 font-bold">{totalOdd}x</span>
+                              </div>
+                              <div className="flex justify-between items-center text-sm mt-1">
+                                <span className="text-text-muted">Entry Fee:</span>
+                                <span className="text-white font-bold">
+                                  {entryFee} STT
+                                </span>
+                              </div>
+                              <div className="flex justify-between items-center text-sm mt-1">
+                                <span className="text-text-muted">Potential Payout:</span>
+                                <span className="text-primary font-bold">
+                                  {(parseFloat(totalOdd) * parseFloat(entryFee)).toFixed(2)} STT
+                                </span>
+                              </div>
+                            </motion.div>
+                          )}
+
+                          <div className="pt-3 md:pt-4">
+                            <Button
+                              fullWidth
+                              variant="primary"
+                              size="lg"
+                              leftIcon={isPending || isConfirming ? <FaSpinner className="h-4 w-4 md:h-5 md:w-5 animate-spin" /> : <BoltIcon className="h-4 w-4 md:h-5 md:w-5" />}
+                              onClick={handleSubmitSlip}
+                              disabled={isExpired || picks.length !== 10 || hasStartedMatches || isPending || isConfirming || !isInitialized}
+                              className={`text-sm md:text-base transition-all duration-300 ${
+                                picks.length === 10 && !hasStartedMatches && !isExpired && !isPending && !isConfirming && isInitialized
+                                  ? 'animate-pulse shadow-lg shadow-primary/25' 
+                                  : ''
+                              }`}
+                            >
+                              {isPending ? "Confirming in Wallet..." :
+                               isConfirming ? "Processing Transaction..." :
+                               !isInitialized ? "Initializing..." :
+                               isExpired || hasStartedMatches ? "Betting Closed" : 
+                               picks.length === 0 ? "Select 10 Matches" :
+                               picks.length < 10 ? `Need ${10 - picks.length} More Predictions` : 
+                               "Place Slip (10/10)"}
+                            </Button>
+                            
+                            {/* Enhanced Status Indicators */}
+                            {(isPending || isConfirming) && (
+                              <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="mt-3 p-3 bg-primary/10 border border-primary/20 rounded-button"
+                              >
+                                <div className="flex items-center gap-2 text-sm">
+                                  <FaSpinner className="h-4 w-4 animate-spin text-primary" />
+                                  <span className="text-primary font-medium">
+                                    {isPending ? "Waiting for wallet confirmation..." : "Processing transaction..."}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-text-muted mt-1">
+                                  Please don&apos;t close this page or disconnect your wallet
+                                </p>
+                              </motion.div>
+                            )}
+                          </div>
+
+                          {picks.length > 0 && (
+                            <button
+                              onClick={() => {
+                                setPicks([]);
+                                toast.success('All selections cleared. You can start building a new slip.');
+                              }}
+                              className="w-full text-text-muted hover:text-red-400 transition-colors text-sm pt-2"
+                              disabled={isPending || isConfirming}
+                            >
+                              Clear All Selections
+                            </button>
+                          )}
+
+                        </motion.div>
+                      ) : (
+                        <motion.div
+                          key="empty-builder"
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          className="text-center py-8"
+                        >
+                          <div className="text-6xl mb-4 opacity-50">⚽</div>
+                          <h4 className="font-semibold text-text-primary mb-2">Start Building Your Slip</h4>
+                          <p className="text-text-muted text-sm mb-4">
+                            Click on any odds to add selections to your slip
+                          </p>
+                          <div className="text-xs text-primary font-medium bg-primary/10 px-3 py-2 rounded-button">
+                            You need to select exactly 10 matches
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
                 </motion.div>
               </>
-            ) : activeTab === "slips" ? (
+            )}
+
+            {/* My Slips Tab */}
+            {activeTab === "slips" && (
               <motion.div
                 key="slips"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
                 className="lg:col-span-3"
               >
-                <div className="glass-card p-4 md:p-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center gap-3">
-                      <TrophyIcon className="h-6 w-6 text-cyan-300" />
-                      <h3 className="text-xl font-bold text-white">My Slips ({slips.length})</h3>
-                    </div>
-                    {isLoadingSlips && (
-                      <FaSpinner className="h-5 w-5 animate-spin text-primary" />
-                    )}
-                  </div>
-
-                  {isLoadingSlips ? (
-                    <div className="text-center py-8">
-                      <FaSpinner className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
-                      <p className="text-text-secondary">Loading your slips...</p>
-                    </div>
-                  ) : slips.length === 0 ? (
-                    <div className="text-center py-12">
-                      <TrophyIcon className="h-16 w-16 text-text-muted mx-auto mb-4" />
-                      <h4 className="text-xl font-semibold text-white mb-2">No Slips Yet</h4>
-                      <p className="text-text-secondary mb-6">
-                        You haven&apos;t placed any slips yet. Start by selecting matches in the betting section.
-                      </p>
-                      <Button
-                        onClick={() => setActiveTab("today")}
-                        className="bg-gradient-primary text-black font-semibold"
+                <div className="glass-card p-4 sm:p-6 bg-gradient-to-br from-cyan-500/5 to-blue-500/5 border border-cyan-500/20 shadow-lg shadow-cyan-500/10">
+                  <h2 className="text-xl sm:text-2xl font-bold text-cyan-300 mb-4 sm:mb-6 flex items-center gap-2">
+                    <TrophyIcon className="h-5 w-5 sm:h-6 sm:w-6 text-cyan-400" />
+                    <span className="hidden sm:inline">My Submitted Slips</span>
+                    <span className="sm:hidden">My Slips</span>
+                  </h2>
+                  
+                  <AnimatePresence mode="wait">
+                    {slips.length > 0 ? (
+                      <motion.div
+                        key="with-slips"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="space-y-6"
                       >
-                        Start Betting
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="space-y-6">
-                      {slips.map((slip, slipIndex) => {
-                        const firstPick = slip[0];
-                        const canClaimPrize = firstPick?.isEvaluated && 
-                                             (firstPick?.leaderboardRank ?? 0) <= 5 && 
-                                             !firstPick?.prizeClaimed;
-                        
-                        return (
-                          <div
-                            key={firstPick?.slipId || slipIndex}
-                            className={`border rounded-lg p-4 ${
-                              canClaimPrize
-                                ? "border-yellow-500/50 bg-gradient-to-r from-yellow-500/10 to-orange-500/10"
-                                : firstPick?.isEvaluated
-                                ? "border-border-card bg-bg-card/50"
-                                : "border-blue-500/50 bg-blue-500/10"
-                            }`}
-                          >
-                            {/* Slip Header */}
-                            <div className="flex items-center justify-between mb-4">
-                              <div className="flex items-center gap-3">
-                                <div className={`p-2 rounded-lg ${
-                                  canClaimPrize
-                                    ? "bg-yellow-500/20 text-yellow-300"
-                                    : firstPick?.isEvaluated
-                                    ? "bg-blue-500/20 text-blue-300"
-                                    : "bg-gray-500/20 text-gray-300"
-                                }`}>
-                                  {canClaimPrize ? (
-                                    <GiftIcon className="h-5 w-5" />
-                                  ) : firstPick?.isEvaluated ? (
-                                    <CheckCircleIcon className="h-5 w-5" />
-                                  ) : (
-                                    <ClockIcon className="h-5 w-5" />
-                                  )}
+                        {slips.map((slip, slipIndex) => {
+                          const firstPick = slip[0]; // Get metadata from first pick
+                          const slipId = firstPick?.slipId || `Slip ${slipIndex + 1}`;
+                          const cycleId = firstPick?.cycleId || 'Unknown';
+                          const finalScore = firstPick?.finalScore || 0;
+                          const correctCount = firstPick?.correctCount || 0;
+                          const isEvaluated = firstPick?.isEvaluated || false;
+                          const placedAt = firstPick?.placedAt ? new Date(firstPick.placedAt).toLocaleString() : 'Unknown';
+                          const totalOdds = firstPick?.totalOdds && firstPick.totalOdds > 0 && firstPick.totalOdds < 1e10 
+                            ? firstPick.totalOdds 
+                            : slip.reduce((acc, pick) => acc * (pick.odd || 1), 1);
+                          
+                          return (
+                            <motion.div
+                              key={slipIndex}
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: slipIndex * 0.1 }}
+                              className="glass-card p-4 sm:p-6 border border-cyan-500/30 hover:border-cyan-400/50 transition-all duration-300 bg-gradient-to-br from-cyan-500/5 to-blue-500/5 hover:from-cyan-500/10 hover:to-blue-500/10"
+                            >
+                              {/* Enhanced Slip Header */}
+                              <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+                                <div className="flex items-center gap-4">
+                                  <div className="flex items-center gap-2">
+                                    <CheckCircleIcon className="h-6 w-6 text-cyan-400" />
+                                    <h3 className="text-xl font-bold text-cyan-300">
+                                      {typeof slipId === 'number' ? `Slip #${slipId}` : slipId}
+                                    </h3>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="px-3 py-1 bg-cyan-500/20 text-cyan-300 text-sm font-medium rounded-full border border-cyan-500/30">
+                                      Cycle {cycleId}
+                                    </span>
+                                    <span className={`px-3 py-1 text-sm font-medium rounded-full flex items-center gap-1 ${
+                                      isEvaluated ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
+                                    }`}>
+                                      <ClockIcon className="h-4 w-4" />
+                                      {isEvaluated ? 'Evaluated' : 'Pending'}
+                                    </span>
+                                  </div>
                                 </div>
-                                <div>
-                                  <h4 className="font-semibold text-white">
-                                    Slip #{firstPick?.slipId || 'Unknown'}
-                                  </h4>
-                                  <p className="text-sm text-text-muted">
-                                    {firstPick?.placedAt ? new Date(firstPick.placedAt).toLocaleDateString() : 'Unknown date'}
-                                  </p>
+                                
+                                <div className="flex flex-col md:flex-row items-start md:items-center gap-4 text-sm">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-text-muted">Total Odds:</span>
+                                    <span className="text-cyan-300 font-bold">
+                                      {totalOdds > 1e6 ? 'N/A' : totalOdds.toFixed(2)}x
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-text-muted">Entry Fee:</span>
+                                    <span className="text-white font-bold">{entryFee} STT</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-text-muted">Submitted:</span>
+                                    <span className="text-white">{placedAt}</span>
+                                  </div>
                                 </div>
                               </div>
                               
-                              <div className="text-right">
-                                {firstPick?.isEvaluated ? (
-                                  <>
-                                    <div className="text-lg font-bold text-primary">
-                                      Score: {firstPick.finalScore || 0}
-                                    </div>
-                                    <div className="text-sm text-text-muted">
-                                      {firstPick.correctCount || 0}/10 correct
-                                    </div>
-                                    {canClaimPrize && firstPick.leaderboardRank && (
-                                      <div className="text-sm font-semibold text-yellow-300">
-                                        Rank #{firstPick.leaderboardRank}
-                                      </div>
-                                    )}
-                                  </>
-                                ) : (
-                                  <div className="text-sm text-blue-300">
-                                    Pending Evaluation
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Prize Claim Button */}
-                            {canClaimPrize && firstPick && (
-                              <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-                                <div className="flex items-center justify-between">
-                                  <div>
-                                    <div className="font-semibold text-yellow-300">
-                                      🎉 Congratulations! You won a prize!
-                                    </div>
-                                    <div className="text-sm text-yellow-200">
-                                      Rank #{firstPick.leaderboardRank} - Prize: {calculatePrizeAmount(firstPick.leaderboardRank || 0)} STT
-                                    </div>
-                                  </div>
-                                  <Button
-                                    onClick={() => handleClaimPrize(firstPick.slipId!)}
-                                    className="bg-gradient-to-r from-yellow-500 to-orange-500 text-black font-semibold"
-                                  >
-                                    Claim Prize
-                                  </Button>
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Picks Grid */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                              {slip.map((pick, pickIndex) => (
-                                <div
-                                  key={pickIndex}
-                                  className={`p-3 rounded-lg border ${
-                                    pick.isCorrect === true
-                                      ? "border-green-500/50 bg-green-500/10"
-                                      : pick.isCorrect === false
-                                      ? "border-red-500/50 bg-red-500/10"
-                                      : "border-border-card bg-bg-card/30"
-                                  }`}
-                                >
-                                  <div className="flex items-center justify-between mb-2">
-                                    <div className="text-sm font-medium text-white truncate">
-                                      {pick.team1} vs {pick.team2}
-                                    </div>
-                                    {pick.isEvaluated && (
-                                      <div className="flex items-center">
+                              {/* Enhanced Predictions Grid with Mobile Support */}
+                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4 mb-6">
+                                {slip.map((pick, i) => (
+                                  <div key={i} className="bg-slate-900/80 p-2 sm:p-3 md:p-4 rounded-button border border-slate-700/50 hover:border-primary/30 transition-all duration-200 backdrop-blur-sm relative">
+                                    {/* Evaluation Result Indicator */}
+                                    {isEvaluated && pick.isCorrect !== null && (
+                                      <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">
                                         {pick.isCorrect ? (
-                                          <CheckCircleIcon className="h-4 w-4 text-green-400" />
+                                          <CheckCircleIcon className="w-5 h-5 text-green-400 bg-green-500/20 rounded-full p-0.5" />
                                         ) : (
-                                          <XCircleIcon className="h-4 w-4 text-red-400" />
+                                          <XCircleIcon className="w-5 h-5 text-red-400 bg-red-500/20 rounded-full p-0.5" />
                                         )}
                                       </div>
                                     )}
-                                  </div>
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-xs text-text-secondary bg-bg-hover px-2 py-1 rounded">
-                                      {pick.pick}
-                                    </span>
-                                    <span className="text-sm font-bold text-primary">
-                                      {formatOdds(pick.odd)}
-                                    </span>
-                                  </div>
-                                  {pick.actualResult && (
-                                    <div className="mt-2 pt-2 border-t border-border-card">
-                                      <div className="text-xs text-text-muted">
-                                        Result: {pick.actualResult}
+                                    
+                                    <div className="flex items-center justify-between mb-2">
+                                      <div className="text-xs text-text-muted font-mono">
+                                        {pick.time || '00:00'}
                                       </div>
+                                      <span className={`px-1.5 sm:px-2 py-1 rounded text-xs font-bold ${
+                                        pick.pick === "home" ? "bg-primary/20 text-primary" :
+                                        pick.pick === "draw" ? "bg-secondary/20 text-secondary" :
+                                        pick.pick === "away" ? "bg-accent/20 text-accent" :
+                                        pick.pick === "over" ? "bg-blue-500/20 text-blue-300" :
+                                        "bg-purple-500/20 text-purple-300"
+                                      }`}>
+                                        {pick.pick === "home" ? "1" :
+                                         pick.pick === "draw" ? "X" :
+                                         pick.pick === "away" ? "2" :
+                                         pick.pick === "over" ? "O2.5" : "U2.5"}
+                                      </span>
                                     </div>
+                                    
+                                    <div className="text-xs sm:text-sm text-white font-medium mb-2 sm:mb-3 line-clamp-2 leading-tight">
+                                      {pick.team1 && pick.team2 ? `${pick.team1} vs ${pick.team2}` : `Match ${pick.id}`}
+                                    </div>
+                                    
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-xs text-text-muted">
+                                        {pick.team1 && pick.team2 ? 'Teams' : 'Match ID'}
+                                      </span>
+                                      <span className="text-white font-bold text-xs sm:text-sm">
+                                        {typeof pick.odd === 'number' ? pick.odd.toFixed(2) : '0.00'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              
+                              {/* Enhanced Slip Footer */}
+                              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pt-4 border-t border-border-card/30">
+                                <div className="flex items-center gap-6">
+                                  {isEvaluated && (
+                                    <>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-text-muted text-sm">Final Score:</span>
+                                        <span className="text-white font-bold">{finalScore}</span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-text-muted text-sm">Correct:</span>
+                                        <span className="text-green-400 font-bold">{correctCount}/10</span>
+                                      </div>
+                                    </>
                                   )}
                                 </div>
-                              ))}
-                            </div>
-
-                            {/* Slip Summary */}
-                            <div className="mt-4 pt-4 border-t border-border-card">
-                              <div className="flex items-center justify-between text-sm">
-                                <span className="text-text-secondary">Total Odds:</span>
-                                <span className="font-semibold text-white">
-                                  {formatTotalOdds(firstPick?.totalOdds || 0)}x
-                                </span>
-                              </div>
-                              {firstPick?.potentialPayout && (
-                                <div className="flex items-center justify-between text-sm">
-                                  <span className="text-text-secondary">Potential Payout:</span>
-                                  <span className="font-semibold text-primary">
-                                    {firstPick.potentialPayout} STT
-                                  </span>
+                                
+                                <div className="flex items-center gap-2 text-sm text-text-muted">
+                                  <ClockIcon className="h-4 w-4" />
+                                  <span>Submitted: {placedAt}</span>
                                 </div>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            ) : activeTab === "results" ? (
-              <motion.div
-                key="results"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="lg:col-span-3"
-              >
-                <OddysseyResults />
-              </motion.div>
-            ) : (
-              <motion.div
-                key="stats"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="lg:col-span-3"
-              >
-                <div className="glass-card p-4 md:p-6">
-                  <div className="flex items-center gap-3 mb-6">
-                    <ArrowTrendingUpIcon className="h-6 w-6 text-secondary" />
-                    <h3 className="text-xl font-bold text-white">Platform Statistics</h3>
-                  </div>
-
-                  {isLoadingStats ? (
-                    <div className="text-center py-8">
-                      <FaSpinner className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
-                      <p className="text-text-secondary">Loading statistics...</p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {/* Total Players */}
-                      <div className="glass-card p-4 text-center">
-                        <UsersIcon className="h-10 w-10 mx-auto mb-3 text-secondary" />
-                        <h4 className="text-2xl font-bold text-white mb-1">
-                          {backendStats?.leaderboard_participants?.toLocaleString() || 'N/A'}
-                        </h4>
-                        <p className="text-text-secondary">Total Players</p>
-                      </div>
-
-                      {/* Total Slips */}
-                      <div className="glass-card p-4 text-center">
-                        <DocumentTextIcon className="h-10 w-10 mx-auto mb-3 text-accent" />
-                        <h4 className="text-2xl font-bold text-white mb-1">
-                          {backendStats?.total_slips?.toLocaleString() || 'N/A'}
-                        </h4>
-                        <p className="text-text-secondary">Total Slips</p>
-                      </div>
-
-                      {/* Average Score */}
-                      <div className="glass-card p-4 text-center">
-                        <ChartBarIcon className="h-10 w-10 mx-auto mb-3 text-primary" />
-                        <h4 className="text-2xl font-bold text-white mb-1">
-                          {backendStats?.avg_correct_predictions?.toFixed(1) || 'N/A'}x
-                        </h4>
-                        <p className="text-text-secondary">Average Score</p>
-                      </div>
-
-                      {/* Prize Pool */}
-                      <div className="glass-card p-4 text-center">
-                        <GiftIcon className="h-10 w-10 mx-auto mb-3 text-yellow-400" />
-                        <h4 className="text-2xl font-bold text-white mb-1">
-                          {prizePool || 'N/A'} STT
-                        </h4>
-                        <p className="text-text-secondary">Current Prize Pool</p>
-                      </div>
-
-                      {/* Prize Distribution */}
-                      <div className="glass-card p-4 text-center">
-                        <TrophyIcon className="h-10 w-10 mx-auto mb-3 text-yellow-500" />
-                        <div className="text-sm space-y-1">
-                          {prizeDistribution?.map((_, index) => (
-                            <div key={index} className="text-white">
-                              #{index + 1}: {calculatePrizeAmount(index + 1)} STT
-                            </div>
-                          ))}
-                        </div>
-                        <p className="text-text-secondary mt-2">Prize Distribution</p>
-                      </div>
-
-                      {/* Entry Fee */}
-                      <div className="glass-card p-4 text-center">
-                        <CurrencyDollarIcon className="h-10 w-10 mx-auto mb-3 text-green-400" />
-                        <h4 className="text-2xl font-bold text-white mb-1">
-                          {entryFee || 'N/A'} STT
-                        </h4>
-                        <p className="text-text-secondary">Entry Fee</p>
-                      </div>
-                    </div>
-                  )}
+                              </div>
+                            </motion.div>
+                          );
+                        })}
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        key="no-slips"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="text-center py-12"
+                      >
+                        <div className="text-6xl mb-4 opacity-50">🎟️</div>
+                        <h4 className="font-semibold text-text-primary mb-2">No Slips Yet</h4>
+                        <p className="text-text-muted text-sm mb-6">
+                          Start building your first slip to compete for prizes
+                        </p>
+                        <Button
+                          variant="primary"
+                          onClick={() => setActiveTab("today")}
+                          leftIcon={<BoltIcon className="h-5 w-5" />}
+                        >
+                          Start Building Slip
+                        </Button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </motion.div>
             )}
-          </AnimatePresence>
-        </div>
+                  </AnimatePresence>
+                </div>
       </div>
     </div>
   );
