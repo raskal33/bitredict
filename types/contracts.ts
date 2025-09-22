@@ -43,7 +43,8 @@ export const MARKET_TYPE_CONFIG = {
     description: 'Predict the match result: Home win, Away win, or Draw',
     requiresTeams: true,
     commonOutcomes: ['Home Win', 'Away Win', 'Draw'],
-    oddsField: 'home_odds' // Field name in API response for odds
+    oddsField: 'home_odds', // Field name in API response for odds
+    defaultOdds: '2.50'
   },
   [MarketType.OVER_UNDER]: {
     label: 'Over/Under Goals',
@@ -51,7 +52,8 @@ export const MARKET_TYPE_CONFIG = {
     description: 'Predict total goals scored in the match',
     requiresTeams: true,
     commonOutcomes: ['Over 2.5', 'Under 2.5', 'Over 1.5', 'Under 1.5'],
-    oddsField: 'over_25_odds' // Field name in API response for odds
+    oddsField: 'over_25_odds', // Field name in API response for odds
+    defaultOdds: '1.90'
   },
   [MarketType.BOTH_TEAMS_SCORE]: {
     label: 'Both Teams to Score',
@@ -59,7 +61,8 @@ export const MARKET_TYPE_CONFIG = {
     description: 'Predict if both teams will score at least one goal',
     requiresTeams: true,
     commonOutcomes: ['Yes', 'No'],
-    oddsField: 'btts_yes_odds' // Field name in API response for odds
+    oddsField: 'btts_yes_odds', // Field name in API response for odds
+    defaultOdds: '1.85'
   },
   [MarketType.HALF_TIME]: {
     label: 'Half Time Result',
@@ -67,7 +70,8 @@ export const MARKET_TYPE_CONFIG = {
     description: 'Predict the result at half-time',
     requiresTeams: true,
     commonOutcomes: ['Home HT Win', 'Away HT Win', 'HT Draw'],
-    oddsField: 'ht_home_odds' // Field name in API response for odds
+    oddsField: 'ht_home_odds', // Field name in API response for odds
+    defaultOdds: '2.20'
   },
   [MarketType.DOUBLE_CHANCE]: {
     label: 'Double Chance',
@@ -75,7 +79,8 @@ export const MARKET_TYPE_CONFIG = {
     description: 'Predict two possible outcomes combined',
     requiresTeams: true,
     commonOutcomes: ['1X (Home or Draw)', 'X2 (Draw or Away)', '12 (Home or Away)'],
-    oddsField: 'home_odds' // Field name in API response for odds
+    oddsField: 'home_odds', // Field name in API response for odds
+    defaultOdds: '1.40'
   },
   [MarketType.CORRECT_SCORE]: {
     label: 'Correct Score',
@@ -83,7 +88,8 @@ export const MARKET_TYPE_CONFIG = {
     description: 'Predict the exact final score',
     requiresTeams: true,
     commonOutcomes: ['1-0', '2-1', '2-0', '1-1', '3-1'],
-    oddsField: null // No specific odds field for correct score
+    oddsField: null, // No specific odds field for correct score
+    defaultOdds: '8.00'
   },
   [MarketType.FIRST_GOAL]: {
     label: 'First Goal Scorer',
@@ -91,7 +97,8 @@ export const MARKET_TYPE_CONFIG = {
     description: 'Predict who scores the first goal',
     requiresTeams: true,
     commonOutcomes: ['Player Name', 'No Goal Scorer'],
-    oddsField: null // No specific odds field for first goal scorer
+    oddsField: null, // No specific odds field for first goal scorer
+    defaultOdds: '5.00'
   },
   [MarketType.CUSTOM]: {
     label: 'Custom Market',
@@ -99,7 +106,8 @@ export const MARKET_TYPE_CONFIG = {
     description: 'Create your own prediction market',
     requiresTeams: false,
     commonOutcomes: ['Yes', 'No'],
-    oddsField: null // No specific odds field for custom markets
+    oddsField: null, // No specific odds field for custom markets
+    defaultOdds: '2.00'
   },
 } as const;
 
