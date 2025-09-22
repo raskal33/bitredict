@@ -26,6 +26,9 @@ export function usePoolCore() {
     oracleType: number;
     marketId: string;
     marketType: number;
+    homeTeam?: string;
+    awayTeam?: string;
+    title?: string;
   }) => {
     try {
       const txHash = await writeContractAsync({

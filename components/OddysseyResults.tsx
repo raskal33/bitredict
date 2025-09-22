@@ -136,8 +136,10 @@ export default function OddysseyResults({ className = "" }: OddysseyResultsProps
         return 'Draw';
       case '2':
         return 'Away Win';
+      case 'Over':
       case 'over':
         return 'Over 2.5';
+      case 'Under':
       case 'under':
         return 'Under 2.5';
       default:

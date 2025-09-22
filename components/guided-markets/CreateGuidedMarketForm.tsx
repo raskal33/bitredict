@@ -4,44 +4,31 @@ import React, { useState, useCallback } from 'react';
 import { useAccount } from 'wagmi';
 import { usePoolCore, usePoolFactory, useFaucet } from '@/hooks/useContractInteractions';
 import { toast } from 'react-hot-toast';
+import { 
+  OracleType, 
+  MarketType, 
+  BoostTier, 
+  PoolFormData, 
+  validatePoolData, 
+  convertFormToContractData,
+  generateFootballMarketId,
+  generateFootballTitle,
+  MARKET_TYPE_LABELS,
+  MARKET_TYPE_CONFIG,
+  BOOST_TIER_CONFIG
+} from '@/types/contracts';
 
 interface CreateGuidedMarketFormProps {
   onSuccess?: (poolId: string) => void;
   onClose?: () => void;
 }
 
-interface MarketFormData {
-  // Basic pool data
-  predictedOutcome: string;
-  odds: string;
-  creatorStake: string;
-  eventStartTime: string;
-  eventEndTime: string;
-  league: string;
-  category: 'football' | 'crypto' | 'other';
-  region: string;
-  useBitr: boolean;
-  maxBetPerUser: string;
-  isPrivate: boolean;
-  marketId: string;
-  
-  // Boost data
-  enableBoost: boolean;
-  boostTier: number;
-  
-  // Team data (for football)
-  homeTeam?: string;
-  awayTeam?: string;
-  title?: string;
-}
-
-const BOOST_TIERS = [
-  { value: 0, label: 'No Boost', cost: '0 STT' },
-  { value: 1, label: 'Bronze Boost', cost: '100 STT' },
-  { value: 2, label: 'Silver Boost', cost: '500 STT' },
-  { value: 3, label: 'Gold Boost', cost: '1000 STT' },
-  { value: 4, label: 'Platinum Boost', cost: '2500 STT' },
-];
+// Use the proper boost tier configuration
+const BOOST_TIERS = Object.entries(BOOST_TIER_CONFIG).map(([value, config]) => ({
+  value: parseInt(value),
+  label: config.label,
+  cost: config.costLabel,
+}));
 
 const LEAGUES = [
   'Premier League',
@@ -63,12 +50,26 @@ export default function CreateGuidedMarketForm({ onSuccess, onClose }: CreateGui
   const { checkEligibility } = useFaucet();
 
   const [isLoading, setIsLoading] = useState(false);
-  const [formData, setFormData] = useState<MarketFormData>({
+  // Helper function to get default timestamps
+  const getDefaultTimestamps = () => {
+    const now = new Date();
+    const startTime = new Date(now.getTime() + 2 * 60 * 60 * 1000); // 2 hours from now
+    const endTime = new Date(now.getTime() + 4 * 60 * 60 * 1000); // 4 hours from now
+    
+    return {
+      startTime: startTime.toISOString().slice(0, 16), // Format for datetime-local input
+      endTime: endTime.toISOString().slice(0, 16),
+    };
+  };
+
+  const defaultTimestamps = getDefaultTimestamps();
+
+  const [formData, setFormData] = useState<PoolFormData>({
     predictedOutcome: '',
-    odds: '',
+    odds: '1.75',
     creatorStake: '100',
-    eventStartTime: '',
-    eventEndTime: '',
+    eventStartTime: defaultTimestamps.startTime,
+    eventEndTime: defaultTimestamps.endTime,
     league: '',
     category: 'football',
     region: 'Global',
@@ -76,56 +77,74 @@ export default function CreateGuidedMarketForm({ onSuccess, onClose }: CreateGui
     maxBetPerUser: '',
     isPrivate: false,
     marketId: '',
+    oracleType: OracleType.GUIDED,
+    marketType: MarketType.MONEYLINE,
     enableBoost: false,
-    boostTier: 0,
+    boostTier: BoostTier.NONE,
     homeTeam: '',
     awayTeam: '',
     title: '',
   });
 
-  const [errors, setErrors] = useState<Partial<MarketFormData>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const validateForm = useCallback((): boolean => {
-    const newErrors: Partial<MarketFormData> = {};
-
-    if (!formData.predictedOutcome.trim()) {
-      newErrors.predictedOutcome = 'Predicted outcome is required';
+    const validationErrors = validatePoolData(formData);
+    
+    if (validationErrors.length > 0) {
+      const errorMap: Record<string, string> = {};
+      validationErrors.forEach(error => {
+        // Map validation errors to form fields
+        if (error.includes('predicted outcome')) errorMap.predictedOutcome = error;
+        else if (error.includes('odds')) errorMap.odds = error;
+        else if (error.includes('start time')) errorMap.eventStartTime = error;
+        else if (error.includes('end time')) errorMap.eventEndTime = error;
+        else if (error.includes('league')) errorMap.league = error;
+        else if (error.includes('Home team')) errorMap.homeTeam = error;
+        else if (error.includes('Away team')) errorMap.awayTeam = error;
+        else if (error.includes('stake')) errorMap.creatorStake = error;
+        else errorMap.general = error;
+      });
+      setErrors(errorMap);
+      return false;
     }
-
-    if (!formData.odds || parseFloat(formData.odds) <= 0) {
-      newErrors.odds = 'Valid odds are required';
-    }
-
-    if (!formData.eventStartTime) {
-      newErrors.eventStartTime = 'Event start time is required';
-    }
-
-    if (!formData.eventEndTime) {
-      newErrors.eventEndTime = 'Event end time is required';
-    }
-
-    if (!formData.league) {
-      newErrors.league = 'League is required';
-    }
-
-    if (formData.category === 'football' && (!formData.homeTeam || !formData.awayTeam)) {
-      newErrors.homeTeam = 'Both teams are required for football markets';
-      newErrors.awayTeam = 'Both teams are required for football markets';
-    }
-
-    if (formData.maxBetPerUser && parseFloat(formData.maxBetPerUser) <= 0) {
-      newErrors.maxBetPerUser = 'Max bet per user must be positive';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    
+    setErrors({});
+    return true;
   }, [formData]);
 
-  const handleInputChange = useCallback((field: keyof MarketFormData, value: string | boolean | number) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const handleInputChange = useCallback((field: keyof PoolFormData, value: string | boolean | number) => {
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value };
+      
+      // Handle market type changes with adaptive defaults
+      if (field === 'marketType') {
+        const marketConfig = MARKET_TYPE_CONFIG[value as MarketType];
+        if (marketConfig) {
+          newData.odds = marketConfig.defaultOdds;
+          // Clear predicted outcome to encourage user to enter market-specific outcome
+          newData.predictedOutcome = '';
+        }
+      }
+      
+      // Auto-generate market ID and title for football matches
+      if (field === 'homeTeam' || field === 'awayTeam' || field === 'league' || field === 'marketType') {
+        if (newData.category === 'football' && newData.homeTeam && newData.awayTeam && newData.league) {
+          newData.marketId = generateFootballMarketId(newData.homeTeam, newData.awayTeam, newData.league);
+          newData.title = generateFootballTitle(newData.homeTeam, newData.awayTeam, newData.marketType);
+        }
+      }
+      
+      return newData;
+    });
+    
     // Clear error when user starts typing
     if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: undefined }));
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
     }
   }, [errors]);
 
@@ -154,27 +173,12 @@ export default function CreateGuidedMarketForm({ onSuccess, onClose }: CreateGui
         }
       }
 
-      // Prepare pool data with all required parameters
-      const poolData = {
-        predictedOutcome: formData.predictedOutcome,
-        odds: BigInt(Math.floor(parseFloat(formData.odds) * 100)), // Convert to basis points
-        creatorStake: BigInt(parseFloat(formData.creatorStake || "100") * 1e18), // Add creator stake
-        eventStartTime: BigInt(Math.floor(new Date(formData.eventStartTime).getTime() / 1000)),
-        eventEndTime: BigInt(Math.floor(new Date(formData.eventEndTime).getTime() / 1000)),
-        league: formData.league,
-        category: formData.category,
-        region: formData.region || "Global", // Add region
-        isPrivate: formData.isPrivate,
-        maxBetPerUser: formData.maxBetPerUser ? BigInt(parseFloat(formData.maxBetPerUser) * 1e18) : BigInt(0),
-        useBitr: formData.useBitr,
-        oracleType: 0, // GUIDED oracle type
-        marketId: formData.marketId || "", // Add market ID
-        marketType: 0, // MONEYLINE market type
-      };
+      // Convert form data to contract data using the helper function
+      const poolData = convertFormToContractData(formData);
 
       let txHash: `0x${string}`;
 
-      if (formData.enableBoost && formData.boostTier > 0) {
+      if (formData.enableBoost && formData.boostTier && formData.boostTier > 0) {
         // Create pool with boost using factory
         txHash = await createPoolWithBoost({
           ...poolData,
@@ -232,13 +236,16 @@ export default function CreateGuidedMarketForm({ onSuccess, onClose }: CreateGui
           </div>
         </div>
 
-        {/* Football-specific fields */}
-        {formData.category === 'football' && (
+        {/* Team fields - show when required by market type or football category */}
+        {(formData.category === 'football' || MARKET_TYPE_CONFIG[formData.marketType]?.requiresTeams) && (
           <>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Home Team
+                  {MARKET_TYPE_CONFIG[formData.marketType]?.requiresTeams && (
+                    <span className="text-xs text-gray-400 ml-2">(Required for this market type)</span>
+                  )}
                 </label>
                 <input
                   type="text"
@@ -254,6 +261,9 @@ export default function CreateGuidedMarketForm({ onSuccess, onClose }: CreateGui
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Away Team
+                  {MARKET_TYPE_CONFIG[formData.marketType]?.requiresTeams && (
+                    <span className="text-xs text-gray-400 ml-2">(Required for this market type)</span>
+                  )}
                 </label>
                 <input
                   type="text"
@@ -270,6 +280,50 @@ export default function CreateGuidedMarketForm({ onSuccess, onClose }: CreateGui
           </>
         )}
 
+        {/* Market Type */}
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Market Type
+          </label>
+          <select
+            value={formData.marketType}
+            onChange={(e) => handleInputChange('marketType', parseInt(e.target.value))}
+            className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {Object.entries(MARKET_TYPE_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+          {/* Market type description */}
+          {MARKET_TYPE_CONFIG[formData.marketType] && (
+            <p className="text-sm text-gray-400 mt-1">
+              {MARKET_TYPE_CONFIG[formData.marketType].description}
+            </p>
+          )}
+        </div>
+
+        {/* Market Title */}
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Market Title
+            <span className="text-xs text-gray-400 ml-2">(Auto-generated, can be customized)</span>
+          </label>
+          <input
+            type="text"
+            value={formData.title || ''}
+            onChange={(e) => handleInputChange('title', e.target.value)}
+            className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Auto-generated based on teams and market type"
+          />
+          {formData.homeTeam && formData.awayTeam && (
+            <p className="text-xs text-gray-400 mt-1">
+              Auto-generated: {generateFootballTitle(formData.homeTeam, formData.awayTeam, formData.marketType)}
+            </p>
+          )}
+        </div>
+
         {/* Predicted Outcome */}
         <div>
           <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -280,8 +334,26 @@ export default function CreateGuidedMarketForm({ onSuccess, onClose }: CreateGui
             value={formData.predictedOutcome}
             onChange={(e) => handleInputChange('predictedOutcome', e.target.value)}
             className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="e.g., Home team wins, Bitcoin reaches $100k"
+            placeholder={MARKET_TYPE_CONFIG[formData.marketType]?.placeholder || "e.g., Home team wins, Bitcoin reaches $100k"}
           />
+          {/* Common outcomes suggestions */}
+          {MARKET_TYPE_CONFIG[formData.marketType]?.commonOutcomes && (
+            <div className="mt-2">
+              <p className="text-xs text-gray-400 mb-1">Common outcomes:</p>
+              <div className="flex flex-wrap gap-2">
+                {MARKET_TYPE_CONFIG[formData.marketType].commonOutcomes.map((outcome, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => handleInputChange('predictedOutcome', outcome)}
+                    className="px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-md transition-colors"
+                  >
+                    {outcome}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {errors.predictedOutcome && (
             <p className="text-red-500 text-sm mt-1">{errors.predictedOutcome}</p>
           )}
@@ -291,6 +363,11 @@ export default function CreateGuidedMarketForm({ onSuccess, onClose }: CreateGui
         <div>
           <label className="block text-sm font-medium text-gray-300 mb-2">
             Odds (Decimal)
+            {MARKET_TYPE_CONFIG[formData.marketType] && (
+              <span className="text-xs text-gray-400 ml-2">
+                (Auto-set for {MARKET_TYPE_CONFIG[formData.marketType].label})
+              </span>
+            )}
           </label>
           <input
             type="number"
@@ -301,6 +378,11 @@ export default function CreateGuidedMarketForm({ onSuccess, onClose }: CreateGui
             className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             placeholder="e.g., 2.50"
           />
+          {MARKET_TYPE_CONFIG[formData.marketType] && (
+            <p className="text-xs text-gray-400 mt-1">
+              Default odds for this market type: {MARKET_TYPE_CONFIG[formData.marketType].defaultOdds}
+            </p>
+          )}
           {errors.odds && (
             <p className="text-red-500 text-sm mt-1">{errors.odds}</p>
           )}
@@ -339,17 +421,32 @@ export default function CreateGuidedMarketForm({ onSuccess, onClose }: CreateGui
           />
         </div>
 
+        {/* Title */}
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Pool Title
+          </label>
+          <input
+            type="text"
+            value={formData.title || ''}
+            onChange={(e) => handleInputChange('title', e.target.value)}
+            className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Auto-generated for football matches"
+          />
+        </div>
+
         {/* Market ID */}
         <div>
           <label className="block text-sm font-medium text-gray-300 mb-2">
-            Market ID (Optional)
+            Market ID (Auto-generated)
           </label>
           <input
             type="text"
             value={formData.marketId}
             onChange={(e) => handleInputChange('marketId', e.target.value)}
             className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="External market reference (e.g., SportMonks fixture ID)"
+            placeholder="Auto-generated for football matches"
+            readOnly={formData.category === 'football'}
           />
         </div>
 

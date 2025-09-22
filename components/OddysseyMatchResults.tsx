@@ -142,8 +142,10 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
       case '2':
         return 'Away Win';
       case 'Over':
+      case 'over':
         return 'Over 2.5';
       case 'Under':
+      case 'under':
         return 'Under 2.5';
       default:
         return outcome;
