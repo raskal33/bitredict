@@ -25,7 +25,7 @@ import Textarea from "@/components/textarea";
 import AnimatedTitle from "@/components/AnimatedTitle";
 import FixtureSelector from "@/components/FixtureSelector";
 import MarketTypeSelector from "@/components/MarketTypeSelector";
-import ComboPoolCreationForm from "@/components/ComboPoolCreationForm";
+import EnhancedComboPoolCreationForm from "@/components/EnhancedComboPoolCreationForm";
 import { useReputationStore } from "@/stores/useReputationStore";
 import ReputationBadge from "@/components/ReputationBadge";
 import { GuidedMarketService, Cryptocurrency, FootballMatch } from "@/services/guidedMarketService";
@@ -2212,7 +2212,7 @@ function CreateMarketPageContent() {
 
     if (selectedType === 'combo') {
       return (
-        <ComboPoolCreationForm
+        <EnhancedComboPoolCreationForm
           onSuccess={handleSuccess}
           onClose={handleClose}
         />

@@ -14,6 +14,7 @@ import { formatEther } from "viem";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
+import { titleTemplatesService } from "../services/title-templates";
 
   // Enhanced Pool interface with indexed data
 export interface EnhancedPool {
@@ -45,6 +46,9 @@ export interface EnhancedPool {
   league: string;
   category: string;
   region: string;
+  homeTeam?: string;
+  awayTeam?: string;
+  title?: string;
   maxBetPerUser: string;
   
   // Optional fields for enhanced display
@@ -230,72 +234,6 @@ export default function EnhancedPoolCard({
     return themes[category] || themes['football'];
   };
 
-  // Generate professional betting market title
-  const generateProfessionalTitle = (predictedOutcome: string, category: string) => {
-    // For football markets, try to extract team names and create proper format
-    if (category === 'football') {
-      // Common patterns for football predictions
-      const patterns = [
-        /(.+?)\s+(?:will\s+)?(?:NOT\s+)?(?:win|beat|defeat)\s+(.+?)(?:\s+in\s+.+)?$/i,
-        /(.+?)\s+vs\s+(.+?)\s+(.+)/i,
-        /(.+?)\s+and\s+(.+?)\s+(.+)/i
-      ];
-      
-      for (const pattern of patterns) {
-        const match = predictedOutcome.match(pattern);
-        if (match) {
-          const team1 = match[1]?.trim();
-          const team2 = match[2]?.trim();
-          const outcome = match[3]?.trim();
-          
-          if (team1 && team2) {
-            // Clean up team names
-            const cleanTeam1 = team1.replace(/\s+(?:will\s+)?(?:NOT\s+)?(?:win|beat|defeat)/i, '').trim();
-            const cleanTeam2 = team2.replace(/\s+(?:will\s+)?(?:NOT\s+)?(?:win|beat|defeat)/i, '').trim();
-            
-            if (outcome && outcome.includes('2.5')) {
-              return `${cleanTeam1} vs ${cleanTeam2} 2.5 Over?`;
-            } else if (outcome && outcome.includes('1.5')) {
-              return `${cleanTeam1} vs ${cleanTeam2} 1.5 Over?`;
-            } else if (outcome && outcome.includes('3.5')) {
-              return `${cleanTeam1} vs ${cleanTeam2} 3.5 Over?`;
-            } else if (outcome && outcome.includes('win')) {
-              return `${cleanTeam1} vs ${cleanTeam2} Winner`;
-            } else {
-              return `${cleanTeam1} vs ${cleanTeam2}`;
-            }
-          }
-        }
-      }
-    }
-    
-    // For cryptocurrency markets
-    if (category === 'cryptocurrency') {
-      const cryptoMatch = predictedOutcome.match(/(.+?)\s+(?:will\s+)?(?:NOT\s+)?(?:reach|hit|exceed)\s+(\$[\d,]+)/i);
-      if (cryptoMatch) {
-        const crypto = cryptoMatch[1]?.trim();
-        const price = cryptoMatch[2]?.trim();
-        return `${crypto} ${price} Target`;
-      }
-    }
-    
-    // For basketball markets
-    if (category === 'basketball') {
-      const bballMatch = predictedOutcome.match(/(.+?)\s+(?:will\s+)?(?:NOT\s+)?(?:beat|defeat)\s+(.+?)/i);
-      if (bballMatch) {
-        const team1 = bballMatch[1]?.trim();
-        const team2 = bballMatch[2]?.trim();
-        return `${team1} vs ${team2}`;
-      }
-    }
-    
-    // Fallback: clean up the predicted outcome
-    return predictedOutcome
-      .replace(/\s+(?:will\s+)?(?:NOT\s+)?(?:happen|occur|take place)/gi, '')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .substring(0, 50) + (predictedOutcome.length > 50 ? '...' : '');
-  };
 
   const theme = getCardTheme(pool.category);
   const difficultyColor = getDifficultyColor(pool.odds);
@@ -304,28 +242,60 @@ export default function EnhancedPoolCard({
                         pool.odds >= 200 ? 'ADVANCED' : 
                         pool.odds >= 150 ? 'INTERMEDIATE' : 'BEGINNER';
   
-  // Generate a proper title from the pool data
+  // Generate a proper title from the pool data using the service
   const displayTitle = pool.isComboPool 
     ? `Combo Pool #${pool.id} (${pool.comboConditions?.length || 0} conditions)`
     : pool.predictedOutcome && pool.predictedOutcome !== '0x' && pool.predictedOutcome.length > 10 
-    ? generateProfessionalTitle(pool.predictedOutcome, pool.category || 'sports')
+    ? titleTemplatesService.generateProfessionalTitle(
+        pool.predictedOutcome,
+        pool.category || 'sports',
+        pool.homeTeam || undefined,
+        pool.awayTeam || undefined
+      )
     : `${(pool.category || 'sports').charAt(0).toUpperCase() + (pool.category || 'sports').slice(1)} Pool #${pool.id}`;
   
   const formatStake = (stake: string) => {
     try {
+      // Handle empty or invalid stake
+      if (!stake || stake === '0' || stake === '0x0') {
+        return '0';
+      }
+
       // If stake is already formatted (contains decimal), use as-is
       if (stake.includes('.')) {
         const amount = parseFloat(stake);
+        if (isNaN(amount)) return '0';
         if (amount >= 1000000) return `${(amount / 1000000).toFixed(1)}M`;
         if (amount >= 1000) return `${(amount / 1000).toFixed(1)}K`;
         return amount.toFixed(1);
       }
-      // If stake is in wei format, convert it
-      const amount = parseFloat(formatEther(BigInt(stake)));
+
+      // Handle BigInt conversion safely
+      let amount: number;
+      try {
+        // Check if stake is a valid BigInt string
+        if (stake.startsWith('0x')) {
+          // Handle hex strings
+          const bigIntValue = BigInt(stake);
+          amount = parseFloat(formatEther(bigIntValue));
+        } else {
+          // Handle decimal strings
+          const bigIntValue = BigInt(stake);
+          amount = parseFloat(formatEther(bigIntValue));
+        }
+      } catch (error) {
+        // Fallback: try to parse as regular number
+        console.warn('Failed to parse BigInt, falling back to regular number:', error);
+        amount = parseFloat(stake);
+        if (isNaN(amount)) return '0';
+      }
+
+      if (isNaN(amount)) return '0';
       if (amount >= 1000000) return `${(amount / 1000000).toFixed(1)}M`;
       if (amount >= 1000) return `${(amount / 1000).toFixed(1)}K`;
       return amount.toFixed(1);
-    } catch {
+    } catch (error) {
+      console.warn('Error formatting stake:', error, 'stake:', stake);
       return '0';
     }
   };
@@ -562,7 +532,10 @@ export default function EnhancedPoolCard({
             <div className="text-center">
               <div className="text-xs text-gray-400">Combined Odds</div>
               <div className={`text-lg font-bold ${theme.accent}`}>
-                {pool.comboOdds?.toFixed(2) || pool.odds.toFixed(2)}x
+                {pool.comboOdds ? 
+                  (typeof pool.comboOdds === 'number' ? pool.comboOdds.toFixed(2) : parseFloat(String(pool.comboOdds)).toFixed(2)) :
+                  (typeof pool.odds === 'number' ? pool.odds.toFixed(2) : parseFloat(String(pool.odds)).toFixed(2))
+                }x
               </div>
             </div>
             
@@ -592,7 +565,7 @@ export default function EnhancedPoolCard({
             <div className="text-center">
               <div className="text-xs text-gray-400">Odds</div>
               <div className={`text-lg font-bold ${theme.accent}`}>
-                {pool.odds.toFixed(2)}x
+                {typeof pool.odds === 'number' ? pool.odds.toFixed(2) : parseFloat(String(pool.odds)).toFixed(2)}x
               </div>
             </div>
             

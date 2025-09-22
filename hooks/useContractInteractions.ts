@@ -14,13 +14,18 @@ export function usePoolCore() {
   const createPool = useCallback(async (poolData: {
     predictedOutcome: string;
     odds: bigint;
+    creatorStake: bigint;
     eventStartTime: bigint;
     eventEndTime: bigint;
     league: string;
     category: string;
+    region: string;
+    isPrivate: boolean;
+    maxBetPerUser: bigint;
     useBitr: boolean;
-    maxBetPerUser?: bigint;
-    isPrivate?: boolean;
+    oracleType: number;
+    marketId: string;
+    marketType: number;
   }) => {
     try {
       const txHash = await writeContractAsync({
@@ -30,13 +35,18 @@ export function usePoolCore() {
         args: [
           poolData.predictedOutcome,
           poolData.odds,
+          poolData.creatorStake,
           poolData.eventStartTime,
           poolData.eventEndTime,
           poolData.league,
           poolData.category,
+          poolData.region,
+          poolData.isPrivate,
+          poolData.maxBetPerUser,
           poolData.useBitr,
-          poolData.maxBetPerUser || BigInt(0),
-          poolData.isPrivate || false,
+          poolData.oracleType,
+          poolData.marketId,
+          poolData.marketType,
         ],
         ...getTransactionOptions(),
       });
@@ -50,13 +60,13 @@ export function usePoolCore() {
     }
   }, [writeContractAsync]);
 
-  const placeBet = useCallback(async (poolId: bigint, betAmount: bigint, isCreatorSide: boolean) => {
+  const placeBet = useCallback(async (poolId: bigint, betAmount: bigint) => {
     try {
       const txHash = await writeContractAsync({
         address: CONTRACT_ADDRESSES.POOL_CORE,
         abi: CONTRACTS.POOL_CORE.abi,
         functionName: 'placeBet',
-        args: [poolId, betAmount, isCreatorSide],
+        args: [poolId, betAmount],
         value: betAmount,
         ...getTransactionOptions(),
       });

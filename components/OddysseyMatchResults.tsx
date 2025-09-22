@@ -7,13 +7,13 @@ import {
   ClockIcon, 
   ExclamationTriangleIcon,
   TrophyIcon,
-  // UserGroupIcon, // Removed unused import
-  ChartBarIcon
+  ChartBarIcon,
+  CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
 import { oddysseyService, OddysseyMatchWithResult } from '@/services/oddysseyService';
 
 interface OddysseyMatchResultsProps {
-  cycleId: number;
+  cycleId?: number;
   className?: string;
 }
 
@@ -26,23 +26,65 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
     totalMatches: number;
     finishedMatches: number;
   } | null>(null);
+  
+  // Time filtering states
+  const [selectedDate, setSelectedDate] = useState<string>('today');
+  const [currentCycleId, setCurrentCycleId] = useState<number | null>(null);
 
   const fetchResults = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const response = await oddysseyService.getCycleResults(cycleId);
+      const targetCycleId = cycleId;
+      let targetDate = selectedDate;
       
-      if (response.success) {
-        setResults(response.data.matches);
-        setCycleInfo({
-          isResolved: response.data.isResolved,
-          totalMatches: response.data.totalMatches,
-          finishedMatches: response.data.finishedMatches
-        });
+      // If no specific cycle ID provided, get current cycle or use date-based lookup
+      if (!targetCycleId) {
+        if (selectedDate === 'today') {
+          targetDate = new Date().toISOString().split('T')[0];
+        } else if (selectedDate === 'yesterday') {
+          const yesterday = new Date();
+          yesterday.setDate(yesterday.getDate() - 1);
+          targetDate = yesterday.toISOString().split('T')[0];
+        } else {
+          targetDate = selectedDate;
+        }
+        
+        // Get results by date instead of cycle ID
+        const response = await oddysseyService.getResultsByDate(targetDate);
+        
+        if (response.success && response.data) {
+          setResults(response.data.matches || []);
+          setCurrentCycleId(response.data.cycleId);
+          setCycleInfo({
+            isResolved: response.data.isResolved || false,
+            totalMatches: response.data.totalMatches || 0,
+            finishedMatches: response.data.finishedMatches || 0
+          });
+        } else {
+          setResults([]);
+          setCycleInfo({
+            isResolved: false,
+            totalMatches: 0,
+            finishedMatches: 0
+          });
+        }
       } else {
-        setError('Failed to fetch match results');
+        // Use specific cycle ID
+        const response = await oddysseyService.getCycleResults(targetCycleId);
+        
+        if (response.success) {
+          setResults(response.data.matches || []);
+          setCurrentCycleId(targetCycleId);
+          setCycleInfo({
+            isResolved: response.data.isResolved || false,
+            totalMatches: response.data.totalMatches || 0,
+            finishedMatches: response.data.finishedMatches || 0
+          });
+        } else {
+          setError('Failed to fetch match results');
+        }
       }
     } catch (err) {
       console.error('Error fetching match results:', err);
@@ -50,7 +92,7 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
     } finally {
       setLoading(false);
     }
-  }, [cycleId]);
+  }, [cycleId, selectedDate]);
 
   useEffect(() => {
     fetchResults();
@@ -158,6 +200,55 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
 
   return (
     <div className={`space-y-6 ${className}`}>
+      {/* Time Filter */}
+      {!cycleId && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass-card p-4"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <CalendarDaysIcon className="h-5 w-5 text-primary" />
+              <h3 className="text-lg font-semibold text-white">Filter by Date</h3>
+            </div>
+          </div>
+          
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setSelectedDate('today')}
+              className={`px-4 py-2 rounded-button text-sm font-medium transition-all ${
+                selectedDate === 'today'
+                  ? 'bg-primary text-black'
+                  : 'bg-primary/10 text-primary hover:bg-primary/20'
+              }`}
+            >
+              Today
+            </button>
+            <button
+              onClick={() => setSelectedDate('yesterday')}
+              className={`px-4 py-2 rounded-button text-sm font-medium transition-all ${
+                selectedDate === 'yesterday'
+                  ? 'bg-primary text-black'
+                  : 'bg-primary/10 text-primary hover:bg-primary/20'
+              }`}
+            >
+              Yesterday
+            </button>
+            <button
+              onClick={() => setSelectedDate('all')}
+              className={`px-4 py-2 rounded-button text-sm font-medium transition-all ${
+                selectedDate === 'all'
+                  ? 'bg-primary text-black'
+                  : 'bg-primary/10 text-primary hover:bg-primary/20'
+              }`}
+            >
+              All Cycles
+            </button>
+          </div>
+        </motion.div>
+      )}
+
       {/* Cycle Info */}
       {cycleInfo && (
         <motion.div
@@ -169,7 +260,9 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
             <div className="flex items-center gap-4">
               <TrophyIcon className="h-6 w-6 text-primary" />
               <div>
-                <h3 className="text-lg font-bold text-white">Cycle #{cycleId}</h3>
+                <h3 className="text-lg font-bold text-white">
+                  Cycle #{currentCycleId || cycleId || 'N/A'}
+                </h3>
                 <p className="text-sm text-text-muted">
                   {cycleInfo.finishedMatches}/{cycleInfo.totalMatches} matches finished
                 </p>

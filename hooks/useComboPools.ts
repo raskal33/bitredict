@@ -14,16 +14,14 @@ export interface ComboCondition {
 }
 
 export interface ComboPoolData {
-  title: string;
-  description: string;
+  conditions: ComboCondition[];
+  combinedOdds: number;
   creatorStake: bigint;
+  earliestEventStart: bigint;
+  latestEventEnd: bigint;
+  category: string;
   maxBetPerUser: bigint;
   useBitr: boolean;
-  isPrivate: boolean;
-  conditions: ComboCondition[];
-  eventStartTime: bigint;
-  eventEndTime: bigint;
-  bettingEndTime: bigint;
 }
 
 export function useComboPools() {
@@ -36,16 +34,14 @@ export function useComboPools() {
         abi: CONTRACTS.COMBO_POOLS.abi,
         functionName: 'createComboPool',
         args: [
-          poolData.title,
-          poolData.description,
-          poolData.creatorStake,
-          poolData.maxBetPerUser,
-          poolData.useBitr,
-          poolData.isPrivate,
           poolData.conditions,
-          poolData.eventStartTime,
-          poolData.eventEndTime,
-          poolData.bettingEndTime
+          poolData.combinedOdds,
+          poolData.creatorStake,
+          poolData.earliestEventStart,
+          poolData.latestEventEnd,
+          poolData.category,
+          poolData.maxBetPerUser,
+          poolData.useBitr
         ],
         ...getTransactionOptions(),
       });
@@ -59,13 +55,13 @@ export function useComboPools() {
     }
   }, [writeContractAsync]);
 
-  const placeComboBet = useCallback(async (poolId: bigint, betAmount: bigint, isCreatorSide: boolean) => {
+  const placeComboBet = useCallback(async (poolId: bigint, betAmount: bigint) => {
     try {
       const txHash = await writeContractAsync({
         address: CONTRACT_ADDRESSES.COMBO_POOLS,
         abi: CONTRACTS.COMBO_POOLS.abi,
         functionName: 'placeComboBet',
-        args: [poolId, betAmount, isCreatorSide],
+        args: [poolId, betAmount],
         value: betAmount,
         ...getTransactionOptions(),
       });

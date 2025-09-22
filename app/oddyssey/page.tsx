@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import Button from "@/components/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -11,6 +12,7 @@ import { oddysseyService, type OddysseyMatch } from "@/services/oddysseyService"
 import { useTransactionFeedback, TransactionFeedback } from "@/components/TransactionFeedback";
 import { safeStartTimeToISOString, safeStartTimeToDate } from "@/utils/time-helpers";
 import OddysseyMatchResults from "@/components/OddysseyMatchResults";
+import OddysseyLeaderboard from "@/components/OddysseyLeaderboard";
 import { 
   FireIcon, 
   TrophyIcon, 
@@ -226,7 +228,7 @@ export default function OddysseyPage() {
   }, [isConnected, address, initializeContract]);
   const [picks, setPicks] = useState<Pick[]>([]);
   const [slips, setSlips] = useState<Pick[][]>([]);
-  const [activeTab, setActiveTab] = useState<"today" | "slips" | "stats" | "results">("today");
+  const [activeTab, setActiveTab] = useState<"today" | "slips" | "stats" | "results" | "leaderboard">("today");
   const [matches, setMatches] = useState<Match[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [currentPrizePool, setCurrentPrizePool] = useState<CurrentPrizePool | null>(null);
@@ -1380,6 +1382,18 @@ export default function OddysseyPage() {
               <span className="sm:hidden">Results</span>
             </button>
             <button
+              onClick={() => setActiveTab("leaderboard")}
+              className={`px-4 md:px-8 py-2 md:py-3 rounded-button font-semibold transition-all duration-300 flex items-center gap-1 md:gap-2 text-sm md:text-base ${
+                activeTab === "leaderboard"
+                  ? "bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-yellow-300 shadow-lg shadow-yellow-500/25 scale-105 border border-yellow-500/30"
+                  : "text-text-secondary hover:text-yellow-300 hover:bg-gradient-to-r hover:from-yellow-500/10 hover:to-orange-500/10 hover:border hover:border-yellow-500/20"
+              }`}
+            >
+              <TrophyIcon className="h-4 w-4 md:h-5 md:w-5" />
+              <span className="hidden sm:inline">Leaderboard</span>
+              <span className="sm:hidden">Leaders</span>
+            </button>
+            <button
               onClick={() => setActiveTab("stats")}
               className={`px-4 md:px-8 py-2 md:py-3 rounded-button font-semibold transition-all duration-300 flex items-center gap-1 md:gap-2 text-sm md:text-base ${
                 activeTab === "stats"
@@ -2166,9 +2180,9 @@ export default function OddysseyPage() {
                 <div className="glass-card p-6 bg-gradient-to-br from-magenta-500/5 to-violet-500/5 border border-magenta-500/20 shadow-lg shadow-magenta-500/10">
                   <h2 className="text-2xl font-bold text-magenta-300 mb-6 flex items-center gap-2">
                     <DocumentTextIcon className="h-6 w-6 text-magenta-400" />
-                    Match Results & Leaderboards
+                    Match Results
                   </h2>
-                  <OddysseyMatchResults cycleId={1} />
+                  <OddysseyMatchResults />
                 </div>
               </motion.div>
             ) : activeTab === "stats" ? (
@@ -2227,6 +2241,23 @@ export default function OddysseyPage() {
                       </div>
                     </div>
                   )}
+                </div>
+              </motion.div>
+            ) : activeTab === "leaderboard" ? (
+              <motion.div
+                key="leaderboard"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="lg:col-span-3"
+              >
+                <div className="glass-card p-6 bg-gradient-to-br from-yellow-500/5 to-orange-500/5 border border-yellow-500/20 shadow-lg shadow-yellow-500/10">
+                  <h2 className="text-2xl font-bold text-yellow-300 mb-6 flex items-center gap-2">
+                    <TrophyIcon className="h-6 w-6 text-yellow-400" />
+                    Daily Leaderboard
+                  </h2>
+                  
+                  <OddysseyLeaderboard />
                 </div>
               </motion.div>
             ) : null}

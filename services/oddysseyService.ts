@@ -146,10 +146,14 @@ class OddysseyService {
         abi: CONTRACTS.ODDYSSEY.abi,
         functionName: 'dailyCycleId',
       });
-      return result as bigint;
+      const cycleId = result as bigint;
+      console.log('📅 Current cycle ID:', cycleId.toString());
+      return cycleId;
     } catch (error) {
-      console.error('Error getting current cycle:', error);
-      throw error;
+      console.error('❌ Error getting current cycle:', error);
+      // Return 0 as fallback if contract is not accessible
+      console.warn('⚠️ Using fallback cycle ID: 0');
+      return BigInt(0);
     }
   }
 
@@ -177,10 +181,41 @@ class OddysseyService {
     }
   }
 
+  // Check if contract is properly initialized
+  async isContractInitialized(): Promise<boolean> {
+    try {
+      const cycleId = await this.getCurrentCycle();
+      if (cycleId === BigInt(0)) {
+        return false;
+      }
+      
+      // Try to get matches for the current cycle
+      await this.publicClient.readContract({
+        address: CONTRACTS.ODDYSSEY.address,
+        abi: CONTRACTS.ODDYSSEY.abi,
+        functionName: 'getDailyMatches',
+        args: [cycleId],
+      });
+      return true;
+    } catch (error) {
+      console.warn('⚠️ Contract not properly initialized:', error);
+      return false;
+    }
+  }
+
   // Get current cycle matches
   async getCurrentCycleMatches(): Promise<OddysseyMatch[]> {
     try {
       const cycleId = await this.getCurrentCycle();
+      console.log('🔍 Getting matches for cycle ID:', cycleId.toString());
+      
+      // Check if contract is initialized
+      const isInitialized = await this.isContractInitialized();
+      if (!isInitialized) {
+        console.warn('⚠️ Contract not initialized, returning empty matches');
+        return [];
+      }
+      
       const result = await this.publicClient.readContract({
         address: CONTRACTS.ODDYSSEY.address,
         abi: CONTRACTS.ODDYSSEY.abi,
@@ -188,7 +223,7 @@ class OddysseyService {
         args: [cycleId],
       });
 
-      return (result as any[]).map((match) => ({
+      const matches = (result as any[]).map((match) => ({
         id: match.id,
         startTime: match.startTime,
         oddsHome: Number(match.oddsHome) / 1000, // Convert from contract format (scaled by 1000)
@@ -204,8 +239,18 @@ class OddysseyService {
           overUnder: Number(match.result?.overUnder || 0), // OverUnderResult enum (0=NotSet, 1=Over, 2=Under)
         },
       }));
+
+      console.log('✅ Retrieved matches:', matches.length);
+      return matches;
     } catch (error) {
-      console.error('Error getting current cycle matches:', error);
+      console.error('❌ Error getting current cycle matches:', error);
+      
+      // If the cycle doesn't exist or has no matches, return empty array
+      if (error instanceof Error && error.message.includes('out of bounds')) {
+        console.warn('⚠️ Cycle has no matches, returning empty array');
+        return [];
+      }
+      
       throw error;
     }
   }
@@ -570,6 +615,8 @@ class OddysseyService {
   // Get cycle results from backend
   async getCycleResults(cycleId: number): Promise<{ success: boolean; data: any }> {
     try {
+      // For now, use date-based lookup since backend expects date
+      // TODO: Update backend to support cycle ID lookup
       const response = await fetch(`https://bitredict-backend.fly.dev/api/oddyssey/results/${new Date().toISOString().split('T')[0]}`);
       const data = await response.json();
       return {
@@ -623,19 +670,22 @@ class OddysseyService {
   }
 
   // Get leaderboard from backend
-  async getLeaderboard(): Promise<{ success: boolean; data: LeaderboardEntry[] }> {
+  async getLeaderboard(cycleId?: number): Promise<{ success: boolean; data: any }> {
     try {
-      const response = await fetch('https://bitredict-backend.fly.dev/api/oddyssey/leaderboard');
+      const url = cycleId 
+        ? `https://bitredict-backend.fly.dev/api/oddyssey/leaderboard/${cycleId}`
+        : 'https://bitredict-backend.fly.dev/api/oddyssey/leaderboard';
+      const response = await fetch(url);
       const data = await response.json();
       return {
         success: true,
-        data: data.data || []
+        data: data.data || { leaderboard: [], totalPlayers: 0, cycleId: null }
       };
     } catch (error) {
       console.error('Error getting leaderboard:', error);
       return {
         success: false,
-        data: []
+        data: { leaderboard: [], totalPlayers: 0, cycleId: null }
       };
     }
   }

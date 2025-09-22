@@ -42,6 +42,7 @@ interface ComboPoolFormData {
   eventStartTime: Date;
   eventEndTime: Date;
   bettingEndTime: Date;
+  category?: string;
 }
 
 const INITIAL_CONDITION: Omit<ComboCondition, 'id'> = {
@@ -189,14 +190,8 @@ export default function ComboPoolCreationForm({ onSuccess, onClose }: {
     setIsLoading(true);
 
     try {
-      // Prepare combo pool data
+      // Prepare combo pool data to match contract signature
       const comboPoolData = {
-        title: formData.title,
-        description: formData.description,
-        creatorStake: BigInt(Math.floor(formData.creatorStake * 1e18)),
-        maxBetPerUser: BigInt(Math.floor(formData.maxBetPerUser * 1e18)),
-        useBitr: formData.useBitr,
-        isPrivate: formData.isPrivate,
         conditions: formData.conditions.map(condition => ({
           marketId: condition.marketId,
           expectedOutcome: condition.expectedOutcome,
@@ -204,9 +199,13 @@ export default function ComboPoolCreationForm({ onSuccess, onClose }: {
           eventStartTime: BigInt(Math.floor(condition.eventStartTime.getTime() / 1000)),
           eventEndTime: BigInt(Math.floor(condition.eventEndTime.getTime() / 1000))
         })),
-        eventStartTime: BigInt(Math.floor(formData.eventStartTime.getTime() / 1000)),
-        eventEndTime: BigInt(Math.floor(formData.eventEndTime.getTime() / 1000)),
-        bettingEndTime: BigInt(Math.floor(formData.bettingEndTime.getTime() / 1000))
+        combinedOdds: Math.floor(combinedOdds * 100), // Convert to basis points
+        creatorStake: BigInt(Math.floor(formData.creatorStake * 1e18)),
+        earliestEventStart: BigInt(Math.floor(formData.eventStartTime.getTime() / 1000)),
+        latestEventEnd: BigInt(Math.floor(formData.eventEndTime.getTime() / 1000)),
+        category: formData.category || "football",
+        maxBetPerUser: BigInt(Math.floor(formData.maxBetPerUser * 1e18)),
+        useBitr: formData.useBitr
       };
 
       const txHash = await createComboPool(comboPoolData);
@@ -227,7 +226,7 @@ export default function ComboPoolCreationForm({ onSuccess, onClose }: {
     } finally {
       setIsLoading(false);
     }
-  }, [isConnected, address, canCreate, validateForm, createComboPool, formData, onSuccess, onClose, connectWallet]);
+  }, [isConnected, address, canCreate, validateForm, createComboPool, formData, onSuccess, onClose, connectWallet, combinedOdds]);
 
   const renderConditionForm = (condition: ComboCondition, index: number) => (
     <motion.div

@@ -14,13 +14,16 @@ interface MarketFormData {
   // Basic pool data
   predictedOutcome: string;
   odds: string;
+  creatorStake: string;
   eventStartTime: string;
   eventEndTime: string;
   league: string;
   category: 'football' | 'crypto' | 'other';
+  region: string;
   useBitr: boolean;
   maxBetPerUser: string;
   isPrivate: boolean;
+  marketId: string;
   
   // Boost data
   enableBoost: boolean;
@@ -63,13 +66,16 @@ export default function CreateGuidedMarketForm({ onSuccess, onClose }: CreateGui
   const [formData, setFormData] = useState<MarketFormData>({
     predictedOutcome: '',
     odds: '',
+    creatorStake: '100',
     eventStartTime: '',
     eventEndTime: '',
     league: '',
     category: 'football',
+    region: 'Global',
     useBitr: false,
     maxBetPerUser: '',
     isPrivate: false,
+    marketId: '',
     enableBoost: false,
     boostTier: 0,
     homeTeam: '',
@@ -148,17 +154,22 @@ export default function CreateGuidedMarketForm({ onSuccess, onClose }: CreateGui
         }
       }
 
-      // Prepare pool data
+      // Prepare pool data with all required parameters
       const poolData = {
         predictedOutcome: formData.predictedOutcome,
         odds: BigInt(Math.floor(parseFloat(formData.odds) * 100)), // Convert to basis points
+        creatorStake: BigInt(parseFloat(formData.creatorStake || "100") * 1e18), // Add creator stake
         eventStartTime: BigInt(Math.floor(new Date(formData.eventStartTime).getTime() / 1000)),
         eventEndTime: BigInt(Math.floor(new Date(formData.eventEndTime).getTime() / 1000)),
         league: formData.league,
         category: formData.category,
-        useBitr: formData.useBitr,
-        maxBetPerUser: formData.maxBetPerUser ? BigInt(parseFloat(formData.maxBetPerUser) * 1e18) : BigInt(0),
+        region: formData.region || "Global", // Add region
         isPrivate: formData.isPrivate,
+        maxBetPerUser: formData.maxBetPerUser ? BigInt(parseFloat(formData.maxBetPerUser) * 1e18) : BigInt(0),
+        useBitr: formData.useBitr,
+        oracleType: 0, // GUIDED oracle type
+        marketId: formData.marketId || "", // Add market ID
+        marketType: 0, // MONEYLINE market type
       };
 
       let txHash: `0x${string}`;
@@ -293,6 +304,53 @@ export default function CreateGuidedMarketForm({ onSuccess, onClose }: CreateGui
           {errors.odds && (
             <p className="text-red-500 text-sm mt-1">{errors.odds}</p>
           )}
+        </div>
+
+        {/* Creator Stake */}
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Creator Stake ({formData.useBitr ? 'BITR' : 'STT'})
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            min={formData.useBitr ? "1000" : "5"}
+            value={formData.creatorStake}
+            onChange={(e) => handleInputChange('creatorStake', e.target.value)}
+            className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder={formData.useBitr ? "1000" : "5"}
+          />
+          <p className="text-xs text-gray-400 mt-1">
+            Minimum: {formData.useBitr ? "1000 BITR" : "5 STT"}
+          </p>
+        </div>
+
+        {/* Region */}
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Region
+          </label>
+          <input
+            type="text"
+            value={formData.region}
+            onChange={(e) => handleInputChange('region', e.target.value)}
+            className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="e.g., Global, Europe, North America"
+          />
+        </div>
+
+        {/* Market ID */}
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Market ID (Optional)
+          </label>
+          <input
+            type="text"
+            value={formData.marketId}
+            onChange={(e) => handleInputChange('marketId', e.target.value)}
+            className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="External market reference (e.g., SportMonks fixture ID)"
+          />
         </div>
 
         {/* League */}

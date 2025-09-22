@@ -21,6 +21,9 @@ interface CryptoMarketFormData {
   useBitr: boolean;
   maxBetPerUser: string;
   isPrivate: boolean;
+  creatorStake: string;
+  region?: string;
+  marketId?: string;
   
   // Crypto-specific data
   cryptoAsset: string;
@@ -81,6 +84,9 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
     useBitr: false,
     maxBetPerUser: '',
     isPrivate: false,
+    creatorStake: '0',
+    region: 'global',
+    marketId: '',
     cryptoAsset: 'BTC',
     targetPrice: '',
     priceDirection: 'above',
@@ -218,6 +224,11 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
         useBitr: formData.useBitr,
         maxBetPerUser: formData.maxBetPerUser ? BigInt(parseFloat(formData.maxBetPerUser) * 1e18) : BigInt(0),
         isPrivate: formData.isPrivate,
+        creatorStake: BigInt(parseFloat(formData.creatorStake) * 1e18),
+        region: formData.region || "global",
+        oracleType: 1, // Default oracle type for crypto
+        marketId: formData.marketId || `crypto_${Date.now()}`,
+        marketType: 1, // Default market type
       };
 
       let txHash: `0x${string}`;

@@ -6,6 +6,7 @@ import { useAccount } from "wagmi";
 import { usePools, Pool, ComboPool } from "@/hooks/usePools";
 import LoadingSpinner from "@/components/LoadingSpinner";
 import Button from "@/components/button";
+import { titleTemplatesService } from "@/services/title-templates";
 import { 
   FaChartLine, 
   FaClock, 
@@ -325,7 +326,10 @@ export default function MarketsList({
                     <div className="flex items-center gap-2 mb-2">
                       <h3 className="text-lg font-bold text-white">
                         {isRegular 
-                          ? (pool as Pool).predictedOutcome 
+                          ? titleTemplatesService.generateProfessionalTitle(
+                              (pool as Pool).predictedOutcome,
+                              (pool as Pool).category || 'sports'
+                            )
                           : `Combo Pool #${(pool as ComboPool).id}`
                         }
                       </h3>
