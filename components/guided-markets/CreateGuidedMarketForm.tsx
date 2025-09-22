@@ -66,7 +66,7 @@ export default function CreateGuidedMarketForm({ onSuccess, onClose }: CreateGui
 
   const [formData, setFormData] = useState<PoolFormData>({
     predictedOutcome: '',
-    odds: '1.75',
+    odds: '', // REMOVED: default odds - creators must set their own odds
     creatorStake: '100',
     eventStartTime: defaultTimestamps.startTime,
     eventEndTime: defaultTimestamps.endTime,
@@ -117,14 +117,11 @@ export default function CreateGuidedMarketForm({ onSuccess, onClose }: CreateGui
     setFormData(prev => {
       const newData = { ...prev, [field]: value };
       
-      // Handle market type changes with adaptive defaults
+      // Handle market type changes - clear predicted outcome but let creators set their own odds
       if (field === 'marketType') {
-        const marketConfig = MARKET_TYPE_CONFIG[value as MarketType];
-        if (marketConfig) {
-          newData.odds = marketConfig.defaultOdds;
-          // Clear predicted outcome to encourage user to enter market-specific outcome
-          newData.predictedOutcome = '';
-        }
+        // Clear predicted outcome to encourage user to enter market-specific outcome
+        newData.predictedOutcome = '';
+        // REMOVED: automatic odds setting - creators must set their own odds
       }
       
       // Auto-generate market ID and title for football matches
@@ -362,12 +359,10 @@ export default function CreateGuidedMarketForm({ onSuccess, onClose }: CreateGui
         {/* Odds */}
         <div>
           <label className="block text-sm font-medium text-gray-300 mb-2">
-            Odds (Decimal)
-            {MARKET_TYPE_CONFIG[formData.marketType] && (
-              <span className="text-xs text-gray-400 ml-2">
-                (Auto-set for {MARKET_TYPE_CONFIG[formData.marketType].label})
-              </span>
-            )}
+            Odds (Decimal) *
+            <span className="text-xs text-gray-400 ml-2">
+              (You must set your own odds)
+            </span>
           </label>
           <input
             type="number"
@@ -376,13 +371,12 @@ export default function CreateGuidedMarketForm({ onSuccess, onClose }: CreateGui
             value={formData.odds}
             onChange={(e) => handleInputChange('odds', e.target.value)}
             className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="e.g., 2.50"
+            placeholder="Enter your odds (e.g., 2.50)"
+            required
           />
-          {MARKET_TYPE_CONFIG[formData.marketType] && (
-            <p className="text-xs text-gray-400 mt-1">
-              Default odds for this market type: {MARKET_TYPE_CONFIG[formData.marketType].defaultOdds}
-            </p>
-          )}
+          <p className="text-xs text-gray-400 mt-1">
+            Set your own odds for this prediction (e.g., 2.50 means 2.5x return). This is required.
+          </p>
           {errors.odds && (
             <p className="text-red-500 text-sm mt-1">{errors.odds}</p>
           )}
