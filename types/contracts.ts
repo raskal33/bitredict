@@ -265,17 +265,14 @@ export function convertFormToContractData(formData: PoolFormData): PoolCreationD
   };
 }
 
-// Generate market ID for football matches
+// Generate market ID for football matches using keccak256
 export function generateFootballMarketId(homeTeam: string, awayTeam: string, league: string): string {
-  const matchString = `${homeTeam} vs ${awayTeam} - ${league}`;
-  // Simple hash function for market ID
-  let hash = 0;
-  for (let i = 0; i < matchString.length; i++) {
-    const char = matchString.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32-bit integer
-  }
-  return `0x${Math.abs(hash).toString(16).padStart(64, '0')}`;
+  // Use a deterministic string format that matches the backend
+  const matchString = `${homeTeam}_${awayTeam}_${league}`;
+  
+  // For now, return a simple format that can be converted to keccak256 in the hook
+  // The actual keccak256 conversion will happen in the contract interaction
+  return matchString;
 }
 
 // Generate title for football matches

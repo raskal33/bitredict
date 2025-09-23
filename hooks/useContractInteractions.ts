@@ -3,8 +3,74 @@ import { CONTRACTS, CONTRACT_ADDRESSES } from '@/contracts';
 import { executeContractCall, getTransactionOptions } from '@/lib/network-connection';
 import { useCallback, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
+import { keccak256, toBytes } from 'viem';
 
 // Enhanced contract interaction hooks for modular architecture
+
+// BITR Token Contract Hooks
+export function useBitrToken() {
+  const { address } = useAccount();
+  const { writeContractAsync } = useWriteContract();
+
+  const approve = useCallback(async (spender: `0x${string}`, amount: bigint) => {
+    try {
+      const txHash = await writeContractAsync({
+        address: CONTRACT_ADDRESSES.BITR_TOKEN,
+        abi: CONTRACTS.BITR_TOKEN.abi,
+        functionName: 'approve',
+        args: [spender, amount],
+        ...getTransactionOptions(),
+      });
+      
+      toast.success('BITR approval transaction submitted!');
+      return txHash;
+    } catch (error) {
+      console.error('Error approving BITR:', error);
+      toast.error('Failed to approve BITR');
+      throw error;
+    }
+  }, [writeContractAsync]);
+
+  const getAllowance = useCallback(async (owner: `0x${string}`, spender: `0x${string}`) => {
+    try {
+      const result = await executeContractCall(async (client) => {
+        return await client.readContract({
+          address: CONTRACT_ADDRESSES.BITR_TOKEN,
+          abi: CONTRACTS.BITR_TOKEN.abi,
+          functionName: 'allowance',
+          args: [owner, spender],
+        });
+      });
+      return result as bigint;
+    } catch (error) {
+      console.error('Error getting BITR allowance:', error);
+      return 0n;
+    }
+  }, []);
+
+  const getBalance = useCallback(async (account?: `0x${string}`) => {
+    try {
+      const result = await executeContractCall(async (client) => {
+        return await client.readContract({
+          address: CONTRACT_ADDRESSES.BITR_TOKEN,
+          abi: CONTRACTS.BITR_TOKEN.abi,
+          functionName: 'balanceOf',
+          args: [account || address || '0x0'],
+        });
+      });
+      return result as bigint;
+    } catch (error) {
+      console.error('Error getting BITR balance:', error);
+      return 0n;
+    }
+  }, [address]);
+
+  return {
+    approve,
+    getAllowance,
+    getBalance,
+  };
+}
 
 // Pool Core Contract Hooks
 export function usePoolCore() {
@@ -31,12 +97,22 @@ export function usePoolCore() {
     title?: string;
   }) => {
     try {
+      // Convert predictedOutcome to bytes32 hash using keccak256
+      const predictedOutcomeHash = poolData.predictedOutcome.startsWith('0x') 
+        ? poolData.predictedOutcome 
+        : keccak256(toBytes(poolData.predictedOutcome));
+      
+      // Convert marketId to bytes32 if it's not already
+      const marketIdBytes32 = poolData.marketId.startsWith('0x') 
+        ? poolData.marketId 
+        : keccak256(toBytes(poolData.marketId));
+
       const txHash = await writeContractAsync({
         address: CONTRACT_ADDRESSES.POOL_CORE,
         abi: CONTRACTS.POOL_CORE.abi,
         functionName: 'createPool',
         args: [
-          poolData.predictedOutcome,
+          predictedOutcomeHash,
           poolData.odds,
           poolData.creatorStake,
           poolData.eventStartTime,
@@ -44,13 +120,17 @@ export function usePoolCore() {
           poolData.league,
           poolData.category,
           poolData.region,
+          poolData.homeTeam || '', // 🎯 Team names support!
+          poolData.awayTeam || '', // 🎯 Team names support!
+          poolData.title || '', // 🎯 Title support!
           poolData.isPrivate,
           poolData.maxBetPerUser,
           poolData.useBitr,
           poolData.oracleType,
-          poolData.marketId,
+          marketIdBytes32,
           poolData.marketType,
         ],
+        value: poolData.useBitr ? 0n : poolData.creatorStake + 1000000000000000000n, // Add 1 STT creation fee for STT pools
         ...getTransactionOptions(),
       });
       
