@@ -69,7 +69,7 @@ export class PrizeClaimService {
       // Execute claim transaction
       const hash = await walletClient.writeContract({
         address: CONTRACT_ADDRESSES.BITREDICT_POOL,
-        abi: CONTRACTS.BITREDICT_POOL.abi,
+        abi: CONTRACTS.POOL_CORE.abi,
         functionName: 'claim',
         args: [BigInt(poolId)],
         account: address
@@ -143,7 +143,7 @@ export class PrizeClaimService {
       // Execute combo claim transaction
       const hash = await walletClient.writeContract({
         address: CONTRACT_ADDRESSES.BITREDICT_POOL,
-        abi: CONTRACTS.BITREDICT_POOL.abi,
+        abi: CONTRACTS.POOL_CORE.abi,
         functionName: 'claimCombo',
         args: [BigInt(comboPoolId)],
         account: address

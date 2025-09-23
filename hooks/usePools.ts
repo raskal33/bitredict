@@ -84,7 +84,7 @@ export function usePools() {
 
   // Read contract functions
   const { data: poolCount, refetch: refetchPoolCount } = useReadContract({
-    ...CONTRACTS.BITREDICT_POOL,
+    ...CONTRACTS.POOL_CORE,
     functionName: 'poolCount',
   });
 
@@ -94,25 +94,25 @@ export function usePools() {
   });
 
   const { data: minBetAmount } = useReadContract({
-    ...CONTRACTS.BITREDICT_POOL,
+    ...CONTRACTS.POOL_CORE,
     functionName: 'minBetAmount',
   });
 
   const { data: minPoolStake } = useReadContract({
-    ...CONTRACTS.BITREDICT_POOL,
-    functionName: 'minPoolStake',
+    ...CONTRACTS.POOL_CORE,
+    functionName: 'minPoolStakeSTT',
   });
 
   const { data: creationFee } = useReadContract({
-    ...CONTRACTS.BITREDICT_POOL,
-    functionName: 'creationFee',
+    ...CONTRACTS.POOL_CORE,
+    functionName: 'creationFeeSTT',
   });
 
   // Get pool data
   const getPool = (poolId: number) => {
     const { data: pool, refetch } = useReadContract({
-      ...CONTRACTS.BITREDICT_POOL,
-      functionName: 'pools',
+      ...CONTRACTS.POOL_CORE,
+      functionName: 'getPool',
       args: [BigInt(poolId)],
       query: { enabled: poolId >= 0 }
     });
@@ -133,7 +133,7 @@ export function usePools() {
   // Check if user is whitelisted for private pool
   const isWhitelisted = (poolId: number) => {
     const { data: whitelisted, refetch } = useReadContract({
-      ...CONTRACTS.BITREDICT_POOL,
+      ...CONTRACTS.POOL_CORE,
       functionName: 'poolWhitelist',
       args: address && poolId >= 0 ? [BigInt(poolId), address] : undefined,
       query: { enabled: !!(address && poolId >= 0) }
@@ -144,7 +144,7 @@ export function usePools() {
   // Get user's stake in a pool
   const getUserStake = (poolId: number) => {
     const { data: stake, refetch } = useReadContract({
-      ...CONTRACTS.BITREDICT_POOL,
+      ...CONTRACTS.POOL_CORE,
       functionName: 'bettorStakes',
       args: address && poolId >= 0 ? [BigInt(poolId), address] : undefined,
       query: { enabled: !!(address && poolId >= 0) }
@@ -215,7 +215,7 @@ export function usePools() {
 
     if (useBitr) {
       writeContract({
-        ...CONTRACTS.BITREDICT_POOL,
+        ...CONTRACTS.POOL_CORE,
         functionName: 'createPool',
         args,
       });
@@ -223,7 +223,7 @@ export function usePools() {
       // Calculate total required (creation fee + stake)
       const totalRequired = (creationFee as bigint) + stakeWei;
       writeContract({
-        ...CONTRACTS.BITREDICT_POOL,
+        ...CONTRACTS.POOL_CORE,
         functionName: 'createPool',
         args,
         value: totalRequired,
@@ -239,14 +239,14 @@ export function usePools() {
         // For BITR pools, we need to handle token approval first
         // The contract will handle the transferFrom internally
         writeContract({
-          ...CONTRACTS.BITREDICT_POOL,
+          ...CONTRACTS.POOL_CORE,
           functionName: 'placeBet',
           args: [BigInt(poolId), betAmount],
         });
       } else {
         // For STT pools, send native token as value
         writeContract({
-          ...CONTRACTS.BITREDICT_POOL,
+          ...CONTRACTS.POOL_CORE,
           functionName: 'placeBet',
           args: [BigInt(poolId), betAmount],
           value: betAmount,
@@ -261,7 +261,7 @@ export function usePools() {
   // Private pool management
   const addToWhitelist = async (poolId: number, userAddress: string) => {
     writeContract({
-      ...CONTRACTS.BITREDICT_POOL,
+      ...CONTRACTS.POOL_CORE,
       functionName: 'addToWhitelist',
       args: [BigInt(poolId), userAddress as `0x${string}`],
     });
@@ -269,7 +269,7 @@ export function usePools() {
 
   const removeFromWhitelist = async (poolId: number, userAddress: string) => {
     writeContract({
-      ...CONTRACTS.BITREDICT_POOL,
+      ...CONTRACTS.POOL_CORE,
       functionName: 'removeFromWhitelist',
       args: [BigInt(poolId), userAddress as `0x${string}`],
     });
@@ -366,8 +366,8 @@ export function usePools() {
 
   const claimWinnings = async (poolId: number) => {
     writeContract({
-      ...CONTRACTS.BITREDICT_POOL,
-      functionName: 'claimWinnings',
+      ...CONTRACTS.POOL_CORE,
+      functionName: 'claim',
       args: [BigInt(poolId)],
     });
   };

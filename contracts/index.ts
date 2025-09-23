@@ -23,7 +23,7 @@ export const CONTRACTS = {
   },
   POOL_CORE: {
     address: CONTRACT_ADDRESSES.POOL_CORE,
-    abi: BitredictPoolCoreABI,
+    abi: BitredictPoolCoreABI.abi,
   },
   BOOST_SYSTEM: {
     address: CONTRACT_ADDRESSES.BOOST_SYSTEM,
@@ -31,11 +31,11 @@ export const CONTRACTS = {
   },
   COMBO_POOLS: {
     address: CONTRACT_ADDRESSES.COMBO_POOLS,
-    abi: BitredictComboPoolsABI,
+    abi: BitredictComboPoolsABI.abi,
   },
   FACTORY: {
     address: CONTRACT_ADDRESSES.FACTORY,
-    abi: BitredictPoolFactoryABI,
+    abi: BitredictPoolFactoryABI.abi,
   },
   
   // Oracle Contracts

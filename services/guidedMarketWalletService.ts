@@ -243,7 +243,7 @@ export class GuidedMarketWalletService {
       // Execute the transaction
       const hash = await walletClient.writeContract({
         address: transactionData.contractAddress as Address,
-        abi: CONTRACTS.BITREDICT_POOL.abi,
+        abi: CONTRACTS.POOL_CORE.abi,
         functionName: transactionData.functionName,
         args: transactionData.parameters,
         value: transactionData.value === '0' ? BigInt(0) : parseEther(transactionData.value),

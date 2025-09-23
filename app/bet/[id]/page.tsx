@@ -41,7 +41,7 @@ export default function BetPage() {
   // Helper function to check if BITR approval is needed
   const needsApproval = (amount: string): boolean => {
     if (!pool || pool.currency !== 'BITR') return false;
-    const allowance = getAllowance(CONTRACTS.BITREDICT_POOL.address);
+    const allowance = getAllowance(CONTRACTS.POOL_CORE.address);
     if (!allowance) return true;
     const requiredAmount = parseUnits(amount, 18);
     return allowance < requiredAmount;
@@ -393,7 +393,7 @@ export default function BetPage() {
         setWaitingForApproval(true);
         
         toast.loading('Approving BITR tokens...', { id: 'bet-tx' });
-        await approve(CONTRACTS.BITREDICT_POOL.address, betAmount.toString());
+        await approve(CONTRACTS.POOL_CORE.address, betAmount.toString());
         
         // The useEffect will handle the bet placement after approval
         toast.loading('Waiting for approval confirmation...', { id: 'bet-tx' });
