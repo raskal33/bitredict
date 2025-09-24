@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import Button from '@/components/button';
 import { toast } from 'react-hot-toast';
-import BitredictPoolABI from '@/contracts/abis/BitredictPool.json';
+import { CONTRACTS } from '@/contracts';
 
 interface Pool {
   poolId: string;
@@ -73,7 +73,7 @@ export function PoolActions({ pool, userAddress, contractAddress, onSuccess }: P
 
       writeContract({
         address: contractAddress as `0x${string}`,
-        abi: BitredictPoolABI.abi,
+        abi: CONTRACTS.POOL_CORE.abi,
         functionName: 'refundPool',
         args: [BigInt(pool.poolId)],
       });
@@ -97,7 +97,7 @@ export function PoolActions({ pool, userAddress, contractAddress, onSuccess }: P
 
       writeContract({
         address: contractAddress as `0x${string}`,
-        abi: BitredictPoolABI.abi,
+        abi: CONTRACTS.POOL_CORE.abi,
         functionName: 'claim',
         args: [BigInt(pool.poolId)],
       });

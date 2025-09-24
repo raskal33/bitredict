@@ -89,7 +89,7 @@ export function usePools() {
   });
 
   const { data: comboPoolCount, refetch: refetchComboPoolCount } = useReadContract({
-    ...CONTRACTS.BITREDICT_POOL,
+    ...CONTRACTS.POOL_CORE,
     functionName: 'comboPoolCount',
   });
 
@@ -127,7 +127,7 @@ export function usePools() {
   // Get combo pool data
   const getComboPool = (comboPoolId: number) => {
     const { data: comboPool, refetch } = useReadContract({
-      ...CONTRACTS.BITREDICT_POOL,
+      ...CONTRACTS.POOL_CORE,
       functionName: 'comboPools',
       args: [BigInt(comboPoolId)],
       query: { enabled: comboPoolId >= 0 }
@@ -160,7 +160,7 @@ export function usePools() {
   // Get user's combo pool stake
   const getComboStake = (comboPoolId: number) => {
     const { data: stake, refetch } = useReadContract({
-      ...CONTRACTS.BITREDICT_POOL,
+      ...CONTRACTS.POOL_CORE,
       functionName: 'comboBettorStakes',
       args: address && comboPoolId >= 0 ? [BigInt(comboPoolId), address] : undefined,
       query: { enabled: !!(address && comboPoolId >= 0) }
@@ -171,7 +171,7 @@ export function usePools() {
   // Get pool boost tier
   const getPoolBoost = (poolId: number) => {
     const { data: boostTier, refetch } = useReadContract({
-      ...CONTRACTS.BITREDICT_POOL,
+      ...CONTRACTS.POOL_CORE,
       functionName: 'poolBoostTier',
       args: [BigInt(poolId)],
       query: { enabled: poolId >= 0 }
@@ -293,7 +293,7 @@ export function usePools() {
     };
 
     writeContract({
-      ...CONTRACTS.BITREDICT_POOL,
+      ...CONTRACTS.POOL_CORE,
       functionName: 'boostPool',
       args: [BigInt(poolId), BigInt(tier)],
       value: boostFees[tier] || BigInt(0),
@@ -334,14 +334,14 @@ export function usePools() {
 
     if (useBitr) {
       writeContract({
-        ...CONTRACTS.BITREDICT_POOL,
+        ...CONTRACTS.POOL_CORE,
         functionName: 'createComboPool',
         args,
       });
     } else {
-      const totalRequired = (creationFee as bigint) + stakeWei;
+      const totalRequired = (creationFeeSTT as bigint) + stakeWei;
       writeContract({
-        ...CONTRACTS.BITREDICT_POOL,
+        ...CONTRACTS.POOL_CORE,
         functionName: 'createComboPool',
         args,
         value: totalRequired,
@@ -358,13 +358,13 @@ export function usePools() {
 
     if (useBitr) {
       writeContract({
-        ...CONTRACTS.BITREDICT_POOL,
+        ...CONTRACTS.POOL_CORE,
         functionName: 'placeComboBet',
         args: [BigInt(comboPoolId), betAmount],
       });
     } else {
       writeContract({
-        ...CONTRACTS.BITREDICT_POOL,
+        ...CONTRACTS.POOL_CORE,
         functionName: 'placeComboBet',
         args: [BigInt(comboPoolId), betAmount],
         value: betAmount,
@@ -382,7 +382,7 @@ export function usePools() {
 
   const claimComboWinnings = async (comboPoolId: number) => {
     writeContract({
-      ...CONTRACTS.BITREDICT_POOL,
+      ...CONTRACTS.POOL_CORE,
       functionName: 'claimCombo',
       args: [BigInt(comboPoolId)],
     });

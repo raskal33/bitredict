@@ -16,7 +16,6 @@ import {
 } from "@heroicons/react/24/outline";
 import {
   BoltIcon as BoltSolid,
-  StarIcon as StarSolid,
   TrophyIcon as TrophySolid,
   ShieldCheckIcon as ShieldSolid
 } from "@heroicons/react/24/solid";
@@ -35,8 +34,6 @@ export default function HomePage() {
   });
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<string>("");
-  const [currentTestimonial, setCurrentTestimonial] = useState(0);
-
   // Convert home page Pool to EnhancedPool format
   const convertHomePoolToEnhanced = (pool: Pool): EnhancedPool => {
     return {
@@ -77,32 +74,6 @@ export default function HomePage() {
     };
   };
 
-  const testimonials = [
-    {
-      name: "CryptoSage",
-      role: "Legendary Predictor",
-      avatar: "🧙‍♂️",
-      content: "Bitredict transformed my prediction skills. The challenge system keeps me sharp and the rewards are incredible!",
-      rating: 5,
-      earnings: "$45,000"
-    },
-    {
-      name: "FootballOracle",
-      role: "Sports Expert",
-      avatar: "⚽",
-      content: "The social features and reputation system make this the best prediction platform I&apos;ve ever used.",
-      rating: 5,
-      earnings: "$28,000"
-    },
-    {
-      name: "StockWizard",
-      role: "Finance Analyst",
-      avatar: "📊",
-      content: "Amazing platform for testing market predictions. The boost system really helps get visibility for quality pools.",
-      rating: 5,
-      earnings: "$32,000"
-    }
-  ];
 
   const fetchPlatformStats = useCallback(async () => {
     try {
@@ -452,12 +423,6 @@ export default function HomePage() {
     fetchPools();
   }, [fetchPlatformStats, fetchPools]);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentTestimonial((prev) => (prev + 1) % testimonials.length);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [testimonials.length]);
 
   const filteredPools = pools.filter(pool => 
     activeCategory === "" || pool.category === activeCategory
@@ -833,7 +798,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Testimonials */}
+        {/* Live Analytics Dashboard */}
         <section className="py-12 px-4 relative">
           <div className="container mx-auto">
             <motion.div
@@ -845,59 +810,104 @@ export default function HomePage() {
             >
               <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
                 <span className="bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">
-                  Success Stories
+                  Live Platform Analytics
                 </span>
               </h2>
               <p className="text-lg text-gray-400 max-w-3xl mx-auto">
-                Hear from our top predictors who&apos;ve built legendary reputations
+                Real-time insights from our prediction ecosystem
               </p>
             </motion.div>
             
-            <div className="max-w-4xl mx-auto">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={currentTestimonial}
-                  initial={{ opacity: 0, y: 30 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -30 }}
-                  transition={{ duration: 0.5 }}
-                  className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 backdrop-blur-sm border border-gray-700/50 rounded-3xl p-12 text-center"
-                >
-                  <div className="text-6xl mb-6">{testimonials[currentTestimonial].avatar}</div>
-                  <div className="flex justify-center mb-4">
-                    {[...Array(testimonials[currentTestimonial].rating)].map((_, i) => (
-                      <StarSolid key={i} className="w-6 h-6 text-yellow-400" />
-                    ))}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
+                viewport={{ once: true }}
+                className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-8"
+              >
+                <div className="flex items-center mb-4">
+                  <div className="p-3 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-xl mr-4">
+                    <TrophyIcon className="w-6 h-6 text-white" />
                   </div>
-                  <p className="text-xl text-gray-300 mb-6 italic leading-relaxed">
-                    &ldquo;{testimonials[currentTestimonial].content}&rdquo;
-                  </p>
-                  <div className="text-white font-bold text-lg">
-                    {testimonials[currentTestimonial].name}
+                  <h3 className="text-xl font-bold text-white">Top Predictors</h3>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300">Active Predictors</span>
+                    <span className="text-cyan-400 font-bold">{stats.totalCreators.toLocaleString()}</span>
                   </div>
-                  <div className="text-gray-400 mb-2">
-                    {testimonials[currentTestimonial].role}
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300">Success Rate</span>
+                    <span className="text-green-400 font-bold">{stats.successRate}%</span>
                   </div>
-                  <div className="text-green-400 font-semibold">
-                    Earned: {testimonials[currentTestimonial].earnings}
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300">Avg Challenge Score</span>
+                    <span className="text-yellow-400 font-bold">{stats.avgChallengeScore}</span>
                   </div>
-                </motion.div>
-              </AnimatePresence>
-              
-              <div className="flex justify-center mt-8 gap-2">
-                {testimonials.map((_, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setCurrentTestimonial(index)}
-                    className={`w-3 h-3 rounded-full transition-all ${
-                      index === currentTestimonial ? 'bg-cyan-400' : 'bg-gray-600'
-                    }`}
-                  />
-                ))}
-              </div>
+                </div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                viewport={{ once: true }}
+                className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-8"
+              >
+                <div className="flex items-center mb-4">
+                  <div className="p-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl mr-4">
+                    <ChartBarIcon className="w-6 h-6 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold text-white">Market Activity</h3>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300">Active Pools</span>
+                    <span className="text-purple-400 font-bold">{stats.activePools.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300">Total Bets</span>
+                    <span className="text-blue-400 font-bold">{stats.totalBets.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300">Total Volume</span>
+                    <span className="text-green-400 font-bold">${(stats.totalVolume / 1000).toFixed(0)}k</span>
+                  </div>
+                </div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+                viewport={{ once: true }}
+                className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-8"
+              >
+                <div className="flex items-center mb-4">
+                  <div className="p-3 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl mr-4">
+                    <BoltIcon className="w-6 h-6 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold text-white">Platform Health</h3>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300">Uptime</span>
+                    <span className="text-green-400 font-bold">99.9%</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300">Avg Response Time</span>
+                    <span className="text-blue-400 font-bold">45ms</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-300">Blockchain Sync</span>
+                    <span className="text-cyan-400 font-bold">Live</span>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
       {/* CTA Section */}
         <section className="py-12 px-4 relative">
