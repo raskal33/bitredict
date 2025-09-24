@@ -103,9 +103,14 @@ export function usePools() {
     functionName: 'minPoolStakeSTT',
   });
 
-  const { data: creationFee } = useReadContract({
+  const { data: creationFeeSTT } = useReadContract({
     ...CONTRACTS.POOL_CORE,
     functionName: 'creationFeeSTT',
+  });
+
+  const { data: creationFeeBITR } = useReadContract({
+    ...CONTRACTS.POOL_CORE,
+    functionName: 'creationFeeBITR',
   });
 
   // Get pool data
@@ -214,14 +219,17 @@ export function usePools() {
     ] as const;
 
     if (useBitr) {
+      // For BITR pools, the contract will handle the token transfer internally
+      // The user needs to approve the total amount (creation fee + stake) beforehand
       writeContract({
         ...CONTRACTS.POOL_CORE,
         functionName: 'createPool',
         args,
+        value: 0n, // No ETH/STT value for BITR pools
       });
     } else {
-      // Calculate total required (creation fee + stake)
-      const totalRequired = (creationFee as bigint) + stakeWei;
+      // Calculate total required (creation fee + stake) for STT pools
+      const totalRequired = (creationFeeSTT as bigint) + stakeWei;
       writeContract({
         ...CONTRACTS.POOL_CORE,
         functionName: 'createPool',
@@ -439,7 +447,8 @@ export function usePools() {
     comboPoolCount: Number(comboPoolCount || 0),
     minBetAmount: formatAmount(minBetAmount as bigint),
     minPoolStake: formatAmount(minPoolStake as bigint),
-    creationFee: formatAmount(creationFee as bigint),
+    creationFeeSTT: formatAmount(creationFeeSTT as bigint),
+    creationFeeBITR: formatAmount(creationFeeBITR as bigint),
     
     // Pool functions
     getPool,

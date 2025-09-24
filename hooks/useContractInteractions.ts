@@ -107,6 +107,13 @@ export function usePoolCore() {
         ? poolData.marketId 
         : keccak256(toBytes(poolData.marketId));
 
+      // Calculate total required amount (creation fee + creator stake)
+      const creationFeeBITR = 50n * 10n**18n; // 50 BITR in wei
+      const creationFeeSTT = 1n * 10n**18n; // 1 STT in wei
+      const totalRequired = poolData.useBitr 
+        ? poolData.creatorStake + creationFeeBITR  // 3000 + 50 = 3050 BITR
+        : poolData.creatorStake + creationFeeSTT;   // stake + 1 STT
+
       const txHash = await writeContractAsync({
         address: CONTRACT_ADDRESSES.POOL_CORE,
         abi: CONTRACTS.POOL_CORE.abi,
@@ -130,7 +137,7 @@ export function usePoolCore() {
           marketIdBytes32,
           poolData.marketType,
         ],
-        value: poolData.useBitr ? 0n : poolData.creatorStake + 1000000000000000000n, // Add 1 STT creation fee for STT pools
+        value: poolData.useBitr ? 0n : totalRequired, // For BITR pools, value is 0 (token transfer handles it)
         ...getTransactionOptions(),
       });
       

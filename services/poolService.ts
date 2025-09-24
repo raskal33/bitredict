@@ -53,26 +53,28 @@ export interface PoolStats {
 export class PoolService {
   static async getPools(limit: number = 50, offset: number = 0): Promise<Pool[]> {
     try {
-      console.log('Fetching pools from:', `${API_BASE_URL}/guided-markets/pools?limit=${limit}&offset=${offset}`);
+      console.log('🔗 Fetching pools from direct contract implementation:', `${API_BASE_URL}/guided-markets/pools?limit=${limit}&offset=${offset}`);
       const response = await fetch(`${API_BASE_URL}/guided-markets/pools?limit=${limit}&offset=${offset}`);
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Failed to fetch pools:', response.status, errorText);
+        console.error('❌ Failed to fetch pools from contract:', response.status, errorText);
         return [];
       }
       
       const data = await response.json();
-      console.log('Pools response:', data);
+      console.log('✅ Pools response from contract:', data);
       
       if (!data.success) {
-        console.error('Failed to fetch pools:', data.error);
+        console.error('❌ Failed to fetch pools from contract:', data.error);
         return [];
       }
       
-      return data.data.pools || [];
+      const pools = data.data?.pools || [];
+      console.log(`📊 Received ${pools.length} pools from direct contract calls`);
+      return pools;
     } catch (error) {
-      console.error('Error fetching pools:', error);
+      console.error('❌ Error fetching pools from contract:', error);
       return [];
     }
   }
@@ -96,26 +98,30 @@ export class PoolService {
 
   static async getPoolById(poolId: number): Promise<Pool | null> {
     try {
-      console.log('Fetching pool by ID:', poolId, 'from:', `${API_BASE_URL}/guided-markets/pools/${poolId}`);
+      console.log('🔍 Fetching pool by ID from contract:', poolId, 'from:', `${API_BASE_URL}/guided-markets/pools/${poolId}`);
       const response = await fetch(`${API_BASE_URL}/guided-markets/pools/${poolId}`);
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Failed to fetch pool:', response.status, errorText);
+        console.error('❌ Failed to fetch pool from contract:', response.status, errorText);
         return null;
       }
       
       const data = await response.json();
-      console.log('Pool by ID response:', data);
+      console.log('✅ Pool by ID response from contract:', data);
       
       if (!data.success) {
-        console.error('Failed to fetch pool:', data.error);
+        console.error('❌ Failed to fetch pool from contract:', data.error);
         return null;
       }
       
-      return data.data.pool || null;
+      const pool = data.data?.pool || null;
+      if (pool) {
+        console.log(`✅ Pool ${poolId} fetched from contract: ${pool.title || pool.predictedOutcome}`);
+      }
+      return pool;
     } catch (error) {
-      console.error('Error fetching pool:', error);
+      console.error('❌ Error fetching pool from contract:', error);
       return null;
     }
   }
@@ -372,11 +378,12 @@ export class PoolService {
 
   static async getPoolStats(): Promise<PoolStats> {
     try {
+      console.log('📊 Fetching pool stats from direct contract implementation...');
       const response = await fetch(`${API_BASE_URL}/guided-markets/stats`);
       const data = await response.json();
       
       if (!data.success) {
-        console.error('Failed to fetch pool stats:', data.error);
+        console.error('❌ Failed to fetch pool stats from contract:', data.error);
         return {
           totalVolume: "0",
           bitrVolume: "0",
@@ -390,7 +397,7 @@ export class PoolService {
         };
       }
       
-      return data.data.stats || {
+      const stats = data.data?.stats || {
         totalVolume: "0",
         bitrVolume: "0",
         sttVolume: "0",
@@ -401,8 +408,11 @@ export class PoolService {
         comboPools: 0,
         privatePools: 0
       };
+      
+      console.log('✅ Pool stats from contract:', stats);
+      return stats;
     } catch (error) {
-      console.error('Error fetching pool stats:', error);
+      console.error('❌ Error fetching pool stats from contract:', error);
       return {
         totalVolume: "0",
         bitrVolume: "0",
