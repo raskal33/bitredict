@@ -92,6 +92,10 @@ class WagmiStyleClient {
     console.log('✅ Wallet client set:', address);
   }
 
+  getWalletClient(): WalletClient | null {
+    return this.walletClient;
+  }
+
   async readContract({ address, abi, functionName, args = [] }: {
     address: Address;
     abi: any;
@@ -114,7 +118,7 @@ class WagmiStyleClient {
     value?: bigint;
   }) {
     if (!this.walletClient) {
-      throw new Error('Wallet client not initialized');
+      throw new Error('Wallet client not set');
     }
 
     if (!this.walletAddress) {
@@ -250,6 +254,12 @@ export class OddysseyContractService {
       
       await this.client.initialize();
       this.client.setWalletClient(walletClient, address);
+      
+      // Verify wallet client is properly set
+      if (!this.client.getWalletClient()) {
+        throw new Error('Failed to set wallet client');
+      }
+      
       this.oddysseyContract = new OddysseyContract(this.client);
       this.isInitialized = true;
       
@@ -269,6 +279,13 @@ export class OddysseyContractService {
     if (!this.isInitialized || !this.oddysseyContract) {
       throw new Error('OddysseyContractService not initialized. Call initialize() first.');
     }
+  }
+
+  /**
+   * Public method to check if service is initialized
+   */
+  static isServiceInitialized(): boolean {
+    return this.isInitialized && this.oddysseyContract !== null;
   }
 
   /**
@@ -512,6 +529,14 @@ export function useOddysseyContract() {
   }, [isInitialized]);
 
   const placeSlip = useCallback(async (predictions: any[], entryFee: string) => {
+    console.log('🎯 Attempting to place slip...', { 
+      isConnected, 
+      address, 
+      hasWalletClient: !!walletClient, 
+      isInitialized,
+      isServiceInitialized: OddysseyContractService.isServiceInitialized()
+    });
+
     if (!isConnected || !address) {
       throw new Error('Wallet not connected');
     }
@@ -524,6 +549,11 @@ export function useOddysseyContract() {
       throw new Error('Contract service not initialized. Please wait for initialization to complete.');
     }
 
+    // Additional check to ensure wallet client is properly set in the service
+    if (!OddysseyContractService.isServiceInitialized()) {
+      throw new Error('Service not properly initialized. Please ensure your wallet is connected and try again.');
+    }
+
     // Reset state
     setIsPending(true);
     setIsSuccess(false);
@@ -532,10 +562,28 @@ export function useOddysseyContract() {
     setHash(null);
 
     try {
-      const result = await OddysseyContractService.placeSlip(predictions, entryFee);
-      setHash(result.hash);
-      setIsPending(false);
-      setIsConfirming(true);
+      // Retry mechanism in case of initialization issues
+      let retryCount = 0;
+      const maxRetries = 2;
+      let result: any;
+      
+      while (retryCount < maxRetries) {
+        try {
+          result = await OddysseyContractService.placeSlip(predictions, entryFee);
+          setHash(result.hash);
+          setIsPending(false);
+          setIsConfirming(true);
+          break;
+        } catch (error) {
+          if (error instanceof Error && error.message.includes('Wallet client not set') && retryCount < maxRetries - 1) {
+            console.log(`🔄 Retrying slip placement (attempt ${retryCount + 1}/${maxRetries})...`);
+            retryCount++;
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+            continue;
+          }
+          throw error;
+        }
+      }
 
       const receipt = await OddysseyContractService.waitForTransactionReceipt({ hash: result.hash });
       

@@ -76,6 +76,7 @@ export function useBitrToken() {
 export function usePoolCore() {
   const { address } = useAccount();
   const { writeContractAsync } = useWriteContract();
+  const { approve, getAllowance } = useBitrToken();
 
   const createPool = useCallback(async (poolData: {
     predictedOutcome: string;
@@ -114,6 +115,40 @@ export function usePoolCore() {
         ? poolData.creatorStake + creationFeeBITR  // 3000 + 50 = 3050 BITR
         : poolData.creatorStake + creationFeeSTT;   // stake + 1 STT
 
+      // For BITR pools, we need to ensure the contract has sufficient allowance
+      // The contract will handle the token transfer internally
+      if (poolData.useBitr) {
+        // Check if we need to approve more tokens
+        const currentAllowance = await getAllowance(address as `0x${string}`, CONTRACT_ADDRESSES.POOL_CORE);
+        console.log(`BITR Pool Creation - Current allowance: ${currentAllowance}, Required: ${totalRequired}`);
+        
+        if (currentAllowance < totalRequired) {
+          console.log(`Insufficient allowance. Approving ${totalRequired} BITR tokens to POOL_CORE contract...`);
+          toast.loading('Approving BITR tokens for pool creation...');
+          try {
+            await approve(CONTRACT_ADDRESSES.POOL_CORE, totalRequired);
+            toast.dismiss();
+            toast.success('BITR tokens approved for pool creation!');
+          } catch (approveError) {
+            toast.dismiss();
+            console.error('Error approving BITR tokens:', approveError);
+            toast.error('Failed to approve BITR tokens for pool creation');
+            throw approveError;
+          }
+        } else {
+          console.log('Sufficient allowance already exists for BITR pool creation');
+        }
+      }
+
+      console.log('Creating pool with parameters:', {
+        predictedOutcomeHash,
+        odds: poolData.odds,
+        creatorStake: poolData.creatorStake,
+        useBitr: poolData.useBitr,
+        totalRequired,
+        value: poolData.useBitr ? 0n : totalRequired
+      });
+
       const txHash = await writeContractAsync({
         address: CONTRACT_ADDRESSES.POOL_CORE,
         abi: CONTRACTS.POOL_CORE.abi,
@@ -141,14 +176,30 @@ export function usePoolCore() {
         ...getTransactionOptions(),
       });
       
+      console.log('Pool creation transaction submitted:', txHash);
       toast.success('Pool creation transaction submitted!');
       return txHash;
     } catch (error) {
       console.error('Error creating pool:', error);
-      toast.error('Failed to create pool');
+      
+      // Provide more specific error messages
+      if (error instanceof Error) {
+        if (error.message.includes('insufficient funds')) {
+          toast.error('Insufficient BITR balance for pool creation');
+        } else if (error.message.includes('allowance')) {
+          toast.error('Insufficient BITR allowance. Please approve more tokens.');
+        } else if (error.message.includes('revert')) {
+          toast.error('Transaction reverted. Check your parameters and try again.');
+        } else {
+          toast.error(`Failed to create pool: ${error.message}`);
+        }
+      } else {
+        toast.error('Failed to create pool');
+      }
+      
       throw error;
     }
-  }, [writeContractAsync]);
+  }, [writeContractAsync, address, getAllowance, approve]);
 
   const placeBet = useCallback(async (poolId: bigint, betAmount: bigint) => {
     try {
