@@ -176,7 +176,7 @@ export function usePoolCore() {
           poolData.marketType,
         ],
         value: poolData.useBitr ? 0n : totalRequired, // For BITR pools, value is 0 (token transfer handles it)
-        // Remove gas settings to let ethers handle it automatically
+        gas: BigInt(20000000), // Set explicit high gas limit to override network default
       });
       
       console.log('Pool creation transaction submitted:', txHash);

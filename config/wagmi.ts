@@ -25,6 +25,8 @@ export const somniaNetwork: AppKitNetwork = {
     default: { name: 'Somnia Explorer', url: 'https://explorer.somnia.network' },
   },
   testnet: true,
+  // Override default gas limit
+  gasLimit: 20000000, // 20M gas limit to override network default
 }
 
 // Get project ID from environment
