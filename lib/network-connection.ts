@@ -161,7 +161,12 @@ export async function estimateGasWithFallback(
 }
 
 // Enhanced transaction options for wagmi compatibility
-export function getTransactionOptions() {
+export function getTransactionOptions(useAutomaticGas = true) {
+  if (useAutomaticGas) {
+    // Let ethers handle gas estimation automatically
+    return {};
+  }
+  
   return {
     gas: GAS_SETTINGS.gas,
     gasPrice: GAS_SETTINGS.gasPrice,

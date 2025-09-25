@@ -137,8 +137,7 @@ class WagmiStyleClient {
       to: address,
       data,
       value,
-      gas: GAS_SETTINGS.gas,
-      gasPrice: GAS_SETTINGS.gasPrice
+      // Remove gas settings to let ethers handle it automatically
     });
 
     return { hash };

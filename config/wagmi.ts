@@ -115,7 +115,7 @@ export const NETWORK_CONFIG = {
 
 // Global gas settings - Optimized for Somnia Network
 export const GAS_SETTINGS = {
-  gas: BigInt(10000000), // 10M gas limit (increased for complex pool creation)
+  gas: BigInt(15000000), // 15M gas limit (increased for complex pool creation)
   gasPrice: BigInt(6000000000), // 6 gwei (Somnia testnet optimized)
   maxFeePerGas: BigInt(10000000000), // 10 gwei max fee
   maxPriorityFeePerGas: BigInt(2000000000), // 2 gwei priority fee

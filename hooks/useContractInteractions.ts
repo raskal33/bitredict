@@ -149,39 +149,8 @@ export function usePoolCore() {
         value: poolData.useBitr ? 0n : totalRequired
       });
 
-      // Enhanced gas estimation for pool creation
-      const gasEstimate = await executeContractCall(async (client) => {
-        return await client.estimateContractGas({
-          address: CONTRACT_ADDRESSES.POOL_CORE,
-          abi: CONTRACTS.POOL_CORE.abi,
-          functionName: 'createPool',
-          args: [
-            predictedOutcomeHash,
-            poolData.odds,
-            poolData.creatorStake,
-            poolData.eventStartTime,
-            poolData.eventEndTime,
-            poolData.league,
-            poolData.category,
-            poolData.region,
-            poolData.homeTeam || '',
-            poolData.awayTeam || '',
-            poolData.title || '',
-            poolData.isPrivate,
-            poolData.maxBetPerUser,
-            poolData.useBitr,
-            poolData.oracleType,
-            marketIdBytes32,
-            poolData.marketType,
-          ],
-          value: poolData.useBitr ? 0n : totalRequired,
-          account: address as `0x${string}`,
-        });
-      });
-
-      // Add 30% buffer to gas estimate
-      const gasWithBuffer = (gasEstimate * 130n) / 100n;
-      console.log(`⛽ Gas estimate: ${gasEstimate}, with buffer: ${gasWithBuffer}`);
+      // Let ethers handle gas estimation automatically
+      console.log(`⛽ Using automatic gas estimation for pool creation`);
 
       const txHash = await writeContractAsync({
         address: CONTRACT_ADDRESSES.POOL_CORE,
@@ -207,8 +176,7 @@ export function usePoolCore() {
           poolData.marketType,
         ],
         value: poolData.useBitr ? 0n : totalRequired, // For BITR pools, value is 0 (token transfer handles it)
-        gas: gasWithBuffer, // Use calculated gas with buffer
-        gasPrice: getTransactionOptions().gasPrice,
+        // Remove gas settings to let ethers handle it automatically
       });
       
       console.log('Pool creation transaction submitted:', txHash);
