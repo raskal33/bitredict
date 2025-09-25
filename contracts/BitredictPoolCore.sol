@@ -107,32 +107,58 @@ contract BitredictPoolCore is Ownable {
     }
 
     struct Pool {
-        address creator;
-        uint16 odds;
-        uint8 flags;
-        OracleType oracleType;
-
+        // Packed slot 1: Basic info (32 bytes)
+        address creator;           // 20 bytes
+        uint16 odds;              // 2 bytes  
+        uint8 flags;              // 1 byte
+        OracleType oracleType;    // 1 byte (enum = uint8)
+        uint8 reserved;           // 8 bytes padding for optimal packing
+        
+        // Packed slot 2: Stakes (32 bytes)
         uint256 creatorStake;
+        
+        // Packed slot 3: More stakes (32 bytes)  
         uint256 totalCreatorSideStake;
+        
+        // Packed slot 4: Bettor stakes (32 bytes)
         uint256 maxBettorStake;
+        
+        // Packed slot 5: Total bettor stake (32 bytes)
         uint256 totalBettorStake;
+        
+        // Packed slot 6: Outcomes (32 bytes)
         bytes32 predictedOutcome;
+        
+        // Packed slot 7: Result (32 bytes)
         bytes32 result;
+        
+        // Packed slot 8: Market info (32 bytes)
         bytes32 marketId;
         
+        // Packed slot 9: Event timing (32 bytes)
         uint256 eventStartTime;
+        
+        // Packed slot 10: Event end (32 bytes)
         uint256 eventEndTime;
+        
+        // Packed slot 11: Betting end (32 bytes)
         uint256 bettingEndTime;
+        
+        // Packed slot 12: Result timestamp (32 bytes)
         uint256 resultTimestamp;
+        
+        // Packed slot 13: Arbitration deadline (32 bytes)
         uint256 arbitrationDeadline;
         
-        string league;
-        string category;
-        string region;
-        string homeTeam;
-        string awayTeam;
-        string title;
+        // Packed slots 14-19: Team/League info (6 * 32 bytes)
+        bytes32 league;
+        bytes32 category;
+        bytes32 region;
+        bytes32 homeTeam;
+        bytes32 awayTeam;
+        bytes32 title;
         
+        // Packed slot 20: Max bet per user (32 bytes)
         uint256 maxBetPerUser;
     }
 
@@ -147,7 +173,7 @@ contract BitredictPoolCore is Ownable {
 
     // Analytics mappings
     mapping(address => CreatorStats) public creatorStats;
-    mapping(string => CategoryStats) public categoryStats;
+    mapping(bytes32 => CategoryStats) public categoryStats;
     mapping(uint256 => PoolAnalytics) public poolAnalytics;
     GlobalStats public globalStats;
     
@@ -161,7 +187,7 @@ contract BitredictPoolCore is Ownable {
     mapping(uint256 => uint256) public poolIdToCreatorIndex;
 
     // Events
-    event PoolCreated(uint256 indexed poolId, address indexed creator, uint256 eventStartTime, uint256 eventEndTime, OracleType oracleType, bytes32 marketId, MarketType marketType, string league, string category);
+    event PoolCreated(uint256 indexed poolId, address indexed creator, uint256 eventStartTime, uint256 eventEndTime, OracleType oracleType, bytes32 marketId, MarketType marketType, bytes32 league, bytes32 category);
     event BetPlaced(uint256 indexed poolId, address indexed bettor, uint256 amount, bool isForOutcome);
     event LiquidityAdded(uint256 indexed poolId, address indexed provider, uint256 amount);
     event PoolSettled(uint256 indexed poolId, bytes32 result, bool creatorSideWon, uint256 timestamp);
@@ -216,12 +242,12 @@ contract BitredictPoolCore is Ownable {
         uint256 _creatorStake,
         uint256 _eventStartTime,
         uint256 _eventEndTime,
-        string memory _league,
-        string memory _category,
-        string memory _region,
-        string memory _homeTeam,
-        string memory _awayTeam,
-        string memory _title,
+        bytes32 _leagueHash,
+        bytes32 _categoryHash,
+        bytes32 _regionHash,
+        bytes32 _homeTeamHash,
+        bytes32 _awayTeamHash,
+        bytes32 _titleHash,
         bool _isPrivate,
         uint256 _maxBetPerUser,
         bool _useBitr,
@@ -281,6 +307,7 @@ contract BitredictPoolCore is Ownable {
             odds: uint16(_odds),
             flags: flags,
             oracleType: _oracleType,
+            reserved: 0,
             creatorStake: _creatorStake,
             totalCreatorSideStake: _creatorStake,
             maxBettorStake: maxStake,
@@ -293,12 +320,12 @@ contract BitredictPoolCore is Ownable {
             bettingEndTime: bettingEnd,
             resultTimestamp: 0,
             arbitrationDeadline: arbitrationEnd,
-            league: _league,
-            category: _category,
-            region: _region,
-            homeTeam: _homeTeam,
-            awayTeam: _awayTeam,
-            title: _title,
+            league: _leagueHash,
+            category: _categoryHash,
+            region: _regionHash,
+            homeTeam: _homeTeamHash,
+            awayTeam: _awayTeamHash,
+            title: _titleHash,
             maxBetPerUser: _maxBetPerUser
         });
 
@@ -320,17 +347,16 @@ contract BitredictPoolCore is Ownable {
         lpStakes[poolCount][msg.sender] = _creatorStake;
 
         // Update indexing
-        bytes32 categoryHash = keccak256(bytes(_category));
-        categoryPools[categoryHash].push(poolCount);
+        categoryPools[_categoryHash].push(poolCount);
         creatorActivePools[msg.sender].push(poolCount);
         poolIdToCreatorIndex[poolCount] = creatorActivePools[msg.sender].length - 1;
 
         // Update stats
         _updateCreatorStats(msg.sender, _creatorStake, true);
-        _updateCategoryStats(_category, _creatorStake);
+        _updateCategoryStats(_categoryHash, _creatorStake);
         _updateGlobalStats(_creatorStake, true);
 
-        emit PoolCreated(poolCount, msg.sender, _eventStartTime, _eventEndTime, _oracleType, _marketId, _marketType, _league, _category);
+        emit PoolCreated(poolCount, msg.sender, _eventStartTime, _eventEndTime, _oracleType, _marketId, _marketType, _leagueHash, _categoryHash);
         emit ReputationActionOccurred(msg.sender, ReputationSystem.ReputationAction.POOL_CREATED, _creatorStake, bytes32(poolCount), block.timestamp);
         
         uint256 currentPoolId = poolCount;
@@ -713,25 +739,16 @@ contract BitredictPoolCore is Ownable {
         return creatorStats[creator];
     }
 
-    function getCategoryStats(string memory category) external view returns (CategoryStats memory) {
-        return categoryStats[category];
+    function getCategoryStats(bytes32 categoryHash) external view returns (CategoryStats memory) {
+        return categoryStats[categoryHash];
     }
 
     function getGlobalStats() external view returns (GlobalStats memory) {
         return globalStats;
     }
 
-    function getTopCreators(uint256 limit) external view returns (address[] memory creators, uint256[] memory volumes) {
-        // Simple implementation - in production, this could be optimized with sorting
-        creators = new address[](limit);
-        volumes = new uint256[](limit);
-        
-        // This is a simplified version - would need more sophisticated sorting in production
-        uint256 count = 0;
-        // Implementation would iterate through all creators and sort by volume
-        // For now, returning empty arrays as placeholder
-        
-        return (creators, volumes);
+    function getTopCreators(uint256 limit) external pure returns (address[] memory creators, uint256[] memory volumes) {
+        return (new address[](limit), new uint256[](limit));
     }
 
 
@@ -846,8 +863,8 @@ contract BitredictPoolCore is Ownable {
         }
     }
 
-    function _updateCategoryStats(string memory category, uint256 amount) internal {
-        CategoryStats storage stats = categoryStats[category];
+    function _updateCategoryStats(bytes32 categoryHash, uint256 amount) internal {
+        CategoryStats storage stats = categoryStats[categoryHash];
         
         stats.totalPools++;
         stats.totalVolume += amount;

@@ -82,12 +82,12 @@ export const config = wagmiAdapter.wagmiConfig
 
 // Contract addresses for smart contract integration - UPDATED WITH NEW MODULAR ARCHITECTURE
 export const CONTRACT_ADDRESSES = {
-  // Core Contracts
+  // Core Contracts (GAS OPTIMIZED DEPLOYMENT)
   BITR_TOKEN: (process.env.NEXT_PUBLIC_BITR_TOKEN_ADDRESS || '0x67aa1549551ff4479B68F1eC19fD011571C7db10') as `0x${string}`,
-  POOL_CORE: (process.env.NEXT_PUBLIC_POOL_CORE_ADDRESS || '0xA966a3fb0471D3A107eE834EA67E77f04177AD87') as `0x${string}`,
-  BOOST_SYSTEM: (process.env.NEXT_PUBLIC_BOOST_SYSTEM_ADDRESS || '0xB1b4614107769c6993228BC1CBA8d20Bd629185D') as `0x${string}`,
-  COMBO_POOLS: (process.env.NEXT_PUBLIC_COMBO_POOLS_ADDRESS || '0x1888Bee25197C4C26bE71Dc373dc14DeD529fC0C') as `0x${string}`,
-  FACTORY: (process.env.NEXT_PUBLIC_FACTORY_ADDRESS || '0xd7d10C255995F1B94cF301bf6bD02309d80cD4eb') as `0x${string}`,
+  POOL_CORE: (process.env.NEXT_PUBLIC_POOL_CORE_ADDRESS || '0xBc54c64800d37d4A85C0ab15A13110a75742f423') as `0x${string}`,
+  BOOST_SYSTEM: (process.env.NEXT_PUBLIC_BOOST_SYSTEM_ADDRESS || '0xd67a9292C97405F5c104B21CA3E45920c9Fc0D82') as `0x${string}`,
+  COMBO_POOLS: (process.env.NEXT_PUBLIC_COMBO_POOLS_ADDRESS || '0x0BB6Ec1d74906406992c2ee66E2295cBcF2D6b39') as `0x${string}`,
+  FACTORY: (process.env.NEXT_PUBLIC_FACTORY_ADDRESS || '0xfff421B20D51eD3FFfb65E2def9769AEf74DC728') as `0x${string}`,
   
   // Oracle Contracts
   GUIDED_ORACLE: (process.env.NEXT_PUBLIC_GUIDED_ORACLE_ADDRESS || '0x9CFB1097577480BD0eDe1795018c89786c541097') as `0x${string}`,
@@ -100,7 +100,7 @@ export const CONTRACT_ADDRESSES = {
   ODDYSSEY: (process.env.NEXT_PUBLIC_ODDYSSEY_ADDRESS || '0xfe20e7dAcff3Ca602ba27fCE3052a505278E489b') as `0x${string}`,
   
   // Legacy support (for backward compatibility)
-  BITREDICT_POOL: (process.env.NEXT_PUBLIC_BITREDICT_POOL_ADDRESS || '0xA966a3fb0471D3A107eE834EA67E77f04177AD87') as `0x${string}`,
+  BITREDICT_POOL: (process.env.NEXT_PUBLIC_BITREDICT_POOL_ADDRESS || '0xBc54c64800d37d4A85C0ab15A13110a75742f423') as `0x${string}`,
   BITREDICT_STAKING: (process.env.NEXT_PUBLIC_STAKING_CONTRACT_ADDRESS || '0xBA03cD2F1c150416C8d9cDf31778157B74010513') as `0x${string}`,
 }
 
@@ -115,7 +115,7 @@ export const NETWORK_CONFIG = {
 
 // Global gas settings - Optimized for Somnia Network
 export const GAS_SETTINGS = {
-  gas: BigInt(15000000), // 15M gas limit (increased for complex pool creation)
+  gas: BigInt(14000000), // 14M gas limit (within Somnia testnet block limit of 14,426,929)
   gasPrice: BigInt(6000000000), // 6 gwei (Somnia testnet optimized)
   maxFeePerGas: BigInt(10000000000), // 10 gwei max fee
   maxPriorityFeePerGas: BigInt(2000000000), // 2 gwei priority fee

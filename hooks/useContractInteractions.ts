@@ -4,6 +4,7 @@ import { executeContractCall, getTransactionOptions } from '@/lib/network-connec
 import { useCallback, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import { keccak256, toBytes } from 'viem';
+import { ethers } from 'ethers';
 
 // Enhanced contract interaction hooks for modular architecture
 
@@ -152,6 +153,14 @@ export function usePoolCore() {
       // Let ethers handle gas estimation automatically
       console.log(`⛽ Using automatic gas estimation for pool creation`);
 
+      // Hash strings before calling the optimized contract
+      const leagueHash = ethers.keccak256(ethers.toUtf8Bytes(poolData.league));
+      const categoryHash = ethers.keccak256(ethers.toUtf8Bytes(poolData.category));
+      const regionHash = ethers.keccak256(ethers.toUtf8Bytes(poolData.region));
+      const homeTeamHash = ethers.keccak256(ethers.toUtf8Bytes(poolData.homeTeam || ''));
+      const awayTeamHash = ethers.keccak256(ethers.toUtf8Bytes(poolData.awayTeam || ''));
+      const titleHash = ethers.keccak256(ethers.toUtf8Bytes(poolData.title || ''));
+
       const txHash = await writeContractAsync({
         address: CONTRACT_ADDRESSES.POOL_CORE,
         abi: CONTRACTS.POOL_CORE.abi,
@@ -162,12 +171,12 @@ export function usePoolCore() {
           poolData.creatorStake,
           poolData.eventStartTime,
           poolData.eventEndTime,
-          poolData.league,
-          poolData.category,
-          poolData.region,
-          poolData.homeTeam || '', // 🎯 Team names support!
-          poolData.awayTeam || '', // 🎯 Team names support!
-          poolData.title || '', // 🎯 Title support!
+          leagueHash, // 🎯 Hashed league
+          categoryHash, // 🎯 Hashed category
+          regionHash, // 🎯 Hashed region
+          homeTeamHash, // 🎯 Hashed home team
+          awayTeamHash, // 🎯 Hashed away team
+          titleHash, // 🎯 Hashed title
           poolData.isPrivate,
           poolData.maxBetPerUser,
           poolData.useBitr,
@@ -176,7 +185,7 @@ export function usePoolCore() {
           poolData.marketType,
         ],
         value: poolData.useBitr ? 0n : totalRequired, // For BITR pools, value is 0 (token transfer handles it)
-        gas: BigInt(20000000), // Set explicit high gas limit to override network default
+        gas: BigInt(14000000), // Set gas limit within Somnia testnet block limit (14,426,929)
       });
       
       console.log('Pool creation transaction submitted:', txHash);

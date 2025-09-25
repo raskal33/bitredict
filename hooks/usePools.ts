@@ -3,6 +3,7 @@ import { useAccount, useReadContract, useWriteContract, useWaitForTransactionRec
 import { CONTRACTS } from '@/contracts';
 import { formatUnits, parseUnits } from 'viem';
 import { encodeBytes32String } from 'ethers';
+import { convertPoolToReadableEnhanced } from '@/lib/bytes32-utils';
 
 export interface Pool {
   id: bigint;
@@ -115,24 +116,34 @@ export function usePools() {
 
   // Get pool data
   const getPool = (poolId: number) => {
-    const { data: pool, refetch } = useReadContract({
+    const { data: rawPool, refetch } = useReadContract({
       ...CONTRACTS.POOL_CORE,
       functionName: 'getPool',
       args: [BigInt(poolId)],
       query: { enabled: poolId >= 0 }
     });
-    return { pool: pool as Pool, refetch };
+    
+    // Convert bytes32 fields to human-readable strings
+    const pool = rawPool && typeof rawPool === 'object' && rawPool !== null 
+      ? convertPoolToReadableEnhanced(rawPool as Record<string, unknown>) 
+      : null;
+    return { pool: pool as unknown as Pool, refetch };
   };
 
   // Get combo pool data
   const getComboPool = (comboPoolId: number) => {
-    const { data: comboPool, refetch } = useReadContract({
+    const { data: rawComboPool, refetch } = useReadContract({
       ...CONTRACTS.POOL_CORE,
       functionName: 'comboPools',
       args: [BigInt(comboPoolId)],
       query: { enabled: comboPoolId >= 0 }
     });
-    return { comboPool: comboPool as ComboPool, refetch };
+    
+    // Convert bytes32 fields to human-readable strings
+    const comboPool = rawComboPool && typeof rawComboPool === 'object' && rawComboPool !== null 
+      ? convertPoolToReadableEnhanced(rawComboPool as Record<string, unknown>) 
+      : null;
+    return { comboPool: comboPool as unknown as ComboPool, refetch };
   };
 
   // Check if user is whitelisted for private pool

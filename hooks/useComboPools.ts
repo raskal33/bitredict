@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { useWriteContract } from 'wagmi';
+import { ethers } from 'ethers';
 import { CONTRACTS } from '@/contracts';
 import { CONTRACT_ADDRESSES } from '@/config/wagmi';
 import { getTransactionOptions } from '@/lib/network-connection';
@@ -29,6 +30,9 @@ export function useComboPools() {
 
   const createComboPool = useCallback(async (poolData: ComboPoolData) => {
     try {
+      // Hash category string before calling the optimized contract
+      const categoryHash = ethers.keccak256(ethers.toUtf8Bytes(poolData.category));
+      
       const txHash = await writeContractAsync({
         address: CONTRACT_ADDRESSES.COMBO_POOLS,
         abi: CONTRACTS.COMBO_POOLS.abi,
@@ -39,7 +43,7 @@ export function useComboPools() {
           poolData.creatorStake,
           poolData.earliestEventStart,
           poolData.latestEventEnd,
-          poolData.category,
+          categoryHash, // 🎯 Hashed category
           poolData.maxBetPerUser,
           poolData.useBitr
         ],
