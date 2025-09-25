@@ -2,7 +2,7 @@
 
 import { WagmiProvider } from 'wagmi'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { wagmiAdapter } from '@/config/wagmi'
+import { wagmiAdapter, appKit } from '@/config/wagmi'
 import { ReactNode, useEffect } from 'react'
 import { Toaster } from 'react-hot-toast'
 import { serializeBigInts, createBigIntSafeQueryKeyHasher, setupGlobalBigIntSerialization } from '@/utils/bigint-serializer'
