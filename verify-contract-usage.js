@@ -53,7 +53,9 @@ class ContractUsageVerifier {
       
       // Check if old BITREDICT_POOL is still being used
       if (configContent.includes('BITREDICT_POOL:') && configContent.includes('0x3A6AFdC8C9c0eBe377B5413e87F1005675bbA413')) {
-        console.log('⚠️ BITREDICT_POOL points to same address as POOL_CORE (legacy support)');
+        console.log('⚠️ BITREDICT_POOL points to old address (DEPRECATED - use POOL_CORE)');
+      } else if (configContent.includes('BITREDICT_POOL:') && configContent.includes('0xBc54c64800d37d4A85C0ab15A13110a75742f423')) {
+        console.log('⚠️ BITREDICT_POOL points to same address as POOL_CORE (DEPRECATED - use POOL_CORE)');
       }
       
     } catch (error) {
@@ -83,7 +85,7 @@ class ContractUsageVerifier {
         }
         
         if (content.includes('CONTRACTS.BITREDICT_POOL')) {
-          this.issues.push(`${component} still uses old BITREDICT_POOL`);
+          this.issues.push(`${component} still uses DEPRECATED BITREDICT_POOL (use POOL_CORE)`);
         }
       }
     }
@@ -105,7 +107,7 @@ class ContractUsageVerifier {
         const content = fs.readFileSync(hookPath, 'utf8');
         
         if (content.includes('CONTRACTS.BITREDICT_POOL')) {
-          this.issues.push(`${hook} still uses old BITREDICT_POOL`);
+          this.issues.push(`${hook} still uses DEPRECATED BITREDICT_POOL (use POOL_CORE)`);
         } else if (content.includes('CONTRACTS.POOL_CORE')) {
           console.log(`✅ ${hook} uses POOL_CORE correctly`);
         }
@@ -129,7 +131,7 @@ class ContractUsageVerifier {
         const content = fs.readFileSync(servicePath, 'utf8');
         
         if (content.includes('CONTRACTS.BITREDICT_POOL')) {
-          this.issues.push(`${service} still uses old BITREDICT_POOL`);
+          this.issues.push(`${service} still uses DEPRECATED BITREDICT_POOL (use POOL_CORE)`);
         } else if (content.includes('CONTRACTS.POOL_CORE')) {
           console.log(`✅ ${service} uses POOL_CORE correctly`);
         }
@@ -160,9 +162,10 @@ class ContractUsageVerifier {
     
     if (this.issues.length > 0) {
       console.log('\n🔧 RECOMMENDED FIXES:');
-      console.log('1. Replace all CONTRACTS.BITREDICT_POOL with CONTRACTS.POOL_CORE');
-      console.log('2. Replace all BitredictPoolABI with CONTRACTS.POOL_CORE.abi');
-      console.log('3. Update any hardcoded contract addresses');
+      console.log('1. Replace all CONTRACTS.BITREDICT_POOL with CONTRACTS.POOL_CORE (DEPRECATED)');
+      console.log('2. Replace all BitredictPoolABI with CONTRACTS.POOL_CORE.abi (DEPRECATED)');
+      console.log('3. Update any hardcoded contract addresses to use POOL_CORE');
+      console.log('4. BITREDICT_POOL is now DEPRECATED - use POOL_CORE everywhere');
     }
   }
 }

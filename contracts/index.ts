@@ -66,10 +66,10 @@ export const CONTRACTS = {
     abi: OddysseyABI.abi,
   },
   
-  // Legacy support (for backward compatibility)
+  // Legacy support (for backward compatibility) - DEPRECATED: Use POOL_CORE instead
   BITREDICT_POOL: {
-    address: CONTRACT_ADDRESSES.BITREDICT_POOL,
-    abi: BitredictPoolABI.abi,
+    address: CONTRACT_ADDRESSES.BITREDICT_POOL, // DEPRECATED: Use POOL_CORE
+    abi: BitredictPoolABI.abi, // DEPRECATED: Use POOL_CORE.abi
   },
   BITREDICT_STAKING: {
     address: CONTRACT_ADDRESSES.BITREDICT_STAKING,

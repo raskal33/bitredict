@@ -39,7 +39,7 @@ import { useBITRToken } from "@/hooks/useBITRToken";
 // import BitredictPoolABI from '@/contracts/abis/BitredictPool.json';
 
 // Contract address (commented out as not currently used)
-// const CONTRACT_ADDRESS = CONTRACTS.BITREDICT_POOL.address;
+// const CONTRACT_ADDRESS = CONTRACTS.POOL_CORE.address; // Updated to use POOL_CORE
 
 // SportMonks Fixture interface
 interface Fixture {
@@ -835,7 +835,7 @@ function CreateMarketPageContent() {
   //   
   //   try {
   //     // Use the BITR token hook for approval
-  //     await token.approve(CONTRACTS.BITREDICT_POOL.address, amount);
+  //     await token.approve(CONTRACTS.POOL_CORE.address, amount); // Updated to use POOL_CORE
   //     return true;
   //   } catch (error) {
   //     console.error('BITR approval error:', error);

@@ -99,8 +99,8 @@ export const CONTRACT_ADDRESSES = {
   FAUCET: (process.env.NEXT_PUBLIC_FAUCET_ADDRESS || '0x93042C9D81E33fEc7Cc75820F0F5Aa6C335d398F') as `0x${string}`,
   ODDYSSEY: (process.env.NEXT_PUBLIC_ODDYSSEY_ADDRESS || '0xfe20e7dAcff3Ca602ba27fCE3052a505278E489b') as `0x${string}`,
   
-  // Legacy support (for backward compatibility)
-  BITREDICT_POOL: (process.env.NEXT_PUBLIC_BITREDICT_POOL_ADDRESS || '0xBc54c64800d37d4A85C0ab15A13110a75742f423') as `0x${string}`,
+  // Legacy support (for backward compatibility) - DEPRECATED: Use POOL_CORE instead
+  BITREDICT_POOL: (process.env.NEXT_PUBLIC_BITREDICT_POOL_ADDRESS || '0xBc54c64800d37d4A85C0ab15A13110a75742f423') as `0x${string}`, // DEPRECATED: Use POOL_CORE
   BITREDICT_STAKING: (process.env.NEXT_PUBLIC_STAKING_CONTRACT_ADDRESS || '0xBA03cD2F1c150416C8d9cDf31778157B74010513') as `0x${string}`,
 }
 
