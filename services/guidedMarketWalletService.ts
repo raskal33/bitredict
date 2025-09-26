@@ -288,7 +288,10 @@ export class GuidedMarketWalletService {
       const hashedParameters = this.hashStringParameters(transactionData.parameters);
       console.log('🔤 Hashed parameters:', hashedParameters);
       
-      // Execute the transaction
+      // Execute the transaction with our gas limit override
+      const gasLimit = BigInt(14000000); // Override backend gas estimate with our limit
+      console.log('🔧 Overriding gas limit:', gasLimit.toString());
+      
       const hash = await walletClient.writeContract({
         address: transactionData.contractAddress as Address,
         abi: CONTRACTS.POOL_CORE.abi,
@@ -296,7 +299,7 @@ export class GuidedMarketWalletService {
         args: hashedParameters,
         value: transactionData.value === '0' ? BigInt(0) : parseEther(transactionData.value),
         account: address,
-        gas: BigInt(transactionData.gasEstimate)
+        gas: gasLimit
       });
       
       console.log('⏳ Waiting for transaction confirmation...');

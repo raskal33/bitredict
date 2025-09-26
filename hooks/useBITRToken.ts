@@ -43,21 +43,21 @@ export function useBITRToken() {
   const { data: stakingAllowance, refetch: refetchStakingAllowance } = useReadContract({
     ...CONTRACTS.BITR_TOKEN,
     functionName: 'allowance',
-    args: address && CONTRACTS.BITREDICT_STAKING ? [address, CONTRACTS.BITREDICT_STAKING.address] : undefined,
-    query: { enabled: !!(address && CONTRACTS.BITREDICT_STAKING) }
+    args: address && CONTRACTS.BITREDICT_STAKING?.address ? [address, CONTRACTS.BITREDICT_STAKING.address] : undefined,
+    query: { enabled: !!(address && CONTRACTS.BITREDICT_STAKING?.address) }
   });
 
   // Get allowance for faucet contract
   const { data: faucetAllowance, refetch: refetchFaucetAllowance } = useReadContract({
     ...CONTRACTS.BITR_TOKEN,
     functionName: 'allowance',
-    args: address && CONTRACTS.FAUCET ? [address, CONTRACTS.FAUCET.address] : undefined,
-    query: { enabled: !!(address && CONTRACTS.FAUCET) }
+    args: address && CONTRACTS.FAUCET?.address ? [address, CONTRACTS.FAUCET.address] : undefined,
+    query: { enabled: !!(address && CONTRACTS.FAUCET?.address) }
   });
 
   // Update allowances when data changes
   useEffect(() => {
-    if (stakingAllowance !== undefined && stakingAllowance !== null && CONTRACTS.BITREDICT_STAKING) {
+    if (stakingAllowance !== undefined && stakingAllowance !== null && CONTRACTS.BITREDICT_STAKING?.address) {
       setAllowances(prev => ({
         ...prev,
         [CONTRACTS.BITREDICT_STAKING.address]: stakingAllowance as bigint
@@ -66,7 +66,7 @@ export function useBITRToken() {
   }, [stakingAllowance]);
 
   useEffect(() => {
-    if (faucetAllowance !== undefined && faucetAllowance !== null && CONTRACTS.FAUCET) {
+    if (faucetAllowance !== undefined && faucetAllowance !== null && CONTRACTS.FAUCET?.address) {
       setAllowances(prev => ({
         ...prev,
         [CONTRACTS.FAUCET.address]: faucetAllowance as bigint
