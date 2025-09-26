@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import "./ReputationSystem.sol";
@@ -18,6 +19,7 @@ interface IReputationSystem {
     function getUserReputation(address user) external view returns (uint256);
     function canCreateGuidedPool(address user) external view returns (bool);
     function canCreateOpenPool(address user) external view returns (bool);
+    function getReputationBundle(address user) external view returns (uint256, bool, bool, bool);
 }
 interface IGuidedOracle {
     function getOutcome(bytes32 marketId) external view returns (bool isSet, bytes memory resultData);
@@ -43,7 +45,7 @@ enum MarketType {
 }
 
 
-contract BitredictPoolCore is Ownable {
+contract BitredictPoolCore is Ownable, ReentrancyGuard {
     using ECDSA for bytes32;
     using MessageHashUtils for bytes32;
 
@@ -188,6 +190,7 @@ contract BitredictPoolCore is Ownable {
 
     // Events
     event PoolCreated(uint256 indexed poolId, address indexed creator, uint256 eventStartTime, uint256 eventEndTime, OracleType oracleType, bytes32 marketId, MarketType marketType, bytes32 league, bytes32 category);
+    event PoolCreatedLightweight(uint256 indexed poolId, address indexed creator, uint256 eventStartTime, uint256 eventEndTime, OracleType oracleType, bytes32 marketId, MarketType marketType, bytes32 league, bytes32 category, uint256 creatorStake, bool useBitr);
     event BetPlaced(uint256 indexed poolId, address indexed bettor, uint256 amount, bool isForOutcome);
     event LiquidityAdded(uint256 indexed poolId, address indexed provider, uint256 amount);
     event PoolSettled(uint256 indexed poolId, bytes32 result, bool creatorSideWon, uint256 timestamp);
@@ -254,15 +257,17 @@ contract BitredictPoolCore is Ownable {
         OracleType _oracleType,
         bytes32 _marketId,
         MarketType _marketType
-    ) external payable returns (uint256) {
+    ) external payable nonReentrant returns (uint256) {
         require(_odds > 100 && _odds <= 10000, "Invalid odds: must be between 1.01 and 100.00");
         
-        // Check reputation requirements
+        // 🚀 GAS OPTIMIZATION: Single reputation check instead of 3 separate calls
         if (address(reputationSystem) != address(0)) {
+            (uint256 reputation, bool canCreateGuided, bool canCreateOpen,) = reputationSystem.getReputationBundle(msg.sender);
+            
             if (_oracleType == OracleType.OPEN) {
-                require(reputationSystem.canCreateOpenPool(msg.sender), "Insufficient reputation for OPEN pools");
+                require(canCreateOpen, "Insufficient reputation for OPEN pools");
             } else {
-                require(reputationSystem.canCreateGuidedPool(msg.sender), "Insufficient reputation for GUIDED pools");
+                require(canCreateGuided, "Insufficient reputation for GUIDED pools");
             }
         }
         
@@ -330,11 +335,16 @@ contract BitredictPoolCore is Ownable {
         });
 
         // Initialize analytics
+        uint256 creatorReputation = 0;
+        if (address(reputationSystem) != address(0)) {
+            (creatorReputation,,,) = reputationSystem.getReputationBundle(msg.sender);
+        }
+        
         poolAnalytics[poolCount] = PoolAnalytics({
             totalVolume: _creatorStake,
             participantCount: 1,
             averageBetSize: _creatorStake,
-            creatorReputation: address(reputationSystem) != address(0) ? reputationSystem.getUserReputation(msg.sender) : 0,
+            creatorReputation: creatorReputation,
             liquidityRatio: 100,
             timeToFill: 0,
             isHotPool: false,
@@ -364,9 +374,142 @@ contract BitredictPoolCore is Ownable {
         return currentPoolId;
     }
 
+    /**
+     * 🚀 GAS OPTIMIZED: Lightweight pool creation with minimal storage
+     * @dev Create a pool with minimal data, emit events for later processing
+     * @param _predictedOutcome The predicted outcome hash
+     * @param _odds The odds (100-10000)
+     * @param _creatorStake The creator's stake amount
+     * @param _eventStartTime Event start timestamp
+     * @param _eventEndTime Event end timestamp
+     * @param _leagueHash League hash
+     * @param _categoryHash Category hash
+     * @param _regionHash Region hash
+     * @param _homeTeamHash Home team hash
+     * @param _awayTeamHash Away team hash
+     * @param _titleHash Title hash
+     * @param _isPrivate Whether pool is private
+     * @param _maxBetPerUser Maximum bet per user
+     * @param _useBitr Whether to use BITR token
+     * @param _oracleType Oracle type
+     * @param _marketId Market ID
+     * @param _marketType Market type
+     * @return poolId The created pool ID
+     */
+    function createPoolLightweight(
+        bytes32 _predictedOutcome,
+        uint256 _odds,
+        uint256 _creatorStake,
+        uint256 _eventStartTime,
+        uint256 _eventEndTime,
+        bytes32 _leagueHash,
+        bytes32 _categoryHash,
+        bytes32 _regionHash,
+        bytes32 _homeTeamHash,
+        bytes32 _awayTeamHash,
+        bytes32 _titleHash,
+        bool _isPrivate,
+        uint256 _maxBetPerUser,
+        bool _useBitr,
+        OracleType _oracleType,
+        bytes32 _marketId,
+        MarketType _marketType
+    ) external payable nonReentrant returns (uint256) {
+        require(_odds > 100 && _odds <= 10000, "Invalid odds: must be between 1.01 and 100.00");
+        
+        // 🚀 GAS OPTIMIZATION: Single reputation check
+        if (address(reputationSystem) != address(0)) {
+            (uint256 reputation, bool canCreateGuided, bool canCreateOpen,) = reputationSystem.getReputationBundle(msg.sender);
+            
+            if (_oracleType == OracleType.OPEN) {
+                require(canCreateOpen, "Insufficient reputation for OPEN pools");
+            } else {
+                require(canCreateGuided, "Insufficient reputation for GUIDED pools");
+            }
+        }
+        
+        // Check minimum stake
+        if (_useBitr) {
+            require(_creatorStake >= minPoolStakeBITR, "BITR stake below minimum");
+        } else {
+            require(_creatorStake >= minPoolStakeSTT, "STT stake below minimum");
+        }
+        
+        require(_creatorStake <= 1000000 * 1e18, "Stake too large");
+        require(_eventStartTime > block.timestamp, "Event must be in future");
+        require(_eventEndTime > _eventStartTime, "Event end must be after start");
+        require(_eventStartTime > block.timestamp + bettingGracePeriod, "Event too soon");
+        
+        // Handle payments
+        uint256 creationFee = _useBitr ? creationFeeBITR : creationFeeSTT;
+        uint256 totalRequired = creationFee + _creatorStake;
+        
+        if (_useBitr) {
+            require(msg.value == 0, "No ETH payment for BITR pools");
+            require(bitrToken.transferFrom(msg.sender, address(this), totalRequired), "BITR transfer failed");
+        } else {
+            require(msg.value == totalRequired, "ETH payment mismatch");
+        }
+        
+        // 🚀 GAS OPTIMIZATION: Minimal storage - only essential data
+        // Pack flags into single uint8 for gas efficiency
+        uint8 flags = 0;
+        if (_isPrivate) flags |= 1;      // bit 0: isPrivate
+        if (_useBitr) flags |= 2;        // bit 1: usesBitr
+        // bits 2-7: reserved for future use
+        
+        pools[poolCount] = Pool({
+            creator: msg.sender,
+            odds: uint16(_odds),
+            flags: flags,
+            oracleType: _oracleType,
+            reserved: 0,
+            creatorStake: _creatorStake,
+            totalCreatorSideStake: _creatorStake,
+            maxBettorStake: 0,
+            totalBettorStake: 0,
+            predictedOutcome: _predictedOutcome,
+            result: bytes32(0),
+            marketId: _marketId,
+            eventStartTime: _eventStartTime,
+            eventEndTime: _eventEndTime,
+            bettingEndTime: _eventStartTime - bettingGracePeriod,
+            resultTimestamp: 0,
+            arbitrationDeadline: _eventEndTime + arbitrationTimeout,
+            league: _leagueHash,
+            category: _categoryHash,
+            region: _regionHash,
+            homeTeam: _homeTeamHash,
+            awayTeam: _awayTeamHash,
+            title: _titleHash,
+            maxBetPerUser: _maxBetPerUser
+        });
+        
+        // 🚀 GAS OPTIMIZATION: Emit events for later processing instead of immediate storage
+        emit PoolCreatedLightweight(
+            poolCount, 
+            msg.sender, 
+            _eventStartTime, 
+            _eventEndTime, 
+            _oracleType, 
+            _marketId, 
+            _marketType, 
+            _leagueHash, 
+            _categoryHash,
+            _creatorStake,
+            _useBitr
+        );
+        
+        emit ReputationActionOccurred(msg.sender, ReputationSystem.ReputationAction.POOL_CREATED, _creatorStake, bytes32(poolCount), block.timestamp);
+        
+        uint256 currentPoolId = poolCount;
+        poolCount++;
+        return currentPoolId;
+    }
+
     // --- Pool Interactions ---
 
-    function placeBet(uint256 poolId, uint256 amount) external payable validPool(poolId) {
+    function placeBet(uint256 poolId, uint256 amount) external payable nonReentrant validPool(poolId) {
         Pool storage poolPtr = pools[poolId];
         Pool memory pool = poolPtr;
 
@@ -429,7 +572,7 @@ contract BitredictPoolCore is Ownable {
         emit BetPlaced(poolId, msg.sender, amount, true);
     }
 
-    function addLiquidity(uint256 poolId, uint256 amount) external payable validPool(poolId) {
+    function addLiquidity(uint256 poolId, uint256 amount) external payable nonReentrant validPool(poolId) {
         Pool storage pool = pools[poolId];
         require(!_isPoolSettled(poolId), "Pool settled");
         require(amount >= minBetAmount, "Liquidity below minimum");
@@ -859,7 +1002,8 @@ contract BitredictPoolCore is Ownable {
         }
         
         if (address(reputationSystem) != address(0)) {
-            stats.reputationScore = reputationSystem.getUserReputation(creator);
+            (uint256 reputation,,,) = reputationSystem.getReputationBundle(creator);
+            stats.reputationScore = reputation;
         }
     }
 

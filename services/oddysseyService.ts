@@ -134,7 +134,7 @@ class OddysseyService {
     });
   }
 
-  setWalletClient(walletClient: WalletClient) {
+  setWalletClient(walletClient: WalletClient | null) {
     this.walletClient = walletClient;
   }
 

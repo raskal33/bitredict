@@ -4,7 +4,7 @@ import React from "react";
 import Button from "@/components/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useAccount, useChainId } from "wagmi";
+import { useAccount, useChainId, useWalletClient } from "wagmi";
 import { toast } from "react-hot-toast";
 import { formatEther } from "viem";
 
@@ -117,6 +117,7 @@ const DEFAULT_ENTRY_FEE = "0.5";
 
 export default function OddysseyPage() {
   const { address, isConnected } = useAccount();
+  const { data: walletClient, isError: walletClientError } = useWalletClient();
   const chainId = useChainId();
   
   // Contract state
@@ -155,7 +156,7 @@ export default function OddysseyPage() {
 
   // Initialize contract data
   const initializeContract = useCallback(async () => {
-    if (!isConnected || !address) return;
+    if (!isConnected || !address || !walletClient) return;
     
     try {
       setIsInitializing(true);
@@ -218,14 +219,38 @@ export default function OddysseyPage() {
       setIsInitializing(false);
       setIsLoading(false);
     }
-  }, [isConnected, address]);
+  }, [isConnected, address, walletClient]);
 
   // Initialize on mount and when wallet connects
   useEffect(() => {
+    console.log('🔍 Wallet detection:', { isConnected, address: !!address, walletClient: !!walletClient, walletClientError });
+    
     if (isConnected && address) {
-      initializeContract();
+      // Wait for wallet client to be available
+      if (walletClient) {
+        console.log('✅ Wallet client available, initializing...');
+        oddysseyService.setWalletClient(walletClient);
+        initializeContract();
+      } else if (walletClientError) {
+        console.error('❌ Wallet client error:', walletClientError);
+        showError("Wallet Error", "Failed to initialize wallet client. Please try reconnecting your wallet.");
+      } else {
+        console.log('⏳ Wallet client not yet available, retrying...');
+        // Retry after a short delay if wallet client is not yet available
+        const timeoutId = setTimeout(() => {
+          if (walletClient) {
+            console.log('✅ Wallet client available on retry, initializing...');
+            oddysseyService.setWalletClient(walletClient);
+            initializeContract();
+          } else {
+            console.warn('⚠️ Wallet client still not available after retry');
+          }
+        }, 1000);
+        
+        return () => clearTimeout(timeoutId);
+      }
     }
-  }, [isConnected, address, initializeContract]);
+  }, [isConnected, address, walletClient, walletClientError, initializeContract, showError]);
   const [picks, setPicks] = useState<Pick[]>([]);
   const [slips, setSlips] = useState<Pick[][]>([]);
   const [activeTab, setActiveTab] = useState<"today" | "slips" | "stats" | "results" | "leaderboard">("today");
