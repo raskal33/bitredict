@@ -125,6 +125,7 @@ export default function OddysseyPage() {
   const [entryFee, setEntryFee] = useState<string>(DEFAULT_ENTRY_FEE);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
+  const initializationRef = useRef<boolean>(false);
   
   // Transaction state
   const [isPending, setIsPending] = useState(false);
@@ -156,9 +157,10 @@ export default function OddysseyPage() {
 
   // Initialize contract data
   const initializeContract = useCallback(async () => {
-    if (!isConnected || !address || !walletClient) return;
+    if (!isConnected || !address || !walletClient || isInitializing || isInitialized || initializationRef.current) return;
     
     try {
+      initializationRef.current = true;
       setIsInitializing(true);
       console.log('🎯 Initializing Oddyssey contract...');
       
@@ -218,6 +220,7 @@ export default function OddysseyPage() {
     } finally {
       setIsInitializing(false);
       setIsLoading(false);
+      initializationRef.current = false;
     }
   }, [isConnected, address, walletClient]);
 
@@ -250,7 +253,19 @@ export default function OddysseyPage() {
         return () => clearTimeout(timeoutId);
       }
     }
-  }, [isConnected, address, walletClient, walletClientError, initializeContract, showError]);
+  }, [isConnected, address, walletClient, walletClientError, showError]);
+
+  // Reset initialization state when wallet disconnects
+  useEffect(() => {
+    if (!isConnected) {
+      setIsInitialized(false);
+      setIsInitializing(false);
+      initializationRef.current = false;
+      setCurrentMatches([]);
+      setSlips([]);
+    }
+  }, [isConnected]);
+
   const [picks, setPicks] = useState<Pick[]>([]);
   const [slips, setSlips] = useState<Pick[][]>([]);
   const [activeTab, setActiveTab] = useState<"today" | "slips" | "stats" | "results" | "leaderboard">("today");
