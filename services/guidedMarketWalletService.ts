@@ -72,11 +72,16 @@ export class GuidedMarketWalletService {
       }
       
       const transactionData = prepareResult.data as GuidedMarketTransactionData;
+      
+      // 🚨 CRITICAL FIX: Override with new optimized contract address
+      transactionData.contractAddress = CONTRACT_ADDRESSES.POOL_CORE;
+      
       console.log('✅ Transaction data prepared:', {
         contractAddress: transactionData.contractAddress,
         functionName: transactionData.functionName,
         marketId: transactionData.marketDetails.marketId
       });
+      console.log('🔧 Using optimized contract address:', CONTRACT_ADDRESSES.POOL_CORE);
       
       // Step 2: Handle BITR approval if needed
       if (marketData.useBitr) {
