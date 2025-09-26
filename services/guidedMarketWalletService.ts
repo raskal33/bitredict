@@ -3,6 +3,7 @@ import { parseEther, parseUnits, type Address } from 'viem';
 import { CONTRACT_ADDRESSES } from '@/config/wagmi';
 import { CONTRACTS } from '@/contracts';
 import { GuidedMarketService } from './guidedMarketService';
+import { ethers } from 'ethers';
 
 /**
  * Enhanced Guided Market Service with Wallet Integration
@@ -223,6 +224,44 @@ export class GuidedMarketWalletService {
   }
   
   /**
+   * Hash string parameters to bytes32 for the optimized contract
+   */
+  private static hashStringParameters(parameters: any[]): any[] {
+    // The createPool function expects these parameters in order:
+    // [predictedOutcome, odds, creatorStake, eventStartTime, eventEndTime, 
+    //  leagueHash, categoryHash, regionHash, homeTeamHash, awayTeamHash, titleHash,
+    //  isPrivate, maxBetPerUser, useBitr, oracleType, marketId, marketType]
+    
+    if (parameters.length < 17) {
+      console.warn('⚠️ Expected 17 parameters for createPool, got:', parameters.length);
+      return parameters;
+    }
+    
+    const hashedParameters = [...parameters];
+    
+    // Hash string parameters (indices 5-10 are the string fields)
+    const stringFields = [5, 6, 7, 8, 9, 10]; // league, category, region, homeTeam, awayTeam, title
+    const fieldNames = ['league', 'category', 'region', 'homeTeam', 'awayTeam', 'title'];
+    
+    for (let i = 0; i < stringFields.length; i++) {
+      const paramIndex = stringFields[i];
+      const fieldName = fieldNames[i];
+      const paramValue = parameters[paramIndex];
+      
+      if (typeof paramValue === 'string' && paramValue.length > 0) {
+        console.log(`🔤 Hashing ${fieldName}: "${paramValue}" -> bytes32`);
+        hashedParameters[paramIndex] = ethers.keccak256(ethers.toUtf8Bytes(paramValue));
+      } else {
+        console.log(`⚠️ ${fieldName} is not a valid string:`, paramValue);
+        // Use empty string hash as fallback
+        hashedParameters[paramIndex] = ethers.keccak256(ethers.toUtf8Bytes(''));
+      }
+    }
+    
+    return hashedParameters;
+  }
+
+  /**
    * Execute the main transaction via wallet
    */
   private static async executeTransaction(
@@ -240,12 +279,16 @@ export class GuidedMarketWalletService {
         gasEstimate: transactionData.gasEstimate
       });
       
+      // Hash string parameters for the optimized contract
+      const hashedParameters = this.hashStringParameters(transactionData.parameters);
+      console.log('🔤 Hashed parameters:', hashedParameters);
+      
       // Execute the transaction
       const hash = await walletClient.writeContract({
         address: transactionData.contractAddress as Address,
         abi: CONTRACTS.POOL_CORE.abi,
         functionName: transactionData.functionName,
-        args: transactionData.parameters,
+        args: hashedParameters,
         value: transactionData.value === '0' ? BigInt(0) : parseEther(transactionData.value),
         account: address,
         gas: BigInt(transactionData.gasEstimate)
