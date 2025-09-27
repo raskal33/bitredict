@@ -583,7 +583,7 @@ export default function OddysseyPage() {
         console.log('✅ Global stats received:', globalStatsResult.data);
         setStats({
           totalPlayers: globalStatsResult.data.totalPlayers || 0,
-          prizePool: `${globalStatsResult.data.avgPrizePool || 0} STT`,
+          prizePool: `${(globalStatsResult.data.avgPrizePool || 0).toFixed(2)} STT`,
           completedSlips: globalStatsResult.data.totalSlips?.toLocaleString() || "0",
           averageOdds: `${globalStatsResult.data.avgCorrect || 0}x`,
           totalCycles: globalStatsResult.data.totalCycles || 0,
@@ -632,14 +632,12 @@ export default function OddysseyPage() {
     } finally {
       setApiCallInProgress(false);
     }
-  }, [address, apiCallInProgress]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [address]); // Remove apiCallInProgress to prevent infinite loops
 
   // Fetch current cycle and match results (contract-only)
   const fetchCurrentCycle = useCallback(async () => {
-    if (apiCallInProgress) return; // Prevent multiple simultaneous calls
-    
     try {
-      setApiCallInProgress(true);
       console.log('🎯 Fetching current cycle...');
       
       const cycleId = await oddysseyService.getCurrentCycle();
@@ -658,10 +656,8 @@ export default function OddysseyPage() {
       }
     } catch (error) {
       console.error('❌ Error fetching current cycle:', error);
-    } finally {
-      setApiCallInProgress(false);
     }
-  }, [apiCallInProgress]);
+  }, []); // No dependencies to prevent infinite loops
 
   // Fetch user slips using the service (contract-only)
   const fetchUserSlips = useCallback(async () => {
@@ -759,7 +755,8 @@ export default function OddysseyPage() {
     } finally {
       setApiCallInProgress(false);
     }
-  }, [address, apiCallInProgress]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [address]); // Remove apiCallInProgress to prevent infinite loops
 
   // Update refetchAll function now that other functions are defined - commented out as unused
   /*
@@ -776,7 +773,8 @@ export default function OddysseyPage() {
 
   useEffect(() => {
     fetchCurrentCycle();
-  }, [fetchCurrentCycle]); // Include dependencies
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount to prevent infinite loops
 
   useEffect(() => {
     if (address) {
@@ -784,7 +782,8 @@ export default function OddysseyPage() {
       fetchUserSlips();
       fetchCurrentData();
     }
-  }, [address, fetchStats, fetchUserSlips, fetchCurrentData]); // Include dependencies
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [address]); // Only depend on address to prevent infinite loops
   
   
   // Winner notification system
@@ -837,7 +836,8 @@ export default function OddysseyPage() {
         fetchCurrentData?.();
             }, 2000); // 2 second delay
     }
-  }, [isSuccess, hash, fetchStats, fetchUserSlips, fetchCurrentData]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSuccess, hash]); // Remove function dependencies to prevent infinite loops
 
   // Check if any matches have started
   const checkStartedMatches = useCallback((matches: Match[]) => {
@@ -931,7 +931,8 @@ export default function OddysseyPage() {
     const timer = setInterval(calculateTimeLeft, 1000);
 
     return () => clearInterval(timer);
-  }, [matches, calculateTimeLeft]); // Include calculateTimeLeft in dependencies
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matches]); // Only depend on matches to prevent circular dependency
 
   // Update picksRef whenever picks changes
   useEffect(() => {
@@ -1162,7 +1163,8 @@ export default function OddysseyPage() {
       console.error('❌ Error during manual refresh:', error);
       toast.error('Failed to refresh data. Please try again later.');
     }
-  }, [fetchCurrentCycle, fetchStats, fetchUserSlips, fetchCurrentData, address, apiCallInProgress]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [address]); // Only depend on address to prevent infinite loops
 
 
 
@@ -1538,7 +1540,7 @@ export default function OddysseyPage() {
               onClick={() => setActiveTab("slips")}
               className={`px-4 md:px-8 py-2 md:py-3 rounded-button font-semibold transition-all duration-300 flex items-center gap-1 md:gap-2 text-sm md:text-base relative overflow-hidden ${
                 activeTab === "slips"
-                  ? "bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-300 shadow-lg shadow-cyan-500/25 scale-105 border border-cyan-500/30"
+                  ? "bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-300 shadow-lg shadow-cyan-500/25 scale-105 border border border-cyan-500/30"
                   : "text-text-secondary hover:text-cyan-300 hover:bg-gradient-to-r hover:from-cyan-500/10 hover:to-blue-500/10 hover:border hover:border-cyan-500/20"
               }`}
             >
@@ -2221,7 +2223,7 @@ export default function OddysseyPage() {
                               className="glass-card p-4 sm:p-6 border border-cyan-500/30 hover:border-cyan-400/50 transition-all duration-300 bg-gradient-to-br from-cyan-500/5 to-blue-500/5 hover:from-cyan-500/10 hover:to-blue-500/10"
                             >
                               {/* Enhanced Slip Header */}
-                              <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+                              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 gap-3 sm:gap-4">
                                 <div className="flex items-center gap-4">
                                   <div className="flex items-center gap-2">
                                     <CheckCircleIcon className="h-6 w-6 text-cyan-400" />
@@ -2242,7 +2244,7 @@ export default function OddysseyPage() {
                                   </div>
                                 </div>
                                 
-                                <div className="flex flex-col md:flex-row items-start md:items-center gap-4 text-sm">
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm">
                                   <div className="flex items-center gap-2">
                                     <span className="text-text-muted">Total Odds:</span>
                                     <span className="text-cyan-300 font-bold">
@@ -2261,7 +2263,7 @@ export default function OddysseyPage() {
                               </div>
                               
                               {/* Enhanced Predictions Grid with Mobile Support */}
-                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4 mb-6">
+                              <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4 mb-6">
                                 {slip.map((pick, i) => (
                                   <div key={i} className="bg-slate-900/80 p-2 sm:p-3 md:p-4 rounded-button border border-slate-700/50 hover:border-primary/30 transition-all duration-200 backdrop-blur-sm relative">
                                     {/* Evaluation Result Indicator */}
@@ -2293,7 +2295,7 @@ export default function OddysseyPage() {
                                       </span>
                                     </div>
                                     
-                                    <div className="text-xs sm:text-sm text-white font-medium mb-2 sm:mb-3 line-clamp-2 leading-tight">
+                                    <div className="text-xs sm:text-sm text-white font-medium mb-2 sm:mb-3 leading-tight break-words">
                                       {pick.team1 && pick.team2 ? `${pick.team1} vs ${pick.team2}` : `Match ${pick.id}`}
                                     </div>
                                     
@@ -2310,7 +2312,7 @@ export default function OddysseyPage() {
                               </div>
                               
                               {/* Enhanced Slip Footer */}
-                              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pt-4 border-t border-border-card/30">
+                              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 pt-4 border-t border-border-card/30">
                                 <div className="flex items-center gap-6">
                                   {isEvaluated && (
                                     <>
@@ -2412,7 +2414,7 @@ export default function OddysseyPage() {
                         </div>
                         
                         <div className="text-center">
-                          <div className="text-3xl font-bold text-green-400 mb-2">{(stats.avgPrizePool || 0).toFixed(1)} STT</div>
+                          <div className="text-3xl font-bold text-green-400 mb-2">{(stats.avgPrizePool || 0).toFixed(2)} STT</div>
                           <div className="text-lg text-text-secondary">Avg Prize Pool</div>
                           <div className="text-sm text-text-muted">Per cycle</div>
                         </div>

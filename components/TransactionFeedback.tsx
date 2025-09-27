@@ -61,7 +61,9 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
       const progressInterval = setInterval(() => {
         setProgress(prev => {
           if (prev >= 90) return prev; // Don't go to 100% until confirmed
-          return prev + Math.random() * 10;
+          const increment = Math.random() * 10;
+          const newProgress = Math.min(prev + increment, 90);
+          return newProgress;
         });
       }, 1000);
 
@@ -98,7 +100,8 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
       setIsVisible(false);
       setIsClosing(false); // Reset closing state when status is cleared
     }
-  }, [status, autoClose, autoCloseDelay, isClosing, handleClose]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, autoClose, autoCloseDelay, isClosing]);
 
   const getIcon = () => {
     switch (status?.type) {

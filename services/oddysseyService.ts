@@ -359,23 +359,36 @@ class OddysseyService {
         args: [slipId],
       });
 
-      const slip = result as any[];
+      console.log('🔍 Raw slip result from getSlip:', result);
+      console.log('🔍 Result type:', typeof result);
+      console.log('🔍 Result is array:', Array.isArray(result));
+      
+      // Contract returns a Slip struct, not an array
+      const slip = result as any;
+      console.log('🔍 Slip.player:', slip.player);
+      console.log('🔍 Slip.cycleId:', slip.cycleId);
+      console.log('🔍 Slip.placedAt:', slip.placedAt);
+      console.log('🔍 Slip.predictions:', slip.predictions);
+      console.log('🔍 Slip.finalScore:', slip.finalScore);
+      console.log('🔍 Slip.correctCount:', slip.correctCount);
+      console.log('🔍 Slip.isEvaluated:', slip.isEvaluated);
+      
       return {
-        player: slip[0],
-        cycleId: slip[1],
-        placedAt: slip[2],
-        predictions: Array.isArray(slip[3]) ? slip[3].map((pred: any) => ({
-          matchId: pred[0],
-          betType: pred[1],
-          selection: pred[2],
-          selectedOdd: Number(pred[3]) / 1000, // Convert from contract format
-          homeTeam: pred[4],
-          awayTeam: pred[5],
-          leagueName: pred[6],
+        player: slip.player,
+        cycleId: slip.cycleId,
+        placedAt: slip.placedAt,
+        predictions: Array.isArray(slip.predictions) ? slip.predictions.map((pred: any) => ({
+          matchId: pred.matchId,
+          betType: pred.betType,
+          selection: pred.selection,
+          selectedOdd: Number(pred.selectedOdd) / 1000, // Convert from contract format
+          homeTeam: pred.homeTeam,
+          awayTeam: pred.awayTeam,
+          leagueName: pred.leagueName,
         })) : [],
-        finalScore: slip[4],
-        correctCount: slip[5],
-        isEvaluated: slip[6],
+        finalScore: slip.finalScore,
+        correctCount: slip.correctCount,
+        isEvaluated: slip.isEvaluated,
       };
     } catch (error) {
       console.error('Error getting slip:', error);
