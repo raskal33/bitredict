@@ -117,7 +117,7 @@ const DEFAULT_ENTRY_FEE = "0.5";
 
 export default function OddysseyPage() {
   const { address, isConnected } = useAccount();
-  const { data: walletClient, isError: walletClientError } = useWalletClient();
+  const { data: walletClient } = useWalletClient();
   const chainId = useChainId();
   
   // Contract state
@@ -125,7 +125,6 @@ export default function OddysseyPage() {
   const [entryFee, setEntryFee] = useState<string>(DEFAULT_ENTRY_FEE);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
-  const initializationRef = useRef<boolean>(false);
   
   // Transaction state
   const [isPending, setIsPending] = useState(false);
@@ -157,10 +156,9 @@ export default function OddysseyPage() {
 
   // Initialize contract data
   const initializeContract = useCallback(async () => {
-    if (!isConnected || !address || !walletClient || isInitializing || isInitialized || initializationRef.current) return;
+    if (!isConnected || !address || !walletClient || isInitializing || isInitialized) return;
     
     try {
-      initializationRef.current = true;
       setIsInitializing(true);
       console.log('🎯 Initializing Oddyssey contract...');
       
@@ -183,14 +181,33 @@ export default function OddysseyPage() {
       // Get user slips
       if (address) {
         const userSlips = await oddysseyService.getUserSlipsForCycleFromContract(address, cycleId);
+        console.log('🔍 Raw slip data from contract:', userSlips);
+        
+        // Get match data for this cycle to combine with slip data
+        const cycleMatches = await oddysseyService.getCurrentCycleMatches();
+        console.log('🔍 Match data for cycle:', cycleMatches);
+        
         // Convert slips to frontend format
-        const convertedSlips = userSlips.map(slip => 
-          slip.predictions.map(pred => ({
+        const convertedSlips = userSlips.map(slip => {
+          console.log('🔍 Processing slip:', {
+            cycleId: slip.cycleId,
+            placedAt: slip.placedAt,
+            finalScore: slip.finalScore,
+            correctCount: slip.correctCount,
+            isEvaluated: slip.isEvaluated,
+            predictionsCount: slip.predictions.length
+          });
+          
+          const predictions = slip.predictions.map(pred => {
+            // Find matching match data
+            const matchData = cycleMatches.find(match => Number(match.id) === Number(pred.matchId));
+            
+            return {
             id: Number(pred.matchId),
-            time: new Date(Number(pred.matchId) * 1000).toLocaleTimeString('en-US', { 
+              time: matchData ? new Date(Number(matchData.startTime) * 1000).toLocaleTimeString('en-US', { 
               hour: '2-digit', 
               minute: '2-digit' 
-            }),
+              }) : 'Unknown',
             match: `${pred.homeTeam} vs ${pred.awayTeam}`,
             pick: (pred.selection === "1" ? "home" : 
                   pred.selection === "X" ? "draw" : 
@@ -199,15 +216,40 @@ export default function OddysseyPage() {
             odd: pred.selectedOdd,
             team1: pred.homeTeam,
             team2: pred.awayTeam,
+              leagueName: pred.leagueName,
+              betType: pred.betType,
+              selection: pred.selection,
+              // Add match data if available
+              matchStartTime: matchData ? Number(matchData.startTime) : 0,
+              currentOdds: matchData ? {
+                home: matchData.oddsHome,
+                draw: matchData.oddsDraw,
+                away: matchData.oddsAway,
+                over: matchData.oddsOver,
+                under: matchData.oddsUnder
+              } : null,
+              matchResult: matchData && matchData.result ? {
+                result: matchData.result.moneyline === 1 ? "home" : 
+                       matchData.result.moneyline === 2 ? "draw" : 
+                       matchData.result.moneyline === 3 ? "away" : "pending",
+                status: matchData.result.moneyline > 0 ? "finished" : "pending"
+              } : undefined
+            };
+          });
+          
+          // Add slip metadata to each prediction
+          return predictions.map(pred => ({
+            ...pred,
             slipId: Number(slip.cycleId),
             cycleId: Number(slip.cycleId),
             finalScore: Number(slip.finalScore),
             correctCount: Number(slip.correctCount),
             isEvaluated: slip.isEvaluated,
             placedAt: new Date(Number(slip.placedAt) * 1000).toISOString(),
-            status: slip.isEvaluated ? "Evaluated" : "Pending"
-          }))
-        );
+            status: slip.isEvaluated ? "Evaluated" : "Pending",
+            totalOdds: predictions.reduce((acc, p) => acc * (p.odd || 1), 1)
+          }));
+        });
         setSlips(convertedSlips);
       }
       
@@ -220,47 +262,128 @@ export default function OddysseyPage() {
     } finally {
       setIsInitializing(false);
       setIsLoading(false);
-      initializationRef.current = false;
     }
-  }, [isConnected, address, walletClient]);
+  }, [isConnected, address, walletClient, isInitializing, isInitialized]);
 
-  // Initialize on mount and when wallet connects
+  // Simple wallet initialization - only run once when wallet connects
   useEffect(() => {
-    console.log('🔍 Wallet detection:', { isConnected, address: !!address, walletClient: !!walletClient, walletClientError });
-    
-    if (isConnected && address) {
-      // Wait for wallet client to be available
-      if (walletClient) {
-        console.log('✅ Wallet client available, initializing...');
-        oddysseyService.setWalletClient(walletClient);
-        initializeContract();
-      } else if (walletClientError) {
-        console.error('❌ Wallet client error:', walletClientError);
-        showError("Wallet Error", "Failed to initialize wallet client. Please try reconnecting your wallet.");
-      } else {
-        console.log('⏳ Wallet client not yet available, retrying...');
-        // Retry after a short delay if wallet client is not yet available
-        const timeoutId = setTimeout(() => {
-          if (walletClient) {
-            console.log('✅ Wallet client available on retry, initializing...');
-            oddysseyService.setWalletClient(walletClient);
-            initializeContract();
-          } else {
-            console.warn('⚠️ Wallet client still not available after retry');
+    if (isConnected && address && walletClient && !isInitialized && !isInitializing) {
+      console.log('✅ Initializing wallet and contract...');
+      oddysseyService.setWalletClient(walletClient);
+      
+      // Initialize contract directly here to avoid dependency issues
+      const initContract = async () => {
+        try {
+          setIsInitializing(true);
+          console.log('🎯 Initializing Oddyssey contract...');
+          
+          // Get current cycle
+          const cycleId = await oddysseyService.getCurrentCycle();
+          console.log('Current cycle ID:', cycleId);
+          
+          // Get cycle info
+          const cycleInfo = await oddysseyService.getCurrentCycleInfo();
+          console.log('Prize pool:', formatEther(cycleInfo.prizePool));
+          
+          // Get entry fee
+          const fee = await oddysseyService.getEntryFee();
+          setEntryFee(fee);
+          
+          // Get current matches
+          const matches = await oddysseyService.getCurrentCycleMatches();
+          setCurrentMatches(matches);
+          
+          // Get user slips
+          if (address) {
+            const userSlips = await oddysseyService.getUserSlipsForCycleFromContract(address, cycleId);
+            console.log('🔍 Raw slip data from contract:', userSlips);
+            
+            // Get match data for this cycle to combine with slip data
+            const cycleMatches = await oddysseyService.getCurrentCycleMatches();
+            console.log('🔍 Match data for cycle:', cycleMatches);
+            
+            // Convert slips to frontend format
+            const convertedSlips = userSlips.map(slip => {
+              console.log('🔍 Processing individual slip (init):', slip);
+              console.log('🔍 Slip predictions (init):', slip.predictions);
+              console.log('🔍 Slip predictions length (init):', slip.predictions?.length);
+              
+              const predictions = slip.predictions.map(pred => {
+                // Find matching match data
+                const matchData = cycleMatches.find(match => Number(match.id) === Number(pred.matchId));
+                
+                return {
+                  id: Number(pred.matchId),
+                  time: matchData ? new Date(Number(matchData.startTime) * 1000).toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                  }) : 'Unknown',
+                  match: `${pred.homeTeam} vs ${pred.awayTeam}`,
+                  pick: (pred.selection === "1" ? "home" : 
+                        pred.selection === "X" ? "draw" : 
+                        pred.selection === "2" ? "away" : 
+                        pred.selection === "Over" ? "over" : "under") as "home" | "draw" | "away" | "over" | "under",
+                  odd: pred.selectedOdd,
+                  team1: pred.homeTeam,
+                  team2: pred.awayTeam,
+                  leagueName: pred.leagueName,
+                  betType: pred.betType,
+                  selection: pred.selection,
+                  // Add match data if available
+                  matchStartTime: matchData ? Number(matchData.startTime) : 0,
+                  currentOdds: matchData ? {
+                    home: matchData.oddsHome,
+                    draw: matchData.oddsDraw,
+                    away: matchData.oddsAway,
+                    over: matchData.oddsOver,
+                    under: matchData.oddsUnder
+                  } : null,
+                  matchResult: matchData && matchData.result ? {
+                result: matchData.result.moneyline === 1 ? "home" : 
+                       matchData.result.moneyline === 2 ? "draw" : 
+                       matchData.result.moneyline === 3 ? "away" : "pending",
+                status: matchData.result.moneyline > 0 ? "finished" : "pending"
+              } : undefined
+                };
+              });
+              
+              // Add slip metadata to each prediction
+              return predictions.map(pred => ({
+                ...pred,
+                slipId: Number(slip.cycleId),
+                cycleId: Number(slip.cycleId),
+                finalScore: Number(slip.finalScore),
+                correctCount: Number(slip.correctCount),
+                isEvaluated: slip.isEvaluated,
+                placedAt: new Date(Number(slip.placedAt) * 1000).toISOString(),
+                status: slip.isEvaluated ? "Evaluated" : "Pending",
+                totalOdds: predictions.reduce((acc, p) => acc * (p.odd || 1), 1)
+              }));
+            });
+            setSlips(convertedSlips);
           }
-        }, 1000);
-        
-        return () => clearTimeout(timeoutId);
-      }
+          
+          setIsInitialized(true);
+          console.log('✅ Contract initialized successfully');
+          
+        } catch (error) {
+          console.error('❌ Error initializing contract:', error);
+          setError(error as Error);
+        } finally {
+          setIsInitializing(false);
+          setIsLoading(false);
+        }
+      };
+      
+      initContract();
     }
-  }, [isConnected, address, walletClient, walletClientError, showError]);
+  }, [isConnected, address, walletClient, isInitialized, isInitializing]);
 
-  // Reset initialization state when wallet disconnects
+  // Reset state when wallet disconnects
   useEffect(() => {
     if (!isConnected) {
       setIsInitialized(false);
       setIsInitializing(false);
-      initializationRef.current = false;
       setCurrentMatches([]);
       setSlips([]);
     }
@@ -548,50 +671,78 @@ export default function OddysseyPage() {
       setApiCallInProgress(true);
       console.log('🎯 Fetching user slips for address:', address);
       
-      const result = await oddysseyService.getUserSlips(address);
+      // Get current cycle ID
+      const cycleId = await oddysseyService.getCurrentCycle();
+      console.log('📅 Current cycle ID for slips:', cycleId.toString());
       
-      if (result.success && result.data && result.data.length > 0) {
-        console.log('✅ User slips received:', result.data);
+      // Get user slips for current cycle (same method as contract initialization)
+      const userSlips = await oddysseyService.getUserSlipsForCycleFromContract(address, cycleId);
+      console.log('🔍 Raw slip data from contract:', userSlips);
+      
+      if (userSlips && userSlips.length > 0) {
+        console.log('✅ User slips received:', userSlips);
         
-        // Convert contract slip format to frontend format
-        const convertedSlips = result.data.map((slip) => {
-          return slip.predictions.map((pred) => {
-            const matchId = Number(pred.matchId);
-            const prediction = pred.selection;
-            const odds = pred.selectedOdd;
-            
-            // Team names come directly from contract
-            const homeTeam = pred.homeTeam;
-            const awayTeam = pred.awayTeam;
-            
-            // Determine pick type based on prediction value
-            let pick: "home" | "draw" | "away" | "over" | "under" = "home";
-            if (prediction === "X") pick = "draw";
-            else if (prediction === "2") pick = "away";
-            else if (prediction === "Over") pick = "over";
-            else if (prediction === "Under") pick = "under";
+        // Get match data for this cycle to combine with slip data
+        const cycleMatches = await oddysseyService.getCurrentCycleMatches();
+        console.log('🔍 Match data for cycle:', cycleMatches);
+        
+        // Convert slips to frontend format
+        const convertedSlips = userSlips.map(slip => {
+          console.log('🔍 Processing individual slip:', slip);
+          console.log('🔍 Slip predictions:', slip.predictions);
+          console.log('🔍 Slip predictions length:', slip.predictions?.length);
+          
+          const predictions = slip.predictions.map(pred => {
+            // Find matching match data
+            const matchData = cycleMatches.find(match => Number(match.id) === Number(pred.matchId));
             
             return {
-              id: matchId,
-              time: new Date(Number(pred.matchId) * 1000).toLocaleTimeString('en-US', { 
+              id: Number(pred.matchId),
+              time: matchData ? new Date(Number(matchData.startTime) * 1000).toLocaleTimeString('en-US', { 
                 hour: '2-digit', 
                 minute: '2-digit' 
-              }),
-              match: `${homeTeam} vs ${awayTeam}`,
-              pick: pick,
-              odd: odds,
-              team1: homeTeam,
-              team2: awayTeam,
-              // Add slip metadata
+              }) : 'Unknown',
+              match: `${pred.homeTeam} vs ${pred.awayTeam}`,
+              pick: (pred.selection === "1" ? "home" : 
+                    pred.selection === "X" ? "draw" : 
+                    pred.selection === "2" ? "away" : 
+                    pred.selection === "Over" ? "over" : "under") as "home" | "draw" | "away" | "over" | "under",
+              odd: pred.selectedOdd,
+              team1: pred.homeTeam,
+              team2: pred.awayTeam,
+              leagueName: pred.leagueName,
+              betType: pred.betType,
+              selection: pred.selection,
+              // Add match data if available
+              matchStartTime: matchData ? Number(matchData.startTime) : 0,
+              currentOdds: matchData ? {
+                home: matchData.oddsHome,
+                draw: matchData.oddsDraw,
+                away: matchData.oddsAway,
+                over: matchData.oddsOver,
+                under: matchData.oddsUnder
+              } : null,
+              matchResult: matchData && matchData.result ? {
+                result: matchData.result.moneyline === 1 ? "home" : 
+                       matchData.result.moneyline === 2 ? "draw" : 
+                       matchData.result.moneyline === 3 ? "away" : "pending",
+                status: matchData.result.moneyline > 0 ? "finished" : "pending"
+              } : undefined
+            };
+          });
+          
+          // Add slip metadata to each prediction
+          return predictions.map(pred => ({
+            ...pred,
               slipId: Number(slip.cycleId),
               cycleId: Number(slip.cycleId),
               finalScore: Number(slip.finalScore),
               correctCount: Number(slip.correctCount),
               isEvaluated: slip.isEvaluated,
               placedAt: new Date(Number(slip.placedAt) * 1000).toISOString(),
-              status: slip.isEvaluated ? "Evaluated" : "Pending"
-            };
-          });
+            status: slip.isEvaluated ? "Evaluated" : "Pending",
+            totalOdds: predictions.reduce((acc, p) => acc * (p.odd || 1), 1)
+          }));
         });
         
         console.log('🔄 Converted slips:', convertedSlips);
@@ -2051,16 +2202,15 @@ export default function OddysseyPage() {
                         className="space-y-6"
                       >
                         {slips.map((slip, slipIndex) => {
-                          const firstPick = slip[0]; // Get metadata from first pick
+                          // Get metadata from first prediction (all predictions have the same slip metadata)
+                          const firstPick = slip[0];
                           const slipId = firstPick?.slipId || `Slip ${slipIndex + 1}`;
-                          const cycleId = firstPick?.cycleId || 'Unknown';
+                          const slipCycleId = firstPick?.cycleId || 'Unknown';
                           const finalScore = firstPick?.finalScore || 0;
                           const correctCount = firstPick?.correctCount || 0;
                           const isEvaluated = firstPick?.isEvaluated || false;
                           const placedAt = firstPick?.placedAt ? new Date(firstPick.placedAt).toLocaleString() : 'Unknown';
-                          const totalOdds = firstPick?.totalOdds && firstPick.totalOdds > 0 && firstPick.totalOdds < 1e10 
-                            ? firstPick.totalOdds 
-                            : slip.reduce((acc, pick) => acc * (pick.odd || 1), 1);
+                          const totalOdds = firstPick?.totalOdds || slip.reduce((acc, pick) => acc * (pick.odd || 1), 1);
                           
                           return (
                             <motion.div
@@ -2081,7 +2231,7 @@ export default function OddysseyPage() {
                                   </div>
                                   <div className="flex items-center gap-2">
                                     <span className="px-3 py-1 bg-cyan-500/20 text-cyan-300 text-sm font-medium rounded-full border border-cyan-500/30">
-                                      Cycle {cycleId}
+                                      Cycle {slipCycleId}
                                     </span>
                                     <span className={`px-3 py-1 text-sm font-medium rounded-full flex items-center gap-1 ${
                                       isEvaluated ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'

@@ -312,31 +312,37 @@ class OddysseyService {
   // Get user slips for current cycle from contract
   async getUserSlipsForCycleFromContract(userAddress: Address, cycleId: bigint): Promise<OddysseySlip[]> {
     try {
-      const result = await this.publicClient.readContract({
+      // First, get the slip IDs for this user and cycle
+      const slipIdsResult = await this.publicClient.readContract({
         address: CONTRACTS.ODDYSSEY.address,
         abi: CONTRACTS.ODDYSSEY.abi,
         functionName: 'getUserSlipsForCycle',
         args: [userAddress, cycleId],
       });
 
-      const slips = result as any[];
-      return slips.map(slip => ({
-        player: slip[0],
-        cycleId: slip[1],
-        placedAt: slip[2],
-        predictions: slip[3].map((pred: any) => ({
-          matchId: pred[0],
-          betType: pred[1],
-          selection: pred[2],
-          selectedOdd: Number(pred[3]) / 1000, // Convert from contract format
-          homeTeam: pred[4],
-          awayTeam: pred[5],
-          leagueName: pred[6],
-        })),
-        finalScore: slip[4],
-        correctCount: slip[5],
-        isEvaluated: slip[6],
-      }));
+      const slipIds = slipIdsResult as bigint[];
+      console.log('🔍 Contract returned slip IDs:', slipIds);
+      
+      if (!slipIds || slipIds.length === 0) {
+        console.log('⚠️ No slip IDs found for user');
+        return [];
+      }
+
+      // Then, get the full slip data for each slip ID
+      const slips: OddysseySlip[] = [];
+      for (const slipId of slipIds) {
+        try {
+          const slip = await this.getSlip(slipId);
+          console.log('🔍 Retrieved slip data for ID', slipId.toString(), ':', slip);
+          slips.push(slip);
+        } catch (error) {
+          console.error('❌ Error getting slip', slipId.toString(), ':', error);
+          continue;
+        }
+      }
+
+      console.log('🔍 Final processed slips:', slips);
+      return slips;
     } catch (error) {
       console.error('Error getting user slips:', error);
       throw error;
@@ -358,7 +364,7 @@ class OddysseyService {
         player: slip[0],
         cycleId: slip[1],
         placedAt: slip[2],
-        predictions: slip[3].map((pred: any) => ({
+        predictions: Array.isArray(slip[3]) ? slip[3].map((pred: any) => ({
           matchId: pred[0],
           betType: pred[1],
           selection: pred[2],
@@ -366,7 +372,7 @@ class OddysseyService {
           homeTeam: pred[4],
           awayTeam: pred[5],
           leagueName: pred[6],
-        })),
+        })) : [],
         finalScore: slip[4],
         correctCount: slip[5],
         isEvaluated: slip[6],
@@ -445,16 +451,19 @@ class OddysseyService {
       });
 
       const [userStats, reputation, correctPredictions] = result as [any, bigint, bigint];
+      console.log('🔍 Raw user stats from contract:', userStats);
+      console.log('🔍 User reputation:', reputation);
+      console.log('🔍 User correct predictions:', correctPredictions);
 
       return {
-        totalSlips: userStats[0],
-        totalWins: userStats[1],
-        bestScore: userStats[2],
-        averageScore: userStats[3],
-        winRate: userStats[4],
-        currentStreak: userStats[5],
-        bestStreak: userStats[6],
-        lastActiveCycle: userStats[7],
+        totalSlips: userStats?.[0] || BigInt(0),
+        totalWins: userStats?.[1] || BigInt(0),
+        bestScore: userStats?.[2] || BigInt(0),
+        averageScore: userStats?.[3] || BigInt(0),
+        winRate: userStats?.[4] || BigInt(0),
+        currentStreak: userStats?.[5] || BigInt(0),
+        bestStreak: userStats?.[6] || BigInt(0),
+        lastActiveCycle: userStats?.[7] || BigInt(0),
       };
     } catch (error) {
       console.error('Error getting user stats:', error);
