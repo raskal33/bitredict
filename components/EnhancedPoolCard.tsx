@@ -50,6 +50,7 @@ export interface EnhancedPool {
   homeTeam?: string;
   awayTeam?: string;
   maxBetPerUser: string;
+  marketType?: string; // Market type for title generation
   
   // Optional fields for enhanced display
   boostTier: 'NONE' | 'BRONZE' | 'SILVER' | 'GOLD';
@@ -242,19 +243,24 @@ export default function EnhancedPoolCard({
                         pool.odds >= 200 ? 'ADVANCED' : 
                         pool.odds >= 150 ? 'INTERMEDIATE' : 'BEGINNER';
   
-  // Use the professional title from contract if available, otherwise generate one
+  // Generate enhanced title using title service instead of using contract title directly
   const displayTitle = pool.isComboPool 
     ? `Combo Pool #${pool.id} (${pool.comboConditions?.length || 0} conditions)`
-    : pool.title && pool.title.trim() !== '' 
-    ? pool.title // Use the professional title from contract
-    : pool.predictedOutcome && pool.predictedOutcome !== '0x' && pool.predictedOutcome.length > 10 
-    ? titleTemplatesService.generateProfessionalTitle(
-        pool.predictedOutcome,
-        pool.category || 'sports',
-        pool.homeTeam || undefined,
-        pool.awayTeam || undefined
-      )
-    : `${(pool.category || 'sports').charAt(0).toUpperCase() + (pool.category || 'sports').slice(1)} Pool #${pool.id}`;
+    : titleTemplatesService.generateTitle(
+        {
+          marketType: pool.marketType || '1X2',
+          homeTeam: pool.homeTeam,
+          awayTeam: pool.awayTeam,
+          predictedOutcome: pool.predictedOutcome,
+          league: pool.league,
+          marketId: pool.marketId
+        },
+        {
+          short: false,
+          includeLeague: false,
+          maxLength: 60
+        }
+      );
   
   const formatStake = (stake: string) => {
     try {
@@ -518,9 +524,9 @@ export default function EnhancedPoolCard({
             <span className="text-xs text-gray-400">Pool Progress</span>
             <span className="text-xs text-white font-medium">{indexedData.fillPercentage}%</span>
           </div>
-          <div className="w-full glass-card rounded-full h-1 bg-gray-800/30 border border-gray-600/20 shadow-inner">
+          <div className="w-full glass-card rounded-full h-0.5 bg-gray-800/30 border border-gray-600/20 shadow-inner">
             <div
-              className={`h-1 rounded-full transition-all duration-500 shadow-sm ${getProgressColor(indexedData.fillPercentage)}`}
+              className={`h-0.5 rounded-full transition-all duration-500 shadow-sm ${getProgressColor(indexedData.fillPercentage)}`}
               style={{ width: `${Math.min(indexedData.fillPercentage, 100)}%` }}
             />
           </div>

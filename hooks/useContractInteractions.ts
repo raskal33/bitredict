@@ -5,6 +5,7 @@ import { useCallback, useMemo } from 'react';
 import { toast } from 'react-hot-toast';
 import { keccak256, toBytes } from 'viem';
 import { ethers } from 'ethers';
+import { formatTeamNamesForPool } from '@/utils/teamNameFormatter';
 
 // Enhanced contract interaction hooks for modular architecture
 
@@ -104,10 +105,8 @@ export function usePoolCore() {
         ? poolData.predictedOutcome 
         : keccak256(toBytes(poolData.predictedOutcome));
       
-      // Convert marketId to bytes32 if it's not already
-      const marketIdBytes32 = poolData.marketId.startsWith('0x') 
-        ? poolData.marketId 
-        : keccak256(toBytes(poolData.marketId));
+      // Market ID should be sent as string (fixture ID), not bytes32
+      const marketIdString = poolData.marketId;
 
       // Calculate total required amount (creation fee + creator stake)
       const creationFeeBITR = 50n * 10n**18n; // 50 BITR in wei
@@ -150,21 +149,37 @@ export function usePoolCore() {
         value: poolData.useBitr ? 0n : totalRequired
       });
 
+      // Format team names to ensure they fit within bytes32 constraints
+      const teamNames = formatTeamNamesForPool(poolData.homeTeam || '', poolData.awayTeam || '');
+      
+      // Show warnings if team names were modified
+      if (teamNames.warnings.length > 0) {
+        console.warn('Team name formatting warnings:', teamNames.warnings);
+        // Show user-friendly warnings
+        teamNames.warnings.forEach(warning => {
+          toast(warning, { 
+            icon: '⚠️',
+            duration: 5000,
+            style: { background: '#fbbf24', color: '#1f2937' }
+          });
+        });
+      }
+
       // Hash strings before calling the optimized contract
       const leagueHash = ethers.keccak256(ethers.toUtf8Bytes(poolData.league));
       const categoryHash = ethers.keccak256(ethers.toUtf8Bytes(poolData.category));
       const regionHash = ethers.keccak256(ethers.toUtf8Bytes(poolData.region));
-      const homeTeamHash = ethers.keccak256(ethers.toUtf8Bytes(poolData.homeTeam || ''));
-      const awayTeamHash = ethers.keccak256(ethers.toUtf8Bytes(poolData.awayTeam || ''));
-      const titleHash = ethers.keccak256(ethers.toUtf8Bytes(poolData.title || ''));
+      const homeTeamBytes32 = ethers.encodeBytes32String(teamNames.homeTeam);
+      const awayTeamBytes32 = ethers.encodeBytes32String(teamNames.awayTeam);
+      const titleBytes32 = ethers.encodeBytes32String(poolData.title || '');
 
-      // 🚀 GAS OPTIMIZATION: Use createPoolLightweight for better gas efficiency
-      console.log(`⛽ Using createPoolLightweight for optimized gas usage`);
+      // 🚀 GAS OPTIMIZATION: Use createPool for gas efficiency
+      console.log(`⛽ Using createPool function`);
 
       const txHash = await writeContractAsync({
         address: CONTRACT_ADDRESSES.POOL_CORE,
         abi: CONTRACTS.POOL_CORE.abi,
-        functionName: 'createPoolLightweight', // ✅ Use optimized function
+        functionName: 'createPool', // ✅ Use main createPool function
         args: [
           predictedOutcomeHash,
           poolData.odds,
@@ -174,15 +189,15 @@ export function usePoolCore() {
           leagueHash, // 🎯 Hashed league
           categoryHash, // 🎯 Hashed category
           regionHash, // 🎯 Hashed region
-          homeTeamHash, // 🎯 Hashed home team
-          awayTeamHash, // 🎯 Hashed away team
-          titleHash, // 🎯 Hashed title
+          homeTeamBytes32, // 🎯 bytes32 encoded home team
+          awayTeamBytes32, // 🎯 bytes32 encoded away team
+          titleBytes32, // 🎯 bytes32 encoded title
           poolData.isPrivate,
           poolData.maxBetPerUser,
           poolData.useBitr,
           poolData.oracleType,
-          marketIdBytes32,
           poolData.marketType,
+          marketIdString, // 🎯 Market ID as string (fixture ID)
         ],
         value: poolData.useBitr ? 0n : totalRequired, // For BITR pools, value is 0 (token transfer handles it)
         gas: BigInt(10000000), // ✅ Reduced gas limit for lightweight function (10M instead of 14M)

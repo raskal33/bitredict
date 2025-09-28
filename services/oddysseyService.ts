@@ -59,15 +59,16 @@ export interface UserPrediction {
   homeTeam: string;
   awayTeam: string;
   leagueName: string;
+  isCorrect?: boolean; // Will be determined by evaluation
 }
 
 export interface OddysseySlip {
   player: Address;
-  cycleId: bigint;
-  placedAt: bigint;
+  cycleId: number;
+  placedAt: number;
   predictions: UserPrediction[];
-  finalScore: bigint;
-  correctCount: bigint;
+  finalScore: number;
+  correctCount: number;
   isEvaluated: boolean;
 }
 
@@ -347,6 +348,59 @@ class OddysseyService {
       console.error('Error getting user slips:', error);
       throw error;
     }
+  }
+
+  // Get all user slips with evaluation data for a specific cycle
+  async getUserSlipsWithDataFromContract(userAddress: Address, cycleId: bigint): Promise<{
+    slipIds: bigint[];
+    slipsData: OddysseySlip[];
+  }> {
+    try {
+      console.log('🔍 Getting user slips with data for cycle:', cycleId.toString());
+      
+      const result = await this.publicClient.readContract({
+        address: CONTRACTS.ODDYSSEY.address,
+        abi: CONTRACTS.ODDYSSEY.abi,
+        functionName: 'getUserSlipsWithData',
+        args: [userAddress, cycleId],
+      });
+
+      console.log('🔍 Raw getUserSlipsWithData result:', result);
+      
+      const [slipIds, slipsData] = result as [bigint[], any[]];
+      
+      console.log('🔍 Processed slip IDs:', slipIds);
+      console.log('🔍 Processed slips data:', slipsData);
+      
+      return {
+        slipIds,
+        slipsData: slipsData.map(slip => this.processSlipData(slip))
+      };
+    } catch (error) {
+      console.error('Error getting user slips with data:', error);
+      throw error;
+    }
+  }
+
+  // Process slip data from contract response
+  private processSlipData(rawSlip: any): OddysseySlip {
+    return {
+      player: rawSlip.player,
+      cycleId: Number(rawSlip.cycleId),
+      placedAt: Number(rawSlip.placedAt),
+      predictions: rawSlip.predictions.map((pred: any) => ({
+        matchId: Number(pred.matchId),
+        betType: Number(pred.betType),
+        selection: pred.selection,
+        selectedOdd: Number(pred.selectedOdd),
+        homeTeam: pred.homeTeam,
+        awayTeam: pred.awayTeam,
+        leagueName: pred.leagueName
+      })),
+      finalScore: Number(rawSlip.finalScore),
+      correctCount: Number(rawSlip.correctCount),
+      isEvaluated: rawSlip.isEvaluated
+    };
   }
 
   // Get slip by ID

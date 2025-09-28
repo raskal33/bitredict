@@ -22,10 +22,10 @@ interface IReputationSystem {
     function getReputationBundle(address user) external view returns (uint256, bool, bool, bool);
 }
 interface IGuidedOracle {
-    function getOutcome(bytes32 marketId) external view returns (bool isSet, bytes memory resultData);
+    function getOutcome(string memory marketId) external view returns (bool isSet, bytes memory resultData);
 }
 interface IOptimisticOracle {
-    function getOutcome(bytes32 marketId) external view returns (bool isSettled, bytes memory outcome);
+    function getOutcome(string memory marketId) external view returns (bool isSettled, bytes memory outcome);
 }
 
 enum OracleType {
@@ -82,6 +82,7 @@ contract BitredictPoolCore is Ownable, ReentrancyGuard {
         uint256 lastActivityTime;
     }
 
+
     struct CreatorStats {
         uint256 totalPoolsCreated;
         uint256 successfulPools;
@@ -114,7 +115,8 @@ contract BitredictPoolCore is Ownable, ReentrancyGuard {
         uint16 odds;              // 2 bytes  
         uint8 flags;              // 1 byte
         OracleType oracleType;    // 1 byte (enum = uint8)
-        uint8 reserved;           // 8 bytes padding for optimal packing
+        MarketType marketType;    // 1 byte (enum = uint8)
+        uint8 reserved;           // 7 bytes padding for optimal packing
         
         // Packed slot 2: Stakes (32 bytes)
         uint256 creatorStake;
@@ -134,40 +136,43 @@ contract BitredictPoolCore is Ownable, ReentrancyGuard {
         // Packed slot 7: Result (32 bytes)
         bytes32 result;
         
-        // Packed slot 8: Market info (32 bytes)
-        bytes32 marketId;
-        
-        // Packed slot 9: Event timing (32 bytes)
+        // Packed slot 8: Event timing (32 bytes)
         uint256 eventStartTime;
         
-        // Packed slot 10: Event end (32 bytes)
+        // Packed slot 9: Event end (32 bytes)
         uint256 eventEndTime;
         
-        // Packed slot 11: Betting end (32 bytes)
+        // Packed slot 10: Betting end (32 bytes)
         uint256 bettingEndTime;
         
-        // Packed slot 12: Result timestamp (32 bytes)
+        // Packed slot 11: Result timestamp (32 bytes)
         uint256 resultTimestamp;
         
-        // Packed slot 13: Arbitration deadline (32 bytes)
+        // Packed slot 12: Arbitration deadline (32 bytes)
         uint256 arbitrationDeadline;
         
-        // Packed slots 14-19: Team/League info (6 * 32 bytes)
-        bytes32 league;
-        bytes32 category;
-        bytes32 region;
-        bytes32 homeTeam;
-        bytes32 awayTeam;
-        bytes32 title;
-        
-        // Packed slot 20: Max bet per user (32 bytes)
+        // Packed slot 13: Max bet per user (32 bytes)
         uint256 maxBetPerUser;
+        
+        // Packed slots 14-19: Team/League info (6 * 32 bytes) - GAS EFFICIENT
+        bytes32 league;           // League hash (32 bytes)
+        bytes32 category;         // Category hash (32 bytes)
+        bytes32 region;          // Region hash (32 bytes)
+        bytes32 homeTeam;        // Home team hash (32 bytes)
+        bytes32 awayTeam;        // Away team hash (32 bytes)
+        bytes32 title;           // Title hash (32 bytes)
+        
+        // Market info (stored as string for SportMonks integration)
+        string marketId;          // SportMonks fixture ID as string
     }
 
     // Storage mappings
     mapping(uint256 => Pool) public pools;
     mapping(uint256 => address[]) public poolBettors;
     mapping(uint256 => mapping(address => uint256)) public bettorStakes;
+    
+    // Frontend-friendly data (populated by backend for display)
+    mapping(uint256 => string) public poolDisplayData;
     mapping(uint256 => address[]) public poolLPs;
     mapping(uint256 => mapping(address => uint256)) public lpStakes;
     mapping(uint256 => mapping(address => bool)) public claimed;
@@ -189,8 +194,7 @@ contract BitredictPoolCore is Ownable, ReentrancyGuard {
     mapping(uint256 => uint256) public poolIdToCreatorIndex;
 
     // Events
-    event PoolCreated(uint256 indexed poolId, address indexed creator, uint256 eventStartTime, uint256 eventEndTime, OracleType oracleType, bytes32 marketId, MarketType marketType, bytes32 league, bytes32 category);
-    event PoolCreatedLightweight(uint256 indexed poolId, address indexed creator, uint256 eventStartTime, uint256 eventEndTime, OracleType oracleType, bytes32 marketId, MarketType marketType, bytes32 league, bytes32 category, uint256 creatorStake, bool useBitr);
+    event PoolCreated(uint256 indexed poolId, address indexed creator, uint256 eventStartTime, uint256 eventEndTime, OracleType oracleType, MarketType marketType, string marketId, bytes32 league, bytes32 category);
     event BetPlaced(uint256 indexed poolId, address indexed bettor, uint256 amount, bool isForOutcome);
     event LiquidityAdded(uint256 indexed poolId, address indexed provider, uint256 amount);
     event PoolSettled(uint256 indexed poolId, bytes32 result, bool creatorSideWon, uint256 timestamp);
@@ -239,185 +243,36 @@ contract BitredictPoolCore is Ownable, ReentrancyGuard {
 
     // --- Pool Creation ---
 
+
+    /**
+     * Create a new prediction pool
+     */
     function createPool(
         bytes32 _predictedOutcome,
         uint256 _odds,
         uint256 _creatorStake,
         uint256 _eventStartTime,
         uint256 _eventEndTime,
-        bytes32 _leagueHash,
-        bytes32 _categoryHash,
-        bytes32 _regionHash,
-        bytes32 _homeTeamHash,
-        bytes32 _awayTeamHash,
-        bytes32 _titleHash,
+        bytes32 _league,
+        bytes32 _category,
+        bytes32 _region,
+        bytes32 _homeTeam,
+        bytes32 _awayTeam,
+        bytes32 _title,
         bool _isPrivate,
         uint256 _maxBetPerUser,
         bool _useBitr,
         OracleType _oracleType,
-        bytes32 _marketId,
-        MarketType _marketType
+        MarketType _marketType,
+        string memory _marketId
     ) external payable nonReentrant returns (uint256) {
         require(_odds > 100 && _odds <= 10000, "Invalid odds: must be between 1.01 and 100.00");
         
-        // 🚀 GAS OPTIMIZATION: Single reputation check instead of 3 separate calls
-        if (address(reputationSystem) != address(0)) {
-            (uint256 reputation, bool canCreateGuided, bool canCreateOpen,) = reputationSystem.getReputationBundle(msg.sender);
-            
-            if (_oracleType == OracleType.OPEN) {
-                require(canCreateOpen, "Insufficient reputation for OPEN pools");
-            } else {
-                require(canCreateGuided, "Insufficient reputation for GUIDED pools");
-            }
+        // Validate market type matches oracle type
+        if (_oracleType == OracleType.GUIDED) {
+            require(_marketType != MarketType.CUSTOM, "Guided pools need specific market type");
         }
         
-        // Check minimum stake
-        if (_useBitr) {
-            require(_creatorStake >= minPoolStakeBITR, "BITR stake below minimum");
-        } else {
-            require(_creatorStake >= minPoolStakeSTT, "STT stake below minimum");
-        }
-        
-        require(_creatorStake <= 1000000 * 1e18, "Stake too large");
-        require(_eventStartTime > block.timestamp, "Event must be in future");
-        require(_eventEndTime > _eventStartTime, "Event end must be after start");
-        require(_eventStartTime > block.timestamp + bettingGracePeriod, "Event too soon");
-
-        // Handle payments
-        uint256 creationFee = _useBitr ? creationFeeBITR : creationFeeSTT;
-        uint256 totalRequired = creationFee + _creatorStake;
-        
-        if (_useBitr) {
-            require(bitrToken.transferFrom(msg.sender, address(this), totalRequired), "BITR transfer failed");
-            totalCollectedBITR += creationFee;
-        } else {
-            require(msg.value == totalRequired, "Incorrect STT amount");
-            totalCollectedSTT += creationFee;
-        }
-
-        // Calculate pool parameters
-        uint256 denominator = _odds - 100;
-        require(denominator > 0, "Invalid odds");
-        uint256 maxStake = (_creatorStake * 100) / denominator;
-        uint256 bettingEnd = _eventStartTime - bettingGracePeriod;
-        uint256 arbitrationEnd = _eventEndTime + arbitrationTimeout;
-
-        // Pack flags for gas efficiency
-        uint8 flags = 0;
-        if (_isPrivate) flags |= 4;      // bit 2
-        if (_useBitr) flags |= 8;        // bit 3
-
-        pools[poolCount] = Pool({
-            creator: msg.sender,
-            odds: uint16(_odds),
-            flags: flags,
-            oracleType: _oracleType,
-            reserved: 0,
-            creatorStake: _creatorStake,
-            totalCreatorSideStake: _creatorStake,
-            maxBettorStake: maxStake,
-            totalBettorStake: 0,
-            predictedOutcome: _predictedOutcome,
-            result: bytes32(0),
-            marketId: _marketId,
-            eventStartTime: _eventStartTime,
-            eventEndTime: _eventEndTime,
-            bettingEndTime: bettingEnd,
-            resultTimestamp: 0,
-            arbitrationDeadline: arbitrationEnd,
-            league: _leagueHash,
-            category: _categoryHash,
-            region: _regionHash,
-            homeTeam: _homeTeamHash,
-            awayTeam: _awayTeamHash,
-            title: _titleHash,
-            maxBetPerUser: _maxBetPerUser
-        });
-
-        // Initialize analytics
-        uint256 creatorReputation = 0;
-        if (address(reputationSystem) != address(0)) {
-            (creatorReputation,,,) = reputationSystem.getReputationBundle(msg.sender);
-        }
-        
-        poolAnalytics[poolCount] = PoolAnalytics({
-            totalVolume: _creatorStake,
-            participantCount: 1,
-            averageBetSize: _creatorStake,
-            creatorReputation: creatorReputation,
-            liquidityRatio: 100,
-            timeToFill: 0,
-            isHotPool: false,
-            fillPercentage: 0,
-            lastActivityTime: block.timestamp
-        });
-
-        // Creator is the first LP
-        poolLPs[poolCount].push(msg.sender);
-        lpStakes[poolCount][msg.sender] = _creatorStake;
-
-        // Update indexing
-        categoryPools[_categoryHash].push(poolCount);
-        creatorActivePools[msg.sender].push(poolCount);
-        poolIdToCreatorIndex[poolCount] = creatorActivePools[msg.sender].length - 1;
-
-        // Update stats
-        _updateCreatorStats(msg.sender, _creatorStake, true);
-        _updateCategoryStats(_categoryHash, _creatorStake);
-        _updateGlobalStats(_creatorStake, true);
-
-        emit PoolCreated(poolCount, msg.sender, _eventStartTime, _eventEndTime, _oracleType, _marketId, _marketType, _leagueHash, _categoryHash);
-        emit ReputationActionOccurred(msg.sender, ReputationSystem.ReputationAction.POOL_CREATED, _creatorStake, bytes32(poolCount), block.timestamp);
-        
-        uint256 currentPoolId = poolCount;
-        poolCount++;
-        return currentPoolId;
-    }
-
-    /**
-     * 🚀 GAS OPTIMIZED: Lightweight pool creation with minimal storage
-     * @dev Create a pool with minimal data, emit events for later processing
-     * @param _predictedOutcome The predicted outcome hash
-     * @param _odds The odds (100-10000)
-     * @param _creatorStake The creator's stake amount
-     * @param _eventStartTime Event start timestamp
-     * @param _eventEndTime Event end timestamp
-     * @param _leagueHash League hash
-     * @param _categoryHash Category hash
-     * @param _regionHash Region hash
-     * @param _homeTeamHash Home team hash
-     * @param _awayTeamHash Away team hash
-     * @param _titleHash Title hash
-     * @param _isPrivate Whether pool is private
-     * @param _maxBetPerUser Maximum bet per user
-     * @param _useBitr Whether to use BITR token
-     * @param _oracleType Oracle type
-     * @param _marketId Market ID
-     * @param _marketType Market type
-     * @return poolId The created pool ID
-     */
-    function createPoolLightweight(
-        bytes32 _predictedOutcome,
-        uint256 _odds,
-        uint256 _creatorStake,
-        uint256 _eventStartTime,
-        uint256 _eventEndTime,
-        bytes32 _leagueHash,
-        bytes32 _categoryHash,
-        bytes32 _regionHash,
-        bytes32 _homeTeamHash,
-        bytes32 _awayTeamHash,
-        bytes32 _titleHash,
-        bool _isPrivate,
-        uint256 _maxBetPerUser,
-        bool _useBitr,
-        OracleType _oracleType,
-        bytes32 _marketId,
-        MarketType _marketType
-    ) external payable nonReentrant returns (uint256) {
-        require(_odds > 100 && _odds <= 10000, "Invalid odds: must be between 1.01 and 100.00");
-        
-        // 🚀 GAS OPTIMIZATION: Single reputation check
         if (address(reputationSystem) != address(0)) {
             (uint256 reputation, bool canCreateGuided, bool canCreateOpen,) = reputationSystem.getReputationBundle(msg.sender);
             
@@ -451,18 +306,19 @@ contract BitredictPoolCore is Ownable, ReentrancyGuard {
             require(msg.value == totalRequired, "ETH payment mismatch");
         }
         
-        // 🚀 GAS OPTIMIZATION: Minimal storage - only essential data
-        // Pack flags into single uint8 for gas efficiency
+        
         uint8 flags = 0;
-        if (_isPrivate) flags |= 1;      // bit 0: isPrivate
-        if (_useBitr) flags |= 2;        // bit 1: usesBitr
-        // bits 2-7: reserved for future use
+        if (_isPrivate) flags |= 4;      // bit 2: isPrivate
+        if (_useBitr) flags |= 8;        // bit 3: usesBitr 
+        // bits 0,1: reserved for settlement (settled, creatorSideWon)
+        // bits 4-7: reserved for future use
         
         pools[poolCount] = Pool({
             creator: msg.sender,
             odds: uint16(_odds),
             flags: flags,
             oracleType: _oracleType,
+            marketType: _marketType,
             reserved: 0,
             creatorStake: _creatorStake,
             totalCreatorSideStake: _creatorStake,
@@ -470,34 +326,33 @@ contract BitredictPoolCore is Ownable, ReentrancyGuard {
             totalBettorStake: 0,
             predictedOutcome: _predictedOutcome,
             result: bytes32(0),
-            marketId: _marketId,
             eventStartTime: _eventStartTime,
             eventEndTime: _eventEndTime,
             bettingEndTime: _eventStartTime - bettingGracePeriod,
             resultTimestamp: 0,
             arbitrationDeadline: _eventEndTime + arbitrationTimeout,
-            league: _leagueHash,
-            category: _categoryHash,
-            region: _regionHash,
-            homeTeam: _homeTeamHash,
-            awayTeam: _awayTeamHash,
-            title: _titleHash,
-            maxBetPerUser: _maxBetPerUser
+            maxBetPerUser: _maxBetPerUser,
+            // Gas-efficient bytes32 storage
+            league: _league,
+            category: _category,
+            region: _region,
+            homeTeam: _homeTeam,
+            awayTeam: _awayTeam,
+            title: _title,
+            marketId: _marketId
         });
         
-        // 🚀 GAS OPTIMIZATION: Emit events for later processing instead of immediate storage
-        emit PoolCreatedLightweight(
+        
+        emit PoolCreated(
             poolCount, 
             msg.sender, 
             _eventStartTime, 
             _eventEndTime, 
             _oracleType, 
+            _marketType,
             _marketId, 
-            _marketType, 
-            _leagueHash, 
-            _categoryHash,
-            _creatorStake,
-            _useBitr
+            _league, 
+            _category
         );
         
         emit ReputationActionOccurred(msg.sender, ReputationSystem.ReputationAction.POOL_CREATED, _creatorStake, bytes32(poolCount), block.timestamp);
@@ -505,6 +360,70 @@ contract BitredictPoolCore is Ownable, ReentrancyGuard {
         uint256 currentPoolId = poolCount;
         poolCount++;
         return currentPoolId;
+    }
+
+    /**
+     * Update frontend display data
+     */
+    function updatePoolDisplayData(uint256 poolId, string memory displayData) external {
+        require(msg.sender == owner(), "Unauthorized");
+        poolDisplayData[poolId] = displayData;
+    }
+
+    /**
+     * Convert bytes32 to readable string
+     */
+    function bytes32ToString(bytes32 data) external pure returns (string memory) {
+        uint256 length = 0;
+        while (length < 32 && data[length] != 0) {
+            length++;
+        }
+        
+        bytes memory result = new bytes(length);
+        for (uint256 i = 0; i < length; i++) {
+            result[i] = data[i];
+        }
+        
+        return string(result);
+    }
+
+    /**
+     * Get pool with decoded team names
+     */
+    function getPoolWithDecodedNames(uint256 poolId) external view returns (
+        address creator,
+        uint16 odds,
+        uint8 flags,
+        OracleType oracleType,
+        uint256 creatorStake,
+        uint256 eventStartTime,
+        uint256 eventEndTime,
+        string memory marketId,
+        string memory league,
+        string memory category,
+        string memory region,
+        string memory homeTeam,
+        string memory awayTeam,
+        string memory title
+    ) {
+        Pool memory pool = pools[poolId];
+        
+        return (
+            pool.creator,
+            pool.odds,
+            pool.flags,
+            pool.oracleType,
+            pool.creatorStake,
+            pool.eventStartTime,
+            pool.eventEndTime,
+            pool.marketId,
+            this.bytes32ToString(pool.league),
+            this.bytes32ToString(pool.category),
+            this.bytes32ToString(pool.region),
+            this.bytes32ToString(pool.homeTeam),
+            this.bytes32ToString(pool.awayTeam),
+            this.bytes32ToString(pool.title)
+        );
     }
 
     // --- Pool Interactions ---
@@ -874,22 +793,6 @@ contract BitredictPoolCore is Ownable, ReentrancyGuard {
 
     // --- Analytics View Functions ---
 
-    function getPoolAnalytics(uint256 poolId) external view validPool(poolId) returns (PoolAnalytics memory) {
-        return poolAnalytics[poolId];
-    }
-
-    function getCreatorStats(address creator) external view returns (CreatorStats memory) {
-        return creatorStats[creator];
-    }
-
-    function getCategoryStats(bytes32 categoryHash) external view returns (CategoryStats memory) {
-        return categoryStats[categoryHash];
-    }
-
-    function getGlobalStats() external view returns (GlobalStats memory) {
-        return globalStats;
-    }
-
     function getTopCreators(uint256 limit) external pure returns (address[] memory creators, uint256[] memory volumes) {
         return (new address[](limit), new uint256[](limit));
     }
@@ -1031,4 +934,205 @@ contract BitredictPoolCore is Ownable, ReentrancyGuard {
             globalStats.averagePoolSize = globalStats.totalVolume / globalStats.totalPools;
         }
     }
+
+    // ===== ANALYTICS & STATS FUNCTIONS =====
+    
+    /**
+     * Get comprehensive pool statistics for analytics
+     */
+    function getPoolAnalytics(uint256 poolId) external view returns (
+        uint256 totalVolume,
+        uint256 participantCount,
+        uint256 averageBetSize,
+        uint256 creatorReputation,
+        uint256 liquidityRatio,
+        uint256 timeToFill,
+        bool isHotPool,
+        uint256 fillPercentage,
+        uint256 lastActivityTime
+    ) {
+        PoolAnalytics memory analytics = poolAnalytics[poolId];
+        return (
+            analytics.totalVolume,
+            analytics.participantCount,
+            analytics.averageBetSize,
+            analytics.creatorReputation,
+            analytics.liquidityRatio,
+            analytics.timeToFill,
+            analytics.isHotPool,
+            analytics.fillPercentage,
+            analytics.lastActivityTime
+        );
+    }
+    
+    /**
+     * Get creator performance statistics
+     */
+    function getCreatorStats(address creator) external view returns (
+        uint256 totalPoolsCreated,
+        uint256 successfulPools,
+        uint256 totalVolumeGenerated,
+        uint256 averagePoolSize,
+        uint256 reputationScore,
+        uint256 winRate,
+        uint256 totalEarnings,
+        uint256 activePoolsCount
+    ) {
+        CreatorStats memory stats = creatorStats[creator];
+        return (
+            stats.totalPoolsCreated,
+            stats.successfulPools,
+            stats.totalVolumeGenerated,
+            stats.averagePoolSize,
+            stats.reputationScore,
+            stats.winRate,
+            stats.totalEarnings,
+            stats.activePoolsCount
+        );
+    }
+    
+    /**
+     * Get category performance statistics
+     */
+    function getCategoryStats(bytes32 categoryHash) external view returns (
+        uint256 totalPools,
+        uint256 totalVolume,
+        uint256 averageOdds,
+        uint256 lastActivityTime
+    ) {
+        CategoryStats memory stats = categoryStats[categoryHash];
+        return (
+            stats.totalPools,
+            stats.totalVolume,
+            stats.averageOdds,
+            stats.lastActivityTime
+        );
+    }
+    
+    /**
+     * Get global platform statistics
+     */
+    function getGlobalStats() external view returns (
+        uint256 totalPools,
+        uint256 totalVolume,
+        uint256 averagePoolSize,
+        uint256 lastUpdated
+    ) {
+        return (
+            globalStats.totalPools,
+            globalStats.totalVolume,
+            globalStats.averagePoolSize,
+            globalStats.lastUpdated
+        );
+    }
+    
+    /**
+     * Get pools by market type for analytics
+     */
+    function getPoolsByMarketType(MarketType marketType, uint256 limit) external view returns (uint256[] memory) {
+        uint256[] memory result = new uint256[](limit);
+        uint256 count = 0;
+        
+        for (uint256 i = 0; i < poolCount && count < limit; i++) {
+            if (pools[i].marketType == marketType) {
+                result[count] = i;
+                count++;
+            }
+        }
+        
+        // Resize array to actual count
+        uint256[] memory finalResult = new uint256[](count);
+        for (uint256 i = 0; i < count; i++) {
+            finalResult[i] = result[i];
+        }
+        
+        return finalResult;
+    }
+    
+    /**
+     * Get pools by oracle type for analytics
+     */
+    function getPoolsByOracleType(OracleType oracleType, uint256 limit) external view returns (uint256[] memory) {
+        uint256[] memory result = new uint256[](limit);
+        uint256 count = 0;
+        
+        for (uint256 i = 0; i < poolCount && count < limit; i++) {
+            if (pools[i].oracleType == oracleType) {
+                result[count] = i;
+                count++;
+            }
+        }
+        
+        // Resize array to actual count
+        uint256[] memory finalResult = new uint256[](count);
+        for (uint256 i = 0; i < count; i++) {
+            finalResult[i] = result[i];
+        }
+        
+        return finalResult;
+    }
+    
+    /**
+     * Get active pools (not settled) for analytics
+     */
+    function getActivePools(uint256 limit) external view returns (uint256[] memory) {
+        uint256[] memory result = new uint256[](limit);
+        uint256 count = 0;
+        
+        for (uint256 i = 0; i < poolCount && count < limit; i++) {
+            if (!_isPoolSettled(i)) {
+                result[count] = i;
+                count++;
+            }
+        }
+        
+        // Resize array to actual count
+        uint256[] memory finalResult = new uint256[](count);
+        for (uint256 i = 0; i < count; i++) {
+            finalResult[i] = result[i];
+        }
+        
+        return finalResult;
+    }
+    
+    /**
+     * Get pools by creator for analytics
+     */
+    function getPoolsByCreator(address creator, uint256 limit) external view returns (uint256[] memory) {
+        return creatorActivePools[creator];
+    }
+    
+    
+    /**
+     * Get market type distribution for analytics
+     */
+    function getMarketTypeDistribution() external view returns (uint256[8] memory) {
+        uint256[8] memory distribution;
+        
+        for (uint256 i = 0; i < poolCount; i++) {
+            uint8 marketType = uint8(pools[i].marketType);
+            if (marketType < 8) {
+                distribution[marketType]++;
+            }
+        }
+        
+        return distribution;
+    }
+    
+    /**
+     * Get oracle type distribution for analytics
+     */
+    function getOracleTypeDistribution() external view returns (uint256[2] memory) {
+        uint256[2] memory distribution;
+        
+        for (uint256 i = 0; i < poolCount; i++) {
+            uint8 oracleType = uint8(pools[i].oracleType);
+            if (oracleType < 2) {
+                distribution[oracleType]++;
+            }
+        }
+        
+        return distribution;
+    }
+
 }

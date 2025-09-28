@@ -21,6 +21,22 @@ export interface TitleOptions {
 
 class TitleTemplatesService {
   /**
+   * Enhance an existing title from contract with additional context
+   */
+  enhanceTitle(contractTitle: string, category: string, homeTeam?: string, awayTeam?: string): string {
+    // If we have team names, try to enhance the title
+    if (homeTeam && awayTeam && contractTitle) {
+      // If the title doesn't already contain team names, add them
+      if (!contractTitle.includes(homeTeam) && !contractTitle.includes(awayTeam)) {
+        return `${homeTeam} vs ${awayTeam}: ${contractTitle}`;
+      }
+    }
+    
+    // If no enhancement possible, return the original title
+    return contractTitle || `${category.charAt(0).toUpperCase() + category.slice(1)} Market`;
+  }
+
+  /**
    * Generate title for any market type
    */
   generateTitle(marketData: MarketData, options: TitleOptions = {}): string {

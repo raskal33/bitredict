@@ -1,20 +1,18 @@
-// PoolService - Real backend integration
-import { API_CONFIG } from '@/config/api';
-
-// Backend API Base URL
-const API_BASE_URL = `${API_CONFIG.baseURL}/api`;
+// PoolService - Direct contract integration ONLY
+import { processRawPoolData } from '@/utils/contractDataDecoder';
+import { PoolContractService } from './poolContractService';
 
 export interface Pool {
-  poolId: number; // Changed from 'id' to match backend
+  poolId: number;
   creator: string;
   odds: number;
   creatorStake: string;
   totalBettorStake: string;
   predictedOutcome: string;
   marketId: string;
-  eventStartTime: string; // Changed from number to string to match backend ISO format
-  eventEndTime: string; // Changed from number to string to match backend ISO format
-  bettingEndTime: string; // Changed from number to string to match backend ISO format
+  eventStartTime: string;
+  eventEndTime: string;
+  bettingEndTime: string;
   league: string;
   category: string;
   region: string;
@@ -25,9 +23,9 @@ export interface Pool {
   isPrivate: boolean;
   usesBitr: boolean;
   settled: boolean;
-  creatorSideWon: boolean | null; // Changed to match backend
-  boostTier?: "NONE" | "BRONZE" | "SILVER" | "GOLD"; // Made optional
-  boostExpiry?: number; // Made optional
+  creatorSideWon: boolean | null;
+  boostTier?: "NONE" | "BRONZE" | "SILVER" | "GOLD";
+  boostExpiry?: number;
   maxBetPerUser: string;
   // Additional fields from backend
   filledAbove60?: boolean;
@@ -57,25 +55,12 @@ export interface PoolStats {
 export class PoolService {
   static async getPools(limit: number = 50, offset: number = 0): Promise<Pool[]> {
     try {
-      console.log('🔗 Fetching pools from direct contract implementation:', `${API_BASE_URL}/guided-markets/pools?limit=${limit}&offset=${offset}`);
-      const response = await fetch(`${API_BASE_URL}/guided-markets/pools?limit=${limit}&offset=${offset}`);
+      console.log('🔗 Fetching pools DIRECTLY from contract (NO backend)');
       
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Failed to fetch pools from contract:', response.status, errorText);
-        return [];
-      }
+      // Fetch directly from contract ONLY
+      const pools = await PoolContractService.getPools(limit, offset);
       
-      const data = await response.json();
-      console.log('✅ Pools response from contract:', data);
-      
-      if (!data.success) {
-        console.error('❌ Failed to fetch pools from contract:', data.error);
-        return [];
-      }
-      
-      const pools = data.data?.pools || [];
-      console.log(`📊 Received ${pools.length} pools from direct contract calls`);
+      console.log('✅ Pools fetched directly from contract:', pools.length, 'pools');
       return pools;
     } catch (error) {
       console.error('❌ Error fetching pools from contract:', error);
@@ -85,15 +70,16 @@ export class PoolService {
 
   static async getPoolsByCategory(category: string, limit: number = 50, offset: number = 0): Promise<Pool[]> {
     try {
-      const response = await fetch(`${API_BASE_URL}/guided-markets/pools/category/${category}?limit=${limit}&offset=${offset}`);
-      const data = await response.json();
+      console.log('🔗 Fetching pools by category DIRECTLY from contract:', category);
       
-      if (!data.success) {
-        console.error('Failed to fetch pools by category:', data.error);
-        return [];
-      }
+      // Fetch all pools and filter by category
+      const allPools = await PoolContractService.getPools(limit * 2, offset);
+      const filteredPools = allPools.filter(pool => 
+        pool.category && pool.category.toLowerCase().includes(category.toLowerCase())
+      );
       
-      return data.data.pools || [];
+      console.log(`✅ Filtered ${filteredPools.length} pools for category: ${category}`);
+      return filteredPools.slice(0, limit);
     } catch (error) {
       console.error('Error fetching pools by category:', error);
       return [];
@@ -102,28 +88,22 @@ export class PoolService {
 
   static async getPoolById(poolId: number): Promise<Pool | null> {
     try {
-      console.log('🔍 Fetching pool by ID from contract:', poolId, 'from:', `${API_BASE_URL}/guided-markets/pools/${poolId}`);
-      const response = await fetch(`${API_BASE_URL}/guided-markets/pools/${poolId}`);
+      console.log('🔍 Fetching pool by ID DIRECTLY from contract:', poolId);
       
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Failed to fetch pool from contract:', response.status, errorText);
-        return null;
-      }
+      // Fetch directly from contract ONLY
+      const pool = await PoolContractService.getPool(poolId);
       
-      const data = await response.json();
-      console.log('✅ Pool by ID response from contract:', data);
-      
-      if (!data.success) {
-        console.error('❌ Failed to fetch pool from contract:', data.error);
-        return null;
-      }
-      
-      const pool = data.data?.pool || null;
       if (pool) {
-        console.log(`✅ Pool ${poolId} fetched from contract: ${pool.title || pool.predictedOutcome}`);
+        console.log(`✅ Pool ${poolId} fetched directly from contract:`, {
+          title: pool.title,
+          homeTeam: pool.homeTeam,
+          awayTeam: pool.awayTeam,
+          usesBitr: pool.usesBitr
+        });
+        return pool;
       }
-      return pool;
+      
+      return null;
     } catch (error) {
       console.error('❌ Error fetching pool from contract:', error);
       return null;
@@ -132,15 +112,16 @@ export class PoolService {
 
   static async getActivePoolsByCreator(creatorAddress: string, limit: number = 50, offset: number = 0): Promise<Pool[]> {
     try {
-      const response = await fetch(`${API_BASE_URL}/guided-markets/pools/creator/${creatorAddress}?limit=${limit}&offset=${offset}`);
-      const data = await response.json();
+      console.log('🔗 Fetching pools by creator DIRECTLY from contract:', creatorAddress);
       
-      if (!data.success) {
-        console.error('Failed to fetch creator pools:', data.error);
-        return [];
-      }
+      // Fetch all pools and filter by creator
+      const allPools = await PoolContractService.getPools(limit * 2, offset);
+      const filteredPools = allPools.filter(pool => 
+        pool.creator && pool.creator.toLowerCase() === creatorAddress.toLowerCase()
+      );
       
-      return data.data.pools || [];
+      console.log(`✅ Filtered ${filteredPools.length} pools for creator: ${creatorAddress}`);
+      return filteredPools.slice(0, limit);
     } catch (error) {
       console.error('Error fetching creator pools:', error);
       return [];
@@ -153,147 +134,41 @@ export class PoolService {
     creatorStake: string,
     eventStartTime: number,
     eventEndTime: number,
-    league: string,
-    category: string,
-    region: string,
+    bettingEndTime: number,
+    arbitrationDeadline: number,
+    maxBetPerUser: string,
     isPrivate: boolean,
-    maxBetPerUser: number,
     useBitr: boolean,
-    oracleType: number,
+    oracleType: string,
     marketId: string,
-    boostTier: "NONE" | "BRONZE" | "SILVER" | "GOLD" = "NONE"
+    boostTier: string
   ): Promise<{ success: boolean; poolId?: number; error?: string }> {
     try {
-      console.log('Creating pool with backend API:', {
-        predictedOutcome,
-        odds,
-        creatorStake,
-        eventStartTime,
-        eventEndTime,
-        league,
-        category,
-        region,
-        isPrivate,
-        maxBetPerUser,
-        useBitr,
-        oracleType,
-        marketId,
-        boostTier
-      });
-      
-      const response = await fetch(`${API_BASE_URL}/bitredict-pool/pools`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          predictedOutcome,
-          odds,
-          creatorStake,
-          eventStartTime,
-          eventEndTime,
-          league,
-          category,
-          region,
-          isPrivate,
-          maxBetPerUser,
-          useBitr,
-          oracleType,
-          marketId,
-          boostTier
-        }),
-      });
-
-      const result = await response.json();
-      
-      if (!result.success) {
-        return {
-          success: false,
-          error: result.error?.message || result.error || 'Failed to create pool'
-        };
-      }
-
-      return { 
-        success: true, 
-        poolId: result.data?.poolId || result.data?.id 
-      };
+      console.log('🚧 Pool creation requires wallet interaction - not implemented yet');
+      return { success: false, error: 'Pool creation requires wallet connection' };
     } catch (error) {
-      console.error('Error creating pool:', error);
+      console.error('❌ Error creating pool:', error);
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   }
 
   static async boostPool(poolId: number, tier: "BRONZE" | "SILVER" | "GOLD"): Promise<{ success: boolean; error?: string }> {
     try {
-      console.log('Boosting pool via web3 service:', poolId, 'with tier:', tier);
-      
-      // Since there's no direct backend endpoint for boosting, we'll use the web3 service
-      // This would typically be done through a wallet connection and contract interaction
-      const response = await fetch(`${API_BASE_URL}/guided-markets/pools/${poolId}/boost`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          tier,
-          poolId
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Failed to boost pool:', response.status, errorText);
-        return { 
-          success: false, 
-          error: `Failed to boost pool: ${response.status} - ${errorText}` 
-        };
-      }
-
-      const result = await response.json();
-      
-      if (!result.success) {
-        return {
-          success: false,
-          error: result.error || 'Failed to boost pool'
-        };
-      }
-
-      return { success: true };
+      console.log('🚧 Pool boosting requires wallet interaction - not implemented yet');
+      return { success: false, error: 'Pool boosting requires wallet connection' };
     } catch (error) {
-      console.error('Error boosting pool:', error);
+      console.error('❌ Error boosting pool:', error);
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   }
 
   static async placeBet(poolId: number, amount: string, useBitr: boolean = false): Promise<{ success: boolean; error?: string }> {
     try {
-      const response = await fetch(`${API_BASE_URL}/guided-markets/pools/${poolId}/bet`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          amount,
-          useBitr
-        }),
-      });
-
-      const result = await response.json();
-      
-      if (!result.success) {
-        return {
-          success: false,
-          error: result.error || 'Failed to place bet'
-        };
-      }
-
-      return { success: true };
+      console.log('🚧 Placing bet requires wallet interaction - not implemented yet');
+      return { success: false, error: 'Placing bet requires wallet connection' };
     } catch (error) {
-      console.error('Error placing bet:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Network error'
-      };
+      console.error('❌ Error placing bet:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   }
 
@@ -303,118 +178,84 @@ export class PoolService {
       totalPoolSize: string;
       currentBettorStake: string;
       maxBettorCapacity: string;
-      creatorSideStake: string;
       fillPercentage: number;
-      bettorCount: number;
-      lpCount: number;
-      creatorStake: string;
-      totalCreatorSideStake: string;
-      totalBettorStake: string;
-      maxBettorStake: string;
-      odds: number;
-      usesBitr: boolean;
-      poolData: {
-        id: number;
-        creator: string;
-        predictedOutcome: string;
-        league: string;
-        category: string;
-        region: string;
-        isPrivate: boolean;
-        status: string;
-        createdAt: string;
-      };
+      participantCount: number;
+      avgBetSize: string;
+      creatorReputation: string;
+      liquidityRatio: string;
+      timeToFill: string;
+      isHotPool: boolean;
+      lastActivityTime: string;
     };
     error?: string;
   }> {
     try {
-      const response = await fetch(`${API_BASE_URL}/guided-markets/pools/${poolId}/progress`);
-      const result = await response.json();
-      
-      if (!result.success) {
-        return {
-          success: false,
-          error: result.error || 'Failed to get pool progress'
-        };
+      // Use direct contract service for progress data
+      const analytics = await PoolContractService.getPoolAnalytics(poolId);
+      if (!analytics) {
+        return { success: false };
       }
-
+      
       return {
         success: true,
-        data: result.data
+        data: {
+          totalPoolSize: analytics.totalVolume,
+          currentBettorStake: analytics.totalVolume, // Simplified
+          maxBettorCapacity: analytics.totalVolume, // Simplified
+          fillPercentage: analytics.fillPercentage,
+          participantCount: analytics.participantCount,
+          avgBetSize: analytics.averageBetSize,
+          creatorReputation: analytics.creatorReputation,
+          liquidityRatio: analytics.liquidityRatio,
+          timeToFill: analytics.timeToFill,
+          isHotPool: analytics.isHotPool,
+          lastActivityTime: analytics.lastActivityTime
+        }
       };
     } catch (error) {
-      console.error('Error getting pool progress:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Network error'
-      };
+      console.error('❌ Error fetching pool progress:', error);
+      return { success: false };
     }
   }
 
   static async addLiquidity(poolId: number, amount: string): Promise<{ success: boolean; error?: string }> {
     try {
-      const response = await fetch(`${API_BASE_URL}/guided-markets/pools/${poolId}/liquidity`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ amount }),
-      });
-
-      const result = await response.json();
-      
-      if (!result.success) {
-        return {
-          success: false,
-          error: result.error || 'Failed to add liquidity'
-        };
-      }
-
-      return { success: true };
+      console.log('🚧 Adding liquidity requires wallet interaction - not implemented yet');
+      return { success: false, error: 'Adding liquidity requires wallet connection' };
     } catch (error) {
-      console.error('Error adding liquidity:', error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Network error'
-      };
+      console.error('❌ Error adding liquidity:', error);
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
     }
   }
 
   static async getPoolStats(): Promise<PoolStats> {
     try {
       console.log('📊 Fetching pool stats from direct contract implementation...');
-      const response = await fetch(`${API_BASE_URL}/guided-markets/stats`);
-      const data = await response.json();
+      // Use direct contract service for stats
+      const poolCount = await PoolContractService.getPoolCount();
+      const pools = await PoolContractService.getPools(100, 0); // Get recent pools for stats
       
-      if (!data.success) {
-        console.error('❌ Failed to fetch pool stats from contract:', data.error);
-        return {
-          totalVolume: "0",
-          bitrVolume: "0",
-          sttVolume: "0",
-          activeMarkets: 0,
-          participants: 0,
-          totalPools: 0,
-          boostedPools: 0,
-          comboPools: 0,
-          privatePools: 0
-        };
-      }
+      // Calculate stats from contract data
+      const totalVolume = pools.reduce((sum, pool) => {
+        const stake = parseFloat(pool.creatorStake) || 0;
+        return sum + stake;
+      }, 0);
       
-      const stats = data.data?.stats || {
-        totalVolume: "0",
-        bitrVolume: "0",
-        sttVolume: "0",
-        activeMarkets: 0,
-        participants: 0,
-        totalPools: 0,
-        boostedPools: 0,
-        comboPools: 0,
-        privatePools: 0
+      const activePools = pools.filter(pool => !pool.settled).length;
+      const privatePools = pools.filter(pool => pool.isPrivate).length;
+      const boostedPools = pools.filter(pool => pool.boostTier && pool.boostTier !== 'NONE').length;
+      
+      return {
+        totalVolume: totalVolume.toString(),
+        bitrVolume: pools.filter(p => p.usesBitr).reduce((sum, pool) => sum + (parseFloat(pool.creatorStake) || 0), 0).toString(),
+        sttVolume: pools.filter(p => !p.usesBitr).reduce((sum, pool) => sum + (parseFloat(pool.creatorStake) || 0), 0).toString(),
+        activeMarkets: activePools,
+        participants: pools.length, // Simplified
+        totalPools: poolCount,
+        boostedPools,
+        comboPools: 0, // Not implemented yet
+        privatePools
       };
-      
-      console.log('✅ Pool stats from contract:', stats);
-      return stats;
     } catch (error) {
       console.error('❌ Error fetching pool stats from contract:', error);
       return {
@@ -431,66 +272,16 @@ export class PoolService {
     }
   }
 
-  static formatStake(stake: string): string {
-    try {
-      const amount = parseFloat(stake) / 1e18;
-      if (amount >= 1000000) return `${(amount / 1000000).toFixed(1)}M`;
-      if (amount >= 1000) return `${(amount / 1000).toFixed(1)}K`;
-      return amount.toFixed(1);
-    } catch (error) {
-      return '0';
-    }
-  }
-
-  static formatOdds(odds: number): string {
-    try {
-      return (odds / 100).toFixed(2);
-    } catch (error) {
-      return '1.00';
-    }
-  }
-
-  static formatTimeLeft(endTime: number): string {
-    try {
-      const now = Math.floor(Date.now() / 1000);
-      const timeLeft = endTime - now;
-      
-      if (timeLeft <= 0) return "Ended";
-      if (isNaN(timeLeft) || !isFinite(timeLeft)) return "TBD";
-      
-      const days = Math.floor(timeLeft / 86400);
-      const hours = Math.floor((timeLeft % 86400) / 3600);
-      const minutes = Math.floor((timeLeft % 3600) / 60);
-      
-      if (days > 0) return `${days}d ${hours}h`;
-      if (hours > 0) return `${hours}h ${minutes}m`;
-      if (minutes > 0) return `${minutes}m`;
-      return `${Math.floor(timeLeft)}s`;
-    } catch (error) {
-      return "TBD";
-    }
-  }
-
-  static getBoostBadge(tier: string) {
-    switch (tier) {
-      case "BRONZE":
-        return { icon: "🥉", color: "text-orange-400", label: "Bronze" };
-      case "SILVER":
-        return { icon: "🥈", color: "text-gray-400", label: "Silver" };
-      case "GOLD":
-        return { icon: "🥇", color: "text-yellow-400", label: "Gold" };
-      default:
-        return null;
-    }
-  }
-
   static getCategoryIcon(category: string): string {
-    switch (category) {
+    switch (category.toLowerCase()) {
       case "football":
+      case "soccer":
         return "⚽";
       case "basketball":
         return "🏀";
-      case "cryptocurrency":
+      case "tennis":
+        return "🎾";
+      case "crypto":
         return "₿";
       case "combo":
         return "⭐";
@@ -498,4 +289,69 @@ export class PoolService {
         return "🎯";
     }
   }
-} 
+
+  static formatStake(stake: string): string {
+    try {
+      if (!stake || stake === '0' || stake === '0x0') {
+        return '0';
+      }
+
+      if (stake.includes('.')) {
+        const amount = parseFloat(stake);
+        if (isNaN(amount)) return '0';
+        if (amount >= 1000000) return `${(amount / 1000000).toFixed(1)}M`;
+        if (amount >= 1000) return `${(amount / 1000).toFixed(1)}K`;
+        return amount.toFixed(1);
+      }
+
+      let amount: number;
+      try {
+        if (stake.startsWith('0x')) {
+          const bigIntValue = BigInt(stake);
+          amount = parseFloat((bigIntValue / BigInt(1e18)).toString());
+        } else {
+          const bigIntValue = BigInt(stake);
+          amount = parseFloat((bigIntValue / BigInt(1e18)).toString());
+        }
+      } catch (error) {
+        amount = parseFloat(stake) / 1e18;
+      }
+
+      if (isNaN(amount)) return '0';
+      if (amount >= 1000000) return `${(amount / 1000000).toFixed(1)}M`;
+      if (amount >= 1000) return `${(amount / 1000).toFixed(1)}K`;
+      return amount.toFixed(1);
+    } catch (error) {
+      console.error('Error formatting stake:', error);
+      return '0';
+    }
+  }
+
+  static formatOdds(odds: number): string {
+    return `${(odds / 100).toFixed(2)}x`;
+  }
+
+  static formatTimeLeft(timestamp: number): string {
+    const now = Math.floor(Date.now() / 1000);
+    const diff = timestamp - now;
+    
+    if (diff <= 0) return 'Ended';
+    
+    const days = Math.floor(diff / 86400);
+    const hours = Math.floor((diff % 86400) / 3600);
+    const minutes = Math.floor((diff % 3600) / 60);
+    
+    if (days > 0) return `${days}d ${hours}h`;
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes}m`;
+  }
+
+  static getBoostBadge(tier: string): string {
+    switch (tier) {
+      case 'GOLD': return '🥇';
+      case 'SILVER': return '🥈';
+      case 'BRONZE': return '🥉';
+      default: return '';
+    }
+  }
+}

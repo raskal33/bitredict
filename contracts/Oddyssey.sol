@@ -102,6 +102,18 @@ contract Oddyssey is Ownable, ReentrancyGuard {
         uint256 highestOdd;
     }
 
+    struct DailyStats {
+        uint256 slipCount;
+        uint256 userCount;
+        uint256 volume;
+        uint256 correctPredictions;
+        uint256 evaluatedSlips;
+        uint256 averageScore;
+        uint256 maxScore;
+        uint256 minScore;
+        uint256 winnersCount;
+    }
+
     struct CycleStats {
         uint256 volume;
         uint32 slips;
@@ -157,6 +169,17 @@ contract Oddyssey is Ownable, ReentrancyGuard {
     mapping(uint256 => LeaderboardEntry[DAILY_LEADERBOARD_SIZE]) public dailyLeaderboards;
     mapping(uint256 => bool) public isCycleResolved;
     mapping(uint256 => mapping(uint8 => bool)) public prizeClaimed;
+
+    // Daily Statistics
+    mapping(uint256 => uint256) public dailySlipCount;
+    mapping(uint256 => uint256) public dailyUserCount;
+    mapping(uint256 => uint256) public dailyVolume;
+    mapping(uint256 => uint256) public dailyCorrectPredictions;
+    mapping(uint256 => uint256) public dailyEvaluatedSlips;
+    mapping(uint256 => uint256) public dailyAverageScore;
+    mapping(uint256 => uint256) public dailyMaxScore;
+    mapping(uint256 => uint256) public dailyMinScore;
+    mapping(uint256 => uint256) public dailyWinnersCount;
 
     GlobalStats public stats;
 
@@ -435,6 +458,15 @@ contract Oddyssey is Ownable, ReentrancyGuard {
         currentCycleInfo.prizePool += msg.value;
         currentCycleInfo.slipCount++;
         
+        // Update daily stats
+        dailySlipCount[cycle]++;
+        dailyVolume[cycle] += msg.value;
+        
+        // Track unique users for this cycle
+        if (s_userSlipsPerCycle[cycle][msg.sender].length == 1) {
+            dailyUserCount[cycle]++;
+        }
+        
         // Update user stats
         _updateUserStats(msg.sender, cycle, true);
         
@@ -497,6 +529,25 @@ contract Oddyssey is Ownable, ReentrancyGuard {
         
         statsForCycle.evaluatedSlips++;
         cycle.evaluatedSlips++;
+        
+        // Update daily evaluation stats
+        dailyEvaluatedSlips[cycleIdOfSlip]++;
+        dailyCorrectPredictions[cycleIdOfSlip] += correctCount;
+        
+        // Update score statistics
+        if (slip.finalScore > 0) {
+            if (dailyMaxScore[cycleIdOfSlip] == 0 || slip.finalScore > dailyMaxScore[cycleIdOfSlip]) {
+                dailyMaxScore[cycleIdOfSlip] = slip.finalScore;
+            }
+            if (dailyMinScore[cycleIdOfSlip] == 0 || slip.finalScore < dailyMinScore[cycleIdOfSlip]) {
+                dailyMinScore[cycleIdOfSlip] = slip.finalScore;
+            }
+        }
+        
+        // Count winners (correctCount >= MIN_CORRECT_PREDICTIONS)
+        if (correctCount >= MIN_CORRECT_PREDICTIONS) {
+            dailyWinnersCount[cycleIdOfSlip]++;
+        }
         
         if (statsForCycle.evaluatedSlips == statsForCycle.slips) {
             claimableStartTimes[cycleIdOfSlip] = block.timestamp;
@@ -856,6 +907,153 @@ contract Oddyssey is Ownable, ReentrancyGuard {
      */
     function setEnhancedReputationSystem(address _enhancedReputationSystem) external onlyOwner {
         enhancedReputationSystem = IEnhancedReputationSystem(_enhancedReputationSystem);
+    }
+
+    // ===== DAILY STATISTICS FUNCTIONS =====
+    
+    /**
+     * @dev Get comprehensive daily statistics for a cycle
+     */
+    function getDailyStats(uint256 _cycleId) external view returns (DailyStats memory) {
+        return DailyStats({
+            slipCount: dailySlipCount[_cycleId],
+            userCount: dailyUserCount[_cycleId],
+            volume: dailyVolume[_cycleId],
+            correctPredictions: dailyCorrectPredictions[_cycleId],
+            evaluatedSlips: dailyEvaluatedSlips[_cycleId],
+            averageScore: dailyEvaluatedSlips[_cycleId] > 0 ? 
+                (dailyCorrectPredictions[_cycleId] * ODDS_SCALING_FACTOR) / dailyEvaluatedSlips[_cycleId] : 0,
+            maxScore: dailyMaxScore[_cycleId],
+            minScore: dailyMinScore[_cycleId],
+            winnersCount: dailyWinnersCount[_cycleId]
+        });
+    }
+    
+    /**
+     * @dev Get daily slip count for a cycle
+     */
+    function getDailySlipCount(uint256 _cycleId) external view returns (uint256) {
+        return dailySlipCount[_cycleId];
+    }
+    
+    /**
+     * @dev Get daily user count for a cycle
+     */
+    function getDailyUserCount(uint256 _cycleId) external view returns (uint256) {
+        return dailyUserCount[_cycleId];
+    }
+    
+    /**
+     * @dev Get daily volume for a cycle
+     */
+    function getDailyVolume(uint256 _cycleId) external view returns (uint256) {
+        return dailyVolume[_cycleId];
+    }
+    
+    /**
+     * @dev Get daily correct predictions for a cycle
+     */
+    function getDailyCorrectPredictions(uint256 _cycleId) external view returns (uint256) {
+        return dailyCorrectPredictions[_cycleId];
+    }
+    
+    /**
+     * @dev Get daily evaluated slips for a cycle
+     */
+    function getDailyEvaluatedSlips(uint256 _cycleId) external view returns (uint256) {
+        return dailyEvaluatedSlips[_cycleId];
+    }
+    
+    /**
+     * @dev Get daily average score for a cycle
+     */
+    function getDailyAverageScore(uint256 _cycleId) external view returns (uint256) {
+        if (dailyEvaluatedSlips[_cycleId] == 0) return 0;
+        return (dailyCorrectPredictions[_cycleId] * ODDS_SCALING_FACTOR) / dailyEvaluatedSlips[_cycleId];
+    }
+    
+    /**
+     * @dev Get daily max score for a cycle
+     */
+    function getDailyMaxScore(uint256 _cycleId) external view returns (uint256) {
+        return dailyMaxScore[_cycleId];
+    }
+    
+    /**
+     * @dev Get daily min score for a cycle
+     */
+    function getDailyMinScore(uint256 _cycleId) external view returns (uint256) {
+        return dailyMinScore[_cycleId];
+    }
+    
+    /**
+     * @dev Get daily winners count for a cycle
+     */
+    function getDailyWinnersCount(uint256 _cycleId) external view returns (uint256) {
+        return dailyWinnersCount[_cycleId];
+    }
+    
+    /**
+     * @dev Get daily statistics for multiple cycles
+     */
+    function getDailyStatsBatch(uint256[] calldata _cycleIds) external view returns (DailyStats[] memory) {
+        DailyStats[] memory results = new DailyStats[](_cycleIds.length);
+        
+        for (uint256 i = 0; i < _cycleIds.length; i++) {
+            uint256 cycleId = _cycleIds[i];
+            results[i] = DailyStats({
+                slipCount: dailySlipCount[cycleId],
+                userCount: dailyUserCount[cycleId],
+                volume: dailyVolume[cycleId],
+                correctPredictions: dailyCorrectPredictions[cycleId],
+                evaluatedSlips: dailyEvaluatedSlips[cycleId],
+                averageScore: dailyEvaluatedSlips[cycleId] > 0 ? 
+                    (dailyCorrectPredictions[cycleId] * ODDS_SCALING_FACTOR) / dailyEvaluatedSlips[cycleId] : 0,
+                maxScore: dailyMaxScore[cycleId],
+                minScore: dailyMinScore[cycleId],
+                winnersCount: dailyWinnersCount[cycleId]
+            });
+        }
+        
+        return results;
+    }
+    
+    /**
+     * @dev Get platform-wide daily statistics summary
+     */
+    function getPlatformDailyStats() external view returns (
+        uint256 totalCycles,
+        uint256 totalSlips,
+        uint256 totalUsers,
+        uint256 totalVolume,
+        uint256 totalCorrectPredictions,
+        uint256 totalEvaluatedSlips,
+        uint256 totalWinners,
+        uint256 averageScore,
+        uint256 maxScore,
+        uint256 minScore
+    ) {
+        totalCycles = dailyCycleId;
+        totalSlips = stats.totalSlips;
+        totalUsers = stats.totalSlips; // Approximate - could be improved with user tracking
+        totalVolume = stats.totalVolume;
+        
+        // Calculate totals across all cycles
+        for (uint256 i = 1; i <= dailyCycleId; i++) {
+            totalCorrectPredictions += dailyCorrectPredictions[i];
+            totalEvaluatedSlips += dailyEvaluatedSlips[i];
+            totalWinners += dailyWinnersCount[i];
+            
+            if (dailyMaxScore[i] > maxScore) {
+                maxScore = dailyMaxScore[i];
+            }
+            if (dailyMinScore[i] > 0 && (minScore == 0 || dailyMinScore[i] < minScore)) {
+                minScore = dailyMinScore[i];
+            }
+        }
+        
+        averageScore = totalEvaluatedSlips > 0 ? 
+            (totalCorrectPredictions * ODDS_SCALING_FACTOR) / totalEvaluatedSlips : 0;
     }
     
 } 

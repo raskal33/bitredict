@@ -13,6 +13,7 @@ import { useTransactionFeedback, TransactionFeedback } from "@/components/Transa
 import { safeStartTimeToISOString, safeStartTimeToDate } from "@/utils/time-helpers";
 import OddysseyMatchResults from "@/components/OddysseyMatchResults";
 import OddysseyLeaderboard from "@/components/OddysseyLeaderboard";
+import EnhancedSlipDisplay from "@/components/EnhancedSlipDisplay";
 import { 
   FireIcon, 
   TrophyIcon, 
@@ -28,9 +29,7 @@ import {
   ArrowPathIcon,
   DocumentTextIcon,
   GiftIcon,
-  CalendarDaysIcon,
-  CheckCircleIcon,
-  XCircleIcon
+  CalendarDaysIcon
 } from "@heroicons/react/24/outline";
 import { FaSpinner } from "react-icons/fa";
 
@@ -63,6 +62,26 @@ interface Pick {
     result?: string;
     status?: string;
   };
+}
+
+interface EnhancedSlip {
+  id: number;
+  cycleId: number;
+  placedAt: number;
+  predictions: {
+    matchId: number;
+    betType: number;
+    selection: string;
+    selectedOdd: number;
+    homeTeam: string;
+    awayTeam: string;
+    leagueName: string;
+    isCorrect?: boolean;
+  }[];
+  finalScore: number;
+  correctCount: number;
+  isEvaluated: boolean;
+  status: 'pending' | 'evaluated' | 'won' | 'lost';
 }
 
 interface Match {
@@ -393,6 +412,7 @@ export default function OddysseyPage() {
 
   const [picks, setPicks] = useState<Pick[]>([]);
   const [slips, setSlips] = useState<Pick[][]>([]);
+  const [allSlips, setAllSlips] = useState<EnhancedSlip[]>([]); // Enhanced slips with evaluation data
   const [activeTab, setActiveTab] = useState<"today" | "slips" | "stats" | "results" | "leaderboard">("today");
   const [matches, setMatches] = useState<Match[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -753,6 +773,40 @@ export default function OddysseyPage() {
         // Keep slips as separate arrays, filter out empty slips
         const validSlips = convertedSlips.filter(slip => slip.length > 0) as Pick[][];
         setSlips(validSlips);
+
+        // Also fetch all user slips with evaluation data
+        try {
+          console.log('🎯 Fetching all user slips with evaluation data...');
+          const allSlipsData = await oddysseyService.getUserSlipsWithDataFromContract(address, cycleId);
+          console.log('🔍 All slips data:', allSlipsData);
+          
+          // Convert to enhanced slip format
+          const enhancedSlips = allSlipsData.slipsData.map((slip, index) => ({
+            id: Number(allSlipsData.slipIds[index]),
+            cycleId: slip.cycleId,
+            placedAt: slip.placedAt,
+            predictions: slip.predictions.map(pred => ({
+              matchId: Number(pred.matchId),
+              betType: pred.betType,
+              selection: pred.selection,
+              selectedOdd: pred.selectedOdd,
+              homeTeam: pred.homeTeam,
+              awayTeam: pred.awayTeam,
+              leagueName: pred.leagueName,
+              isCorrect: slip.isEvaluated ? pred.isCorrect : undefined // Will be determined by evaluation
+            })),
+            finalScore: slip.finalScore,
+            correctCount: slip.correctCount,
+            isEvaluated: slip.isEvaluated,
+            status: slip.isEvaluated ? (slip.correctCount >= 8 ? 'won' : 'lost') : 'pending' as 'pending' | 'evaluated' | 'won' | 'lost'
+          }));
+          
+          setAllSlips(enhancedSlips);
+          console.log('✅ Enhanced slips set:', enhancedSlips);
+        } catch (error) {
+          console.error('❌ Error fetching enhanced slips:', error);
+          setAllSlips([]);
+        }
       } else {
         console.warn('⚠️ No user slips received');
         setSlips([]);
@@ -1979,9 +2033,9 @@ export default function OddysseyPage() {
                           {picks.length}/10
                         </span>
                       </div>
-                      <div className="w-full bg-bg-card/30 rounded-full h-2">
+                      <div className="w-full bg-bg-card/30 rounded-full h-0.5">
                         <div 
-                          className={`h-2 rounded-full transition-all duration-300 ${
+                          className={`h-0.5 rounded-full transition-all duration-300 ${
                             picks.length === 10 ? 'bg-green-400' : 'bg-primary'
                           }`}
                           style={{ width: `${(picks.length / 10) * 100}%` }}
@@ -2203,170 +2257,9 @@ export default function OddysseyPage() {
                     <span className="sm:hidden">My Slips</span>
                   </h2>
                   
-                  <AnimatePresence mode="wait">
-                    {slips.length > 0 ? (
-                      <motion.div
-                        key="with-slips"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="space-y-6"
-                      >
-                        {slips.map((slip, slipIndex) => {
-                          // Get metadata from first prediction (all predictions have the same slip metadata)
-                          const firstPick = slip[0];
-                          const slipId = firstPick?.slipId || `Slip ${slipIndex + 1}`;
-                          const slipCycleId = firstPick?.cycleId || 'Unknown';
-                          const finalScore = firstPick?.finalScore || 0;
-                          const correctCount = firstPick?.correctCount || 0;
-                          const isEvaluated = firstPick?.isEvaluated || false;
-                          const placedAt = firstPick?.placedAt ? new Date(firstPick.placedAt).toLocaleString() : 'Unknown';
-                          const totalOdds = firstPick?.totalOdds || slip.reduce((acc, pick) => acc * (pick.odd || 1), 1);
-                          
-                          return (
-                            <motion.div
-                              key={slipIndex}
-                              initial={{ opacity: 0, y: 20 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ delay: slipIndex * 0.1 }}
-                              className="glass-card p-4 sm:p-6 border border-cyan-500/30 hover:border-cyan-400/50 transition-all duration-300 bg-gradient-to-br from-cyan-500/5 to-blue-500/5 hover:from-cyan-500/10 hover:to-blue-500/10"
-                            >
-                              {/* Enhanced Slip Header */}
-                              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 gap-3 sm:gap-4">
-                                <div className="flex items-center gap-4">
-                                  <div className="flex items-center gap-2">
-                                    <CheckCircleIcon className="h-6 w-6 text-cyan-400" />
-                                    <h3 className="text-xl font-bold text-cyan-300">
-                                      {typeof slipId === 'number' ? `Slip #${slipId}` : slipId}
-                                    </h3>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="px-3 py-1 bg-cyan-500/20 text-cyan-300 text-sm font-medium rounded-full border border-cyan-500/30">
-                                      Cycle {slipCycleId}
-                                    </span>
-                                    <span className={`px-3 py-1 text-sm font-medium rounded-full flex items-center gap-1 ${
-                                      isEvaluated ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20'
-                                    }`}>
-                                      <ClockIcon className="h-4 w-4" />
-                                      {isEvaluated ? 'Evaluated' : 'Pending'}
-                                    </span>
-                                  </div>
-                                </div>
-                                
-                                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-text-muted">Total Odds:</span>
-                                    <span className="text-cyan-300 font-bold">
-                                      {totalOdds > 1e6 ? 'N/A' : totalOdds.toFixed(2)}x
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-text-muted">Entry Fee:</span>
-                                    <span className="text-white font-bold">{entryFee} STT</span>
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-text-muted">Submitted:</span>
-                                    <span className="text-white">{placedAt}</span>
-                                  </div>
-                                </div>
-                              </div>
-                              
-                              {/* Enhanced Predictions Grid with Mobile Support */}
-                              <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4 mb-6">
-                                {slip.map((pick, i) => (
-                                  <div key={i} className="bg-slate-900/80 p-2 sm:p-3 md:p-4 rounded-button border border-slate-700/50 hover:border-primary/30 transition-all duration-200 backdrop-blur-sm relative">
-                                    {/* Evaluation Result Indicator */}
-                                    {isEvaluated && pick.isCorrect !== null && (
-                                      <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">
-                                        {pick.isCorrect ? (
-                                          <CheckCircleIcon className="w-5 h-5 text-green-400 bg-green-500/20 rounded-full p-0.5" />
-                                        ) : (
-                                          <XCircleIcon className="w-5 h-5 text-red-400 bg-red-500/20 rounded-full p-0.5" />
-                                        )}
-                                      </div>
-                                    )}
-                                    
-                                    <div className="flex items-center justify-between mb-2">
-                                      <div className="text-xs text-text-muted font-mono">
-                                        {pick.time || '00:00'}
-                                      </div>
-                                      <span className={`px-1.5 sm:px-2 py-1 rounded text-xs font-bold ${
-                                        pick.pick === "home" ? "bg-primary/20 text-primary" :
-                                        pick.pick === "draw" ? "bg-secondary/20 text-secondary" :
-                                        pick.pick === "away" ? "bg-accent/20 text-accent" :
-                                        pick.pick === "over" ? "bg-blue-500/20 text-blue-300" :
-                                        "bg-purple-500/20 text-purple-300"
-                                      }`}>
-                                        {pick.pick === "home" ? "1" :
-                                         pick.pick === "draw" ? "X" :
-                                         pick.pick === "away" ? "2" :
-                                         pick.pick === "over" ? "O2.5" : "U2.5"}
-                                      </span>
-                                    </div>
-                                    
-                                    <div className="text-xs sm:text-sm text-white font-medium mb-2 sm:mb-3 leading-tight break-words">
-                                      {pick.team1 && pick.team2 ? `${pick.team1} vs ${pick.team2}` : `Match ${pick.id}`}
-                                    </div>
-                                    
-                                    <div className="flex items-center justify-between">
-                                      <span className="text-xs text-text-muted">
-                                        {pick.team1 && pick.team2 ? 'Teams' : 'Match ID'}
-                                      </span>
-                                      <span className="text-white font-bold text-xs sm:text-sm">
-                                        {typeof pick.odd === 'number' ? pick.odd.toFixed(2) : '0.00'}
-                                      </span>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                              
-                              {/* Enhanced Slip Footer */}
-                              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 pt-4 border-t border-border-card/30">
-                                <div className="flex items-center gap-6">
-                                  {isEvaluated && (
-                                    <>
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-text-muted text-sm">Final Score:</span>
-                                        <span className="text-white font-bold">{finalScore}</span>
-                                      </div>
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-text-muted text-sm">Correct:</span>
-                                        <span className="text-green-400 font-bold">{correctCount}/10</span>
-                                      </div>
-                                    </>
-                                  )}
-                                </div>
-                                
-                                <div className="flex items-center gap-2 text-sm text-text-muted">
-                                  <ClockIcon className="h-4 w-4" />
-                                  <span>Submitted: {placedAt}</span>
-                                </div>
-                              </div>
-                            </motion.div>
-                          );
-                        })}
-                      </motion.div>
-                    ) : (
-                      <motion.div
-                        key="no-slips"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="text-center py-12"
-                      >
-                        <div className="text-6xl mb-4 opacity-50">🎟️</div>
-                        <h4 className="font-semibold text-text-primary mb-2">No Slips Yet</h4>
-                        <p className="text-text-muted text-sm mb-6">
-                          Start building your first slip to compete for prizes
-                        </p>
-                        <Button
-                          variant="primary"
-                          onClick={() => setActiveTab("today")}
-                          leftIcon={<BoltIcon className="h-5 w-5" />}
-                        >
-                          Start Building Slip
-                        </Button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                  <EnhancedSlipDisplay 
+                    slips={allSlips} 
+                  />
                 </div>
               </motion.div>
             ) : activeTab === "results" ? (
