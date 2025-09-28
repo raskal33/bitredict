@@ -78,6 +78,10 @@ export default function MarketsPage() {
       league: pool.league,
       category: pool.category,
       region: pool.region,
+      // NEW FIELDS FROM CONTRACT
+      title: pool.title || '', // Professional title
+      homeTeam: pool.homeTeam || '', // Home team name
+      awayTeam: pool.awayTeam || '', // Away team name
       maxBetPerUser: pool.maxBetPerUser,
       
       boostTier: pool.boostTier || 'NONE', // Use from backend or default

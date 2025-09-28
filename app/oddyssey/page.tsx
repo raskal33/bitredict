@@ -92,6 +92,8 @@ interface Stats {
   avgPrizePool: number;
   winRate: number;
   avgCorrect: number;
+  totalVolume: number; // Total volume in STT
+  highestOdd: number; // Highest odd achieved
 }
 
 interface CurrentPrizePool {
@@ -590,7 +592,9 @@ export default function OddysseyPage() {
           activeCycles: globalStatsResult.data.activeCycles || 0,
           avgPrizePool: globalStatsResult.data.avgPrizePool || 0,
           winRate: globalStatsResult.data.winRate || 0,
-          avgCorrect: globalStatsResult.data.avgCorrect || 0
+          avgCorrect: globalStatsResult.data.avgCorrect || 0,
+          totalVolume: globalStatsResult.data.totalVolume || 0,
+          highestOdd: globalStatsResult.data.highestOdd || 0
         });
       } else {
         console.warn('⚠️ No global stats received, using defaults');
@@ -603,7 +607,9 @@ export default function OddysseyPage() {
           activeCycles: 0,
           avgPrizePool: 0,
           winRate: 0,
-          avgCorrect: 0
+          avgCorrect: 0,
+          totalVolume: 0,
+          highestOdd: 0
         });
       }
 
@@ -626,7 +632,9 @@ export default function OddysseyPage() {
         activeCycles: 0,
         avgPrizePool: 0,
         winRate: 0,
-        avgCorrect: 0
+        avgCorrect: 0,
+        totalVolume: 0,
+        highestOdd: 0
       });
       // User stats no longer stored separately - integrated into main stats
     } finally {
@@ -2394,7 +2402,7 @@ export default function OddysseyPage() {
                         Global Statistics
                       </h2>
                       
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         <div className="text-center">
                           <div className="text-3xl font-bold text-primary mb-2">{(stats.totalPlayers || 0).toLocaleString()}</div>
                           <div className="text-lg text-text-secondary">Total Players</div>
@@ -2429,6 +2437,18 @@ export default function OddysseyPage() {
                           <div className="text-3xl font-bold text-blue-400 mb-2">{stats.avgCorrect || 0}x</div>
                           <div className="text-lg text-text-secondary">Avg Odds</div>
                           <div className="text-sm text-text-muted">Winning slips</div>
+                        </div>
+                        
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-purple-400 mb-2">{(stats.totalVolume || 0).toFixed(2)} STT</div>
+                          <div className="text-lg text-text-secondary">Total Volume</div>
+                          <div className="text-sm text-text-muted">All-time traded</div>
+                        </div>
+                        
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-orange-400 mb-2">{(stats.highestOdd || 0).toFixed(2)}x</div>
+                          <div className="text-lg text-text-secondary">Highest Odd</div>
+                          <div className="text-sm text-text-muted">Record achieved</div>
                         </div>
                       </div>
                     </div>

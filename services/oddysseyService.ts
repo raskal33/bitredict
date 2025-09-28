@@ -578,13 +578,15 @@ class OddysseyService {
         return {
           success: true,
           data: {
-            totalPlayers: 0, // Not available in current contract - would need separate tracking
+            totalPlayers: Number(globalStats.totalSlips) || 0, // Use total slips as proxy for players (each slip = 1 player)
             totalSlips: Number(globalStats.totalSlips) || 0,
             avgPrizePool: Number(globalStats.totalVolume) / 1e18 / Math.max(currentCycleId, 1) || 0, // Estimate from total volume
             totalCycles: currentCycleId || 0, // Use current cycle ID as total cycles
             activeCycles: cycleInfo.state === 1 ? 1 : 0, // Active if state is 1 (Active)
             avgCorrect: 0, // Not available in current contract
-            winRate: 0 // Not available in current contract
+            winRate: 0, // Not available in current contract
+            totalVolume: Number(globalStats.totalVolume) / 1e18 || 0, // Add total volume in STT
+            highestOdd: Number(globalStats.highestOdd) / 1000 || 0 // Add highest odd achieved
           }
         };
       } else if (type === 'user' && userAddress) {

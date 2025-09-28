@@ -18,6 +18,10 @@ export interface Pool {
   league: string;
   category: string;
   region: string;
+  // NEW FIELDS FROM CONTRACT
+  title: string; // Professional title
+  homeTeam: string; // Home team name
+  awayTeam: string; // Away team name
   isPrivate: boolean;
   usesBitr: boolean;
   settled: boolean;

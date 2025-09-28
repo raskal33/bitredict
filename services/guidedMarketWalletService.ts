@@ -289,7 +289,7 @@ export class GuidedMarketWalletService {
       console.log('🔤 Hashed parameters:', hashedParameters);
       
       // Execute the transaction with our gas limit override
-      const gasLimit = BigInt(14000000); // Override backend gas estimate with our limit
+      const gasLimit = BigInt(10000000); // Reduced gas limit for lightweight functions
       console.log('🔧 Overriding gas limit:', gasLimit.toString());
       
       const hash = await walletClient.writeContract({

@@ -46,9 +46,9 @@ export interface EnhancedPool {
   league: string;
   category: string;
   region: string;
+  title?: string; // Professional title
   homeTeam?: string;
   awayTeam?: string;
-  title?: string;
   maxBetPerUser: string;
   
   // Optional fields for enhanced display
@@ -242,9 +242,11 @@ export default function EnhancedPoolCard({
                         pool.odds >= 200 ? 'ADVANCED' : 
                         pool.odds >= 150 ? 'INTERMEDIATE' : 'BEGINNER';
   
-  // Generate a proper title from the pool data using the service
+  // Use the professional title from contract if available, otherwise generate one
   const displayTitle = pool.isComboPool 
     ? `Combo Pool #${pool.id} (${pool.comboConditions?.length || 0} conditions)`
+    : pool.title && pool.title.trim() !== '' 
+    ? pool.title // Use the professional title from contract
     : pool.predictedOutcome && pool.predictedOutcome !== '0x' && pool.predictedOutcome.length > 10 
     ? titleTemplatesService.generateProfessionalTitle(
         pool.predictedOutcome,
@@ -498,6 +500,17 @@ export default function EnhancedPoolCard({
         {displayTitle}
       </h3>
 
+      {/* Team Names Display */}
+      {pool.homeTeam && pool.awayTeam && (
+        <div className="mb-3 flex-shrink-0">
+          <div className="flex items-center justify-center gap-2 text-sm text-gray-300">
+            <span className="font-semibold text-white">{pool.homeTeam}</span>
+            <span className="text-gray-400">vs</span>
+            <span className="font-semibold text-white">{pool.awayTeam}</span>
+          </div>
+        </div>
+      )}
+
       {/* Progress Bar - Indexed Data */}
       {indexedData && (
         <div className="mb-3 flex-shrink-0">
@@ -505,9 +518,9 @@ export default function EnhancedPoolCard({
             <span className="text-xs text-gray-400">Pool Progress</span>
             <span className="text-xs text-white font-medium">{indexedData.fillPercentage}%</span>
           </div>
-          <div className="w-full glass-card rounded-full h-0.5 bg-gray-800/30 border border-gray-600/20 shadow-inner">
+          <div className="w-full glass-card rounded-full h-1 bg-gray-800/30 border border-gray-600/20 shadow-inner">
             <div
-              className={`h-0.5 rounded-full transition-all duration-500 shadow-sm ${getProgressColor(indexedData.fillPercentage)}`}
+              className={`h-1 rounded-full transition-all duration-500 shadow-sm ${getProgressColor(indexedData.fillPercentage)}`}
               style={{ width: `${Math.min(indexedData.fillPercentage, 100)}%` }}
             />
           </div>

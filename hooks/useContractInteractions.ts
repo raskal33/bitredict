@@ -150,9 +150,6 @@ export function usePoolCore() {
         value: poolData.useBitr ? 0n : totalRequired
       });
 
-      // Let ethers handle gas estimation automatically
-      console.log(`⛽ Using automatic gas estimation for pool creation`);
-
       // Hash strings before calling the optimized contract
       const leagueHash = ethers.keccak256(ethers.toUtf8Bytes(poolData.league));
       const categoryHash = ethers.keccak256(ethers.toUtf8Bytes(poolData.category));
@@ -161,10 +158,13 @@ export function usePoolCore() {
       const awayTeamHash = ethers.keccak256(ethers.toUtf8Bytes(poolData.awayTeam || ''));
       const titleHash = ethers.keccak256(ethers.toUtf8Bytes(poolData.title || ''));
 
+      // 🚀 GAS OPTIMIZATION: Use createPoolLightweight for better gas efficiency
+      console.log(`⛽ Using createPoolLightweight for optimized gas usage`);
+
       const txHash = await writeContractAsync({
         address: CONTRACT_ADDRESSES.POOL_CORE,
         abi: CONTRACTS.POOL_CORE.abi,
-        functionName: 'createPool',
+        functionName: 'createPoolLightweight', // ✅ Use optimized function
         args: [
           predictedOutcomeHash,
           poolData.odds,
@@ -185,7 +185,7 @@ export function usePoolCore() {
           poolData.marketType,
         ],
         value: poolData.useBitr ? 0n : totalRequired, // For BITR pools, value is 0 (token transfer handles it)
-        gas: BigInt(14000000), // Set gas limit within Somnia testnet block limit (14,426,929)
+        gas: BigInt(10000000), // ✅ Reduced gas limit for lightweight function (10M instead of 14M)
       });
       
       console.log('Pool creation transaction submitted:', txHash);
