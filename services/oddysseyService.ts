@@ -390,28 +390,36 @@ class OddysseyService {
     try {
       console.log('🔍 Getting ALL user slips with data across all cycles for:', userAddress);
       
-      // Get all user slips across all cycles
-      const allUserSlips = await this.getUserSlips(userAddress);
+      // Get current cycle to know how many cycles to check
+      const currentCycle = await this.getCurrentCycle();
+      console.log('🔍 Current cycle:', currentCycle.toString());
       
-      if (!allUserSlips.success || allUserSlips.data.length === 0) {
-        console.log('⚠️ No slips found for user across all cycles');
-        return { slipIds: [], slipsData: [] };
+      const allSlipIds: bigint[] = [];
+      const allSlipsData: OddysseySlip[] = [];
+      
+      // Check cycles from 0 to current cycle (inclusive)
+      for (let cycleId = 0; cycleId <= Number(currentCycle); cycleId++) {
+        try {
+          console.log(`🔍 Checking cycle ${cycleId} for user slips...`);
+          const cycleSlipsData = await this.getUserSlipsWithDataFromContract(userAddress, BigInt(cycleId));
+          
+          if (cycleSlipsData.slipIds.length > 0) {
+            console.log(`✅ Found ${cycleSlipsData.slipIds.length} slips in cycle ${cycleId}`);
+            allSlipIds.push(...cycleSlipsData.slipIds);
+            allSlipsData.push(...cycleSlipsData.slipsData);
+          }
+        } catch (error) {
+          console.log(`⚠️ No slips found in cycle ${cycleId} or error:`, error);
+          // Continue to next cycle
+          continue;
+        }
       }
-
-      console.log('🔍 Found slips across all cycles:', allUserSlips.data.length);
       
-      // Convert to the expected format
-      const slipIds: bigint[] = [];
-      const slipsData: OddysseySlip[] = [];
-      
-      allUserSlips.data.forEach((slip, index) => {
-        slipIds.push(BigInt(index));
-        slipsData.push(slip);
-      });
+      console.log(`🔍 Total slips found across all cycles: ${allSlipIds.length}`);
       
       return {
-        slipIds,
-        slipsData
+        slipIds: allSlipIds,
+        slipsData: allSlipsData
       };
     } catch (error) {
       console.error('Error getting all user slips with data:', error);

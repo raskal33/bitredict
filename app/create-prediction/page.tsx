@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { useRouter, useSearchParams } from "next/navigation";
+import { parseUnits } from "viem";
+import { usePoolCore } from "@/hooks/useContractInteractions";
 import { 
   ArrowLeftIcon, 
   XMarkIcon,
@@ -29,7 +31,7 @@ import EnhancedComboPoolCreationForm from "@/components/EnhancedComboPoolCreatio
 import { useReputationStore } from "@/stores/useReputationStore";
 import ReputationBadge from "@/components/ReputationBadge";
 import { GuidedMarketService, Cryptocurrency, FootballMatch } from "@/services/guidedMarketService";
-import { useGuidedMarketCreation } from "@/services/guidedMarketWalletService";
+// import { useGuidedMarketCreation } from "@/services/guidedMarketWalletService"; // Not used - using direct contract calls
 import { useWalletConnection } from "@/hooks/useWalletConnection";
 import { useBITRToken } from "@/hooks/useBITRToken";
 
@@ -133,7 +135,8 @@ function CreateMarketPageContent() {
   const { address, isConnected } = useAccount();
 
   const { connectWallet, isConnecting } = useWalletConnection();
-  const { createFootballMarket } = useGuidedMarketCreation();
+  // const { createFootballMarket } = useGuidedMarketCreation(); // Not used - using direct contract calls
+  const { createPool } = usePoolCore();
   const { getUserReputation, canCreateMarket, addReputationAction } = useReputationStore();
   const { data: hash, error: writeError, isPending } = useWriteContract(); // writeContract removed as not currently used
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
@@ -758,76 +761,9 @@ function CreateMarketPageContent() {
     return 'unknown_outcome';
   };
 
-  // Generate the binary selection for the backend
-  const generateSelection = (): string => {
-    if (data.category === 'football') {
-      switch (data.outcome) {
-        case 'home':
-          return 'HOME';
-        case 'away':
-          return 'AWAY';
-        case 'draw':
-          return 'DRAW';
-        case 'over25':
-        case 'over35':
-          return 'OVER';
-        case 'under25':
-        case 'under35':
-          return 'UNDER';
-        case 'bttsYes':
-          return 'YES';
-        case 'bttsNo':
-          return 'NO';
-        case 'htHome':
-          return 'HOME';
-        case 'htDraw':
-          return 'DRAW';
-        case 'htAway':
-          return 'AWAY';
-        default:
-          return 'HOME';
-      }
-    }
+  // Removed generateSelection - not used
 
-    if (data.category === 'cryptocurrency') {
-      return data.direction === 'above' ? 'ABOVE' : 'BELOW';
-    }
-
-    return 'YES';
-  };
-
-  // Generate the outcome type for the backend
-  const generateOutcomeType = (): string => {
-    if (data.category === 'football') {
-      switch (data.outcome) {
-        case 'home':
-        case 'away':
-        case 'draw':
-          return 'Full Time Result';
-        case 'over25':
-        case 'under25':
-          return 'Over/Under 2.5';
-        case 'over35':
-        case 'under35':
-          return 'Over/Under 3.5';
-        case 'bttsYes':
-        case 'bttsNo':
-          return 'Both Teams To Score';
-        case 'htHome':
-        case 'htDraw':
-        case 'htAway':
-          return 'Half Time Result';
-        default:
-          return 'Full Time Result';
-      }
-    }
-
-    if (data.category === 'cryptocurrency') {
-      return 'Price Direction';
-    }
-
-    return 'Full Time Result';
-  };
+  // Removed generateOutcomeType - not used
 
   // BITR Token approval function (commented out as not currently used)
   // const approveBitrTokens = async (amount: string) => {
@@ -879,33 +815,42 @@ function CreateMarketPageContent() {
     try {
       const predictedOutcome = generatePredictedOutcome();
       
-      // Use proper AppKit wallet integration for football markets
+      // Use direct contract call for football markets
       if (data.category === 'football' && data.selectedFixture) {
-        const marketData = {
-          fixtureId: data.selectedFixture.id.toString(),
+        console.log('Creating football market via direct contract call');
+        
+        // Prepare contract call data
+        const eventStartTime = new Date(data.selectedFixture.matchDate);
+        const eventEndTime = new Date(eventStartTime.getTime() + 2 * 60 * 60 * 1000); // 2 hours after start
+        
+        const poolData = {
+          predictedOutcome: predictedOutcome,
+          odds: BigInt(data.odds),
+          creatorStake: parseUnits(data.creatorStake.toString(), 18),
+          eventStartTime: BigInt(Math.floor(eventStartTime.getTime() / 1000)),
+          eventEndTime: BigInt(Math.floor(eventEndTime.getTime() / 1000)),
+          league: data.selectedFixture.league.name,
+          category: 'football',
+          region: 'Global',
+          isPrivate: data.isPrivate || false,
+          maxBetPerUser: data.maxBetPerUser ? parseUnits(data.maxBetPerUser.toString(), 18) : BigInt(0),
+          useBitr: useBitr,
+          oracleType: 0, // GUIDED
+          marketId: data.selectedFixture.id.toString(), // 🎯 SportMonks fixture ID
+          marketType: 0, // MONEYLINE
           homeTeam: data.selectedFixture.homeTeam.name,
           awayTeam: data.selectedFixture.awayTeam.name,
-          league: data.selectedFixture.league.name,
-          matchDate: data.selectedFixture.matchDate,
-          outcome: generateOutcomeType(), // Use the proper outcome type format
-          predictedOutcome: predictedOutcome,
-          selection: generateSelection(), // Add the missing selection field
-          odds: data.odds,
-          creatorStake: data.creatorStake,
-          useBitr: useBitr,
-          description: data.description,
-          isPrivate: data.isPrivate || false,
-          maxBetPerUser: data.maxBetPerUser || 0
+          title: `${data.selectedFixture.homeTeam.name} vs ${data.selectedFixture.awayTeam.name}`
         };
 
-        console.log('Creating football market via AppKit wallet service:', marketData);
+        console.log('Pool data for direct contract call:', poolData);
         
-        // Use the proper wallet service that handles AppKit integration
         showInfo('Creating Market', 'Preparing market creation transaction...');
         
-        const result = await createFootballMarket(marketData);
+        // Use direct contract call
+        const txHash = await createPool(poolData);
         
-        if (result.success) {
+        if (txHash) {
           // Calculate total cost for display
           const creationFee = useBitr ? '50 BITR' : '1 STT';
           const boostCost = data.boostTier && data.boostTier !== 'NONE' 
@@ -918,7 +863,7 @@ function CreateMarketPageContent() {
           showSuccess(
             'Market Created Successfully!', 
             'Your football prediction market has been created and is now live on the blockchain!', 
-            result.transactionHash,
+            txHash,
             data.boostTier,
             totalCost
           );
@@ -935,7 +880,7 @@ function CreateMarketPageContent() {
           // Reset form and go to success step
           setStep(3);
         } else {
-          showError('Market Creation Failed', result.error || 'Failed to create football market');
+          showError('Market Creation Failed', 'Failed to create football market');
         }
 
       } else if (data.category === 'cryptocurrency' && data.selectedCrypto) {

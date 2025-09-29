@@ -66,11 +66,11 @@ export class PoolContractService {
     try {
       console.log('🔗 Fetching pool directly from contract:', poolId);
       
-      // Use the new getPoolWithDecodedNames function for readable team names
+      // Use the getPool function to get full pool data including predictedOutcome and marketType
       const result = await this.publicClient.readContract({
         address: CONTRACTS.POOL_CORE.address as Address,
         abi: CONTRACTS.POOL_CORE.abi,
-        functionName: 'getPoolWithDecodedNames',
+        functionName: 'getPool',
         args: [BigInt(poolId)],
       });
 
@@ -79,35 +79,49 @@ export class PoolContractService {
         return null;
       }
 
-      // Convert contract result to pool object (getPoolWithDecodedNames returns decoded strings)
-      const resultArray = result as any;
+      // Convert contract result to pool object (getPool returns full Pool struct)
+      const pool = result as any;
+      
+      console.log('🔍 Raw pool data from contract:', {
+        poolId,
+        predictedOutcome: pool.predictedOutcome,
+        homeTeam: pool.homeTeam,
+        awayTeam: pool.awayTeam,
+        league: pool.league,
+        category: pool.category,
+        region: pool.region,
+        title: pool.title,
+        marketId: pool.marketId,
+        marketType: pool.marketType
+      });
+      
       const rawPool = {
         poolId,
-        creator: resultArray[0], // address creator
-        odds: Number(resultArray[1]), // uint16 odds
-        flags: Number(resultArray[2]), // uint8 flags
-        oracleType: Number(resultArray[3]), // OracleType oracleType
-        creatorStake: resultArray[4].toString(), // uint256 creatorStake
-        eventStartTime: Number(resultArray[5]), // uint256 eventStartTime
-        eventEndTime: Number(resultArray[6]), // uint256 eventEndTime
-        marketId: resultArray[7], // string marketId (fixture ID)
-        league: resultArray[8], // string league (decoded)
-        category: resultArray[9], // string category (decoded)
-        region: resultArray[10], // string region (decoded)
-        homeTeam: resultArray[11], // string homeTeam (decoded)
-        awayTeam: resultArray[12], // string awayTeam (decoded)
-        title: resultArray[13], // string title (decoded)
-        // Add missing fields with defaults
-        reserved: 0,
-        totalCreatorSideStake: resultArray[4].toString(), // Same as creatorStake
-        maxBettorStake: 0,
-        totalBettorStake: 0,
-        predictedOutcome: '', // Not returned by this function
-        result: '', // Not returned by this function
-        bettingEndTime: 0, // Not returned by this function
-        resultTimestamp: 0, // Not returned by this function
-        arbitrationDeadline: 0, // Not returned by this function
-        maxBetPerUser: 0, // Not returned by this function
+        creator: pool.creator,
+        odds: Number(pool.odds) / 100, // Convert from integer (165) to decimal (1.65)
+        flags: Number(pool.flags),
+        oracleType: Number(pool.oracleType),
+        marketType: Number(pool.marketType), // Now available!
+        creatorStake: pool.creatorStake.toString(),
+        totalCreatorSideStake: pool.totalCreatorSideStake.toString(),
+        maxBettorStake: pool.maxBettorStake.toString(),
+        totalBettorStake: pool.totalBettorStake.toString(),
+        predictedOutcome: pool.predictedOutcome, // Now available!
+        result: pool.result,
+        eventStartTime: Number(pool.eventStartTime),
+        eventEndTime: Number(pool.eventEndTime),
+        bettingEndTime: Number(pool.bettingEndTime),
+        resultTimestamp: Number(pool.resultTimestamp),
+        arbitrationDeadline: Number(pool.arbitrationDeadline),
+        maxBetPerUser: Number(pool.maxBetPerUser),
+        marketId: pool.marketId,
+        league: pool.league,
+        category: pool.category,
+        region: pool.region,
+        homeTeam: pool.homeTeam,
+        awayTeam: pool.awayTeam,
+        title: pool.title,
+        reserved: Number(pool.reserved),
       };
 
       console.log('📊 Decoded pool data from contract:', rawPool);
@@ -115,6 +129,8 @@ export class PoolContractService {
       console.log('📊 Decoded homeTeam:', rawPool.homeTeam);
       console.log('📊 Decoded awayTeam:', rawPool.awayTeam);
       console.log('📊 Raw flags:', rawPool.flags);
+      console.log('📊 Predicted outcome:', rawPool.predictedOutcome);
+      console.log('📊 Market type:', rawPool.marketType);
 
       // Process the raw data to decode bytes32 and flags
       const processedPool = processRawPoolData(rawPool);

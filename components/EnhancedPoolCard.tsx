@@ -246,21 +246,34 @@ export default function EnhancedPoolCard({
   // Generate enhanced title using title service instead of using contract title directly
   const displayTitle = pool.isComboPool 
     ? `Combo Pool #${pool.id} (${pool.comboConditions?.length || 0} conditions)`
-    : titleTemplatesService.generateTitle(
-        {
-          marketType: pool.marketType || '1X2',
-          homeTeam: pool.homeTeam,
-          awayTeam: pool.awayTeam,
-          predictedOutcome: pool.predictedOutcome,
-          league: pool.league,
-          marketId: pool.marketId
-        },
-        {
-          short: false,
-          includeLeague: false,
-          maxLength: 60
+    : (() => {
+        try {
+          // Ensure we have all required data for title generation
+          const marketData = {
+            marketType: pool.marketType || '1X2',
+            homeTeam: pool.homeTeam || 'Team A',
+            awayTeam: pool.awayTeam || 'Team B',
+            predictedOutcome: pool.predictedOutcome || 'Unknown',
+            league: pool.league || 'Unknown League',
+            marketId: pool.marketId || ''
+          };
+          
+          console.log('🎯 Generating title with data:', marketData);
+          
+          const generatedTitle = titleTemplatesService.generateTitle(marketData, {
+            short: false,
+            includeLeague: false,
+            maxLength: 60
+          });
+          
+          console.log('🎯 Generated title:', generatedTitle);
+          return generatedTitle;
+        } catch (error) {
+          console.error('Error generating title:', error);
+          // Fallback title
+          return pool.title || `${pool.homeTeam || 'Team A'} vs ${pool.awayTeam || 'Team B'}`;
         }
-      );
+      })();
   
   const formatStake = (stake: string) => {
     try {
@@ -312,6 +325,15 @@ export default function EnhancedPoolCard({
     try {
       const now = Math.floor(Date.now() / 1000);
       const timeLeft = endTime - now;
+      
+      // Debug logging
+      console.log('🕐 Time calculation:', {
+        endTime,
+        now,
+        timeLeft,
+        endTimeDate: new Date(endTime * 1000).toISOString(),
+        nowDate: new Date(now * 1000).toISOString()
+      });
       
       if (timeLeft <= 0) return "Ended";
       if (isNaN(timeLeft)) return "TBD";
@@ -517,21 +539,26 @@ export default function EnhancedPoolCard({
         </div>
       )}
 
-      {/* Progress Bar - Indexed Data */}
-      {indexedData && (
-        <div className="mb-3 flex-shrink-0">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-xs text-gray-400">Pool Progress</span>
-            <span className="text-xs text-white font-medium">{indexedData.fillPercentage}%</span>
-          </div>
-          <div className="w-full glass-card rounded-full h-0.5 bg-gray-800/30 border border-gray-600/20 shadow-inner">
-            <div
-              className={`h-0.5 rounded-full transition-all duration-500 shadow-sm ${getProgressColor(indexedData.fillPercentage)}`}
-              style={{ width: `${Math.min(indexedData.fillPercentage, 100)}%` }}
-            />
-          </div>
+      {/* Progress Bar - Always show with fallback */}
+      <div className="mb-3 flex-shrink-0">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs text-gray-400">Pool Progress</span>
+          <span className="text-xs text-white font-medium">
+            {indexedData ? `${indexedData.fillPercentage}%` : '0%'}
+          </span>
         </div>
-      )}
+        <div className="w-full glass-card rounded-full h-0.5 bg-gray-800/30 border border-gray-600/20 shadow-inner">
+          <div
+            className={`h-0.5 rounded-full transition-all duration-500 shadow-sm ${
+              indexedData ? getProgressColor(indexedData.fillPercentage) : 'bg-gray-600'
+            }`}
+            style={{ 
+              width: `${Math.min(indexedData?.fillPercentage || 0, 100)}%`,
+              minWidth: '2px' // Ensure minimum visibility
+            }}
+          />
+        </div>
+      </div>
 
       {/* Creator Prediction Section or Combo Pool Section */}
       {pool.isComboPool ? (
@@ -577,6 +604,22 @@ export default function EnhancedPoolCard({
             <div className="text-xs text-text-muted">
               Challenging users who think it WILL happen
             </div>
+            
+            {/* Creator Selection Display */}
+            {pool.predictedOutcome && (
+              <div className="mt-2 p-2 bg-primary/10 border border-primary/20 rounded text-xs">
+                <div className="text-primary font-medium">
+                  {pool.marketType === '1X2' ? 'Moneyline' : 
+                   pool.marketType === 'OU25' ? 'Over/Under 2.5' :
+                   pool.marketType === 'OU15' ? 'Over/Under 1.5' :
+                   pool.marketType === 'OU35' ? 'Over/Under 3.5' :
+                   pool.marketType === 'BTTS' ? 'Both Teams to Score' :
+                   pool.marketType === 'HTFT' ? 'Half Time/Full Time' :
+                   pool.marketType === 'DC' ? 'Double Chance' :
+                   'Market'}: {pool.predictedOutcome}
+                </div>
+              </div>
+            )}
           </div>
           
           {/* Betting Options */}

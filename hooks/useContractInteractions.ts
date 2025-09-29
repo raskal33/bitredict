@@ -100,10 +100,10 @@ export function usePoolCore() {
     title?: string;
   }) => {
     try {
-      // Convert predictedOutcome to bytes32 hash using keccak256
-      const predictedOutcomeHash = poolData.predictedOutcome.startsWith('0x') 
+      // Convert predictedOutcome to bytes32 string (not hash) for proper storage and retrieval
+      const predictedOutcomeBytes32 = poolData.predictedOutcome.startsWith('0x') 
         ? poolData.predictedOutcome 
-        : keccak256(toBytes(poolData.predictedOutcome));
+        : ethers.encodeBytes32String(poolData.predictedOutcome.slice(0, 31)); // Truncate to fit bytes32
       
       // Market ID should be sent as string (fixture ID), not bytes32
       const marketIdString = poolData.marketId;
@@ -141,7 +141,7 @@ export function usePoolCore() {
       }
 
       console.log('Creating pool with parameters:', {
-        predictedOutcomeHash,
+        predictedOutcomeBytes32,
         odds: poolData.odds,
         creatorStake: poolData.creatorStake,
         useBitr: poolData.useBitr,
@@ -150,7 +150,19 @@ export function usePoolCore() {
       });
 
       // Format team names to ensure they fit within bytes32 constraints
+      console.log('🔍 Original team data:', {
+        homeTeam: poolData.homeTeam,
+        awayTeam: poolData.awayTeam,
+        predictedOutcome: poolData.predictedOutcome
+      });
+      
       const teamNames = formatTeamNamesForPool(poolData.homeTeam || '', poolData.awayTeam || '');
+      
+      console.log('🔍 Formatted team data:', {
+        homeTeam: teamNames.homeTeam,
+        awayTeam: teamNames.awayTeam,
+        warnings: teamNames.warnings
+      });
       
       // Show warnings if team names were modified
       if (teamNames.warnings.length > 0) {
@@ -166,12 +178,26 @@ export function usePoolCore() {
       }
 
       // Encode strings as bytes32 (not hashed) for the updated contract
-      const leagueBytes32 = ethers.encodeBytes32String(poolData.league);
-      const categoryBytes32 = ethers.encodeBytes32String(poolData.category);
-      const regionBytes32 = ethers.encodeBytes32String(poolData.region);
-      const homeTeamBytes32 = ethers.encodeBytes32String(teamNames.homeTeam);
-      const awayTeamBytes32 = ethers.encodeBytes32String(teamNames.awayTeam);
-      const titleBytes32 = ethers.encodeBytes32String(poolData.title || '');
+      // Ensure all strings are 32 bytes or less for bytes32 encoding
+      const leagueBytes32 = ethers.encodeBytes32String(poolData.league.slice(0, 31));
+      const categoryBytes32 = ethers.encodeBytes32String(poolData.category.slice(0, 31));
+      const regionBytes32 = ethers.encodeBytes32String(poolData.region.slice(0, 31));
+      const homeTeamBytes32 = ethers.encodeBytes32String(teamNames.homeTeam.slice(0, 31));
+      const awayTeamBytes32 = ethers.encodeBytes32String(teamNames.awayTeam.slice(0, 31));
+      // Ensure title is 32 bytes or less for bytes32 encoding
+      const truncatedTitle = (poolData.title || '').slice(0, 31); // Leave 1 byte for null terminator
+      const titleBytes32 = ethers.encodeBytes32String(truncatedTitle);
+      
+      console.log('🔍 Encoded data for contract:', {
+        predictedOutcomeBytes32,
+        leagueBytes32,
+        categoryBytes32,
+        regionBytes32,
+        homeTeamBytes32,
+        awayTeamBytes32,
+        titleBytes32,
+        marketIdString: poolData.marketId
+      });
 
       // 🚀 GAS OPTIMIZATION: Use createPool for gas efficiency
       console.log(`⛽ Using createPool function`);
@@ -181,7 +207,7 @@ export function usePoolCore() {
         abi: CONTRACTS.POOL_CORE.abi,
         functionName: 'createPool', // ✅ Use main createPool function
         args: [
-          predictedOutcomeHash,
+          predictedOutcomeBytes32,
           poolData.odds,
           poolData.creatorStake,
           poolData.eventStartTime,

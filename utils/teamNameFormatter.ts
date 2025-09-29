@@ -103,7 +103,9 @@ function convertToAscii(text: string): string {
   
   // Apply character replacements
   for (const [char, replacement] of Object.entries(replacements)) {
-    result = result.replace(new RegExp(char, 'g'), replacement);
+    // Escape special regex characters
+    const escapedChar = char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    result = result.replace(new RegExp(escapedChar, 'g'), replacement);
   }
   
   // Remove any remaining non-ASCII characters

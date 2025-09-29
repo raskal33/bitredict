@@ -76,6 +76,16 @@ export class GuidedMarketWalletService {
       // 🚨 CRITICAL FIX: Override with new optimized contract address
       transactionData.contractAddress = CONTRACT_ADDRESSES.POOL_CORE;
       
+      // 🔧 CRITICAL FIX: Override marketId with actual SportMonks fixture ID (not hex hash)
+      if (transactionData.parameters && transactionData.parameters.length > 16) {
+        // Replace the hex marketId with the actual SportMonks fixture ID
+        const originalMarketId = transactionData.parameters[16];
+        transactionData.parameters[16] = marketData.fixtureId;
+        console.log(`🔧 Overriding marketId with SportMonks fixture ID:`);
+        console.log(`   Original (hex): ${originalMarketId}`);
+        console.log(`   New (fixture ID): ${marketData.fixtureId}`);
+      }
+      
       console.log('✅ Transaction data prepared:', {
         contractAddress: transactionData.contractAddress,
         functionName: transactionData.functionName,
@@ -114,7 +124,8 @@ export class GuidedMarketWalletService {
         transactionData,
         walletClient,
         publicClient,
-        address
+        address,
+        marketData
       );
       
       if (!txResult.success) {
@@ -263,8 +274,32 @@ export class GuidedMarketWalletService {
       }
     }
     
-    // Note: marketId (index 16) is now a string, not bytes32, so we don't hash it
-    // marketType (index 15) is an enum, so we don't hash it either
+    // 🔧 CRITICAL FIX: Ensure marketId (index 16) is always a string, not hex
+    const marketIdIndex = 16;
+    if (hashedParameters.length > marketIdIndex) {
+      const marketId = hashedParameters[marketIdIndex];
+      console.log(`🔍 MarketId before final check: ${marketId} (type: ${typeof marketId})`);
+      
+      // If it's still a hex string, convert it to a regular string
+      if (typeof marketId === 'string' && marketId.startsWith('0x')) {
+        console.log(`🔧 Converting hex marketId to string: ${marketId}`);
+        // Try to parse as hex number first
+        try {
+          const numericValue = parseInt(marketId, 16);
+          hashedParameters[marketIdIndex] = numericValue.toString();
+        } catch (error) {
+          // If conversion fails, remove the 0x prefix
+          hashedParameters[marketIdIndex] = marketId.replace('0x', '');
+        }
+      } else if (typeof marketId === 'number') {
+        // If it's a number, convert to string
+        hashedParameters[marketIdIndex] = marketId.toString();
+      }
+      
+      console.log(`📝 Final marketId: ${hashedParameters[marketIdIndex]} (type: ${typeof hashedParameters[marketIdIndex]})`);
+    }
+    
+    // Note: marketType (index 15) is an enum, so we don't hash it either
     
     return hashedParameters;
   }
@@ -276,7 +311,8 @@ export class GuidedMarketWalletService {
     transactionData: GuidedMarketTransactionData,
     walletClient: any,
     publicClient: any,
-    address: Address
+    address: Address,
+    marketData?: CreateFootballMarketParams
   ): Promise<{ success: boolean; hash?: string; error?: string }> {
     try {
       console.log('🎯 Executing main transaction...');
@@ -288,8 +324,21 @@ export class GuidedMarketWalletService {
       });
       
       // Hash string parameters for the optimized contract
+      console.log('🔍 Raw parameters before hashing:', transactionData.parameters);
       const hashedParameters = this.hashStringParameters(transactionData.parameters);
       console.log('🔤 Hashed parameters:', hashedParameters);
+      
+      // 🔧 DEBUG: Check the marketId parameter specifically
+      if (hashedParameters.length > 16) {
+        console.log('🔍 MarketId parameter (index 16):', hashedParameters[16]);
+        console.log('🔍 MarketId type:', typeof hashedParameters[16]);
+        
+        // 🔧 FINAL OVERRIDE: Force the marketId to be the fixture ID string
+        if (marketData && hashedParameters[16] && hashedParameters[16] !== marketData.fixtureId) {
+          console.log(`🔧 FINAL OVERRIDE: Replacing ${hashedParameters[16]} with ${marketData.fixtureId}`);
+          hashedParameters[16] = marketData.fixtureId;
+        }
+      }
       
       // Execute the transaction with our gas limit override
       const gasLimit = BigInt(10000000); // Reduced gas limit for lightweight functions

@@ -4,6 +4,7 @@
 import { decodeTeamHash, decodeLeagueHash, decodeMarketId } from './hashDecoder';
 import { decodeBytes32String } from './bytes32Decoder';
 import { PoolMetadataService } from '../services/poolMetadataService';
+import { ethers } from 'ethers';
 
 /**
  * Decode bytes32 to string, removing null bytes
@@ -17,6 +18,107 @@ export function bytes32ToString(bytes32: string): string {
   // These are hashed values, not readable text
   // Return a shortened hash for display purposes
   return bytes32.slice(0, 10) + '...';
+}
+
+/**
+ * Decode hash back to original prediction value
+ * Tests common prediction values against the hash
+ */
+export function decodeHash(hash: string): string | null {
+  if (!hash || !hash.startsWith('0x')) return null;
+
+  // Common prediction values to test
+  const COMMON_SELECTIONS = [
+    // Basic match results
+    '1', '2', 'x', 'home', 'away', 'draw',
+    'Home', 'Away', 'Draw', 'HOME', 'AWAY', 'DRAW',
+    
+    // Over/Under
+    'over', 'under', 'o', 'u', 'Over', 'Under', 'OVER', 'UNDER',
+    'over25', 'under25', 'over35', 'under35',
+    'Over 2.5', 'Under 2.5', 'Over 3.5', 'Under 3.5',
+    
+    // Half-time
+    'ht_1', 'ht_2', 'ht_x', 'ht_home', 'ht_away', 'ht_draw',
+    'htHome', 'htAway', 'htDraw',
+    
+    // BTTS
+    'btts', 'both teams', 'yes', 'no', 'y', 'n',
+    'BTTS', 'Both Teams To Score', 'YES', 'NO',
+    'bttsYes', 'bttsNo',
+    
+    // Numbers
+    ...Array.from({ length: 11 }, (_, i) => i.toString()),
+    
+    // Decimals
+    '0.5', '1.5', '2.5', '3.5', '4.5', '5.5',
+    
+    // Team-specific predictions (common patterns)
+    'Liverpool wins', 'Galatasaray wins', 'Manchester City wins',
+    'Real Madrid wins', 'Barcelona wins', 'Arsenal wins',
+    'Liverpool will win', 'Galatasaray will win',
+    
+    // Generic patterns
+    'wins', 'Wins', 'WINS', 'will win', 'Will Win'
+  ];
+
+  console.log('🔍 Testing hash against', COMMON_SELECTIONS.length, 'common selections');
+
+  // Test each selection by hashing and comparing
+  for (const selection of COMMON_SELECTIONS) {
+    try {
+      const testHash = ethers.keccak256(ethers.toUtf8Bytes(selection));
+      if (testHash.toLowerCase() === hash.toLowerCase()) {
+        console.log('🎯 Found match! Hash decodes to:', selection);
+        return selection; // Found the original!
+      }
+    } catch (error) {
+      // Continue to next selection
+      continue;
+    }
+  }
+  
+  console.log('❌ No match found for hash:', hash);
+  return null;
+}
+
+/**
+ * Decode predictedOutcome bytes32 to readable string
+ * This should be a readable string, not a hash
+ */
+export function decodePredictedOutcome(bytes32: string): string {
+  console.log('🔍 Decoding predictedOutcome:', bytes32);
+  
+  if (!bytes32 || bytes32 === '0x' || bytes32 === '0x0000000000000000000000000000000000000000000000000000000000000000') {
+    console.log('🔍 Empty or zero predictedOutcome');
+    return '';
+  }
+  
+  try {
+    // Try to decode as bytes32 string first
+    const decoded = decodeBytes32String(bytes32);
+    console.log('🔍 Decoded predictedOutcome:', decoded);
+    if (decoded && decoded.length > 0) {
+      return decoded;
+    }
+  } catch (error) {
+    console.log('Failed to decode predictedOutcome as bytes32 string:', error);
+  }
+  
+  // If bytes32 string decoding fails, try to decode as hash
+  try {
+    const hashDecoded = decodeHash(bytes32);
+    if (hashDecoded) {
+      console.log('🔍 Decoded predictedOutcome from hash:', hashDecoded);
+      return hashDecoded;
+    }
+  } catch (error) {
+    console.log('Failed to decode predictedOutcome as hash:', error);
+  }
+  
+  // If all decoding fails, provide a meaningful fallback
+  console.log('🔍 Using fallback predictedOutcome for hash:', bytes32);
+  return `Prediction (${bytes32.slice(0, 8)}...)`;
 }
 
 /**
@@ -71,10 +173,23 @@ export function processRawPoolData(rawPool: any) {
     usesBitr = stakeAmount >= 1000; // If stake >= 1000, likely BITR
   }
   
-  // Try to decode team names using proper bytes32 decoding first
-  const decodedHomeTeam = decodeBytes32String(rawPool.homeTeam) || decodeTeamHash(rawPool.homeTeam);
-  const decodedAwayTeam = decodeBytes32String(rawPool.awayTeam) || decodeTeamHash(rawPool.awayTeam);
-  const decodedLeague = decodeBytes32String(rawPool.league) || decodeLeagueHash(rawPool.league);
+  // Check if the data is already decoded (strings) or needs decoding (hex)
+  const isAlreadyDecoded = (value: any) => {
+    return typeof value === 'string' && !value.startsWith('0x') && value.length < 64;
+  };
+
+  // Try to decode team names - check if already decoded first
+  const decodedHomeTeam = isAlreadyDecoded(rawPool.homeTeam) 
+    ? rawPool.homeTeam 
+    : (decodeBytes32String(rawPool.homeTeam) || decodeTeamHash(rawPool.homeTeam));
+  
+  const decodedAwayTeam = isAlreadyDecoded(rawPool.awayTeam) 
+    ? rawPool.awayTeam 
+    : (decodeBytes32String(rawPool.awayTeam) || decodeTeamHash(rawPool.awayTeam));
+  
+  const decodedLeague = isAlreadyDecoded(rawPool.league) 
+    ? rawPool.league 
+    : (decodeBytes32String(rawPool.league) || decodeLeagueHash(rawPool.league));
   
   // Try to decode market ID to get match information
   const marketInfo = decodeMarketId(rawPool.marketId);
@@ -100,7 +215,7 @@ export function processRawPoolData(rawPool: any) {
     league: league,
     category: rawPool.category ? bytes32ToString(rawPool.category) : 'Sports',
     region: bytes32ToString(rawPool.region),
-    predictedOutcome: bytes32ToString(rawPool.predictedOutcome),
+    predictedOutcome: decodePredictedOutcome(rawPool.predictedOutcome),
     result: bytes32ToString(rawPool.result),
     marketId: bytes32ToString(rawPool.marketId),
     

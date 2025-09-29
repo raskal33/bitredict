@@ -47,11 +47,21 @@ class TitleTemplatesService {
       return this.generateFallbackTitle(predictedOutcome, marketType);
     }
 
+    // For team-specific predictions, determine which team is winning
+    const teamSpecificTitle = this.generateTeamSpecificTitle(predictedOutcome, homeTeam, awayTeam, marketType, short);
+    if (teamSpecificTitle) {
+      let title = teamSpecificTitle;
+      if (includeLeague && league) {
+        title = `${title} (${league})`;
+      }
+      return this.truncateTitle(title, maxLength);
+    }
+
     const templates = this.getTemplates(marketType, short);
     
     // Find exact match for predicted outcome
     if (templates[predictedOutcome]) {
-      let title = templates[predictedOutcome];
+      let title = this.processTemplate(templates[predictedOutcome], { homeTeam, awayTeam, league });
       if (includeLeague && league) {
         title = `${title} (${league})`;
       }
@@ -61,7 +71,7 @@ class TitleTemplatesService {
     // Try partial matches
     for (const [key, template] of Object.entries(templates)) {
       if (this.isPartialMatch(predictedOutcome, key)) {
-        let title = template;
+        let title = this.processTemplate(template, { homeTeam, awayTeam, league });
         if (includeLeague && league) {
           title = `${title} (${league})`;
         }
@@ -299,6 +309,16 @@ class TitleTemplatesService {
 
   // Private helper methods
 
+  /**
+   * Process template string by replacing placeholders with actual values
+   */
+  private processTemplate(template: string, data: { homeTeam: string; awayTeam: string; league?: string }): string {
+    return template
+      .replace(/\${homeTeam}/g, data.homeTeam)
+      .replace(/\${awayTeam}/g, data.awayTeam)
+      .replace(/\${league}/g, data.league || '');
+  }
+
   private getTemplates(marketType: string, short: boolean): Record<string, string> {
     if (short) {
       return this.getShortTemplates(marketType);
@@ -465,9 +485,43 @@ class TitleTemplatesService {
     return shortTemplates[marketType] || {};
   }
 
+  /**
+   * Generate team-specific title by determining which team is winning
+   */
+  private generateTeamSpecificTitle(predictedOutcome: string, homeTeam: string, awayTeam: string, marketType: string, short: boolean): string | null {
+    // Check if the predicted outcome contains a team name
+    const homeTeamLower = homeTeam.toLowerCase();
+    const awayTeamLower = awayTeam.toLowerCase();
+    const outcomeLower = predictedOutcome.toLowerCase();
+    
+    // Check if home team is winning
+    if (outcomeLower.includes(homeTeamLower) && (outcomeLower.includes('wins') || outcomeLower.includes('win'))) {
+      return short 
+        ? `${homeTeam} will beat ${awayTeam} at home!`
+        : `${homeTeam} will beat ${awayTeam} at home!`;
+    }
+    
+    // Check if away team is winning
+    if (outcomeLower.includes(awayTeamLower) && (outcomeLower.includes('wins') || outcomeLower.includes('win'))) {
+      return short 
+        ? `${awayTeam} will beat ${homeTeam} away!`
+        : `${awayTeam} will beat ${homeTeam} away!`;
+    }
+    
+    return null;
+  }
+
   private isPartialMatch(predictedOutcome: string, key: string): boolean {
-    return predictedOutcome.toLowerCase().includes(key.toLowerCase()) || 
-           key.toLowerCase().includes(predictedOutcome.toLowerCase());
+    const outcome = predictedOutcome.toLowerCase();
+    const keyLower = key.toLowerCase();
+    
+    // Direct match
+    if (outcome === keyLower) return true;
+    
+    // Check for exact word matches
+    if (outcome.includes(keyLower) || keyLower.includes(outcome)) return true;
+    
+    return false;
   }
 
   private generateFallbackTitle(predictedOutcome: string, marketType: string): string {
