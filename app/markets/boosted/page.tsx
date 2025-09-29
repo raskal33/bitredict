@@ -135,7 +135,7 @@ export default function BoostedMarketsPage() {
         >
           {pools.map((pool, index) => (
             <motion.div
-              key={pool.id}
+              key={pool.poolId}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 * index }}
@@ -144,18 +144,18 @@ export default function BoostedMarketsPage() {
               {/* Boost Badge */}
               <div className="absolute top-4 right-4">
                 <div className={`px-3 py-1 rounded-full text-xs font-bold ${
-                  pool.boost?.tier === 'gold' ? 'bg-yellow-400 text-black' :
-                  pool.boost?.tier === 'silver' ? 'bg-gray-300 text-black' :
+                  pool.boostTier === 'GOLD' ? 'bg-yellow-400 text-black' :
+                  pool.boostTier === 'SILVER' ? 'bg-gray-300 text-black' :
                   'bg-orange-400 text-black'
                 }`}>
-                  {pool.boost?.tier?.toUpperCase() || 'BOOSTED'}
+                  {pool.boostTier || 'BOOSTED'}
                 </div>
               </div>
 
               {/* Pool Info */}
               <div className="mb-4">
                 <h3 className="text-xl font-bold text-text-primary mb-2 pr-20">
-                  Pool #{pool.id}
+                  {pool.title}
                 </h3>
                 <p className="text-text-muted text-sm">
                   {pool.category && (
@@ -163,7 +163,7 @@ export default function BoostedMarketsPage() {
                       {pool.category}
                     </span>
                   )}
-                  by {pool.shortAddress}
+                  by {pool.creator.slice(0, 6)}...{pool.creator.slice(-4)}
                 </p>
               </div>
 
@@ -171,11 +171,11 @@ export default function BoostedMarketsPage() {
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
                   <p className="text-text-muted text-xs">Total Volume</p>
-                  <p className="text-text-primary font-semibold">{pool.totalVolume.toFixed(2)} ETH</p>
+                  <p className="text-text-primary font-semibold">{parseFloat(pool.creatorStake).toFixed(2)} {pool.usesBitr ? 'BITR' : 'STT'}</p>
                 </div>
                 <div>
                   <p className="text-text-muted text-xs">Participants</p>
-                  <p className="text-text-primary font-semibold">{pool.participantCount}</p>
+                  <p className="text-text-primary font-semibold">{pool.totalBettorStake ? parseFloat(pool.totalBettorStake).toFixed(0) : 0}</p>
                 </div>
                 <div>
                   <p className="text-text-muted text-xs">Odds</p>
@@ -183,23 +183,22 @@ export default function BoostedMarketsPage() {
                 </div>
                 <div>
                   <p className="text-text-muted text-xs">Fill Rate</p>
-                  <p className="text-text-primary font-semibold">{pool.fillPercentage}%</p>
+                  <p className="text-text-primary font-semibold">{pool.settled ? '100' : '0'}%</p>
                 </div>
               </div>
 
               {/* Status and Time */}
               <div className="flex items-center justify-between mb-4">
                 <div className={`px-2 py-1 rounded text-xs font-medium ${
-                  pool.status === 'active' ? 'bg-green-400/20 text-green-400' :
-                  pool.status === 'settled' ? 'bg-blue-400/20 text-blue-400' :
-                  'bg-red-400/20 text-red-400'
+                  !pool.settled ? 'bg-green-400/20 text-green-400' :
+                  'bg-blue-400/20 text-blue-400'
                 }`}>
-                  {pool.status.toUpperCase()}
+                  {pool.settled ? 'SETTLED' : 'ACTIVE'}
                 </div>
-                {pool.timeRemaining && pool.timeRemaining > 0 && (
+                {pool.eventEndTime && Number(pool.eventEndTime) > Date.now() / 1000 && (
                   <div className="flex items-center gap-1 text-text-muted text-xs">
                     <ClockIcon className="h-3 w-3" />
-                    {Math.floor(pool.timeRemaining / (1000 * 60 * 60))}h remaining
+                    {Math.floor((Number(pool.eventEndTime) - Date.now() / 1000) / (60 * 60))}h remaining
                   </div>
                 )}
               </div>

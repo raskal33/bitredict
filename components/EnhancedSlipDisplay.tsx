@@ -8,8 +8,7 @@ import {
   ClockIcon,
   ChevronDownIcon,
   ChevronUpIcon,
-  TrophyIcon,
-  ChartBarIcon
+  TrophyIcon
 } from '@heroicons/react/24/outline';
 
 interface EnhancedSlip {
@@ -56,35 +55,6 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
     return 'lost';
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'won':
-        return 'text-green-400 bg-green-400/10 border-green-400/20';
-      case 'lost':
-        return 'text-red-400 bg-red-400/10 border-red-400/20';
-      case 'evaluated':
-        return 'text-blue-400 bg-blue-400/10 border-blue-400/20';
-      case 'pending':
-        return 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20';
-      default:
-        return 'text-gray-400 bg-gray-400/10 border-gray-400/20';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'won':
-        return <TrophyIcon className="w-4 h-4" />;
-      case 'lost':
-        return <XCircleIcon className="w-4 h-4" />;
-      case 'evaluated':
-        return <ChartBarIcon className="w-4 h-4" />;
-      case 'pending':
-        return <ClockIcon className="w-4 h-4" />;
-      default:
-        return <ClockIcon className="w-4 h-4" />;
-    }
-  };
 
   const filteredSlips = slips.filter(slip => {
     if (filter === 'all') return true;
@@ -104,6 +74,26 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
       case 7: return 'Half Time/Full Time';
       default: return 'Unknown';
     }
+  };
+
+  const getSelectionDisplay = (selection: string, betType: number): string => {
+    // For 1X2 bets, show 1, X, 2 with proper styling
+    if (betType === 0) {
+      switch (selection.toLowerCase()) {
+        case '1': return '1';
+        case 'x': return 'X';
+        case '2': return '2';
+        default: return selection;
+      }
+    }
+    
+    // For Over/Under bets
+    if (betType === 1) {
+      return selection.toUpperCase();
+    }
+    
+    // For other bet types, return as is
+    return selection;
   };
 
   const getPredictionResult = (prediction: EnhancedSlip['predictions'][0], isCorrect?: boolean) => {
@@ -155,40 +145,52 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
             >
               {/* Slip Header */}
               <div 
-                className="p-4 cursor-pointer hover:bg-gray-800/30 transition-colors"
+                className="p-5 cursor-pointer hover:bg-gray-800/30 transition-all duration-200 border-b border-gray-700/30"
                 onClick={() => toggleSlipExpansion(slip.id)}
               >
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(status)}`}>
-                      <div className="flex items-center gap-1">
-                        {getStatusIcon(status)}
-                        <span className="capitalize">{status}</span>
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center">
+                      <TrophyIcon className="w-5 h-5 text-cyan-400" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold text-white">
+                        Slip #{slip.id}
                       </div>
-                    </div>
-                    <div className="text-sm text-gray-400">
-                      Cycle #{slip.cycleId}
-                    </div>
-                    <div className="text-sm text-gray-400">
-                      {new Date(slip.placedAt * 1000).toLocaleDateString()}
+                      <div className="flex items-center gap-3 text-xs text-gray-400">
+                        <span>Cycle {slip.cycleId}</span>
+                        <span>•</span>
+                        <span>{new Date(slip.placedAt * 1000).toLocaleDateString()}</span>
+                        <span>•</span>
+                        <span>{slip.predictions.length} predictions</span>
+                      </div>
                     </div>
                   </div>
                   
                   <div className="flex items-center gap-4">
-                    {slip.isEvaluated && (
-                      <div className="text-sm">
-                        <span className="text-gray-400">Score: </span>
-                        <span className="font-bold text-white">{slip.correctCount}/10</span>
+                    <div className="text-right">
+                      <div className="text-sm font-semibold text-white">
+                        {slip.correctCount}/{slip.predictions.length} correct
                       </div>
-                    )}
-                    <div className="text-sm">
-                      <span className="text-gray-400">Final Score: </span>
-                      <span className="font-bold text-white">{slip.finalScore}</span>
+                      <div className="text-xs text-gray-400">
+                        Score: {slip.finalScore} points
+                      </div>
                     </div>
+                    
+                    <div className={`px-4 py-2 rounded-full text-xs font-bold ${
+                      status === 'won' 
+                        ? 'bg-green-500/20 text-green-400 border border-green-500/30 shadow-lg shadow-green-500/10'
+                        : status === 'lost'
+                        ? 'bg-red-500/20 text-red-400 border border-red-500/30 shadow-lg shadow-red-500/10'
+                        : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 shadow-lg shadow-yellow-500/10'
+                    }`}>
+                      {status.toUpperCase()}
+                    </div>
+                    
                     {isExpanded ? (
-                      <ChevronUpIcon className="w-5 h-5 text-gray-400" />
+                      <ChevronUpIcon className="w-5 h-5 text-gray-400 transition-transform duration-200" />
                     ) : (
-                      <ChevronDownIcon className="w-5 h-5 text-gray-400" />
+                      <ChevronDownIcon className="w-5 h-5 text-gray-400 transition-transform duration-200" />
                     )}
                   </div>
                 </div>
@@ -209,24 +211,30 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
                       <div className="space-y-2">
                         <h4 className="text-sm font-medium text-gray-300 mb-3">Predictions</h4>
                         {slip.predictions.map((prediction: EnhancedSlip['predictions'][0], index: number) => (
-                          <div key={index} className="flex items-center justify-between p-3 bg-gray-800/30 rounded-lg">
-                            <div className="flex items-center gap-3">
+                          <div key={index} className="flex items-center justify-between p-4 bg-gray-800/40 rounded-xl border border-gray-700/50 hover:border-gray-600/50 transition-all duration-200">
+                            <div className="flex items-center gap-4">
                               {getPredictionResult(prediction, prediction.isCorrect)}
-                              <div className="text-sm">
-                                <div className="font-medium text-white">
+                              <div className="flex-1">
+                                <div className="font-semibold text-white text-sm mb-1">
                                   {prediction.homeTeam} vs {prediction.awayTeam}
                                 </div>
-                                <div className="text-gray-400 text-xs">
+                                <div className="text-gray-400 text-xs mb-2">
                                   {prediction.leagueName} • {getBetTypeDisplay(prediction.betType)}
                                 </div>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-sm font-medium text-white">
-                                {prediction.selection}
-                              </div>
-                              <div className="text-xs text-gray-400">
-                                {prediction.selectedOdd / 100}x
+                                <div className="flex items-center gap-2">
+                                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                    prediction.isCorrect === true 
+                                      ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                                      : prediction.isCorrect === false
+                                      ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                                      : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                                  }`}>
+                                    {getSelectionDisplay(prediction.selection, prediction.betType)}
+                                  </span>
+                                  <span className="text-xs text-gray-500">
+                                    {prediction.selectedOdd / 100}x
+                                  </span>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -234,17 +242,27 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
                       </div>
 
                       {/* Slip Summary */}
-                      <div className="grid grid-cols-2 gap-4 pt-3 border-t border-gray-600/30">
-                        <div className="text-center">
+                      <div className="grid grid-cols-3 gap-4 pt-4 border-t border-gray-600/30">
+                        <div className="text-center p-3 bg-gray-800/30 rounded-lg">
                           <div className="text-xs text-gray-400 mb-1">Total Odds</div>
                           <div className="text-lg font-bold text-white">
                             {(slip.predictions.reduce((acc, p) => acc * (p.selectedOdd / 100), 1)).toFixed(2)}x
                           </div>
                         </div>
-                        <div className="text-center">
+                        <div className="text-center p-3 bg-gray-800/30 rounded-lg">
                           <div className="text-xs text-gray-400 mb-1">Potential Win</div>
-                          <div className="text-lg font-bold text-primary">
+                          <div className="text-lg font-bold text-cyan-400">
                             {((slip.predictions.reduce((acc, p) => acc * (p.selectedOdd / 100), 1)) * 1).toFixed(2)} STT
+                          </div>
+                        </div>
+                        <div className="text-center p-3 bg-gray-800/30 rounded-lg">
+                          <div className="text-xs text-gray-400 mb-1">Status</div>
+                          <div className={`text-lg font-bold ${
+                            status === 'won' ? 'text-green-400' : 
+                            status === 'lost' ? 'text-red-400' : 
+                            'text-yellow-400'
+                          }`}>
+                            {status.toUpperCase()}
                           </div>
                         </div>
                       </div>

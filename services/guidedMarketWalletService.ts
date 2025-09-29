@@ -235,7 +235,7 @@ export class GuidedMarketWalletService {
     // The createPool function expects these parameters in order:
     // [predictedOutcome, odds, creatorStake, eventStartTime, eventEndTime, 
     //  leagueHash, categoryHash, regionHash, homeTeamHash, awayTeamHash, titleHash,
-    //  isPrivate, maxBetPerUser, useBitr, oracleType, marketId, marketType]
+    //  isPrivate, maxBetPerUser, useBitr, oracleType, marketType, marketId]
     
     if (parameters.length < 17) {
       console.warn('⚠️ Expected 17 parameters for createPool, got:', parameters.length);
@@ -244,7 +244,7 @@ export class GuidedMarketWalletService {
     
     const hashedParameters = [...parameters];
     
-    // Hash string parameters (indices 5-10 are the string fields)
+    // Hash string parameters (indices 5-10 are the string fields that need hashing)
     const stringFields = [5, 6, 7, 8, 9, 10]; // league, category, region, homeTeam, awayTeam, title
     const fieldNames = ['league', 'category', 'region', 'homeTeam', 'awayTeam', 'title'];
     
@@ -262,6 +262,9 @@ export class GuidedMarketWalletService {
         hashedParameters[paramIndex] = ethers.keccak256(ethers.toUtf8Bytes(''));
       }
     }
+    
+    // Note: marketId (index 16) is now a string, not bytes32, so we don't hash it
+    // marketType (index 15) is an enum, so we don't hash it either
     
     return hashedParameters;
   }

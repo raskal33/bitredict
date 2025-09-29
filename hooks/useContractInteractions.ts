@@ -165,10 +165,10 @@ export function usePoolCore() {
         });
       }
 
-      // Hash strings before calling the optimized contract
-      const leagueHash = ethers.keccak256(ethers.toUtf8Bytes(poolData.league));
-      const categoryHash = ethers.keccak256(ethers.toUtf8Bytes(poolData.category));
-      const regionHash = ethers.keccak256(ethers.toUtf8Bytes(poolData.region));
+      // Encode strings as bytes32 (not hashed) for the updated contract
+      const leagueBytes32 = ethers.encodeBytes32String(poolData.league);
+      const categoryBytes32 = ethers.encodeBytes32String(poolData.category);
+      const regionBytes32 = ethers.encodeBytes32String(poolData.region);
       const homeTeamBytes32 = ethers.encodeBytes32String(teamNames.homeTeam);
       const awayTeamBytes32 = ethers.encodeBytes32String(teamNames.awayTeam);
       const titleBytes32 = ethers.encodeBytes32String(poolData.title || '');
@@ -186,9 +186,9 @@ export function usePoolCore() {
           poolData.creatorStake,
           poolData.eventStartTime,
           poolData.eventEndTime,
-          leagueHash, // 🎯 Hashed league
-          categoryHash, // 🎯 Hashed category
-          regionHash, // 🎯 Hashed region
+          leagueBytes32, // 🎯 bytes32 encoded league
+          categoryBytes32, // 🎯 bytes32 encoded category
+          regionBytes32, // 🎯 bytes32 encoded region
           homeTeamBytes32, // 🎯 bytes32 encoded home team
           awayTeamBytes32, // 🎯 bytes32 encoded away team
           titleBytes32, // 🎯 bytes32 encoded title

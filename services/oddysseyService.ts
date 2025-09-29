@@ -382,6 +382,43 @@ class OddysseyService {
     }
   }
 
+  // Get all user slips with evaluation data across ALL cycles
+  async getAllUserSlipsWithDataFromContract(userAddress: Address): Promise<{
+    slipIds: bigint[];
+    slipsData: OddysseySlip[];
+  }> {
+    try {
+      console.log('🔍 Getting ALL user slips with data across all cycles for:', userAddress);
+      
+      // Get all user slips across all cycles
+      const allUserSlips = await this.getUserSlips(userAddress);
+      
+      if (!allUserSlips.success || allUserSlips.data.length === 0) {
+        console.log('⚠️ No slips found for user across all cycles');
+        return { slipIds: [], slipsData: [] };
+      }
+
+      console.log('🔍 Found slips across all cycles:', allUserSlips.data.length);
+      
+      // Convert to the expected format
+      const slipIds: bigint[] = [];
+      const slipsData: OddysseySlip[] = [];
+      
+      allUserSlips.data.forEach((slip, index) => {
+        slipIds.push(BigInt(index));
+        slipsData.push(slip);
+      });
+      
+      return {
+        slipIds,
+        slipsData
+      };
+    } catch (error) {
+      console.error('Error getting all user slips with data:', error);
+      throw error;
+    }
+  }
+
   // Process slip data from contract response
   private processSlipData(rawSlip: any): OddysseySlip {
     return {

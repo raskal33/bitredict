@@ -195,7 +195,7 @@ export function useInfinitePools(filters: PoolFilters = {}) {
 export function useMarketsDashboard(options: { enabled?: boolean } = {}) {
   const { enabled = true } = options;
 
-  const allPools = useAllPools({ enabled, limit: 10, sortBy: 'newest' });
+  const allPools = useAllPools({ enabled, limit: 10, sortBy: 'created_at' });
   const trendingPools = useTrendingPools({ enabled, limit: 5 });
   const boostedPools = useBoostedPools({ enabled, limit: 5 });
   const marketMetrics = useMarketMetrics({ enabled });

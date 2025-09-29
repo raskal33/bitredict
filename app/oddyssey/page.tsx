@@ -774,11 +774,11 @@ export default function OddysseyPage() {
         const validSlips = convertedSlips.filter(slip => slip.length > 0) as Pick[][];
         setSlips(validSlips);
 
-        // Also fetch all user slips with evaluation data
+        // Also fetch all user slips with evaluation data from ALL cycles
         try {
-          console.log('🎯 Fetching all user slips with evaluation data...');
-          const allSlipsData = await oddysseyService.getUserSlipsWithDataFromContract(address, cycleId);
-          console.log('🔍 All slips data:', allSlipsData);
+          console.log('🎯 Fetching all user slips with evaluation data from ALL cycles...');
+          const allSlipsData = await oddysseyService.getAllUserSlipsWithDataFromContract(address);
+          console.log('🔍 All slips data from all cycles:', allSlipsData);
           
           // Convert to enhanced slip format
           const enhancedSlips = allSlipsData.slipsData.map((slip, index) => ({

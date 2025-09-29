@@ -25,52 +25,7 @@ export default function Page() {
   const isLoading = statsLoading || trendingLoading;
   
   // Use real trending pools or fallback data
-  const predictionPools = trendingData || [
-        {
-          id: "1",
-          title: "Bitcoin will reach $100,000 by end of 2024",
-          description: "Will Bitcoin's price exceed $100,000 USD before January 1, 2025?",
-          totalPool: 2500,
-          participants: 156,
-          endDate: "2024-12-31",
-          category: "Crypto",
-          odds: { yes: 1.75, no: 2.10 },
-          trending: true,
-          featured: true
-        },
-        {
-          id: "2", 
-          title: "Ethereum 2.0 will launch successfully",
-          description: "Will Ethereum 2.0 complete its transition without major issues?",
-          totalPool: 1800,
-          participants: 89,
-          endDate: "2024-08-15",
-          category: "Crypto",
-          odds: { yes: 1.45, no: 2.75 },
-          trending: true
-        },
-        {
-          id: "3",
-          title: "2024 US Presidential Election Winner",
-          description: "Who will win the 2024 United States Presidential Election?",
-          totalPool: 5200,
-          participants: 342,
-          endDate: "2024-11-05",
-          category: "Politics",
-          odds: { yes: 1.85, no: 1.95 },
-          featured: true
-        },
-        {
-          id: "4",
-          title: "World Cup 2026 Host Performance",
-          description: "Will USA reach the quarterfinals in World Cup 2026?",
-          totalPool: 980,
-          participants: 67,
-          endDate: "2026-07-15",
-          category: "Sports",
-          odds: { yes: 2.30, no: 1.65 }
-        }
-      ];
+  const predictionPools = trendingData || [];
 
   const categories = ["All", "Crypto", "Sports", "Politics", "Finance"];
   
@@ -81,7 +36,7 @@ export default function Page() {
     ? poolsArray 
     : poolsArray.filter((pool) => pool.category === selectedCategory);
 
-  const trendingPools = poolsArray.filter((pool) => pool.trending);
+  const trendingPools = poolsArray.filter((pool) => pool.isTrending);
 
   const stats = globalStats ? [
     {
@@ -301,7 +256,7 @@ export default function Page() {
             className="trending-swiper"
           >
             {trendingPools.map((pool) => (
-              <SwiperSlide key={pool.id}>
+              <SwiperSlide key={pool.poolId}>
                 <motion.div
                   whileHover={{ scale: 1.02 }}
                   className="glass-card p-3 h-full cursor-pointer group min-h-[260px] flex flex-col"
@@ -311,31 +266,31 @@ export default function Page() {
                         {pool.category}
                       </span>
                       <span className="text-text-secondary text-xs">
-                        {"participantCount" in pool ? pool.participantCount : pool.participants ?? 0} participants
+                        {pool.totalBettorStake ? parseFloat(pool.totalBettorStake).toFixed(0) : 0} participants
                       </span>
                     </div>
                     
                     <h3 className="text-sm font-semibold text-white mb-2 group-hover:text-brand-cyan transition-colors line-clamp-2 min-h-[2.5rem]">
-                      {"title" in pool ? pool.title : `Pool ${pool.id.slice(0, 8)}...`}
+                      {pool.title}
                     </h3>
                     
                     <p className="text-text-secondary text-xs mb-3 line-clamp-2 min-h-[2rem] flex-1">
-                      {"description" in pool ? pool.description : `Prediction pool created by ${pool.creator.slice(0, 6)}...`}
+                      {`Prediction pool created by ${pool.creator.slice(0, 6)}...`}
                     </p>
                   
                                       <div className="flex items-center justify-between mt-auto pt-2">
                       <div className="text-xs">
                         <span className="text-text-secondary">Pool: </span>
                         <span className="text-white font-semibold">
-                          {"totalVolume" in pool && typeof pool.totalVolume === "number" ? pool.totalVolume : ("totalPool" in pool ? (pool as { totalPool?: number }).totalPool : 0) ?? 0} SOL
+                          {parseFloat(pool.creatorStake).toFixed(2)} {pool.usesBitr ? 'BITR' : 'STT'}
                         </span>
                       </div>
                       <div className="flex gap-1">
                                                                             <span className="px-1 py-0.5 bg-green-500/20 text-green-400 rounded text-xs">
-                            Yes {typeof pool.odds === "object" && pool.odds !== null && "yes" in pool.odds ? pool.odds.yes : pool.odds}x
+                            Yes {pool.odds}x
                           </span>
                           <span className="px-1 py-0.5 bg-red-500/20 text-red-400 rounded text-xs">
-                            No {typeof pool.odds === "object" && pool.odds !== null && "no" in pool.odds ? pool.odds.no : pool.odds}x
+                            No {pool.odds}x
                           </span>
                       </div>
                     </div>
@@ -383,7 +338,7 @@ export default function Page() {
           >
             {filteredPools.map((pool, index) => (
               <motion.div
-                key={pool.id}
+                key={pool.poolId}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 * index }}
@@ -395,48 +350,48 @@ export default function Page() {
                       <span className="px-2 py-0.5 bg-brand-violet/20 text-brand-violet rounded-full text-xs font-medium">
                         {pool.category}
                       </span>
-                      {"featured" in pool && pool.featured && (
+                      {pool.isBoosted && (
                         <span className="px-1.5 py-0.5 bg-yellow-500/20 text-yellow-400 rounded-full text-xs">
-                          ⭐ Featured
+                          ⭐ Boosted
                         </span>
                       )}
                     </div>
-                    {"endDate" in pool && pool.endDate && (
+                    {pool.eventEndTime && (
                       <span className="text-text-secondary text-xs">
-                        Ends {new Date(pool.endDate).toLocaleDateString()}
+                        Ends {new Date(Number(pool.eventEndTime) * 1000).toLocaleDateString()}
                       </span>
                     )}
                   </div>
                   
                   <h3 className="text-sm font-semibold text-white mb-2 group-hover:text-brand-cyan transition-colors line-clamp-2 min-h-[2.5rem]">
-                    {"title" in pool && typeof pool.title === "string" ? pool.title : ""}
+                    {pool.title}
                   </h3>
                   
                   <p className="text-text-secondary text-xs mb-3 line-clamp-2 min-h-[2rem] flex-1">
-                    {"description" in pool && typeof pool.description === "string" ? pool.description : ""}
+                    {`Prediction pool: ${pool.homeTeam} vs ${pool.awayTeam}`}
                   </p>
                 
                 <div className="flex items-center justify-between mb-3 mt-auto">
                   <div className="space-y-1">
                     <div className="text-xs text-text-secondary">Total Pool</div>
                     <div className="text-base font-bold text-white">
-                      {"totalVolume" in pool && typeof pool.totalVolume === "number" ? pool.totalVolume : ("totalPool" in pool ? (pool as { totalPool?: number }).totalPool : 0) ?? 0} SOL
+                      {parseFloat(pool.creatorStake).toFixed(2)} {pool.usesBitr ? 'BITR' : 'STT'}
                     </div>
                   </div>
                   <div className="space-y-1 text-right">
                     <div className="text-xs text-text-secondary">Participants</div>
                     <div className="text-base font-bold text-white">
-                      {"participantCount" in pool && typeof pool.participantCount === "number" ? pool.participantCount : ("participants" in pool ? (pool as { participants?: number }).participants : 0) ?? 0}
+                      {pool.totalBettorStake ? parseFloat(pool.totalBettorStake).toFixed(0) : 0}
                     </div>
                   </div>
                 </div>
                 
                 <div className="flex gap-2">
                   <Button variant="outline" size="sm" className="flex-1 text-xs py-1.5">
-                    Yes {typeof pool.odds === "object" && pool.odds !== null && "yes" in pool.odds ? pool.odds.yes : pool.odds}x
+                    Yes {pool.odds}x
                   </Button>
                   <Button variant="outline" size="sm" className="flex-1 text-xs py-1.5">
-                    No {typeof pool.odds === "object" && pool.odds !== null && "no" in pool.odds ? pool.odds.no : pool.odds}x
+                    No {pool.odds}x
                   </Button>
                 </div>
               </motion.div>
