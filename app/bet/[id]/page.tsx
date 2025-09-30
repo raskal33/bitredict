@@ -31,6 +31,7 @@ import { CONTRACTS } from "@/contracts";
 import { parseUnits } from "viem";
 import { toast } from "react-hot-toast";
 import { PoolContractService } from "@/services/poolContractService";
+import { PoolExplanationService, PoolExplanation } from "@/services/poolExplanationService";
 
 export default function BetPage() {
   const { address } = useAccount();
@@ -62,6 +63,7 @@ export default function BetPage() {
   const [pool, setPool] = useState<Pool | null>(null);
   const [comments] = useState<Comment[]>([]);
   const [betType, setBetType] = useState<'yes' | 'no' | null>(null);
+  const [poolExplanation, setPoolExplanation] = useState<PoolExplanation | null>(null);
   
   // Backend formatted data to avoid scientific notation
   const [creatorStakeFormatted, setCreatorStakeFormatted] = useState<number>(0);
@@ -100,6 +102,31 @@ export default function BetPage() {
       
       console.log('🔍 Contract pool data for bet page:', poolData);
       
+      // Determine currency based on stake amount (same logic as pool card)
+      const stakeAmount = parseFloat(poolData.creatorStake || "0") / 1e18;
+      const usesBitr = stakeAmount >= 1000; // If stake >= 1000, likely BITR
+      
+      // Generate pool explanation using the service
+      const explanationData = {
+        id: poolId,
+        homeTeam: poolData.homeTeam,
+        awayTeam: poolData.awayTeam,
+        league: poolData.league,
+        category: poolData.category,
+        region: poolData.region,
+        predictedOutcome: poolData.predictedOutcome,
+        odds: poolData.odds,
+        marketType: poolData.marketType,
+        eventStartTime: poolData.eventStartTime,
+        eventEndTime: poolData.eventEndTime,
+        usesBitr: usesBitr,
+        creatorStake: poolData.creatorStake
+      };
+      
+      const explanation = PoolExplanationService.generateExplanation(explanationData);
+      setPoolExplanation(explanation);
+      console.log('🎯 Generated pool explanation:', explanation);
+      
       // Fetch pool progress data
       const progressResponse = await fetch(`/api/guided-markets/pools/${poolId}/progress`, {
         signal: controller.signal,
@@ -133,17 +160,14 @@ export default function BetPage() {
         return "easy";
       };
       
-      // Create a better title using decoded data
-      const title = poolData.title || `${poolData.homeTeam} vs ${poolData.awayTeam}`;
-      
-      // Determine currency based on stake amount (same logic as pool card)
-      const stakeAmount = parseFloat(poolData.creatorStake || "0") / 1e18;
-      const usesBitr = stakeAmount >= 1000; // If stake >= 1000, likely BITR
+      // Use explanation service for standardized content
+      const title = explanation.title;
+      const description = explanation.description;
       
       const transformedPool: Pool = {
         id: poolId,
         title: title,
-        description: `Creator believes "${poolData.predictedOutcome}" WON'T happen. Challenge them if you think it WILL!`,
+        description: description,
         category: poolData.category || "sports",
         creator: {
           address: poolData.creator,
@@ -668,11 +692,11 @@ export default function BetPage() {
               <div className="mb-4 p-3 sm:p-4 bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/20 rounded-lg">
                 <div className="text-xs sm:text-sm text-red-400 font-medium mb-2">🎯 Creator&apos;s Position:</div>
                 <div className="text-base sm:text-lg font-bold text-white mb-2">
-                  Creator believes <span className="text-red-400">&quot;{pool.title}&quot; WON&apos;T happen</span>
-                      </div>
+                  {poolExplanation?.creatorPosition || `Creator believes "${pool.title}" WON'T happen`}
+                </div>
                 <div className="text-xs sm:text-sm text-gray-400 mb-3">
                   Challenging users who think it WILL happen. Dare to challenge?
-                    </div>
+                </div>
                 
                 {/* Pool Economics - Real Data */}
                 <div className="grid grid-cols-3 gap-2 sm:gap-4 p-2 sm:p-3 bg-gray-800/30 rounded border border-gray-700/30">
@@ -706,8 +730,22 @@ export default function BetPage() {
                 </div>
                   </div>
               
-              <h1 className="text-2xl sm:text-3xl font-bold text-white mb-3">{pool.title}</h1>
-              <p className="text-sm sm:text-base text-gray-300 leading-relaxed">{pool.description}</p>
+              <div className="mb-4">
+                <h1 className="text-2xl sm:text-3xl font-bold text-white mb-3">{pool.title}</h1>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {poolExplanation?.currencyBadge && (
+                    <span className={PoolExplanationService.getCurrencyBadgeProps(pool.currency === 'BITR').className}>
+                      {poolExplanation.currencyBadge.type}
+                    </span>
+                  )}
+                  {poolExplanation?.marketTypeBadge && (
+                    <span className={PoolExplanationService.getMarketTypeBadgeProps(poolExplanation.marketTypeBadge.marketType).className}>
+                      {poolExplanation.marketTypeBadge.label}
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm sm:text-base text-gray-300 leading-relaxed">{pool.description}</p>
+              </div>
             </div>
 
             {/* Enhanced Pool Progress Bar */}
