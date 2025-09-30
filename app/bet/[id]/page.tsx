@@ -30,6 +30,7 @@ import { useBITRToken } from "@/hooks/useBITRToken";
 import { CONTRACTS } from "@/contracts";
 import { parseUnits } from "viem";
 import { toast } from "react-hot-toast";
+import { processRawPoolData } from "@/utils/contractDataDecoder";
 
 export default function BetPage() {
   const { address } = useAccount();
@@ -101,7 +102,11 @@ export default function BetPage() {
         throw new Error(`Failed to fetch pool data: HTTP ${poolResponse.status}`);
       }
       const poolResult = await poolResponse.json();
-      const poolData = poolResult.data.pool;
+      const rawPoolData = poolResult.data.pool;
+      
+      // Apply contract data decoding to get readable strings
+      const poolData = processRawPoolData(rawPoolData);
+      console.log('🔍 Decoded pool data for bet page:', poolData);
       
       // Fetch pool progress data
       const progressResponse = await fetch(`/api/guided-markets/pools/${poolId}/progress`, {
