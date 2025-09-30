@@ -96,11 +96,12 @@ export default function MarketsPage() {
     };
   };
 
-  // Load pools from backend API
+  // Load pools from backend API with retry logic
   useEffect(() => {
-    const loadPools = async () => {
+    const loadPools = async (retryCount = 0) => {
       setIsLoading(true);
       try {
+        console.log('🔄 Loading pools, attempt:', retryCount + 1);
         const fetchedPools = await PoolService.getPools(50, 0);
         const enhancedPools = fetchedPools.map(convertToEnhancedPool);
         setPools(enhancedPools);
@@ -109,11 +110,19 @@ export default function MarketsPage() {
         // Load stats
         const poolStats = await PoolService.getPoolStats();
         setStats(poolStats);
+        console.log('✅ Successfully loaded', enhancedPools.length, 'pools');
       } catch (error) {
-        console.error('Error loading pools:', error);
-        toast.error('Failed to load markets');
+        console.error('❌ Error loading pools:', error);
+        if (retryCount < 3) {
+          console.log('🔄 Retrying in 2 seconds...');
+          setTimeout(() => loadPools(retryCount + 1), 2000);
+        } else {
+          toast.error('Failed to load markets after multiple attempts');
+        }
       } finally {
-        setIsLoading(false);
+        if (retryCount >= 3) {
+          setIsLoading(false);
+        }
       }
     };
 
@@ -176,28 +185,6 @@ export default function MarketsPage() {
     { id: "ending-soon" as SortBy, label: "Ending Soon", icon: FaClock },
   ];
 
-  // Fetch pools from service
-  useEffect(() => {
-    const fetchPools = async () => {
-      setIsLoading(true);
-      try {
-        const poolsData = await PoolService.getPoolsByCategory('all', 50, 0);
-        const enhancedPools = poolsData.map(convertToEnhancedPool);
-        setPools(enhancedPools);
-        
-        // Get stats from service
-        const statsData = await PoolService.getPoolStats();
-        setStats(statsData);
-      } catch (error) {
-        console.error('Error fetching pools:', error);
-        toast.error('Failed to load markets');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchPools();
-  }, []);
 
   // Filter and sort pools
   useEffect(() => {

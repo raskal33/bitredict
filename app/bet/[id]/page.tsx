@@ -32,6 +32,7 @@ import { parseUnits } from "viem";
 import { toast } from "react-hot-toast";
 import { PoolContractService } from "@/services/poolContractService";
 import { PoolExplanationService, PoolExplanation } from "@/services/poolExplanationService";
+import PoolTitleRow from "@/components/PoolTitleRow";
 
 export default function BetPage() {
   const { address } = useAccount();
@@ -64,16 +65,43 @@ export default function BetPage() {
   const [comments] = useState<Comment[]>([]);
   const [betType, setBetType] = useState<'yes' | 'no' | null>(null);
   const [poolExplanation, setPoolExplanation] = useState<PoolExplanation | null>(null);
+  const [realTimeStats, setRealTimeStats] = useState({
+    challengerCount: 0,
+    totalVolume: 0,
+    fillPercentage: 0
+  });
   
   // Backend formatted data to avoid scientific notation
   const [creatorStakeFormatted, setCreatorStakeFormatted] = useState<number>(0);
   const [totalBettorStakeFormatted, setTotalBettorStakeFormatted] = useState<number>(0);
   const [potentialWinFormatted, setPotentialWinFormatted] = useState<number>(0);
-  const [poolFillProgressFormatted, setPoolFillProgressFormatted] = useState<number>(0);
   
   // Rate limiting for API calls
   const [lastFetchTime, setLastFetchTime] = useState<number>(0);
   const FETCH_COOLDOWN = 5000; // 5 seconds between fetches
+  
+  // Real-time stats fetching
+  const fetchRealTimeStats = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/guided-markets/pools/${poolId}/progress`, {
+        headers: { 'Cache-Control': 'no-cache' }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data) {
+          const progressData = data.data;
+          setRealTimeStats({
+            challengerCount: (progressData.bettorCount || 0) + (progressData.lpCount || 0),
+            totalVolume: parseFloat(progressData.totalPoolSize || "0"),
+            fillPercentage: progressData.fillPercentage || 0
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching real-time stats:', error);
+    }
+  }, [poolId]);
 
 
 
@@ -145,13 +173,11 @@ export default function BetPage() {
       const creatorStakeNum = parseFloat(poolData.creatorStake || "0") / 1e18; // Convert from wei
       const totalBettorStakeNum = parseFloat(poolData.totalBettorStake || "0") / 1e18; // Convert from wei
       const potentialWinNum = creatorStakeNum * poolData.odds; // Calculate potential win
-      const poolFillProgressNum = totalBettorStakeNum > 0 ? (totalBettorStakeNum / creatorStakeNum) * 100 : 0;
       
       // Set state variables
       setCreatorStakeFormatted(creatorStakeNum);
       setTotalBettorStakeFormatted(totalBettorStakeNum);
       setPotentialWinFormatted(potentialWinNum);
-      setPoolFillProgressFormatted(poolFillProgressNum);
       const getDifficultyTier = (odds: number) => {
         if (odds >= 5.0) return "legendary";
         if (odds >= 3.0) return "very_hard";
@@ -283,7 +309,17 @@ export default function BetPage() {
   useEffect(() => {
     fetchPoolData();
     checkUserBetStatus();
-  }, [fetchPoolData, checkUserBetStatus]);
+    fetchRealTimeStats();
+  }, [fetchPoolData, checkUserBetStatus, fetchRealTimeStats]);
+  
+  // Set up real-time stats polling
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchRealTimeStats();
+    }, 10000); // Update every 10 seconds
+    
+    return () => clearInterval(interval);
+  }, [fetchRealTimeStats]);
 
   // State to track if we're waiting for approval to complete
   const [waitingForApproval, setWaitingForApproval] = useState(false);
@@ -719,31 +755,31 @@ export default function BetPage() {
                     <div className="text-xs text-gray-400">Total bet volume</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-xs text-gray-400">Potential Win</div>
+                    <div className="text-xs text-gray-400">
+                      {address === pool.creator.address ? 'Your Potential Win' : 'Creator\'s Potential Win'}
+                    </div>
                     <div className="text-sm sm:text-lg font-bold text-yellow-400">
                       {potentialWinFormatted > 1000 
                         ? `${(potentialWinFormatted / 1000).toFixed(1)}K` 
                         : potentialWinFormatted.toFixed(0)} {pool.currency}
                     </div>
-                    <div className="text-xs text-gray-400">If you win</div>
+                    <div className="text-xs text-gray-400">
+                      {address === pool.creator.address ? 'If you win' : 'If creator wins'}
+                    </div>
                   </div>
                 </div>
                   </div>
               
-              <div className="mb-4">
-                <h1 className="text-2xl sm:text-3xl font-bold text-white mb-3">{pool.title}</h1>
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {poolExplanation?.currencyBadge && (
-                    <span className={PoolExplanationService.getCurrencyBadgeProps(pool.currency === 'BITR').className}>
-                      {poolExplanation.currencyBadge.type}
-                    </span>
-                  )}
-                  {poolExplanation?.marketTypeBadge && (
-                    <span className={PoolExplanationService.getMarketTypeBadgeProps(poolExplanation.marketTypeBadge.marketType).className}>
-                      {poolExplanation.marketTypeBadge.label}
-                    </span>
-                  )}
-                </div>
+              <div className="mb-6">
+                {poolExplanation && (
+                  <PoolTitleRow
+                    title={pool.title}
+                    currencyBadge={poolExplanation.currencyBadge}
+                    marketTypeBadge={poolExplanation.marketTypeBadge}
+                    league={pool.eventDetails?.league || 'Unknown League'}
+                    className="mb-4"
+                  />
+                )}
                 <p className="text-sm sm:text-base text-gray-300 leading-relaxed">{pool.description}</p>
               </div>
             </div>
@@ -757,7 +793,7 @@ export default function BetPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-lg font-bold text-white">
-                    {poolFillProgressFormatted.toFixed(1)}%
+                    {realTimeStats.fillPercentage.toFixed(1)}%
                   </span>
                   <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
                 </div>
@@ -765,7 +801,7 @@ export default function BetPage() {
               <div className="w-full bg-gray-700/50 rounded-full h-4 mb-3 relative overflow-hidden">
                 <div
                   className="bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 h-4 rounded-full transition-all duration-1000 relative overflow-hidden"
-                  style={{ width: `${Math.min(100, poolFillProgressFormatted)}%` }}
+                  style={{ width: `${Math.min(100, realTimeStats.fillPercentage)}%` }}
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse"></div>
                   <div className="absolute inset-0 bg-gradient-to-r from-cyan-400/50 to-blue-400/50 animate-pulse"></div>
@@ -803,7 +839,7 @@ export default function BetPage() {
                 <div className="w-full h-0.5 bg-yellow-500/20 rounded-full mt-2"></div>
               </div>
               <div className="text-center group hover:scale-105 transition-transform">
-                <div className="text-xl sm:text-3xl font-bold text-cyan-400 mb-1 group-hover:text-cyan-300 transition-colors">{pool.participants}</div>
+                <div className="text-xl sm:text-3xl font-bold text-cyan-400 mb-1 group-hover:text-cyan-300 transition-colors">{realTimeStats.challengerCount}</div>
                 <div className="text-xs text-gray-400 uppercase tracking-wider">Challengers</div>
                 <div className="w-full h-0.5 bg-cyan-500/20 rounded-full mt-2"></div>
               </div>
