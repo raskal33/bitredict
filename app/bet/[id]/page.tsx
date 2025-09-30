@@ -30,7 +30,6 @@ import { useBITRToken } from "@/hooks/useBITRToken";
 import { CONTRACTS } from "@/contracts";
 import { parseUnits } from "viem";
 import { toast } from "react-hot-toast";
-import { processRawPoolData } from "@/utils/contractDataDecoder";
 import { PoolContractService } from "@/services/poolContractService";
 
 export default function BetPage() {
