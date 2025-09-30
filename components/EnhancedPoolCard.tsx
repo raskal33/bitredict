@@ -113,25 +113,33 @@ export default function EnhancedPoolCard({
   const fetchIndexedData = useCallback(async () => {
     setIsLoadingIndexedData(true);
     try {
+      console.log(`🔄 Fetching progress data for pool ${pool.id}...`);
       // Get pool progress data
       const progressResponse = await fetch(`/api/guided-markets/pools/${pool.id}/progress`);
       if (progressResponse.ok) {
         const progressData = await progressResponse.json();
+        console.log(`📊 Progress data for pool ${pool.id}:`, progressData);
         if (progressData.success && progressData.data) {
-          setIndexedData({
+          const newIndexedData = {
             participantCount: progressData.data.bettorCount + progressData.data.lpCount,
-            fillPercentage: progressData.data.fillPercentage,
-            totalVolume: progressData.data.totalPoolSize,
-            betCount: progressData.data.bettorCount,
+            fillPercentage: progressData.data.fillPercentage || 0,
+            totalVolume: progressData.data.totalPoolSize || '0',
+            betCount: progressData.data.bettorCount || 0,
             avgBetSize: progressData.data.currentBettorStake && progressData.data.bettorCount > 0 
               ? (parseFloat(progressData.data.currentBettorStake) / progressData.data.bettorCount).toString()
               : '0',
             creatorReputation: 0, // TODO: Implement reputation system
             categoryRank: 0, // TODO: Implement ranking
-            isHot: progressData.data.fillPercentage > 50,
+            isHot: (progressData.data.fillPercentage || 0) > 50,
             lastActivity: new Date()
-          });
+          };
+          console.log(`✅ Updated indexed data for pool ${pool.id}:`, newIndexedData);
+          setIndexedData(newIndexedData);
+        } else {
+          console.log(`⚠️ No progress data available for pool ${pool.id}`);
         }
+      } else {
+        console.log(`❌ Failed to fetch progress data for pool ${pool.id}:`, progressResponse.status);
       }
     } catch (error) {
       console.error('Failed to fetch indexed data:', error);
@@ -140,26 +148,25 @@ export default function EnhancedPoolCard({
     }
   }, [pool.id]);
 
-  // Fetch indexed data if not provided, with reduced polling frequency
+  // Fetch indexed data immediately and when pool changes
   useEffect(() => {
-    if (!pool.indexedData && !isLoadingIndexedData) {
+    if (!isLoadingIndexedData) {
       fetchIndexedData();
     }
-  }, [pool.id, pool.indexedData, isLoadingIndexedData, fetchIndexedData]);
+  }, [pool.id, fetchIndexedData, isLoadingIndexedData]);
 
   // Set up periodic refresh with longer intervals to reduce API calls
   useEffect(() => {
-    if (!pool.indexedData) return;
-
     const interval = setInterval(() => {
       // Only refresh if the pool is active and not settled
       if (!pool.settled && pool.bettingEndTime > Date.now() / 1000) {
+        console.log(`🔄 Periodic refresh for pool ${pool.id}`);
         fetchIndexedData();
       }
     }, 30000); // Refresh every 30 seconds instead of continuous polling
 
     return () => clearInterval(interval);
-  }, [pool.settled, pool.bettingEndTime, pool.indexedData, fetchIndexedData]);
+  }, [pool.settled, pool.bettingEndTime, fetchIndexedData, pool.id]);
 
   const getDifficultyColor = (odds: number) => {
     if (odds >= 500) return 'text-purple-400'; // Legendary
@@ -544,16 +551,45 @@ export default function EnhancedPoolCard({
         <div className="flex items-center justify-between mb-1">
           <span className="text-xs text-gray-400">Pool Progress</span>
           <span className="text-xs text-white font-medium">
-            {indexedData ? `${indexedData.fillPercentage}%` : '0%'}
+            {(() => {
+              if (indexedData && indexedData.fillPercentage > 0) {
+                return `${indexedData.fillPercentage}%`;
+              }
+              // Fallback calculation based on pool data
+              const creatorStake = parseFloat(pool.creatorStake || "0") / 1e18;
+              const bettorStake = parseFloat(pool.totalBettorStake || "0") / 1e18;
+              const fillPercentage = creatorStake > 0 ? Math.min((bettorStake / creatorStake) * 100, 100) : 0;
+              console.log(`📊 Pool ${pool.id} progress calculation:`, { creatorStake, bettorStake, fillPercentage });
+              return `${fillPercentage.toFixed(1)}%`;
+            })()}
           </span>
         </div>
         <div className="w-full rounded-full h-2 bg-gray-800/30 border border-gray-600/20 shadow-inner">
           <div
             className={`h-2 rounded-full transition-all duration-500 shadow-sm ${
-              indexedData ? getProgressColor(indexedData.fillPercentage) : 'bg-gray-600'
+              (() => {
+                if (indexedData && indexedData.fillPercentage > 0) {
+                  return getProgressColor(indexedData.fillPercentage);
+                }
+                // Fallback calculation
+                const creatorStake = parseFloat(pool.creatorStake || "0") / 1e18;
+                const bettorStake = parseFloat(pool.totalBettorStake || "0") / 1e18;
+                const fillPercentage = creatorStake > 0 ? Math.min((bettorStake / creatorStake) * 100, 100) : 0;
+                return getProgressColor(fillPercentage);
+              })()
             }`}
             style={{ 
-              width: `${Math.min(indexedData?.fillPercentage || 0, 100)}%`,
+              width: `${(() => {
+                if (indexedData && indexedData.fillPercentage > 0) {
+                  return Math.min(indexedData.fillPercentage, 100);
+                }
+                // Fallback calculation
+                const creatorStake = parseFloat(pool.creatorStake || "0") / 1e18;
+                const bettorStake = parseFloat(pool.totalBettorStake || "0") / 1e18;
+                const fillPercentage = creatorStake > 0 ? Math.min((bettorStake / creatorStake) * 100, 100) : 0;
+                console.log(`📊 Pool ${pool.id} progress bar width:`, { creatorStake, bettorStake, fillPercentage, width: Math.min(fillPercentage, 100) });
+                return Math.min(fillPercentage, 100);
+              })()}%`,
               minWidth: '2px' // Ensure minimum visibility
             }}
           />

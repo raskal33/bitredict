@@ -777,6 +777,13 @@ export default function BetPage() {
                     currencyBadge={poolExplanation.currencyBadge}
                     marketTypeBadge={poolExplanation.marketTypeBadge}
                     league={pool.eventDetails?.league || 'Unknown League'}
+                    time={pool.eventDetails?.startTime ? pool.eventDetails.startTime.toLocaleTimeString('en-GB', { 
+                      hour: '2-digit', 
+                      minute: '2-digit', 
+                      timeZone: 'UTC' 
+                    }) + ' UTC' : 'TBD'}
+                    prediction="FT 1"
+                    odds={pool.odds.toFixed(2)}
                     className="mb-4"
                   />
                 )}
@@ -801,7 +808,7 @@ export default function BetPage() {
               <div className="w-full bg-gray-700/50 rounded-full h-4 mb-3 relative overflow-hidden">
                 <div
                   className="bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 h-4 rounded-full transition-all duration-1000 relative overflow-hidden"
-                  style={{ width: `${Math.min(100, realTimeStats.fillPercentage)}%` }}
+                  style={{ width: `${Math.min(100, realTimeStats.fillPercentage || 0)}%` }}
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse"></div>
                   <div className="absolute inset-0 bg-gradient-to-r from-cyan-400/50 to-blue-400/50 animate-pulse"></div>
