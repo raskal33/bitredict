@@ -31,6 +31,7 @@ import { CONTRACTS } from "@/contracts";
 import { parseUnits } from "viem";
 import { toast } from "react-hot-toast";
 import { processRawPoolData } from "@/utils/contractDataDecoder";
+import { PoolContractService } from "@/services/poolContractService";
 
 export default function BetPage() {
   const { address } = useAccount();
@@ -90,23 +91,15 @@ export default function BetPage() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
       
-      // Fetch pool data from guided markets API
-      const poolResponse = await fetch(`/api/guided-markets/pools/${poolId}`, {
-        signal: controller.signal,
-        headers: {
-          'Cache-Control': 'no-cache'
-        }
-      });
+      // Fetch pool data directly from contract (same as pool card)
+      console.log('🔗 Fetching pool data directly from contract for bet page:', poolId);
+      const poolData = await PoolContractService.getPool(parseInt(poolId));
       
-      if (!poolResponse.ok) {
-        throw new Error(`Failed to fetch pool data: HTTP ${poolResponse.status}`);
+      if (!poolData) {
+        throw new Error(`Pool ${poolId} not found`);
       }
-      const poolResult = await poolResponse.json();
-      const rawPoolData = poolResult.data.pool;
       
-      // Apply contract data decoding to get readable strings
-      const poolData = processRawPoolData(rawPoolData);
-      console.log('🔍 Decoded pool data for bet page:', poolData);
+      console.log('🔍 Contract pool data for bet page:', poolData);
       
       // Fetch pool progress data
       const progressResponse = await fetch(`/api/guided-markets/pools/${poolId}/progress`, {
@@ -122,11 +115,11 @@ export default function BetPage() {
       // Transform real data to Pool interface - use backend formatted data
       const progressInfo = progressData?.data || {};
       
-      // Use backend formatted numbers to avoid scientific notation
-      const creatorStakeNum = parseFloat(poolData.creatorStake || "0");
-      const totalBettorStakeNum = parseFloat(poolData.totalBettorStake || "0");
-      const potentialWinNum = parseFloat(poolData.potentialWinAmount || "0");
-      const poolFillProgressNum = poolData.poolFillProgress || 0;
+      // Use contract data with proper formatting
+      const creatorStakeNum = parseFloat(poolData.creatorStake || "0") / 1e18; // Convert from wei
+      const totalBettorStakeNum = parseFloat(poolData.totalBettorStake || "0") / 1e18; // Convert from wei
+      const potentialWinNum = creatorStakeNum * poolData.odds; // Calculate potential win
+      const poolFillProgressNum = totalBettorStakeNum > 0 ? (totalBettorStakeNum / creatorStakeNum) * 100 : 0;
       
       // Set state variables
       setCreatorStakeFormatted(creatorStakeNum);
@@ -141,10 +134,12 @@ export default function BetPage() {
         return "easy";
       };
       
-      // Create a better title using bet market type and readable outcome
-      const title = poolData.betMarketType 
-        ? `${poolData.betMarketType}: ${poolData.predictedOutcome}`
-        : poolData.predictedOutcome || `${poolData.league} - ${poolData.category}`;
+      // Create a better title using decoded data
+      const title = poolData.title || `${poolData.homeTeam} vs ${poolData.awayTeam}`;
+      
+      // Determine currency based on stake amount (same logic as pool card)
+      const stakeAmount = parseFloat(poolData.creatorStake || "0") / 1e18;
+      const usesBitr = stakeAmount >= 1000; // If stake >= 1000, likely BITR
       
       const transformedPool: Pool = {
         id: poolId,
@@ -185,16 +180,16 @@ export default function BetPage() {
           shares: Math.floor(Math.random() * 5)
         },
         defeated: 0,
-        currency: poolData.usesBitr ? "BITR" : "STT",
-        endDate: poolData.eventEndTime ? new Date(poolData.eventEndTime).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        currency: usesBitr ? "BITR" : "STT",
+        endDate: poolData.eventEndTime ? new Date(poolData.eventEndTime * 1000).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         poolType: "single",
         comments: [],
         eventDetails: {
           league: poolData.league,
           region: poolData.region,
-          venue: poolData.venue || "TBD",
-          startTime: new Date(poolData.eventStartTime),
-          endTime: new Date(poolData.eventEndTime)
+          venue: "TBD",
+          startTime: new Date(poolData.eventStartTime * 1000),
+          endTime: new Date(poolData.eventEndTime * 1000)
         }
       };
       
@@ -716,20 +711,27 @@ export default function BetPage() {
               <p className="text-sm sm:text-base text-gray-300 leading-relaxed">{pool.description}</p>
             </div>
 
-            {/* Pool Progress Bar */}
-            <div className="mb-4 p-3 sm:p-4 bg-gradient-to-r from-gray-800/40 to-gray-700/40 rounded-lg border border-gray-600/30">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-400">Pool Fill Progress</span>
-                <span className="text-sm font-medium text-white">
-                  {poolFillProgressFormatted.toFixed(1)}%
-                </span>
+            {/* Enhanced Pool Progress Bar */}
+            <div className="mb-4 p-4 sm:p-6 bg-gradient-to-br from-gray-800/50 to-gray-700/50 rounded-xl border border-gray-600/30 backdrop-blur-sm shadow-lg">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
+                  <span className="text-sm font-medium text-gray-300">Pool Fill Progress</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-bold text-white">
+                    {poolFillProgressFormatted.toFixed(1)}%
+                  </span>
+                  <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
+                </div>
               </div>
-              <div className="w-full bg-gray-700 rounded-full h-3 mb-2">
+              <div className="w-full bg-gray-700/50 rounded-full h-4 mb-3 relative overflow-hidden">
                 <div
-                  className="bg-gradient-to-r from-cyan-500 to-blue-500 h-3 rounded-full transition-all duration-500 relative overflow-hidden"
+                  className="bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 h-4 rounded-full transition-all duration-1000 relative overflow-hidden"
                   style={{ width: `${Math.min(100, poolFillProgressFormatted)}%` }}
                 >
-                  <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse"></div>
+                  <div className="absolute inset-0 bg-gradient-to-r from-cyan-400/50 to-blue-400/50 animate-pulse"></div>
                 </div>
               </div>
               <div className="flex justify-between text-xs text-gray-400">
@@ -746,46 +748,54 @@ export default function BetPage() {
               </div>
             </div>
 
-            {/* Challenge Stats */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-700/30 rounded-lg border border-gray-600/30">
-              <div className="text-center">
-                <div className="text-lg sm:text-2xl font-bold text-white">{pool.defeated}</div>
-                <div className="text-xs text-gray-400">Defeated</div>
+            {/* Enhanced Challenge Stats */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 p-4 sm:p-6 bg-gradient-to-br from-gray-800/40 to-gray-700/40 rounded-xl border border-gray-600/30 backdrop-blur-sm shadow-lg">
+              <div className="text-center group hover:scale-105 transition-transform">
+                <div className="text-xl sm:text-3xl font-bold text-white mb-1 group-hover:text-red-400 transition-colors">{pool.defeated}</div>
+                <div className="text-xs text-gray-400 uppercase tracking-wider">Defeated</div>
+                <div className="w-full h-0.5 bg-red-500/20 rounded-full mt-2"></div>
               </div>
-              <div className="text-center">
-                <div className="text-lg sm:text-2xl font-bold text-green-400">{pool.creator.successRate.toFixed(1)}%</div>
-                <div className="text-xs text-gray-400">Creator Success</div>
+              <div className="text-center group hover:scale-105 transition-transform">
+                <div className="text-xl sm:text-3xl font-bold text-green-400 mb-1 group-hover:text-green-300 transition-colors">{pool.creator.successRate.toFixed(1)}%</div>
+                <div className="text-xs text-gray-400 uppercase tracking-wider">Creator Success</div>
+                <div className="w-full h-0.5 bg-green-500/20 rounded-full mt-2"></div>
               </div>
-              <div className="text-center">
-                <div className="text-lg sm:text-2xl font-bold text-yellow-400">{pool.odds.toFixed(2)}x</div>
-                <div className="text-xs text-gray-400">Odds</div>
+              <div className="text-center group hover:scale-105 transition-transform">
+                <div className="text-xl sm:text-3xl font-bold text-yellow-400 mb-1 group-hover:text-yellow-300 transition-colors">{pool.odds.toFixed(2)}x</div>
+                <div className="text-xs text-gray-400 uppercase tracking-wider">Odds</div>
+                <div className="w-full h-0.5 bg-yellow-500/20 rounded-full mt-2"></div>
               </div>
-              <div className="text-center">
-                <div className="text-lg sm:text-2xl font-bold text-cyan-400">{pool.participants}</div>
-                <div className="text-xs text-gray-400">Challengers</div>
+              <div className="text-center group hover:scale-105 transition-transform">
+                <div className="text-xl sm:text-3xl font-bold text-cyan-400 mb-1 group-hover:text-cyan-300 transition-colors">{pool.participants}</div>
+                <div className="text-xs text-gray-400 uppercase tracking-wider">Challengers</div>
+                <div className="w-full h-0.5 bg-cyan-500/20 rounded-full mt-2"></div>
               </div>
             </div>
 
-            {/* Time Remaining */}
+            {/* Enhanced Time Remaining */}
             {pool.eventDetails && (
-              <div className="text-center p-3 sm:p-4 bg-gradient-to-r from-cyan-500/5 to-blue-500/5 rounded-lg border border-cyan-500/20">
-                <div className="text-xs sm:text-sm text-gray-400 mb-2">Time Remaining</div>
-                <div className="flex items-center justify-center gap-2 sm:gap-4 text-lg sm:text-2xl font-bold text-cyan-400">
-                  <div className="text-center">
-                    <div>{timeLeft.days}</div>
-                    <div className="text-xs text-gray-400">Days</div>
-                    </div>
-                  <div className="text-cyan-400">:</div>
-                  <div className="text-center">
-                    <div>{timeLeft.hours}</div>
-                    <div className="text-xs text-gray-400">Hours</div>
-                  </div>
-                  <div className="text-cyan-400">:</div>
-                  <div className="text-center">
-                    <div>{timeLeft.minutes}</div>
-                    <div className="text-xs text-gray-400">Minutes</div>
+              <div className="text-center p-4 sm:p-6 bg-gradient-to-br from-cyan-500/10 to-blue-500/10 rounded-xl border border-cyan-500/30 backdrop-blur-sm shadow-lg">
+                <div className="flex items-center justify-center gap-2 mb-4">
+                  <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
+                  <div className="text-sm font-medium text-gray-300 uppercase tracking-wider">Time Remaining</div>
+                  <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
                 </div>
-              </div>
+                <div className="flex items-center justify-center gap-3 sm:gap-6 text-2xl sm:text-4xl font-bold text-cyan-400">
+                  <div className="text-center group hover:scale-110 transition-transform">
+                    <div className="bg-cyan-500/20 rounded-lg px-3 py-2 group-hover:bg-cyan-500/30 transition-colors">{timeLeft.days}</div>
+                    <div className="text-xs text-gray-400 mt-1 uppercase tracking-wider">Days</div>
+                  </div>
+                  <div className="text-cyan-400 animate-pulse">:</div>
+                  <div className="text-center group hover:scale-110 transition-transform">
+                    <div className="bg-cyan-500/20 rounded-lg px-3 py-2 group-hover:bg-cyan-500/30 transition-colors">{timeLeft.hours}</div>
+                    <div className="text-xs text-gray-400 mt-1 uppercase tracking-wider">Hours</div>
+                  </div>
+                  <div className="text-cyan-400 animate-pulse">:</div>
+                  <div className="text-center group hover:scale-110 transition-transform">
+                    <div className="bg-cyan-500/20 rounded-lg px-3 py-2 group-hover:bg-cyan-500/30 transition-colors">{timeLeft.minutes}</div>
+                    <div className="text-xs text-gray-400 mt-1 uppercase tracking-wider">Minutes</div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
