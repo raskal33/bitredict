@@ -547,9 +547,9 @@ export default function EnhancedPoolCard({
             {indexedData ? `${indexedData.fillPercentage}%` : '0%'}
           </span>
         </div>
-        <div className="w-full glass-card rounded-full h-0.5 bg-gray-800/30 border border-gray-600/20 shadow-inner">
+        <div className="w-full rounded-full h-2 bg-gray-800/30 border border-gray-600/20 shadow-inner">
           <div
-            className={`h-0.5 rounded-full transition-all duration-500 shadow-sm ${
+            className={`h-2 rounded-full transition-all duration-500 shadow-sm ${
               indexedData ? getProgressColor(indexedData.fillPercentage) : 'bg-gray-600'
             }`}
             style={{ 

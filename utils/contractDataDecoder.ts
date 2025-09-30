@@ -25,7 +25,11 @@ export function bytes32ToString(bytes32: string): string {
  * Tests common prediction values against the hash
  */
 export function decodeHash(hash: string): string | null {
-  if (!hash || !hash.startsWith('0x')) return null;
+  console.log('🔍 decodeHash called with:', hash);
+  if (!hash || !hash.startsWith('0x')) {
+    console.log('🔍 Invalid hash format');
+    return null;
+  }
 
   // Common prediction values to test
   const COMMON_SELECTIONS = [
@@ -57,6 +61,7 @@ export function decodeHash(hash: string): string | null {
     'Liverpool wins', 'Galatasaray wins', 'Manchester City wins',
     'Real Madrid wins', 'Barcelona wins', 'Arsenal wins',
     'Liverpool will win', 'Galatasaray will win',
+    'Liverpool win', 'Galatasaray win',
     
     // Generic patterns
     'wins', 'Wins', 'WINS', 'will win', 'Will Win'
@@ -94,18 +99,8 @@ export function decodePredictedOutcome(bytes32: string): string {
     return '';
   }
   
-  try {
-    // Try to decode as bytes32 string first
-    const decoded = decodeBytes32String(bytes32);
-    console.log('🔍 Decoded predictedOutcome:', decoded);
-    if (decoded && decoded.length > 0) {
-      return decoded;
-    }
-  } catch (error) {
-    console.log('Failed to decode predictedOutcome as bytes32 string:', error);
-  }
-  
-  // If bytes32 string decoding fails, try to decode as hash
+  // First, try to decode as hash (for legacy pools)
+  console.log('🔍 Attempting hash decoding for:', bytes32);
   try {
     const hashDecoded = decodeHash(bytes32);
     if (hashDecoded) {
@@ -114,6 +109,17 @@ export function decodePredictedOutcome(bytes32: string): string {
     }
   } catch (error) {
     console.log('Failed to decode predictedOutcome as hash:', error);
+  }
+  
+  // If hash decoding fails, try bytes32 string decoding
+  try {
+    const decoded = decodeBytes32String(bytes32);
+    console.log('🔍 Decoded predictedOutcome:', decoded);
+    if (decoded && decoded.length > 0) {
+      return decoded;
+    }
+  } catch (error) {
+    console.log('Failed to decode predictedOutcome as bytes32 string:', error);
   }
   
   // If all decoding fails, provide a meaningful fallback
