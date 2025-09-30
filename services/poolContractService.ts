@@ -190,6 +190,68 @@ export class PoolContractService {
   /**
    * Get pool analytics data
    */
+  static async getPoolStats(): Promise<any> {
+    try {
+      console.log('📊 Fetching pool stats from contract...');
+      
+      const totalPools = await this.getPoolCount();
+      
+      // Get all pools to calculate stats
+      const allPools = await this.getPools(totalPools, 0);
+      
+      let totalVolume = 0;
+      let bitrVolume = 0;
+      let sttVolume = 0;
+      let activeMarkets = 0;
+      let participants = 0;
+      
+      for (const pool of allPools) {
+        const creatorStake = parseFloat(pool.creatorStake || "0") / 1e18;
+        const bettorStake = parseFloat(pool.totalBettorStake || "0") / 1e18;
+        const poolVolume = creatorStake + bettorStake;
+        
+        totalVolume += poolVolume;
+        
+        if (creatorStake >= 1000) {
+          bitrVolume += poolVolume;
+        } else {
+          sttVolume += poolVolume;
+        }
+        
+        if (!pool.settled) {
+          activeMarkets++;
+        }
+        
+        participants += 1; // Each pool has at least 1 participant (creator)
+      }
+      
+      return {
+        totalVolume: totalVolume.toString(),
+        bitrVolume: bitrVolume.toString(),
+        sttVolume: sttVolume.toString(),
+        activeMarkets,
+        participants,
+        totalPools,
+        boostedPools: 0,
+        comboPools: 0,
+        privatePools: 0
+      };
+    } catch (error) {
+      console.error('Error fetching pool stats:', error);
+      return {
+        totalVolume: "0",
+        bitrVolume: "0",
+        sttVolume: "0",
+        activeMarkets: 0,
+        participants: 0,
+        totalPools: 0,
+        boostedPools: 0,
+        comboPools: 0,
+        privatePools: 0
+      };
+    }
+  }
+
   static async getPoolAnalytics(poolId: number): Promise<any | null> {
     try {
       const result = await this.publicClient.readContract({

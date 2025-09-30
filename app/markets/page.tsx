@@ -48,81 +48,89 @@ export default function MarketsPage() {
   });
   const [isLoading, setIsLoading] = useState(true);
 
-  // Convert service Pool to EnhancedPool format
+  // Format volume to human-readable format
+  const formatVolume = (volume: string): string => {
+    const num = parseFloat(volume);
+    if (num === 0) return "0";
+    if (num >= 1e21) return `${(num / 1e21).toFixed(1)}K BITR`;
+    if (num >= 1e18) return `${(num / 1e18).toFixed(1)} BITR`;
+    if (num >= 1e15) return `${(num / 1e15).toFixed(1)}M STT`;
+    if (num >= 1e12) return `${(num / 1e12).toFixed(1)}K STT`;
+    return num.toFixed(2);
+  };
+
+  // Convert Pool to EnhancedPool format
   const convertToEnhancedPool = (pool: Pool): EnhancedPool => {
     return {
-      id: pool.poolId, // Use poolId from backend
+      id: pool.poolId,
       creator: pool.creator,
       odds: pool.odds,
       settled: pool.settled,
-      creatorSideWon: pool.creatorSideWon || false, // Handle null
+      creatorSideWon: pool.creatorSideWon || false,
       isPrivate: pool.isPrivate,
       usesBitr: pool.usesBitr,
-      filledAbove60: pool.filledAbove60 || false, // Use from backend or default
-      oracleType: (pool.oracleType as 'GUIDED' | 'OPEN') || 'GUIDED', // Use from backend or default
+      filledAbove60: pool.filledAbove60 || false,
+      oracleType: (pool.oracleType as 'GUIDED' | 'OPEN') || 'GUIDED',
       
       creatorStake: pool.creatorStake,
-      totalCreatorSideStake: pool.totalCreatorSideStake || pool.creatorStake, // Use from backend or fallback
-      maxBettorStake: pool.maxBettorStake || pool.totalBettorStake, // Use from backend or fallback
+      totalCreatorSideStake: pool.totalCreatorSideStake || pool.creatorStake,
+      maxBettorStake: pool.maxBettorStake || pool.totalBettorStake,
       totalBettorStake: pool.totalBettorStake,
       predictedOutcome: pool.predictedOutcome,
-      result: pool.result || '', // Use from backend or empty
+      result: pool.result || '',
       marketId: pool.marketId,
       
       eventStartTime: typeof pool.eventStartTime === 'string' ? new Date(pool.eventStartTime).getTime() / 1000 : pool.eventStartTime,
       eventEndTime: typeof pool.eventEndTime === 'string' ? new Date(pool.eventEndTime).getTime() / 1000 : pool.eventEndTime,
       bettingEndTime: typeof pool.bettingEndTime === 'string' ? new Date(pool.bettingEndTime).getTime() / 1000 : pool.bettingEndTime,
-      resultTimestamp: pool.resultTimestamp ? new Date(pool.resultTimestamp).getTime() / 1000 : 0, // Convert ISO to timestamp
-      arbitrationDeadline: pool.arbitrationDeadline ? new Date(pool.arbitrationDeadline).getTime() / 1000 : (typeof pool.eventEndTime === 'string' ? new Date(pool.eventEndTime).getTime() / 1000 + (24 * 60 * 60) : pool.eventEndTime + (24 * 60 * 60)), // Use from backend or calculate
+      resultTimestamp: pool.resultTimestamp ? new Date(pool.resultTimestamp).getTime() / 1000 : 0,
+      arbitrationDeadline: pool.arbitrationDeadline ? new Date(pool.arbitrationDeadline).getTime() / 1000 : (typeof pool.eventEndTime === 'string' ? new Date(pool.eventEndTime).getTime() / 1000 + (24 * 60 * 60) : pool.eventEndTime + (24 * 60 * 60)),
       
       league: pool.league,
       category: pool.category,
       region: pool.region,
-      // NEW FIELDS FROM CONTRACT
-      title: pool.title || '', // Professional title
-      homeTeam: pool.homeTeam || '', // Home team name
-      awayTeam: pool.awayTeam || '', // Away team name
+      title: pool.title || '',
+      homeTeam: pool.homeTeam || '',
+      awayTeam: pool.awayTeam || '',
       maxBetPerUser: pool.maxBetPerUser,
       
-      boostTier: pool.boostTier || 'NONE', // Use from backend or default
-      boostExpiry: pool.boostExpiry || 0, // Use from backend or default
-      trending: false, // Default value
+      boostTier: pool.boostTier || 'NONE',
+      boostExpiry: pool.boostExpiry || 0,
+      trending: false,
       socialStats: {
         likes: 0,
         comments: 0,
         views: 0
       },
-      change24h: 0 // Default value
+      change24h: 0
     };
   };
 
-  // Load pools from backend API with retry logic
+  // Load pools with optimized caching
   useEffect(() => {
-    const loadPools = async (retryCount = 0) => {
+    const loadPools = async () => {
       setIsLoading(true);
       try {
-        console.log('🔄 Loading pools, attempt:', retryCount + 1);
-        const fetchedPools = await PoolService.getPools(50, 0);
+        console.log('🔄 Loading pools with optimized service...');
+        
+        // Load pools and stats in parallel
+        const [fetchedPools, poolStats] = await Promise.all([
+          PoolService.getPools(50, 0),
+          PoolService.getPoolStats()
+        ]);
+        
         const enhancedPools = fetchedPools.map(convertToEnhancedPool);
         setPools(enhancedPools);
         setFilteredPools(enhancedPools);
-        
-        // Load stats
-        const poolStats = await PoolService.getPoolStats();
         setStats(poolStats);
+        
         console.log('✅ Successfully loaded', enhancedPools.length, 'pools');
+        console.log('📊 Stats:', poolStats);
       } catch (error) {
         console.error('❌ Error loading pools:', error);
-        if (retryCount < 3) {
-          console.log('🔄 Retrying in 2 seconds...');
-          setTimeout(() => loadPools(retryCount + 1), 2000);
-        } else {
-          toast.error('Failed to load markets after multiple attempts');
-        }
+        toast.error('Failed to load markets. Please try again.');
       } finally {
-        if (retryCount >= 3) {
-          setIsLoading(false);
-        }
+        setIsLoading(false);
       }
     };
 
@@ -423,11 +431,11 @@ export default function MarketsPage() {
               <div className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-gray-300">BITR Volume</span>
-                  <span className="text-white font-semibold">{stats.bitrVolume || "0"} BITR</span>
+                  <span className="text-white font-semibold">{formatVolume(stats.bitrVolume || "0")}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-300">STT Volume</span>
-                  <span className="text-white font-semibold">{stats.sttVolume || "0"} STT</span>
+                  <span className="text-white font-semibold">{formatVolume(stats.sttVolume || "0")}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-300">Active Markets</span>
