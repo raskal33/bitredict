@@ -35,29 +35,29 @@ export default function PoolTitleRow({
       <div className="flex items-center justify-between p-4">
         {/* Left side - Time and Teams */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3 mb-2">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
             {/* Time */}
-            <div className="text-sm text-gray-300 font-medium">
+            <div className="text-sm text-gray-300 font-medium whitespace-nowrap">
               {time}
             </div>
             {/* Teams */}
-            <div className="text-lg font-bold text-white truncate">
+            <div className="text-lg font-bold text-white">
               {title}
             </div>
           </div>
           
           {/* Prediction and Odds with colored boxes */}
-          <div className="flex items-center gap-2 mb-2">
-            <div className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs font-bold rounded border border-blue-500/30">
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
+            <div className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs font-bold rounded border border-blue-500/30 whitespace-nowrap">
               {prediction}
             </div>
-            <div className="px-2 py-1 bg-green-500/20 text-green-400 text-xs font-bold rounded border border-green-500/30">
+            <div className="px-2 py-1 bg-green-500/20 text-green-400 text-xs font-bold rounded border border-green-500/30 whitespace-nowrap">
               {odds}
             </div>
           </div>
           
           {/* League */}
-          <div className="text-sm text-gray-400 truncate">
+          <div className="text-sm text-gray-400">
             {league}
           </div>
         </div>

@@ -71,6 +71,11 @@ export default function BetPage() {
     fillPercentage: 0
   });
   
+  // Pool state checks for betting
+  const [isEventStarted, setIsEventStarted] = useState(false);
+  const [isPoolFilled, setIsPoolFilled] = useState(false);
+  const [canBet, setCanBet] = useState(true);
+  
   // Backend formatted data to avoid scientific notation
   const [creatorStakeFormatted, setCreatorStakeFormatted] = useState<number>(0);
   const [totalBettorStakeFormatted, setTotalBettorStakeFormatted] = useState<number>(0);
@@ -199,34 +204,34 @@ export default function BetPage() {
           address: poolData.creator,
           username: `${poolData.creator.slice(0, 6)}...${poolData.creator.slice(-4)}`,
           avatar: "/logo.png",
-          reputation: 4.2,
-          totalPools: 12,
-          successRate: 73.5,
+          reputation: 0, // Will be calculated from blockchain data
+          totalPools: 0, // Will be fetched from blockchain
+          successRate: 0, // Will be calculated from blockchain data
           challengeScore: Math.round(poolData.odds * 20),
-          totalVolume: creatorStakeNum, // Use formatted backend data
-          badges: ["verified", "active_creator"],
+          totalVolume: creatorStakeNum,
+          badges: [],
           createdAt: poolData.createdAt || new Date().toISOString(),
-          bio: "Active prediction market creator"
+          bio: ""
         },
         challengeScore: Math.round(poolData.odds * 20),
-        qualityScore: 88,
+        qualityScore: 0, // Will be calculated from blockchain data
         difficultyTier: getDifficultyTier(poolData.odds),
         predictedOutcome: poolData.predictedOutcome,
         creatorPrediction: "no", // Creator thinks it WON'T happen
-        odds: poolData.odds, // Already in decimal format
+        odds: poolData.odds,
         participants: (progressInfo.bettorCount || 0) + (progressInfo.lpCount || 0),
-        volume: totalBettorStakeNum, // Use formatted backend data for bettor stakes
+        volume: totalBettorStakeNum,
         image: poolData.category === "football" ? "⚽" : poolData.category === "basketball" ? "🏀" : "🎯",
         cardTheme: poolData.category === "football" ? "green" : poolData.category === "basketball" ? "orange" : "purple",
-        tags: [poolData.category, poolData.league, poolData.region, poolData.betMarketType].filter(Boolean),
+        tags: [poolData.category, poolData.league, poolData.region].filter(Boolean),
         trending: progressInfo.fillPercentage > 50,
         boosted: false,
         boostTier: 0,
         socialStats: {
           comments: 0,
-          likes: Math.floor(Math.random() * 20),
-          views: progressInfo.bettorCount * 3 || 10,
-          shares: Math.floor(Math.random() * 5)
+          likes: 0,
+          views: (progressInfo.bettorCount || 0) + (progressInfo.lpCount || 0),
+          shares: 0
         },
         defeated: 0,
         currency: usesBitr ? "BITR" : "STT",
@@ -244,10 +249,36 @@ export default function BetPage() {
       
       setPool(transformedPool);
       
-      // Calculate time left using real event end time
+      // Check pool state for betting eligibility
       const now = Date.now();
-      const endTime = new Date(poolData.eventEndTime).getTime();
-      const timeRemaining = Math.max(0, endTime - now);
+      const eventStartTime = new Date(poolData.eventStartTime * 1000).getTime();
+      const eventEndTime = new Date(poolData.eventEndTime * 1000).getTime();
+      const bettingEndTime = new Date(poolData.bettingEndTime * 1000).getTime();
+      
+      // Check if event has started
+      const eventStarted = now >= eventStartTime;
+      setIsEventStarted(eventStarted);
+      
+      // Check if pool is filled (100% or more)
+      const poolFilled = progressInfo.fillPercentage >= 100;
+      setIsPoolFilled(poolFilled);
+      
+      // Check if betting is still allowed
+      const bettingAllowed = now < bettingEndTime && !eventStarted && !poolFilled;
+      setCanBet(bettingAllowed);
+      
+      console.log('🔍 Pool state check:', {
+        now: new Date(now).toISOString(),
+        eventStartTime: new Date(eventStartTime).toISOString(),
+        bettingEndTime: new Date(bettingEndTime).toISOString(),
+        eventStarted,
+        poolFilled,
+        fillPercentage: progressInfo.fillPercentage,
+        bettingAllowed
+      });
+      
+      // Calculate time left using real event end time
+      const timeRemaining = Math.max(0, eventEndTime - now);
       
       if (timeRemaining > 0) {
         const days = Math.floor(timeRemaining / (1000 * 60 * 60 * 24));
@@ -917,18 +948,29 @@ export default function BetPage() {
                     <p className="text-sm sm:text-base text-gray-400">
                       Challenge the creator or agree with their prediction
                     </p>
+                    {!canBet && (
+                      <div className="mt-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg">
+                        <p className="text-red-400 text-sm font-medium">
+                          {isEventStarted ? 'Event has started - betting closed' : 
+                           isPoolFilled ? 'Pool is 100% filled - no more bets allowed' : 
+                           'Betting period has ended'}
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Betting Options */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {/* YES - Challenge Creator */}
                     <div className={`
-                      p-4 sm:p-6 rounded-xl border-2 transition-all cursor-pointer relative overflow-hidden group
-                      ${betType === 'yes' 
-                        ? 'bg-gradient-to-br from-green-500/20 to-emerald-500/20 border-green-500/50 shadow-lg shadow-green-500/20' 
-                        : 'bg-gray-700/30 border-gray-600/50 hover:border-green-500/30 hover:bg-green-500/10'
+                      p-4 sm:p-6 rounded-xl border-2 transition-all relative overflow-hidden group
+                      ${!canBet 
+                        ? 'bg-gray-800/50 border-gray-600/30 cursor-not-allowed opacity-50' 
+                        : betType === 'yes' 
+                          ? 'bg-gradient-to-br from-green-500/20 to-emerald-500/20 border-green-500/50 shadow-lg shadow-green-500/20 cursor-pointer' 
+                          : 'bg-gray-700/30 border-gray-600/50 hover:border-green-500/30 hover:bg-green-500/10 cursor-pointer'
                       }
-                    `} onClick={() => setBetType('yes')}>
+                    `} onClick={() => canBet && setBetType('yes')}>
                       {betType === 'yes' && (
                         <div className="absolute inset-0 bg-gradient-to-r from-green-500/10 to-transparent animate-pulse"></div>
                       )}
@@ -951,12 +993,14 @@ export default function BetPage() {
 
                     {/* NO - Agree with Creator */}
                     <div className={`
-                      p-4 sm:p-6 rounded-xl border-2 transition-all cursor-pointer relative overflow-hidden group
-                      ${betType === 'no' 
-                        ? 'bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border-blue-500/50 shadow-lg shadow-blue-500/20' 
-                        : 'bg-gray-700/30 border-gray-600/50 hover:border-blue-500/30 hover:bg-blue-500/10'
+                      p-4 sm:p-6 rounded-xl border-2 transition-all relative overflow-hidden group
+                      ${!canBet 
+                        ? 'bg-gray-800/50 border-gray-600/30 cursor-not-allowed opacity-50' 
+                        : betType === 'no' 
+                          ? 'bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border-blue-500/50 shadow-lg shadow-blue-500/20 cursor-pointer' 
+                          : 'bg-gray-700/30 border-gray-600/50 hover:border-blue-500/30 hover:bg-blue-500/10 cursor-pointer'
                       }
-                    `} onClick={() => setBetType('no')}>
+                    `} onClick={() => canBet && setBetType('no')}>
                       {betType === 'no' && (
                         <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-transparent animate-pulse"></div>
                       )}
@@ -994,9 +1038,12 @@ export default function BetPage() {
                       <input
                         type="number"
                         value={betAmount}
-                        onChange={(e) => setBetAmount(Number(e.target.value))}
+                        onChange={(e) => canBet && setBetAmount(Number(e.target.value))}
                         placeholder="0.00"
-                        className="w-full px-4 py-3 sm:py-4 bg-bg-card border border-border-input rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 text-lg sm:text-xl group-hover:border-primary/30 transition-all backdrop-blur-sm"
+                        disabled={!canBet}
+                        className={`w-full px-4 py-3 sm:py-4 bg-bg-card border border-border-input rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 text-lg sm:text-xl group-hover:border-primary/30 transition-all backdrop-blur-sm ${
+                          !canBet ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
                       />
                       <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-blue-400 text-sm sm:text-base font-medium">
                         {pool.currency}
@@ -1009,11 +1056,14 @@ export default function BetPage() {
                       {[10, 50, 100, 500].map(amount => (
                         <button 
                           key={amount}
-                          onClick={() => setBetAmount(amount)}
+                          onClick={() => canBet && setBetAmount(amount)}
+                          disabled={!canBet}
                           className={`px-2 sm:px-3 py-2 rounded-lg text-xs sm:text-sm transition-all font-medium ${
-                            betAmount === amount 
-                              ? 'bg-primary text-black shadow-lg' 
-                              : 'bg-bg-card hover:bg-bg-card/80 text-white hover:scale-105 border border-border-card'
+                            !canBet 
+                              ? 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-50' 
+                              : betAmount === amount 
+                                ? 'bg-primary text-black shadow-lg' 
+                                : 'bg-bg-card hover:bg-bg-card/80 text-white hover:scale-105 border border-border-card'
                           }`}
                         >
                           {amount}
@@ -1062,12 +1112,14 @@ export default function BetPage() {
               <div className="text-center">
                 <button
                   onClick={handlePlaceBet}
-                  disabled={!betType || betAmount <= 0}
+                  disabled={!canBet || !betType || betAmount <= 0}
                   className={`
                     relative px-8 py-3 sm:py-4 rounded-xl font-bold text-lg sm:text-xl transition-all transform group overflow-hidden
-                    ${betType && betAmount > 0
-                      ? 'bg-gradient-primary hover:brightness-110 text-black shadow-lg hover:shadow-primary/25 hover:scale-105 active:scale-95'
-                      : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                    ${!canBet 
+                      ? 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-50' 
+                      : betType && betAmount > 0
+                        ? 'bg-gradient-primary hover:brightness-110 text-black shadow-lg hover:shadow-primary/25 hover:scale-105 active:scale-95'
+                        : 'bg-gray-600 text-gray-400 cursor-not-allowed'
                     }
                   `}
                 >
