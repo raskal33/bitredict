@@ -1056,4 +1056,138 @@ contract Oddyssey is Ownable, ReentrancyGuard {
             (totalCorrectPredictions * ODDS_SCALING_FACTOR) / totalEvaluatedSlips : 0;
     }
     
+    // ===== USER SLIP FUNCTIONS ACROSS ALL CYCLES =====
+    
+    /**
+     * @dev Get all slip IDs for a user across all cycles
+     * @param _user The user address
+     * @return Array of slip IDs for the user across all cycles
+     */
+    function getAllUserSlips(address _user) external view returns (uint256[] memory) {
+        return s_userSlips[_user];
+    }
+
+    /**
+     * @dev Get all user slips with full data across all cycles
+     * @param _user The user address
+     * @return slipIds Array of slip IDs
+     * @return slipsData Array of slip data
+     */
+    function getAllUserSlipsWithData(address _user) external view returns (
+        uint256[] memory slipIds,
+        Slip[] memory slipsData
+    ) {
+        slipIds = s_userSlips[_user];
+        slipsData = new Slip[](slipIds.length);
+        
+        for (uint256 i = 0; i < slipIds.length; i++) {
+            slipsData[i] = slips[slipIds[i]];
+        }
+    }
+
+    /**
+     * @dev Get all user slips with pagination support
+     * @param _user The user address
+     * @param _offset Starting index
+     * @param _limit Maximum number of slips to return
+     * @return slipIds Array of slip IDs
+     * @return totalCount Total number of slips for the user
+     */
+    function getAllUserSlipsPaginated(
+        address _user, 
+        uint256 _offset, 
+        uint256 _limit
+    ) external view returns (
+        uint256[] memory slipIds,
+        uint256 totalCount
+    ) {
+        uint256[] memory allSlips = s_userSlips[_user];
+        totalCount = allSlips.length;
+        
+        if (_offset >= totalCount) {
+            return (new uint256[](0), totalCount);
+        }
+        
+        uint256 endIndex = _offset + _limit;
+        if (endIndex > totalCount) {
+            endIndex = totalCount;
+        }
+        
+        uint256 resultLength = endIndex - _offset;
+        slipIds = new uint256[](resultLength);
+        
+        for (uint256 i = 0; i < resultLength; i++) {
+            slipIds[i] = allSlips[_offset + i];
+        }
+    }
+
+    /**
+     * @dev Get user slips filtered by evaluation status across all cycles
+     * @param _user The user address
+     * @param _evaluatedOnly If true, only return evaluated slips
+     * @return slipIds Array of slip IDs
+     * @return slipsData Array of slip data
+     */
+    function getUserSlipsByStatus(address _user, bool _evaluatedOnly) external view returns (
+        uint256[] memory slipIds,
+        Slip[] memory slipsData
+    ) {
+        uint256[] memory allSlips = s_userSlips[_user];
+        uint256[] memory tempSlipIds = new uint256[](allSlips.length);
+        uint256 count = 0;
+        
+        for (uint256 i = 0; i < allSlips.length; i++) {
+            Slip memory slip = slips[allSlips[i]];
+            if (slip.isEvaluated == _evaluatedOnly) {
+                tempSlipIds[count] = allSlips[i];
+                count++;
+            }
+        }
+        
+        // Create properly sized arrays
+        slipIds = new uint256[](count);
+        slipsData = new Slip[](count);
+        
+        for (uint256 i = 0; i < count; i++) {
+            slipIds[i] = tempSlipIds[i];
+            slipsData[i] = slips[tempSlipIds[i]];
+        }
+    }
+
+    /**
+     * @dev Get user slips with minimum correct predictions across all cycles
+     * @param _user The user address
+     * @param _minCorrect Minimum number of correct predictions
+     * @return slipIds Array of slip IDs
+     * @return slipsData Array of slip data
+     */
+    function getUserSlipsByPerformance(
+        address _user, 
+        uint8 _minCorrect
+    ) external view returns (
+        uint256[] memory slipIds,
+        Slip[] memory slipsData
+    ) {
+        uint256[] memory allSlips = s_userSlips[_user];
+        uint256[] memory tempSlipIds = new uint256[](allSlips.length);
+        uint256 count = 0;
+        
+        for (uint256 i = 0; i < allSlips.length; i++) {
+            Slip memory slip = slips[allSlips[i]];
+            if (slip.correctCount >= _minCorrect) {
+                tempSlipIds[count] = allSlips[i];
+                count++;
+            }
+        }
+        
+        // Create properly sized arrays
+        slipIds = new uint256[](count);
+        slipsData = new Slip[](count);
+        
+        for (uint256 i = 0; i < count; i++) {
+            slipIds[i] = tempSlipIds[i];
+            slipsData[i] = slips[tempSlipIds[i]];
+        }
+    }
+    
 } 

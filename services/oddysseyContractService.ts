@@ -1,674 +1,395 @@
-import { 
-  createPublicClient, 
-  createWalletClient, 
-  http, 
-  parseEther, 
-  formatEther, 
-  keccak256, 
-  stringToHex,
-  encodeFunctionData,
-  type Address,
-  type PublicClient,
-  type WalletClient,
-  type Chain
-} from 'viem';
-import { CONTRACTS } from '@/contracts';
-import { GAS_SETTINGS } from '@/config/wagmi';
-
-// Convert somniaNetwork to viem Chain format
-const somniaChain: Chain = {
-  id: 50312,
-  name: 'Somnia Testnet',
-  nativeCurrency: {
-    decimals: 18,
-    name: 'STT',
-    symbol: 'STT',
-  },
-  rpcUrls: {
-    default: {
-      http: [
-        process.env.NODE_ENV === 'development' 
-          ? 'http://localhost:8080/api/rpc-proxy'
-          : process.env.NEXT_PUBLIC_RPC_URL || 'https://dream-rpc.somnia.network/'
-      ],
-    },
-  },
-  blockExplorers: {
-    default: { name: 'Somnia Explorer', url: 'https://shannon-explorer.somnia.network' },
-  },
-  testnet: true,
+import { ethers } from 'ethers';
+// Contract addresses - update with actual addresses
+const CONTRACT_ADDRESSES = {
+  ODDYSSEY: '0x0000000000000000000000000000000000000000' // Update with actual address
 };
 
-// Use the actual Oddyssey ABI from the contract
-const ODDYSSEY_ABI = CONTRACTS.ODDYSSEY.abi;
+// Contract ABI for Oddyssey contract
+const ODDYSSEY_ABI = [
+  "function getAllUserSlips(address _user) external view returns (uint256[] memory)",
+  "function getAllUserSlipsWithData(address _user) external view returns (uint256[] memory slipIds, tuple(address player, uint256 cycleId, uint256 placedAt, tuple(uint64 matchId, uint8 betType, string selection, uint32 selectedOdd, string homeTeam, string awayTeam, string leagueName)[10] predictions, uint256 finalScore, uint8 correctCount, bool isEvaluated)[] slipsData)",
+  "function getUserData(address _user) external view returns (tuple(uint256 totalSlips, uint256 totalWins, uint256 bestScore, uint256 averageScore, uint256 winRate, uint256 currentStreak, uint256 bestStreak, uint256 lastActiveCycle) userStatsData, uint256 reputation, uint256 correctPredictions)",
+  "function getCurrentCycleInfo() external view returns (uint256 cycleId, uint8 state, uint256 endTime, uint256 prizePool, uint32 cycleSlipCount)",
+  "function getDailyStats(uint256 _cycleId) external view returns (tuple(uint256 slipCount, uint256 userCount, uint256 volume, uint256 correctPredictions, uint256 evaluatedSlips, uint256 averageScore, uint256 maxScore, uint256 minScore, uint256 winnersCount))",
+  "function getPlatformDailyStats() external view returns (uint256 totalCycles, uint256 totalSlips, uint256 totalUsers, uint256 totalVolume, uint256 totalCorrectPredictions, uint256 totalEvaluatedSlips, uint256 totalWinners, uint256 averageScore, uint256 maxScore, uint256 minScore)",
+  "function getCurrentCycle() external view returns (uint256)",
+  "function getSlip(uint256 _slipId) external view returns (tuple(address player, uint256 cycleId, uint256 placedAt, tuple(uint64 matchId, uint8 betType, string selection, uint32 selectedOdd, string homeTeam, string awayTeam, string leagueName)[10] predictions, uint256 finalScore, uint8 correctCount, bool isEvaluated))",
+  "function getDailyMatches(uint256 _cycleId) external view returns (tuple(uint64 id, uint64 startTime, uint32 oddsHome, uint32 oddsDraw, uint32 oddsAway, uint32 oddsOver, uint32 oddsUnder, string homeTeam, string awayTeam, string leagueName, tuple(uint8 moneyline, uint8 overUnder) result)[10])",
+  "function getDailyLeaderboard(uint256 _cycleId) external view returns (tuple(address player, uint256 slipId, uint256 finalScore, uint8 correctCount)[5])"
+];
 
-// Enums from contract
-const BetType = {
-  MONEYLINE: 0,
-  OVER_UNDER: 1
-} as const;
-
-// Selection constants (matching contract exactly)
-const SELECTIONS = {
-  MONEYLINE: {
-    HOME_WIN: keccak256(stringToHex('1')),
-    DRAW: keccak256(stringToHex('X')),
-    AWAY_WIN: keccak256(stringToHex('2'))
-  },
-  OVER_UNDER: {
-    OVER: keccak256(stringToHex('Over')),
-    UNDER: keccak256(stringToHex('Under'))
-  }
-};
-
+// Type definitions
 export interface UserPrediction {
-  matchId: bigint;
-  betType: 0 | 1; // 0 = MONEYLINE, 1 = OVER_UNDER
-  selection: `0x${string}`; // keccak256 hash of selection
+  matchId: number;
+  betType: number;
+  selection: string;
   selectedOdd: number;
+  homeTeam: string;
+  awayTeam: string;
+  leagueName: string;
 }
 
-// Wagmi-style client wrapper
-class WagmiStyleClient {
-  private publicClient: PublicClient;
-  private walletClient: WalletClient | null = null;
-  private walletAddress: Address | null = null;
-
-  constructor() {
-    this.publicClient = createPublicClient({
-      chain: somniaChain,
-      transport: http()
-    });
-  }
-
-  async initialize() {
-    console.log('🔧 Initializing WagmiStyleClient...');
-    console.log('✅ WagmiStyleClient initialized');
-  }
-
-  setWalletClient(walletClient: WalletClient, address: Address) {
-    this.walletClient = walletClient;
-    this.walletAddress = address;
-    console.log('✅ Wallet client set:', address);
-  }
-
-  getWalletClient(): WalletClient | null {
-    return this.walletClient;
-  }
-
-  async readContract({ address, abi, functionName, args = [] }: {
-    address: Address;
-    abi: any;
-    functionName: string;
-    args?: any[];
-  }) {
-    return await this.publicClient.readContract({
-      address,
-      abi,
-      functionName,
-      args
-    });
-  }
-
-  async writeContract({ address, abi, functionName, args = [], value = BigInt(0) }: {
-    address: Address;
-    abi: any;
-    functionName: string;
-    args?: any[];
-    value?: bigint;
-  }) {
-    if (!this.walletClient) {
-      throw new Error('Wallet client not set');
-    }
-
-    if (!this.walletAddress) {
-      throw new Error('Wallet address not set');
-    }
-
-    const data = encodeFunctionData({
-      abi,
-      functionName,
-      args
-    });
-
-    const hash = await this.walletClient.sendTransaction({
-      account: this.walletAddress,
-      chain: somniaChain,
-      to: address,
-      data,
-      value,
-      // Remove gas settings to let ethers handle it automatically
-    });
-
-    return { hash };
-  }
-
-  async waitForTransactionReceipt({ hash }: { hash: `0x${string}` }) {
-    return await this.publicClient.waitForTransactionReceipt({ hash });
-  }
-
-  async getBalance({ address }: { address: Address }) {
-    return await this.publicClient.getBalance({ address });
-  }
-
-  getWalletAddress(): Address | null {
-    return this.walletAddress;
-  }
+export interface Slip {
+  player: string;
+  cycleId: number;
+  placedAt: number;
+  predictions: UserPrediction[];
+  finalScore: number;
+  correctCount: number;
+  isEvaluated: boolean;
 }
 
-// Wagmi-style contract hooks
-class OddysseyContract {
-  private client: WagmiStyleClient;
+export interface UserStats {
+  totalSlips: number;
+  totalWins: number;
+  bestScore: number;
+  averageScore: number;
+  winRate: number;
+  currentStreak: number;
+  bestStreak: number;
+  lastActiveCycle: number;
+}
 
-  constructor(client: WagmiStyleClient) {
-    this.client = client;
-  }
+export interface UserData {
+  userStats: UserStats;
+  reputation: number;
+  correctPredictions: number;
+}
 
-  async getCurrentCycleInfo() {
-    const result = await this.client.readContract({
-      address: CONTRACTS.ODDYSSEY.address as Address,
-      abi: ODDYSSEY_ABI,
-      functionName: 'getCurrentCycleInfo'
-    });
-    return result;
-  }
+export interface DailyStats {
+  slipCount: number;
+  userCount: number;
+  volume: number;
+  correctPredictions: number;
+  evaluatedSlips: number;
+  averageScore: number;
+  maxScore: number;
+  minScore: number;
+  winnersCount: number;
+}
 
-  async getDailyMatches(cycleId: bigint) {
-    const result = await this.client.readContract({
-      address: CONTRACTS.ODDYSSEY.address as Address,
-      abi: ODDYSSEY_ABI,
-      functionName: 'getDailyMatches',
-      args: [cycleId]
-    });
-    return result;
-  }
+export interface CycleInfo {
+  cycleId: number;
+  state: number;
+  endTime: number;
+  prizePool: number;
+  cycleSlipCount: number;
+}
 
-  async getEntryFee() {
-    const result = await this.client.readContract({
-      address: CONTRACTS.ODDYSSEY.address as Address,
-      abi: ODDYSSEY_ABI,
-      functionName: 'entryFee'
-    });
-    return result;
-  }
+export interface Match {
+  id: number;
+  startTime: number;
+  oddsHome: number;
+  oddsDraw: number;
+  oddsAway: number;
+  oddsOver: number;
+  oddsUnder: number;
+  homeTeam: string;
+  awayTeam: string;
+  leagueName: string;
+  result: {
+    moneyline: number;
+    overUnder: number;
+  };
+}
 
-  async getSlipCount() {
-    const result = await this.client.readContract({
-      address: CONTRACTS.ODDYSSEY.address as Address,
-      abi: ODDYSSEY_ABI,
-      functionName: 'slipCount'
-    });
-    return result;
-  }
+export interface LeaderboardEntry {
+  player: string;
+  slipId: number;
+  finalScore: number;
+  correctCount: number;
+}
 
-  async getSlip(slipId: bigint) {
-    const result = await this.client.readContract({
-      address: CONTRACTS.ODDYSSEY.address as Address,
-      abi: ODDYSSEY_ABI,
-      functionName: 'getSlip',
-      args: [slipId]
-    });
-    return result;
-  }
-
-  async placeSlip(predictions: UserPrediction[], value: string) {
-    console.log('🎯 Placing slip with predictions:', predictions);
-    console.log('💰 Entry fee:', value);
-
-    const { hash } = await this.client.writeContract({
-      address: CONTRACTS.ODDYSSEY.address as Address,
-      abi: ODDYSSEY_ABI,
-      functionName: 'placeSlip',
-      args: [predictions],
-      value: parseEther(value)
-    });
-
-    console.log('✅ Transaction submitted:', hash);
-    return { hash };
-  }
+export interface PlatformStats {
+  totalCycles: number;
+  totalSlips: number;
+  totalUsers: number;
+  totalVolume: number;
+  totalCorrectPredictions: number;
+  totalEvaluatedSlips: number;
+  totalWinners: number;
+  averageScore: number;
+  maxScore: number;
+  minScore: number;
 }
 
 export class OddysseyContractService {
-  private static client = new WagmiStyleClient();
-  private static oddysseyContract: OddysseyContract | null = null;
-  private static isInitialized = false;
-  private static initializationPromise: Promise<void> | null = null;
+  private static contract: ethers.Contract | null = null;
+  private static provider: ethers.Provider | null = null;
 
-  /**
-   * Initialize the service with wallet client
-   */
-  static async initialize(walletClient: WalletClient, address: Address) {
-    // Prevent multiple simultaneous initializations
-    if (this.initializationPromise) {
-      return this.initializationPromise;
+  private static async getContract(): Promise<ethers.Contract> {
+    if (!this.contract) {
+      if (typeof window !== 'undefined' && window.ethereum) {
+        this.provider = new ethers.BrowserProvider(window.ethereum);
+      } else {
+        this.provider = new ethers.JsonRpcProvider(process.env.NEXT_PUBLIC_RPC_URL);
+      }
+      
+      this.contract = new ethers.Contract(
+        CONTRACT_ADDRESSES.ODDYSSEY,
+        ODDYSSEY_ABI,
+        this.provider
+      );
     }
-
-    this.initializationPromise = this._initialize(walletClient, address);
-    return this.initializationPromise;
+    return this.contract;
   }
 
-  private static async _initialize(walletClient: WalletClient, address: Address) {
+  // ===== USER SLIP FUNCTIONS =====
+
+  public static async getAllUserSlips(userAddress: string): Promise<number[]> {
     try {
-      console.log('🔧 Initializing OddysseyContractService...');
-      
-      await this.client.initialize();
-      this.client.setWalletClient(walletClient, address);
-      
-      // Verify wallet client is properly set
-      if (!this.client.getWalletClient()) {
-        throw new Error('Failed to set wallet client');
-      }
-      
-      this.oddysseyContract = new OddysseyContract(this.client);
-      this.isInitialized = true;
-      
-      console.log('✅ OddysseyContractService initialized');
+      const contract = await this.getContract();
+      const slipIds = await contract.getAllUserSlips(userAddress);
+      return slipIds.map((id: any) => Number(id));
     } catch (error) {
-      console.error('❌ Failed to initialize OddysseyContractService:', error);
-      this.isInitialized = false;
-      this.initializationPromise = null;
-      throw error;
+      console.error('Error fetching all user slips:', error);
+      return [];
     }
   }
 
-  /**
-   * Check if service is initialized
-   */
-  private static ensureInitialized() {
-    if (!this.isInitialized || !this.oddysseyContract) {
-      throw new Error('OddysseyContractService not initialized. Call initialize() first.');
+  public static async getAllUserSlipsWithData(userAddress: string): Promise<{
+    slipIds: number[];
+    slipsData: Slip[];
+  }> {
+    try {
+      const contract = await this.getContract();
+      const result = await contract.getAllUserSlipsWithData(userAddress);
+      
+      return {
+        slipIds: result.slipIds.map((id: any) => Number(id)),
+        slipsData: result.slipsData.map((slip: any) => this.parseSlip(slip))
+      };
+    } catch (error) {
+      console.error('Error fetching all user slips with data:', error);
+      return { slipIds: [], slipsData: [] };
     }
   }
 
-  /**
-   * Public method to check if service is initialized
-   */
-  static isServiceInitialized(): boolean {
-    return this.isInitialized && this.oddysseyContract !== null;
+  // ===== USER DATA FUNCTIONS =====
+
+  public static async getUserData(userAddress: string): Promise<UserData> {
+    try {
+      const contract = await this.getContract();
+      const result = await contract.getUserData(userAddress);
+      
+      return {
+        userStats: {
+          totalSlips: Number(result.userStatsData.totalSlips),
+          totalWins: Number(result.userStatsData.totalWins),
+          bestScore: Number(result.userStatsData.bestScore),
+          averageScore: Number(result.userStatsData.averageScore),
+          winRate: Number(result.userStatsData.winRate),
+          currentStreak: Number(result.userStatsData.currentStreak),
+          bestStreak: Number(result.userStatsData.bestStreak),
+          lastActiveCycle: Number(result.userStatsData.lastActiveCycle)
+        },
+        reputation: Number(result.reputation),
+        correctPredictions: Number(result.correctPredictions)
+      };
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      return {
+        userStats: {
+          totalSlips: 0,
+          totalWins: 0,
+          bestScore: 0,
+          averageScore: 0,
+          winRate: 0,
+          currentStreak: 0,
+          bestStreak: 0,
+          lastActiveCycle: 0
+        },
+        reputation: 0,
+        correctPredictions: 0
+      };
+    }
   }
 
-  /**
-   * Wait for transaction receipt
-   */
-  static async waitForTransactionReceipt({ hash }: { hash: `0x${string}` }) {
-    this.ensureInitialized();
-    return await this.client.waitForTransactionReceipt({ hash });
+  // ===== CYCLE FUNCTIONS =====
+
+  public static async getCurrentCycleInfo(): Promise<CycleInfo> {
+    try {
+      const contract = await this.getContract();
+      const result = await contract.getCurrentCycleInfo();
+      
+      return {
+        cycleId: Number(result.cycleId),
+        state: Number(result.state),
+        endTime: Number(result.endTime),
+        prizePool: Number(result.prizePool),
+        cycleSlipCount: Number(result.cycleSlipCount)
+      };
+    } catch (error) {
+      console.error('Error fetching current cycle info:', error);
+      return {
+        cycleId: 0,
+        state: 0,
+        endTime: 0,
+        prizePool: 0,
+        cycleSlipCount: 0
+      };
+    }
   }
 
-  /**
-   * Convert frontend prediction to contract format
-   */
-  static formatPredictionForContract(prediction: {
-    matchId: number;
-    prediction: string;
-    odds: number;
-  }): UserPrediction {
-    let betType: 0 | 1;
-    let selection: `0x${string}`;
-
-    // Determine bet type and selection
-    if (['1', 'X', '2'].includes(prediction.prediction)) {
-      betType = BetType.MONEYLINE;
-      switch (prediction.prediction) {
-        case '1':
-          selection = SELECTIONS.MONEYLINE.HOME_WIN;
-          break;
-        case 'X':
-          selection = SELECTIONS.MONEYLINE.DRAW;
-          break;
-        case '2':
-          selection = SELECTIONS.MONEYLINE.AWAY_WIN;
-          break;
-        default:
-          throw new Error(`Invalid moneyline prediction: ${prediction.prediction}`);
-      }
-    } else if (['Over', 'Under'].includes(prediction.prediction)) {
-      betType = BetType.OVER_UNDER;
-      switch (prediction.prediction) {
-        case 'Over':
-          selection = SELECTIONS.OVER_UNDER.OVER;
-          break;
-        case 'Under':
-          selection = SELECTIONS.OVER_UNDER.UNDER;
-          break;
-        default:
-          throw new Error(`Invalid over/under prediction: ${prediction.prediction}`);
-      }
-    } else {
-      throw new Error(`Invalid prediction type: ${prediction.prediction}`);
+  public static async getCurrentCycle(): Promise<number> {
+    try {
+      const contract = await this.getContract();
+      const cycleId = await contract.getCurrentCycle();
+      return Number(cycleId);
+    } catch (error) {
+      console.error('Error fetching current cycle:', error);
+      return 0;
     }
+  }
 
-    // Validate odds
-    if (!prediction.odds || prediction.odds <= 0) {
-      throw new Error(`Invalid odds: ${prediction.odds}`);
+  // ===== STATISTICS FUNCTIONS =====
+
+  public static async getDailyStats(cycleId: number): Promise<DailyStats> {
+    try {
+      const contract = await this.getContract();
+      const stats = await contract.getDailyStats(cycleId);
+      
+      return {
+        slipCount: Number(stats.slipCount),
+        userCount: Number(stats.userCount),
+        volume: Number(stats.volume),
+        correctPredictions: Number(stats.correctPredictions),
+        evaluatedSlips: Number(stats.evaluatedSlips),
+        averageScore: Number(stats.averageScore),
+        maxScore: Number(stats.maxScore),
+        minScore: Number(stats.minScore),
+        winnersCount: Number(stats.winnersCount)
+      };
+    } catch (error) {
+      console.error('Error fetching daily stats:', error);
+      return {
+        slipCount: 0,
+        userCount: 0,
+        volume: 0,
+        correctPredictions: 0,
+        evaluatedSlips: 0,
+        averageScore: 0,
+        maxScore: 0,
+        minScore: 0,
+        winnersCount: 0
+      };
     }
+  }
 
+  public static async getPlatformDailyStats(): Promise<PlatformStats> {
+    try {
+      const contract = await this.getContract();
+      const stats = await contract.getPlatformDailyStats();
+      
+      return {
+        totalCycles: Number(stats.totalCycles),
+        totalSlips: Number(stats.totalSlips),
+        totalUsers: Number(stats.totalUsers),
+        totalVolume: Number(stats.totalVolume),
+        totalCorrectPredictions: Number(stats.totalCorrectPredictions),
+        totalEvaluatedSlips: Number(stats.totalEvaluatedSlips),
+        totalWinners: Number(stats.totalWinners),
+        averageScore: Number(stats.averageScore),
+        maxScore: Number(stats.maxScore),
+        minScore: Number(stats.minScore)
+      };
+    } catch (error) {
+      console.error('Error fetching platform daily stats:', error);
+      return {
+        totalCycles: 0,
+        totalSlips: 0,
+        totalUsers: 0,
+        totalVolume: 0,
+        totalCorrectPredictions: 0,
+        totalEvaluatedSlips: 0,
+        totalWinners: 0,
+        averageScore: 0,
+        maxScore: 0,
+        minScore: 0
+      };
+    }
+  }
+
+  // ===== SLIP FUNCTIONS =====
+
+  public static async getSlip(slipId: number): Promise<Slip | null> {
+    try {
+      const contract = await this.getContract();
+      const slip = await contract.getSlip(slipId);
+      return this.parseSlip(slip);
+    } catch (error) {
+      console.error('Error fetching slip:', error);
+      return null;
+    }
+  }
+
+  // ===== MATCH FUNCTIONS =====
+
+  public static async getDailyMatches(cycleId: number): Promise<Match[]> {
+    try {
+      const contract = await this.getContract();
+      const matches = await contract.getDailyMatches(cycleId);
+      return matches.map((match: any) => this.parseMatch(match));
+    } catch (error) {
+      console.error('Error fetching daily matches:', error);
+      return [];
+    }
+  }
+
+  public static async getDailyLeaderboard(cycleId: number): Promise<LeaderboardEntry[]> {
+    try {
+      const contract = await this.getContract();
+      const leaderboard = await contract.getDailyLeaderboard(cycleId);
+      return leaderboard.map((entry: any) => ({
+        player: entry.player,
+        slipId: Number(entry.slipId),
+        finalScore: Number(entry.finalScore),
+        correctCount: Number(entry.correctCount)
+      }));
+    } catch (error) {
+      console.error('Error fetching daily leaderboard:', error);
+      return [];
+    }
+  }
+
+  // ===== HELPER FUNCTIONS =====
+
+  private static parseSlip(slip: any): Slip {
     return {
-      matchId: BigInt(prediction.matchId),
-      betType,
-      selection,
-      selectedOdd: Math.round(prediction.odds * 1000) // Contract uses 1000 scaling factor
+      player: slip.player,
+      cycleId: Number(slip.cycleId),
+      placedAt: Number(slip.placedAt),
+      predictions: slip.predictions.map((pred: any) => ({
+        matchId: Number(pred.matchId),
+        betType: Number(pred.betType),
+        selection: pred.selection,
+        selectedOdd: Number(pred.selectedOdd),
+        homeTeam: pred.homeTeam,
+        awayTeam: pred.awayTeam,
+        leagueName: pred.leagueName
+      })),
+      finalScore: Number(slip.finalScore),
+      correctCount: Number(slip.correctCount),
+      isEvaluated: slip.isEvaluated
     };
   }
 
-  /**
-   * Place slip using contract calls only
-   */
-  static async placeSlip(predictions: any[], entryFee: string) {
-    this.ensureInitialized();
-
-    // Validate predictions
-    if (!predictions || predictions.length !== 10) {
-      throw new Error(`Exactly 10 predictions are required. You have ${predictions?.length || 0} predictions.`);
-    }
-
-    // Convert predictions to contract format
-    const contractPredictions = predictions.map((pred, index) => {
-      try {
-        return this.formatPredictionForContract(pred);
-      } catch (error) {
-        throw new Error(`Error formatting prediction ${index + 1}: ${(error as Error).message}`);
+  private static parseMatch(match: any): Match {
+    return {
+      id: Number(match.id),
+      startTime: Number(match.startTime),
+      oddsHome: Number(match.oddsHome),
+      oddsDraw: Number(match.oddsDraw),
+      oddsAway: Number(match.oddsAway),
+      oddsOver: Number(match.oddsOver),
+      oddsUnder: Number(match.oddsUnder),
+      homeTeam: match.homeTeam,
+      awayTeam: match.awayTeam,
+      leagueName: match.leagueName,
+      result: {
+        moneyline: Number(match.result.moneyline),
+        overUnder: Number(match.result.overUnder)
       }
-    });
-
-    try {
-      console.log('🎯 Placing slip with predictions:', contractPredictions);
-      console.log('💰 Entry fee:', entryFee);
-      
-      const result = await this.oddysseyContract!.placeSlip(contractPredictions, entryFee);
-      
-      console.log('✅ Slip placed successfully:', result.hash);
-      return result;
-    } catch (error) {
-      console.error('❌ Error placing slip:', error);
-      
-      const errorMessage = (error as Error).message || 'Unknown error';
-      
-      if (errorMessage.includes('insufficient funds')) {
-        throw new Error('Insufficient funds in wallet. Please check your STT balance.');
-      } else if (errorMessage.includes('user rejected')) {
-        throw new Error('Transaction was cancelled by user.');
-      } else if (errorMessage.includes('gas')) {
-        throw new Error('Gas estimation failed. Please try again.');
-      } else if (errorMessage.includes('execution reverted')) {
-        throw new Error('Transaction failed. Please check your predictions and try again.');
-      } else {
-        throw new Error(`Transaction failed: ${errorMessage}`);
-      }
-    }
+    };
   }
-
-  /**
-   * Get entry fee from contract
-   */
-  static async getEntryFee(): Promise<string> {
-    this.ensureInitialized();
-    
-    const entryFee = await this.oddysseyContract!.getEntryFee();
-    return formatEther(entryFee as bigint);
-  }
-
-  /**
-   * Get current cycle ID
-   */
-  static async getCurrentCycleId(): Promise<number> {
-    this.ensureInitialized();
-    
-    const cycleInfo = await this.oddysseyContract!.getCurrentCycleInfo() as [bigint, number, bigint, bigint, bigint];
-    return Number(cycleInfo[0]);
-  }
-
-  /**
-   * Get current matches from contract
-   */
-  static async getCurrentMatches(): Promise<any[]> {
-    this.ensureInitialized();
-    
-    const cycleInfo = await this.oddysseyContract!.getCurrentCycleInfo() as [bigint, number, bigint, bigint, bigint];
-    const cycleId = cycleInfo[0];
-    const matches = await this.oddysseyContract!.getDailyMatches(cycleId);
-    return matches as any[];
-  }
-}
-
-import { useAccount, useWalletClient } from 'wagmi';
-import { useEffect, useState, useCallback } from 'react';
-
-// React hook for contract interactions
-export function useOddysseyContract() {
-  const { address, isConnected } = useAccount();
-  const { data: walletClient } = useWalletClient();
-  
-  // Transaction state management
-  const [isPending, setIsPending] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [isConfirming, setIsConfirming] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  const [hash, setHash] = useState<`0x${string}` | null>(null);
-  const [contractEntryFee, setContractEntryFee] = useState<string>('0.5');
-  const [currentCycleId, setCurrentCycleId] = useState<number>(0);
-  const [currentMatches, setCurrentMatches] = useState<any[]>([]);
-  const [isInitialized, setIsInitialized] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(false);
-  
-  // Initialize the service when wallet is connected
-  useEffect(() => {
-    if (isConnected && address && walletClient) {
-      setIsInitializing(true);
-      setIsInitialized(false);
-      
-      OddysseyContractService.initialize(walletClient, address)
-        .then(() => {
-          setIsInitialized(true);
-          setIsInitializing(false);
-          return fetchInitialData();
-        })
-        .catch(err => {
-          console.error('Error initializing OddysseyContractService:', err);
-          setIsInitialized(false);
-          setIsInitializing(false);
-        });
-    } else {
-      // Reset state when wallet is disconnected
-      setIsInitialized(false);
-      setIsInitializing(false);
-      setContractEntryFee('0.5');
-      setCurrentCycleId(0);
-      setCurrentMatches([]);
-    }
-  }, [isConnected, address, walletClient]);
-
-  const fetchInitialData = useCallback(async () => {
-    if (!isInitialized) {
-      console.log('⏳ Skipping fetchInitialData - service not yet initialized');
-      return;
-    }
-    
-    try {
-      console.log('🎯 Fetching initial contract data...');
-      
-      // Fetch data individually to handle failures gracefully
-      let entryFee = '0.5';
-      let cycleId = 0;
-      let matches: any[] = [];
-      
-      try {
-        entryFee = await OddysseyContractService.getEntryFee();
-        console.log('✅ Entry fee fetched:', entryFee);
-      } catch (err) {
-        console.warn('⚠️ Could not fetch entry fee, using default:', err);
-      }
-      
-      try {
-        cycleId = await OddysseyContractService.getCurrentCycleId();
-        console.log('✅ Cycle ID fetched:', cycleId);
-      } catch (err) {
-        console.error('❌ Could not fetch cycle ID:', err);
-        cycleId = 0;
-      }
-      
-      try {
-        matches = await OddysseyContractService.getCurrentMatches();
-        console.log('✅ Matches fetched:', matches.length);
-      } catch (err) {
-        console.error('❌ Could not fetch matches:', err);
-        matches = [];
-      }
-      
-      setContractEntryFee(entryFee);
-      setCurrentCycleId(cycleId);
-      setCurrentMatches(matches);
-      console.log('✅ Initial contract data fetched successfully');
-    } catch (err) {
-      console.error('Error fetching initial data:', err);
-      setContractEntryFee('0.5');
-      setCurrentCycleId(0);
-      setCurrentMatches([]);
-    }
-  }, [isInitialized]);
-
-  const placeSlip = useCallback(async (predictions: any[], entryFee: string) => {
-    console.log('🎯 Attempting to place slip...', { 
-      isConnected, 
-      address, 
-      hasWalletClient: !!walletClient, 
-      isInitialized,
-      isServiceInitialized: OddysseyContractService.isServiceInitialized()
-    });
-
-    if (!isConnected || !address) {
-      throw new Error('Wallet not connected');
-    }
-
-    if (!walletClient) {
-      throw new Error('Wallet client not available');
-    }
-
-    if (!isInitialized) {
-      throw new Error('Contract service not initialized. Please wait for initialization to complete.');
-    }
-
-    // Additional check to ensure wallet client is properly set in the service
-    if (!OddysseyContractService.isServiceInitialized()) {
-      throw new Error('Service not properly initialized. Please ensure your wallet is connected and try again.');
-    }
-
-    // Reset state
-    setIsPending(true);
-    setIsSuccess(false);
-    setIsConfirming(false);
-    setError(null);
-    setHash(null);
-
-    try {
-      // Retry mechanism in case of initialization issues
-      let retryCount = 0;
-      const maxRetries = 2;
-      let result: any;
-      
-      while (retryCount < maxRetries) {
-        try {
-          result = await OddysseyContractService.placeSlip(predictions, entryFee);
-          setHash(result.hash);
-          setIsPending(false);
-          setIsConfirming(true);
-          break;
-        } catch (error) {
-          if (error instanceof Error && error.message.includes('Wallet client not set') && retryCount < maxRetries - 1) {
-            console.log(`🔄 Retrying slip placement (attempt ${retryCount + 1}/${maxRetries})...`);
-            retryCount++;
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
-            continue;
-          }
-          throw error;
-        }
-      }
-
-      const receipt = await OddysseyContractService.waitForTransactionReceipt({ hash: result.hash });
-      
-      setIsConfirming(false);
-      
-      if (receipt.status === 'success') {
-        setIsSuccess(true);
-        console.log('✅ Transaction confirmed successfully:', result.hash);
-      } else {
-        const errorMsg = `Transaction failed on blockchain. Status: ${receipt.status}. Hash: ${result.hash}`;
-        console.error('❌ Transaction failed:', errorMsg);
-        const error = new Error(errorMsg);
-        setError(error);
-        throw error;
-      }
-      
-      return result;
-    } catch (err) {
-      setIsPending(false);
-      setIsConfirming(false);
-      
-      if (err instanceof Error && err.message.includes('Transaction failed on blockchain')) {
-        setError(err);
-        throw err;
-      } else {
-        const error = err as Error;
-        setError(error);
-        throw error;
-      }
-    }
-  }, [isConnected, address, walletClient, isInitialized]);
-
-  const getEntryFee = useCallback(async () => {
-    if (!isInitialized) {
-      throw new Error('Contract service not initialized. Please wait for initialization to complete.');
-    }
-    return await OddysseyContractService.getEntryFee();
-  }, [isInitialized]);
-
-  const getCurrentCycleId = useCallback(async () => {
-    if (!isInitialized) {
-      throw new Error('Contract service not initialized. Please wait for initialization to complete.');
-    }
-    return await OddysseyContractService.getCurrentCycleId();
-  }, [isInitialized]);
-
-  const getCurrentMatches = useCallback(async () => {
-    if (!isInitialized) {
-      throw new Error('Contract service not initialized. Please wait for initialization to complete.');
-    }
-    return await OddysseyContractService.getCurrentMatches();
-  }, [isInitialized]);
-
-  const refetchAll = useCallback(async () => {
-    if (!isInitialized) {
-      throw new Error('Contract service not initialized. Please wait for initialization to complete.');
-    }
-    await fetchInitialData();
-  }, [isInitialized, fetchInitialData]);
-
-  const resetTransactionState = useCallback(() => {
-    setIsSuccess(false);
-    setError(null);
-    setHash(null);
-    setIsPending(false);
-    setIsConfirming(false);
-  }, []);
-
-  return {
-    placeSlip,
-    getEntryFee,
-    getCurrentCycleId,
-    getCurrentMatches,
-    refetchAll,
-    resetTransactionState,
-    isConnected,
-    address,
-    isPending,
-    isSuccess,
-    isConfirming,
-    error,
-    hash,
-    contractEntryFee,
-    currentCycleId,
-    currentMatches,
-    isInitialized,
-    isInitializing
-  };
 }
