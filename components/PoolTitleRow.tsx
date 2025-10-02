@@ -32,43 +32,44 @@ export default function PoolTitleRow({
 }: PoolTitleRowProps) {
   return (
     <div className={`bg-gradient-to-r from-gray-800/50 to-gray-700/50 rounded-xl border border-gray-600/30 backdrop-blur-sm shadow-lg overflow-hidden ${className}`}>
-      <div className="flex items-center justify-between p-4">
-        {/* Left side - Time and Teams */}
-        <div className="flex-1 min-w-0">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
-            {/* Time */}
-            <div className="text-sm text-gray-300 font-medium whitespace-nowrap">
-              {time}
-            </div>
-            {/* Teams and Market Type */}
-            <div className="text-lg font-bold text-white">
-              {title} - {prediction}
-            </div>
-          </div>
-          
-          {/* Odds with colored box */}
-          <div className="flex items-center gap-2 mb-2 flex-wrap">
-            <div className="px-2 py-1 bg-green-500/20 text-green-400 text-xs font-bold rounded border border-green-500/30 whitespace-nowrap">
-              {odds}
-            </div>
-          </div>
-          
-          {/* League */}
-          <div className="text-sm text-gray-400">
-            {league}
-          </div>
+      <div className="p-4">
+        {/* Time - Top row */}
+        <div className="text-sm text-gray-300 font-medium mb-2">
+          {time}
         </div>
         
-        {/* Right side - Badges */}
-        <div className="flex items-center gap-3 ml-4">
-          {/* Currency Badge */}
-          <div className={`px-3 py-1.5 rounded-full text-xs font-bold ${currencyBadge.color} ${currencyBadge.bgColor} border border-current/20 shadow-sm`}>
-            {currencyBadge.type}
+        {/* Main content row */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          {/* Left side - Teams and Market Type */}
+          <div className="flex-1 min-w-0">
+            <div className="text-lg sm:text-xl font-bold text-white mb-2">
+              {title} - {prediction}
+            </div>
+            
+            {/* Odds and League */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+              <div className="flex items-center gap-2">
+                <div className="px-2 py-1 bg-green-500/20 text-green-400 text-xs font-bold rounded border border-green-500/30">
+                  {odds}
+                </div>
+                <div className="text-sm text-gray-400">
+                  {league}
+                </div>
+              </div>
+            </div>
           </div>
           
-          {/* Market Type Badge */}
-          <div className={`px-3 py-1.5 rounded-full text-xs font-bold ${marketTypeBadge.color} ${marketTypeBadge.bgColor} border border-current/20 shadow-sm`}>
-            {marketTypeBadge.label}
+          {/* Right side - Badges */}
+          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+            {/* Currency Badge */}
+            <div className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-bold ${currencyBadge.color} ${currencyBadge.bgColor} border border-current/20 shadow-sm`}>
+              {currencyBadge.type}
+            </div>
+            
+            {/* Market Type Badge */}
+            <div className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-bold ${marketTypeBadge.color} ${marketTypeBadge.bgColor} border border-current/20 shadow-sm`}>
+              {marketTypeBadge.label}
+            </div>
           </div>
         </div>
       </div>
