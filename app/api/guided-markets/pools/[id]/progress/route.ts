@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import { PoolContractService } from '@/services/poolContractService';
 
 interface ProgressData {
   bettor_count: string;
@@ -49,7 +50,24 @@ export async function GET(
     const totalYesVolume = parseFloat(data.total_yes_volume || '0');
     const totalNoVolume = parseFloat(data.total_no_volume || '0');
     
-    const fillPercentage = creatorStake > 0 ? (totalYesVolume / creatorStake) * 100 : 0;
+    // Get pool odds from contract to calculate correct pool size
+    let poolOdds = 2.0; // Default odds
+    let maxPoolSize = creatorStake * 0.5; // Default calculation
+    
+    try {
+      // Fetch actual pool data from contract
+      const poolData = await PoolContractService.getPool(parseInt(poolId));
+      if (poolData) {
+        poolOdds = poolData.odds;
+        const contractCreatorStake = parseFloat(poolData.creatorStake || "0") / 1e18;
+        // Correct formula: maxPoolSize = creatorStake * (odds - 1) / odds
+        maxPoolSize = contractCreatorStake * (poolOdds - 1) / poolOdds;
+      }
+    } catch (error) {
+      console.warn('Failed to fetch contract data, using defaults:', error);
+    }
+    
+    const fillPercentage = maxPoolSize > 0 ? (totalYesVolume / maxPoolSize) * 100 : 0;
 
     return NextResponse.json({
       success: true,

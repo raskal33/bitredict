@@ -33,6 +33,7 @@ import { toast } from "react-hot-toast";
 import { PoolContractService } from "@/services/poolContractService";
 import { PoolExplanationService, PoolExplanation } from "@/services/poolExplanationService";
 import PoolTitleRow from "@/components/PoolTitleRow";
+import BetDisplay from "@/components/BetDisplay";
 
 export default function BetPage() {
   const { address } = useAccount();
@@ -85,21 +86,32 @@ export default function BetPage() {
   const [lastFetchTime, setLastFetchTime] = useState<number>(0);
   const FETCH_COOLDOWN = 5000; // 5 seconds between fetches
   
-  // Real-time stats fetching
+  // Real-time stats fetching with contract data
   const fetchRealTimeStats = useCallback(async () => {
     try {
-      const response = await fetch(`/api/guided-markets/pools/${poolId}/progress`, {
-        headers: { 'Cache-Control': 'no-cache' }
-      });
+      // Fetch from both progress API and contract for real-time data
+      const [progressResponse, contractData] = await Promise.all([
+        fetch(`/api/guided-markets/pools/${poolId}/progress`, {
+          headers: { 'Cache-Control': 'no-cache' }
+        }),
+        PoolContractService.getPool(parseInt(poolId))
+      ]);
       
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.data) {
-          const progressData = data.data;
+      if (progressResponse.ok) {
+        const progressData = await progressResponse.json();
+        if (progressData.success && progressData.data && contractData) {
+          const progress = progressData.data;
+          
+          // Calculate correct pool size using contract odds
+          const creatorStake = parseFloat(contractData.creatorStake || "0") / 1e18;
+          const odds = contractData.odds;
+          const maxPoolSize = creatorStake * (odds - 1) / odds;
+          const currentBettorStake = parseFloat(contractData.totalBettorStake || "0") / 1e18;
+          
           setRealTimeStats({
-            challengerCount: (progressData.bettorCount || 0) + (progressData.lpCount || 0),
-            totalVolume: parseFloat(progressData.totalPoolSize || "0"),
-            fillPercentage: progressData.fillPercentage || 0
+            challengerCount: (progress.bettorCount || 0) + (progress.lpCount || 0),
+            totalVolume: currentBettorStake,
+            fillPercentage: maxPoolSize > 0 ? (currentBettorStake / maxPoolSize) * 100 : 0
           });
         }
       }
@@ -1153,7 +1165,7 @@ export default function BetPage() {
                   <p className="text-sm sm:text-base text-gray-400">
                     Detailed analysis and insights for this prediction
                   </p>
-                            </div>
+                </div>
 
                 {/* Analysis Content */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
@@ -1163,16 +1175,16 @@ export default function BetPage() {
                       <div className="flex justify-between">
                         <span className="text-gray-400">Success Rate:</span>
                         <span className="text-green-400">{pool.creator.successRate.toFixed(1)}%</span>
-                            </div>
+                      </div>
                       <div className="flex justify-between">
                         <span className="text-gray-400">Total Pools:</span>
                         <span className="text-white">{pool.creator.totalPools}</span>
-                          </div>
+                      </div>
                       <div className="flex justify-between">
                         <span className="text-gray-400">Total Volume:</span>
                         <span className="text-cyan-400">{(pool.creator.totalVolume / 1000).toFixed(0)}k {pool.currency}</span>
-                        </div>
                       </div>
+                    </div>
                   </div>
 
                   <div className="p-4 sm:p-6 bg-gray-700/30 rounded-lg border border-gray-600/30">
@@ -1181,7 +1193,7 @@ export default function BetPage() {
                       <div className="flex justify-between">
                         <span className="text-gray-400">Participants:</span>
                         <span className="text-white">{pool.participants}</span>
-              </div>
+                      </div>
                       <div className="flex justify-between">
                         <span className="text-gray-400">Defeated:</span>
                         <span className="text-red-400">{pool.defeated}</span>
@@ -1192,7 +1204,7 @@ export default function BetPage() {
                       </div>
                     </div>
                   </div>
-          </div>
+                </div>
 
                 {/* Additional Analysis */}
                 <div className="p-4 sm:p-6 bg-gray-700/30 rounded-lg border border-gray-600/30">
@@ -1208,7 +1220,10 @@ export default function BetPage() {
                       premium to challengers, suggesting they have high confidence in their prediction.
                     </p>
                   </div>
-              </div>
+                </div>
+
+                {/* Bet Display Component */}
+                <BetDisplay poolId={poolId} />
               </div>
             )}
 
