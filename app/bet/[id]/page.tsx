@@ -813,7 +813,7 @@ export default function BetPage() {
                       minute: '2-digit', 
                       timeZone: 'UTC' 
                     }) + ' UTC' : 'TBD'}
-                    prediction="FT 1"
+                    prediction={poolExplanation.marketTypeBadge.label}
                     odds={pool.odds.toFixed(2)}
                     className="mb-4"
                   />

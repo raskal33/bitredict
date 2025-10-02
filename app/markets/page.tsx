@@ -23,6 +23,7 @@ import {
 } from "react-icons/fa";
 
 type MarketCategory = "all" | "boosted" | "trending" | "private" | "combo" | "active" | "closed" | "settled";
+type CategoryFilter = "all" | "football" | "crypto" | "basketball" | "other";
 type SortBy = "newest" | "oldest" | "volume" | "ending-soon";
 
 
@@ -30,6 +31,7 @@ type SortBy = "newest" | "oldest" | "volume" | "ending-soon";
 export default function MarketsPage() {
   const router = useRouter();
   const [activeCategory, setActiveCategory] = useState<MarketCategory>("all");
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
   const [sortBy, setSortBy] = useState<SortBy>("newest");
   const [searchTerm, setSearchTerm] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -218,6 +220,24 @@ export default function MarketsPage() {
       });
     }
 
+    // Sport/Category filter
+    if (categoryFilter !== "all") {
+      filtered = filtered.filter(pool => {
+        switch (categoryFilter) {
+          case "football":
+            return pool.category === "football";
+          case "crypto":
+            return pool.category === "crypto";
+          case "basketball":
+            return pool.category === "basketball";
+          case "other":
+            return !["football", "crypto", "basketball"].includes(pool.category);
+          default:
+            return true;
+        }
+      });
+    }
+
     // Search filter
     if (searchTerm) {
       filtered = filtered.filter(pool => 
@@ -244,7 +264,7 @@ export default function MarketsPage() {
     });
 
     setFilteredPools(filtered);
-    }, [pools, activeCategory, searchTerm, sortBy]);
+    }, [pools, activeCategory, categoryFilter, searchTerm, sortBy]);
 
   // Utility functions for pool display (available for future use)
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -305,6 +325,31 @@ export default function MarketsPage() {
               </button>
             );
           })}
+        </div>
+
+        {/* Sport/Category Filter */}
+        <div className="flex flex-wrap gap-2 justify-center mb-6">
+          {[
+            { id: "all" as CategoryFilter, label: "All Sports", icon: "🏆" },
+            { id: "football" as CategoryFilter, label: "Football", icon: "⚽" },
+            { id: "crypto" as CategoryFilter, label: "Crypto", icon: "₿" },
+            { id: "basketball" as CategoryFilter, label: "Basketball", icon: "🏀" },
+            { id: "other" as CategoryFilter, label: "Other", icon: "🎯" }
+          ].map((category) => (
+            <button
+              key={category.id}
+              onClick={() => setCategoryFilter(category.id)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all text-sm sm:text-base ${
+                categoryFilter === category.id
+                  ? "bg-gradient-to-r from-green-500 to-teal-500 text-white shadow-lg"
+                  : "bg-white/10 text-gray-300 hover:text-white hover:bg-white/20"
+              }`}
+            >
+              <span className="text-lg">{category.icon}</span>
+              <span className="hidden sm:inline">{category.label}</span>
+              <span className="sm:hidden">{category.label.split(' ')[0]}</span>
+            </button>
+          ))}
         </div>
 
         {/* Search and Sort Controls */}

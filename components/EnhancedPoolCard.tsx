@@ -379,15 +379,33 @@ export default function EnhancedPoolCard({
   const getCategoryIcon = (category: string) => {
     const icons: { [key: string]: string } = {
       'football': '⚽',
+      'crypto': '₿',
       'cryptocurrency': '₿',
       'basketball': '🏀',
       'politics': '🏛️',
       'entertainment': '🎬',
       'technology': '💻',
       'finance': '💰',
-      'sports': '🏆'
+      'sports': '🏆',
+      'other': '🎯'
     };
-    return icons[category] || '🎯';
+    return icons[category.toLowerCase()] || '🎯';
+  };
+
+  const getCategoryBadgeProps = (category: string) => {
+    const badges: { [key: string]: { color: string; bgColor: string; label: string } } = {
+      'football': { color: 'text-green-400', bgColor: 'bg-green-500/20', label: 'Football' },
+      'crypto': { color: 'text-orange-400', bgColor: 'bg-orange-500/20', label: 'Crypto' },
+      'cryptocurrency': { color: 'text-orange-400', bgColor: 'bg-orange-500/20', label: 'Crypto' },
+      'basketball': { color: 'text-blue-400', bgColor: 'bg-blue-500/20', label: 'Basketball' },
+      'politics': { color: 'text-purple-400', bgColor: 'bg-purple-500/20', label: 'Politics' },
+      'entertainment': { color: 'text-pink-400', bgColor: 'bg-pink-500/20', label: 'Entertainment' },
+      'technology': { color: 'text-cyan-400', bgColor: 'bg-cyan-500/20', label: 'Technology' },
+      'finance': { color: 'text-yellow-400', bgColor: 'bg-yellow-500/20', label: 'Finance' },
+      'sports': { color: 'text-red-400', bgColor: 'bg-red-500/20', label: 'Sports' },
+      'other': { color: 'text-gray-400', bgColor: 'bg-gray-500/20', label: 'Other' }
+    };
+    return badges[category.toLowerCase()] || badges['other'];
   };
 
   // Check if current user is the pool creator
@@ -509,9 +527,14 @@ export default function EnhancedPoolCard({
         <div className="text-2xl">{getCategoryIcon(pool.category)}</div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <span className={`text-xs px-2 py-1 rounded-full ${theme.accent} bg-current/10 truncate capitalize`}>
-              {pool.category}
-            </span>
+            {(() => {
+              const badgeProps = getCategoryBadgeProps(pool.category);
+              return (
+                <span className={`text-xs px-2 py-1 rounded-full font-medium border ${badgeProps.color} ${badgeProps.bgColor} border-current/30`}>
+                  {badgeProps.label}
+                </span>
+              );
+            })()}
             <div className={`flex items-center gap-1 text-xs ${difficultyColor}`}>
               <StarIcon className="w-3 h-3 flex-shrink-0" />
               <span className="truncate">{difficultyTier}</span>

@@ -40,17 +40,14 @@ export default function PoolTitleRow({
             <div className="text-sm text-gray-300 font-medium whitespace-nowrap">
               {time}
             </div>
-            {/* Teams */}
+            {/* Teams and Market Type */}
             <div className="text-lg font-bold text-white">
-              {title}
+              {title} - {prediction}
             </div>
           </div>
           
-          {/* Prediction and Odds with colored boxes */}
+          {/* Odds with colored box */}
           <div className="flex items-center gap-2 mb-2 flex-wrap">
-            <div className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs font-bold rounded border border-blue-500/30 whitespace-nowrap">
-              {prediction}
-            </div>
             <div className="px-2 py-1 bg-green-500/20 text-green-400 text-xs font-bold rounded border border-green-500/30 whitespace-nowrap">
               {odds}
             </div>
