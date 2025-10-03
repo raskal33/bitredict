@@ -141,28 +141,29 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
             </div>
           </div>
           
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+          {/* Mobile-first responsive stats grid */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
             <div className="bg-gray-700/50 rounded-lg p-3">
-              <div className="text-sm text-gray-400">Best Score</div>
-              <div className="text-lg font-bold text-yellow-400">
+              <div className="text-xs sm:text-sm text-gray-400">Best Score</div>
+              <div className="text-base sm:text-lg font-bold text-yellow-400">
                 {userData.userStats.bestScore.toFixed(2)}x
               </div>
             </div>
             <div className="bg-gray-700/50 rounded-lg p-3">
-              <div className="text-sm text-gray-400">Current Streak</div>
-              <div className="text-lg font-bold text-green-400">
+              <div className="text-xs sm:text-sm text-gray-400">Current Streak</div>
+              <div className="text-base sm:text-lg font-bold text-green-400">
                 {userData.userStats.currentStreak}
               </div>
             </div>
             <div className="bg-gray-700/50 rounded-lg p-3">
-              <div className="text-sm text-gray-400">Reputation</div>
-              <div className="text-lg font-bold text-purple-400">
+              <div className="text-xs sm:text-sm text-gray-400">Reputation</div>
+              <div className="text-base sm:text-lg font-bold text-purple-400">
                 {userData.reputation}
               </div>
             </div>
             <div className="bg-gray-700/50 rounded-lg p-3">
-              <div className="text-sm text-gray-400">Correct Predictions</div>
-              <div className="text-lg font-bold text-blue-400">
+              <div className="text-xs sm:text-sm text-gray-400">Correct Predictions</div>
+              <div className="text-base sm:text-lg font-bold text-blue-400">
                 {userData.correctPredictions}
               </div>
             </div>
@@ -170,8 +171,8 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
         </div>
       )}
 
-      {/* Filter Buttons */}
-      <div className="flex gap-2 mb-4">
+      {/* Mobile-responsive filter buttons */}
+      <div className="flex flex-wrap gap-2 mb-4">
         {[
           { id: 'all', label: 'All Slips', count: slips.length },
           { id: 'evaluated', label: 'Evaluated', count: slips.filter(s => s.isEvaluated).length },
@@ -180,13 +181,15 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
           <button
             key={id}
             onClick={() => setFilter(id as 'all' | 'evaluated' | 'pending')}
-            className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex-shrink-0 ${
               filter === id
                 ? 'bg-blue-500 text-white'
                 : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
             }`}
           >
-            {label} ({count})
+            <span className="hidden sm:inline">{label}</span>
+            <span className="sm:hidden">{label.split(' ')[0]}</span>
+            <span className="ml-1">({count})</span>
           </button>
         ))}
       </div>
@@ -204,7 +207,8 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
               key={`${slip.cycleId}-${slip.placedAt}`}
               className="bg-gray-700/30 rounded-lg p-4 border border-gray-600/30 hover:border-gray-500/50 transition-colors"
             >
-              <div className="flex items-center justify-between mb-3">
+              {/* Mobile-responsive header */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 gap-2">
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-2">
                     {getScoreIcon(slip.correctCount)}
@@ -212,7 +216,8 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
                   </div>
                   <div className="flex items-center gap-1 text-xs text-gray-500">
                     <ClockIcon className="w-4 h-4" />
-                    <span>{formatTime(slip.placedAt)}</span>
+                    <span className="hidden sm:inline">{formatTime(slip.placedAt)}</span>
+                    <span className="sm:hidden">{new Date(slip.placedAt * 1000).toLocaleDateString()}</span>
                   </div>
                 </div>
                 
@@ -231,20 +236,20 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
                 </div>
               </div>
 
-              {/* Slip Results */}
+              {/* Mobile-responsive slip results */}
               {slip.isEvaluated && (
                 <div className="mb-3 p-3 bg-gray-600/30 rounded-lg">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="flex items-center gap-4">
                       <div>
-                        <div className="text-sm text-gray-400">Correct Predictions</div>
-                        <div className={`text-lg font-bold ${getScoreColor(slip.correctCount)}`}>
+                        <div className="text-xs sm:text-sm text-gray-400">Correct Predictions</div>
+                        <div className={`text-base sm:text-lg font-bold ${getScoreColor(slip.correctCount)}`}>
                           {slip.correctCount}/10
                         </div>
                       </div>
                       <div>
-                        <div className="text-sm text-gray-400">Final Score</div>
-                        <div className="text-lg font-bold text-white">
+                        <div className="text-xs sm:text-sm text-gray-400">Final Score</div>
+                        <div className="text-base sm:text-lg font-bold text-white">
                           {slip.finalScore.toFixed(2)}x
                         </div>
                       </div>
@@ -252,7 +257,7 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
                     
                     {slip.correctCount >= 7 && (
                       <div className="flex items-center gap-1 text-yellow-400">
-                        <TrophyIcon className="w-5 h-5" />
+                        <TrophyIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                         <span className="text-sm font-medium">Winner!</span>
                       </div>
                     )}
@@ -260,36 +265,39 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
                 </div>
               )}
 
-              {/* Predictions */}
+              {/* Mobile-responsive predictions */}
               <div className="space-y-2">
                 <div className="text-sm font-medium text-gray-300 mb-2">Predictions:</div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
                   {slip.predictions.map((prediction, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between p-2 bg-gray-600/20 rounded text-sm"
+                      className="p-3 bg-gray-600/20 rounded-lg text-sm"
                     >
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-white truncate">
+                      {/* Mobile-first match info */}
+                      <div className="mb-2">
+                        <div className="font-medium text-white text-sm leading-tight">
                           {prediction.homeTeam} vs {prediction.awayTeam}
                         </div>
-                        <div className="text-xs text-gray-400">
+                        <div className="text-xs text-gray-400 mt-1">
                           {prediction.leagueName}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 ml-2">
-                        <div className="text-right">
+                      
+                      {/* Mobile-responsive prediction details */}
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <div className="flex items-center gap-2">
                           <div className="text-xs text-gray-400">
                             {getBetTypeLabel(prediction.betType)}
                           </div>
-                          <div className={`font-medium px-2 py-1 rounded border ${getSelectionColor()}`}>
+                          <div className={`font-medium px-2 py-1 rounded border text-xs ${getSelectionColor()}`}>
                             {getSelectionLabel(prediction.selection, prediction.betType)}
                           </div>
                         </div>
-                        <div className="text-right">
+                        <div className="flex items-center gap-2">
                           <div className="text-xs text-gray-400">Odds</div>
-                          <div className="font-bold text-green-400">
-                            {(prediction.selectedOdd / 100).toFixed(2)}
+                          <div className="font-bold text-green-400 text-sm">
+                            {(prediction.selectedOdd / 100).toFixed(2)}x
                           </div>
                         </div>
                       </div>

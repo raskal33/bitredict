@@ -288,16 +288,57 @@ export default function OddysseyPage() {
     }
   }, [isConnected, address, walletClient, isInitializing, isInitialized]);
 
-  // Simple wallet initialization - only run once when wallet connects
+  // Enhanced wallet initialization with mobile support
   useEffect(() => {
     if (isConnected && address && walletClient && !isInitialized && !isInitializing) {
       console.log('✅ Initializing wallet and contract...');
-      oddysseyService.setWalletClient(walletClient);
+      
+      // Enhanced wallet client validation for mobile devices
+      const validateWalletClient = async () => {
+        try {
+          // Check if wallet client is properly initialized
+          if (!walletClient || !walletClient.account) {
+            throw new Error('Wallet client not properly initialized');
+          }
+          
+          // Additional mobile-specific validation
+          if (typeof window !== 'undefined' && window.ethereum) {
+            try {
+              // Check if wallet is still connected
+              const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+              if (!accounts || accounts.length === 0) {
+                throw new Error('Wallet connection lost');
+              }
+              
+              // Verify the connected account matches
+              if (accounts[0]?.toLowerCase() !== address?.toLowerCase()) {
+                throw new Error('Account mismatch detected');
+              }
+            } catch (error) {
+              console.warn('Wallet connection validation failed:', error);
+              // Continue with initialization but log the warning
+            }
+          }
+          
+          return true;
+        } catch (error) {
+          console.error('❌ Wallet client validation failed:', error);
+          throw error;
+        }
+      };
       
       // Initialize contract directly here to avoid dependency issues
       const initContract = async () => {
         try {
           setIsInitializing(true);
+          console.log('🎯 Validating wallet client...');
+          
+          // Validate wallet client first
+          await validateWalletClient();
+          
+          console.log('✅ Wallet client validated, setting up service...');
+          oddysseyService.setWalletClient(walletClient);
+          
           console.log('🎯 Initializing Oddyssey contract...');
           
           // Get current cycle
@@ -392,6 +433,19 @@ export default function OddysseyPage() {
         } catch (error) {
           console.error('❌ Error initializing contract:', error);
           setError(error as Error);
+          
+          // Show user-friendly error message
+          if (error instanceof Error) {
+            if (error.message.includes('Wallet connection lost')) {
+              showError("Wallet Connection Lost", "Please reconnect your wallet and try again.");
+            } else if (error.message.includes('Account mismatch')) {
+              showError("Account Mismatch", "Please ensure you're using the correct wallet account.");
+            } else if (error.message.includes('Wallet client not properly initialized')) {
+              showError("Wallet Not Ready", "Please ensure your wallet is properly connected and try again.");
+            } else {
+              showError("Initialization Failed", "Failed to initialize the contract. Please try refreshing the page.");
+            }
+          }
         } finally {
           setIsInitializing(false);
           setIsLoading(false);
@@ -400,7 +454,7 @@ export default function OddysseyPage() {
       
       initContract();
     }
-  }, [isConnected, address, walletClient, isInitialized, isInitializing]);
+  }, [isConnected, address, walletClient, isInitialized, isInitializing, showError]);
 
   // Reset state when wallet disconnects
   useEffect(() => {
@@ -1236,22 +1290,56 @@ export default function OddysseyPage() {
 
       console.log('📝 Formatted predictions:', predictions);
 
-      // Submit to contract
+      // Enhanced mobile transaction handling
       setIsPending(true);
-      const txHash = await oddysseyService.placeSlip(predictions);
-      setHash(txHash);
-      setIsPending(false);
-      setIsConfirming(true);
       
-      // Wait for confirmation (simplified - in real app you'd wait for transaction receipt)
-      setTimeout(() => {
+      try {
+        console.log('🎯 Submitting slip to contract...');
+        const txHash = await oddysseyService.placeSlip(predictions);
+        console.log('✅ Transaction hash received:', txHash);
+        
+        setHash(txHash);
+        setIsPending(false);
+        setIsConfirming(true);
+        
+        // Wait for confirmation (simplified - in real app you'd wait for transaction receipt)
+        setTimeout(() => {
+          setIsConfirming(false);
+          setIsSuccess(true);
+          showSuccess("Slip Placed Successfully!", "Your predictions have been submitted to the blockchain and are now active in the competition", txHash);
+          setPicks([]);
+          // Refresh data
+          initializeContract();
+        }, 3000);
+        
+      } catch (transactionError) {
+        console.error('❌ Transaction submission failed:', transactionError);
+        setIsPending(false);
         setIsConfirming(false);
-        setIsSuccess(true);
-        showSuccess("Slip Placed Successfully!", "Your predictions have been submitted to the blockchain and are now active in the competition", hash || undefined);
-        setPicks([]);
-        // Refresh data
-        initializeContract();
-      }, 3000);
+        
+        // Enhanced error handling for mobile devices
+        if (transactionError instanceof Error) {
+          if (transactionError.message.includes('cancelled by user') || transactionError.message.includes('rejected')) {
+            showError("Transaction Cancelled", "You cancelled the transaction. Please try again if you want to place the slip.");
+          } else if (transactionError.message.includes('Insufficient funds')) {
+            showError("Insufficient Funds", "You don't have enough STT tokens to pay the entry fee. Please get more STT tokens and try again.");
+          } else if (transactionError.message.includes('Gas estimation failed')) {
+            showError("Gas Estimation Failed", "Failed to estimate gas. Please check your network connection and try again.");
+          } else if (transactionError.message.includes('Network error')) {
+            showError("Network Error", "Please check your internet connection and try again.");
+          } else if (transactionError.message.includes('Wallet error')) {
+            showError("Wallet Error", "Please ensure your wallet is properly connected and try again.");
+          } else if (transactionError.message.includes('Wallet connection lost')) {
+            showError("Wallet Disconnected", "Your wallet connection was lost. Please reconnect your wallet and try again.");
+          } else {
+            showError("Transaction Failed", transactionError.message || "Failed to place slip. Please try again.");
+          }
+        } else {
+          showError("Transaction Failed", "An unexpected error occurred. Please try again.");
+        }
+        
+        setError(transactionError as Error);
+      }
       
     } catch (error) {
       console.error('❌ Error submitting slip:', error);

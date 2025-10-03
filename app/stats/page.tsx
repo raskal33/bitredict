@@ -23,6 +23,7 @@ import {
   ClockIcon,
   GlobeAltIcon,
   ArrowTrendingUpIcon,
+  ArrowTrendingUpIcon as TrendingUpIcon,
   EyeIcon,
   UsersIcon,
   SparklesIcon,
@@ -421,7 +422,7 @@ export default function StatsPage() {
                     <div className="space-y-4">
                       {activePools && Array.isArray(activePools) ? activePools.slice(0, 5).map((pool, index) => (
                         <motion.div
-                          key={typeof pool === 'object' && pool !== null ? (pool as Record<string, unknown>).poolId || index : index}
+                          key={typeof pool === 'object' && pool !== null ? String((pool as Record<string, unknown>).poolId || index) : String(index)}
                           initial={{ opacity: 0, x: -20 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: 0.1 * index }}
@@ -437,10 +438,10 @@ export default function StatsPage() {
                               {index + 1}
                             </div>
                             <div>
-                              <p className="font-medium text-white">Pool #{typeof pool === 'bigint' ? pool.toString() : (pool as Record<string, unknown>)?.poolId || index}</p>
+                              <p className="font-medium text-white">Pool #{typeof pool === 'bigint' ? pool.toString() : String((pool as Record<string, unknown>)?.poolId || index)}</p>
                               <div className="flex items-center gap-4 text-sm text-gray-400">
-                                <span>{typeof pool === 'object' && pool !== null ? `${(pool as Record<string, unknown>)?.creator?.slice(0, 6)}...${(pool as Record<string, unknown>)?.creator?.slice(-4)}` : 'N/A'}</span>
-                                <span>{typeof pool === 'object' && pool !== null ? `${((pool as Record<string, unknown>)?.creatorStake || 0) / 1e18} ETH` : '0 ETH'}</span>
+                                <span>{typeof pool === 'object' && pool !== null && (pool as Record<string, unknown>)?.creator ? `${String((pool as Record<string, unknown>)?.creator).slice(0, 6)}...${String((pool as Record<string, unknown>)?.creator).slice(-4)}` : 'N/A'}</span>
+                                <span>{typeof pool === 'object' && pool !== null ? `${Number((pool as Record<string, unknown>)?.creatorStake || 0) / 1e18} ETH` : '0 ETH'}</span>
                               </div>
                             </div>
                           </div>
@@ -448,7 +449,7 @@ export default function StatsPage() {
                             <div className="flex items-center gap-1 mb-1">
                               <StarSolid className="h-4 w-4 text-yellow-400" />
                               <span className="text-sm font-medium text-white">
-                                {typeof pool === 'object' && pool !== null ? (pool as Record<string, unknown>)?.participantCount || 0 : 0}
+                                {typeof pool === 'object' && pool !== null ? String((pool as Record<string, unknown>)?.participantCount || 0) : '0'}
                               </span>
                             </div>
                             <p className="text-sm text-green-400">
@@ -473,7 +474,7 @@ export default function StatsPage() {
                     <div className="space-y-4">
                       {activePools && Array.isArray(activePools) ? activePools.slice(0, 5).map((pool, index) => (
                         <motion.div
-                          key={typeof pool === 'object' && pool !== null ? (pool as Record<string, unknown>).poolId || index : index}
+                          key={typeof pool === 'object' && pool !== null ? String((pool as Record<string, unknown>).poolId || index) : String(index)}
                           initial={{ opacity: 0, x: 20 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: 0.1 * index }}
@@ -484,10 +485,10 @@ export default function StatsPage() {
                               🔥
                             </div>
                             <div>
-                              <p className="font-medium text-white">Pool #{typeof pool === 'bigint' ? pool.toString() : (pool as Record<string, unknown>)?.poolId || index}</p>
+                              <p className="font-medium text-white">Pool #{typeof pool === 'bigint' ? pool.toString() : String((pool as Record<string, unknown>)?.poolId || index)}</p>
                               <div className="flex items-center gap-4 text-sm text-gray-400">
-                                <span>{typeof pool === 'object' && pool !== null ? (pool as Record<string, unknown>)?.category || 'N/A' : 'N/A'}</span>
-                                <span>{typeof pool === 'object' && pool !== null ? `${((pool as Record<string, unknown>)?.odds || 0) / 100}x` : '1.0x'} odds</span>
+                                <span>{typeof pool === 'object' && pool !== null ? String((pool as Record<string, unknown>)?.category || 'N/A') : 'N/A'}</span>
+                                <span>{typeof pool === 'object' && pool !== null ? `${Number((pool as Record<string, unknown>)?.odds || 0) / 100}x` : '1.0x'} odds</span>
                               </div>
                             </div>
                           </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { 
   TrophyIcon, 
@@ -8,9 +8,6 @@ import {
   ClockIcon,
   UserIcon,
 } from "@heroicons/react/24/outline";
-import { 
-  TrophyIcon as TrophySolid
-} from "@heroicons/react/24/solid";
 
 interface RecentBet {
   id: string;
@@ -43,7 +40,7 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
   const [currentIndex, setCurrentIndex] = useState(0);
 
   // Demo data for the moving lane
-  const demoBets: RecentBet[] = [
+  const demoBets: RecentBet[] = useMemo(() => [
     {
       id: "bet-1",
       user: {
@@ -160,7 +157,7 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
       timestamp: Date.now() - 105000,
       boostTier: "SILVER"
     }
-  ];
+  ], []);
 
   useEffect(() => {
     const fetchRecentBets = async () => {
@@ -257,7 +254,7 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
       <div className="flex items-center justify-between mb-4 sm:mb-6">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-lg">
-            <FireSolid className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+            <TrophyIcon className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
           </div>
           <div>
             <h3 className="text-base sm:text-lg font-bold text-white">Recent Bets</h3>
@@ -283,7 +280,7 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
             ease: "easeInOut"
           }}
         >
-          {bets.map((bet, _) => (
+          {bets.map((bet) => (
             <motion.div
               key={bet.id}
               initial={{ opacity: 0, scale: 0.9 }}
@@ -362,7 +359,7 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
 
         {/* Navigation Dots */}
         <div className="flex justify-center gap-2 mt-4">
-          {bets.map((_, index) => (
+          {bets.map((bet, index) => (
             <button
               key={index}
               onClick={() => setCurrentIndex(index)}

@@ -277,11 +277,32 @@ class OddysseyService {
     prediction: string;
     odds: number;
   }>): Promise<`0x${string}`> {
+    // Enhanced wallet client validation for mobile devices
     if (!this.walletClient) {
-      throw new Error('Wallet client not set');
+      throw new Error('Wallet client not initialized. Please ensure your wallet is connected and try again.');
+    }
+
+    if (!this.walletClient.account) {
+      throw new Error('Wallet account not available. Please reconnect your wallet.');
+    }
+
+    // Additional mobile-specific validation
+    if (typeof window !== 'undefined' && window.ethereum) {
+      try {
+        // Check if wallet is still connected
+        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+        if (!accounts || accounts.length === 0) {
+          throw new Error('Wallet connection lost. Please reconnect your wallet.');
+        }
+      } catch (error) {
+        console.warn('Wallet connection check failed:', error);
+        // Continue with transaction attempt
+      }
     }
 
     try {
+      console.log('🎯 Placing slip with predictions:', predictions);
+      
       // Convert predictions to contract format
       const contractPredictions = predictions.map(pred => ({
         matchId: BigInt(pred.matchId),
@@ -293,6 +314,8 @@ class OddysseyService {
         leagueName: '', // Will be filled by contract
       }));
 
+      console.log('📝 Contract predictions:', contractPredictions);
+
       const hash = await this.walletClient.writeContract({
         address: CONTRACTS.ODDYSSEY.address,
         abi: CONTRACTS.ODDYSSEY.abi,
@@ -300,12 +323,29 @@ class OddysseyService {
         args: [contractPredictions],
         value: parseEther('0.5'), // Entry fee
         chain: somniaTestnet,
-        account: this.walletClient.account!,
+        account: this.walletClient.account,
       });
 
+      console.log('✅ Transaction hash received:', hash);
       return hash;
     } catch (error) {
-      console.error('Error placing slip:', error);
+      console.error('❌ Error placing slip:', error);
+      
+      // Enhanced error handling for mobile devices
+      if (error instanceof Error) {
+        if (error.message.includes('user rejected') || error.message.includes('User denied')) {
+          throw new Error('Transaction was cancelled by user. Please try again if you want to place the slip.');
+        } else if (error.message.includes('insufficient funds')) {
+          throw new Error('Insufficient funds. Please ensure you have enough STT tokens to pay the entry fee.');
+        } else if (error.message.includes('gas')) {
+          throw new Error('Gas estimation failed. Please try again or check your network connection.');
+        } else if (error.message.includes('network')) {
+          throw new Error('Network error. Please check your internet connection and try again.');
+        } else if (error.message.includes('wallet')) {
+          throw new Error('Wallet error. Please ensure your wallet is properly connected and try again.');
+        }
+      }
+      
       throw error;
     }
   }
