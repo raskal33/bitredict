@@ -82,42 +82,36 @@ export default function BetPage() {
   const [creatorStakeFormatted, setCreatorStakeFormatted] = useState<number>(0);
   const [totalBettorStakeFormatted, setTotalBettorStakeFormatted] = useState<number>(0);
   const [potentialWinFormatted, setPotentialWinFormatted] = useState<number>(0);
+  const [maxPoolSizeFormatted, setMaxPoolSizeFormatted] = useState<number>(0);
   
   // Rate limiting for API calls
   const [lastFetchTime, setLastFetchTime] = useState<number>(0);
   const FETCH_COOLDOWN = 5000; // 5 seconds between fetches
   
-  // Real-time stats fetching with contract data
+  // Real-time stats fetching with contract data ONLY (no backend dependency)
   const fetchRealTimeStats = useCallback(async () => {
     try {
-      // Fetch from both progress API and contract for real-time data
-      const [progressResponse, contractData] = await Promise.all([
-        fetch(`/api/guided-markets/pools/${poolId}/progress`, {
-          headers: { 'Cache-Control': 'no-cache' }
-        }),
-        PoolContractService.getPool(parseInt(poolId))
-      ]);
+      // Fetch directly from contract - same as enhanced pool card
+      const contractData = await PoolContractService.getPool(parseInt(poolId));
       
-      if (progressResponse.ok) {
-        const progressData = await progressResponse.json();
-        if (progressData.success && progressData.data && contractData) {
-          const progress = progressData.data;
-          
-          // CORRECTED: Use standardized calculation
-          const poolCalculation = calculatePoolFill({
-            creatorStake: contractData.creatorStake,
-            totalBettorStake: contractData.totalBettorStake,
-            odds: contractData.odds,
-            isWei: true
-          });
-          const currentBettorStake = parseFloat(contractData.totalBettorStake || "0") / 1e18;
-          
-          setRealTimeStats({
-            challengerCount: (progress.bettorCount || 0) + (progress.lpCount || 0),
-            totalVolume: currentBettorStake,
-            fillPercentage: poolCalculation.fillPercentage
-          });
-        }
+      if (contractData) {
+        // Use standardized calculation
+        const poolCalculation = calculatePoolFill({
+          creatorStake: contractData.creatorStake,
+          totalBettorStake: contractData.totalBettorStake,
+          odds: contractData.odds,
+          isWei: true
+        });
+        const currentBettorStake = parseFloat(contractData.totalBettorStake || "0") / 1e18;
+        
+        // Estimate participants from contract (no backend needed)
+        const estimatedParticipants = currentBettorStake > 0 ? Math.max(1, Math.floor(currentBettorStake / 100)) : 0;
+        
+        setRealTimeStats({
+          challengerCount: estimatedParticipants,
+          totalVolume: currentBettorStake,
+          fillPercentage: poolCalculation.fillPercentage
+        });
       }
     } catch (error) {
       console.error('Error fetching real-time stats:', error);
@@ -176,19 +170,24 @@ export default function BetPage() {
       setPoolExplanation(explanation);
       console.log('🎯 Generated pool explanation:', explanation);
       
-      // Fetch pool progress data
-      const progressResponse = await fetch(`/api/guided-markets/pools/${poolId}/progress`, {
-        signal: controller.signal,
-        headers: {
-          'Cache-Control': 'no-cache'
-        }
-      });
-      const progressData = progressResponse.ok ? await progressResponse.json() : null;
-      
       clearTimeout(timeoutId);
       
-      // Transform real data to Pool interface - use backend formatted data
-      const progressInfo = progressData?.data || {};
+      // Calculate progress info directly from contract data (no backend API)
+      const poolCalculation = calculatePoolFill({
+        creatorStake: poolData.creatorStake,
+        totalBettorStake: poolData.totalBettorStake,
+        odds: poolData.odds,
+        isWei: true
+      });
+      
+      const currentBettorStake = parseFloat(poolData.totalBettorStake || "0") / 1e18;
+      const estimatedParticipants = currentBettorStake > 0 ? Math.max(1, Math.floor(currentBettorStake / 100)) : 0;
+      
+      const progressInfo = {
+        fillPercentage: poolCalculation.fillPercentage,
+        bettorCount: estimatedParticipants,
+        lpCount: 0 // Not tracked on-chain
+      };
       
       // Use contract data with proper formatting
       const creatorStakeNum = parseFloat(poolData.creatorStake || "0") / 1e18; // Convert from wei
@@ -199,6 +198,11 @@ export default function BetPage() {
       setCreatorStakeFormatted(creatorStakeNum);
       setTotalBettorStakeFormatted(totalBettorStakeNum);
       setPotentialWinFormatted(potentialWinNum);
+      
+      // Calculate max pool size using contract formula: (creatorStake * 100) / (odds - 100)
+      const contractOdds = Math.round(poolData.odds * 100);
+      const maxPoolSizeNum = (creatorStakeNum * 100) / (contractOdds - 100);
+      setMaxPoolSizeFormatted(maxPoolSizeNum);
       const getDifficultyTier = (odds: number) => {
         if (odds >= 5.0) return "legendary";
         if (odds >= 3.0) return "very_hard";
@@ -829,7 +833,6 @@ export default function BetPage() {
                       minute: '2-digit', 
                       timeZone: 'UTC' 
                     }) + ' UTC' : 'TBD'}
-                    prediction="FT 1"
                     odds={pool.odds.toFixed(2)}
                     className="mb-4"
                   />
@@ -868,9 +871,9 @@ export default function BetPage() {
                     : totalBettorStakeFormatted.toFixed(0)} {pool.currency} filled
                 </span>
                 <span>
-                  {creatorStakeFormatted > 1000 
-                    ? `${(creatorStakeFormatted / 1000).toFixed(1)}K` 
-                    : creatorStakeFormatted.toFixed(0)} {pool.currency} capacity
+                  {maxPoolSizeFormatted > 1000 
+                    ? `${(maxPoolSizeFormatted / 1000).toFixed(1)}K` 
+                    : maxPoolSizeFormatted.toFixed(0)} {pool.currency} capacity
                 </span>
               </div>
             </div>

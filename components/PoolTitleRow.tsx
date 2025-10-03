@@ -15,7 +15,6 @@ interface PoolTitleRowProps {
   };
   league: string;
   time: string;
-  prediction: string;
   odds: string;
   className?: string;
 }
@@ -26,7 +25,6 @@ export default function PoolTitleRow({
   marketTypeBadge, 
   league,
   time,
-  prediction,
   odds,
   className = "" 
 }: PoolTitleRowProps) {
@@ -43,7 +41,7 @@ export default function PoolTitleRow({
           {/* Left side - Teams and Market Type */}
           <div className="flex-1 min-w-0">
             <div className="text-lg sm:text-xl font-bold text-white mb-2">
-              {title} - {prediction}
+              {title}
             </div>
             
             {/* Odds and League */}

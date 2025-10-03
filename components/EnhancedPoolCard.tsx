@@ -627,6 +627,28 @@ export default function EnhancedPoolCard({
             }}
           />
         </div>
+        
+        {/* Pool Capacity Info */}
+        <div className="flex justify-between text-xs text-gray-400 mt-1">
+          <span>
+            {(() => {
+              const totalBettorStake = parseFloat(pool.totalBettorStake || "0") / 1e18;
+              return totalBettorStake > 1000 
+                ? `${(totalBettorStake / 1000).toFixed(1)}K` 
+                : totalBettorStake.toFixed(0);
+            })()} {pool.usesBitr ? 'BITR' : 'STT'} filled
+          </span>
+          <span>
+            {(() => {
+              const creatorStake = parseFloat(pool.creatorStake || "0") / 1e18;
+              const contractOdds = Math.round(pool.odds * 100);
+              const maxPoolSize = (creatorStake * 100) / (contractOdds - 100);
+              return maxPoolSize > 1000 
+                ? `${(maxPoolSize / 1000).toFixed(1)}K` 
+                : maxPoolSize.toFixed(0);
+            })()} {pool.usesBitr ? 'BITR' : 'STT'} capacity
+          </span>
+        </div>
       </div>
 
       {/* Creator Prediction Section or Combo Pool Section */}
