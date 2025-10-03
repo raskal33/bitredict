@@ -10,7 +10,7 @@ import { formatEther } from "viem";
 import { ethers } from "ethers";
 
 import { oddysseyService, type OddysseyMatch } from "@/services/oddysseyService";
-import { DailyStatsService, type DailyStats, type CycleInfo } from "@/services/dailyStatsService";
+import { DailyStatsService } from "@/services/dailyStatsService";
 import { useTransactionFeedback, TransactionFeedback } from "@/components/TransactionFeedback";
 import { safeStartTimeToISOString, safeStartTimeToDate } from "@/utils/time-helpers";
 import OddysseyMatchResults from "@/components/OddysseyMatchResults";

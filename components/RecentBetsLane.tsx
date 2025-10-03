@@ -1,20 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { 
   TrophyIcon, 
   CurrencyDollarIcon,
   ClockIcon,
   UserIcon,
-  FireIcon,
-  BoltIcon,
-  StarIcon
 } from "@heroicons/react/24/outline";
 import { 
-  TrophyIcon as TrophySolid,
-  FireIcon as FireSolid,
-  BoltIcon as BoltSolid
+  TrophyIcon as TrophySolid
 } from "@heroicons/react/24/solid";
 
 interface RecentBet {
@@ -190,7 +185,7 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
     };
 
     fetchRecentBets();
-  }, []);
+  }, [demoBets]);
 
   // Auto-rotate through bets
   useEffect(() => {
@@ -288,7 +283,7 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
             ease: "easeInOut"
           }}
         >
-          {bets.map((bet, index) => (
+          {bets.map((bet, _) => (
             <motion.div
               key={bet.id}
               initial={{ opacity: 0, scale: 0.9 }}
