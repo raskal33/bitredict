@@ -60,8 +60,10 @@ export async function GET(
       if (poolData) {
         poolOdds = poolData.odds;
         const contractCreatorStake = parseFloat(poolData.creatorStake || "0") / 1e18;
-        // Correct formula: maxPoolSize = creatorStake * (odds - 1) / odds
-        maxPoolSize = contractCreatorStake * (poolOdds - 1) / poolOdds;
+        // CORRECTED: Use contract formula: (creatorStake * 100) / (odds - 100)
+        // Convert odds to contract format (1.65 -> 165)
+        const contractOdds = Math.round(poolOdds * 100);
+        maxPoolSize = (contractCreatorStake * 100) / (contractOdds - 100);
       }
     } catch (error) {
       console.warn('Failed to fetch contract data, using defaults:', error);

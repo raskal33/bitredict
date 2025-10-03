@@ -34,6 +34,7 @@ import { PoolContractService } from "@/services/poolContractService";
 import { PoolExplanationService, PoolExplanation } from "@/services/poolExplanationService";
 import PoolTitleRow from "@/components/PoolTitleRow";
 import BetDisplay from "@/components/BetDisplay";
+import { calculatePoolFill } from "@/utils/poolCalculations";
 
 export default function BetPage() {
   const { address } = useAccount();
@@ -102,16 +103,19 @@ export default function BetPage() {
         if (progressData.success && progressData.data && contractData) {
           const progress = progressData.data;
           
-          // Calculate correct pool size using contract odds
-          const creatorStake = parseFloat(contractData.creatorStake || "0") / 1e18;
-          const odds = contractData.odds;
-          const maxPoolSize = creatorStake * (odds - 1) / odds;
+          // CORRECTED: Use standardized calculation
+          const poolCalculation = calculatePoolFill({
+            creatorStake: contractData.creatorStake,
+            totalBettorStake: contractData.totalBettorStake,
+            odds: contractData.odds,
+            isWei: true
+          });
           const currentBettorStake = parseFloat(contractData.totalBettorStake || "0") / 1e18;
           
           setRealTimeStats({
             challengerCount: (progress.bettorCount || 0) + (progress.lpCount || 0),
             totalVolume: currentBettorStake,
-            fillPercentage: maxPoolSize > 0 ? (currentBettorStake / maxPoolSize) * 100 : 0
+            fillPercentage: poolCalculation.fillPercentage
           });
         }
       }

@@ -7,6 +7,7 @@ import { toast } from "react-hot-toast";
 import AnimatedTitle from "@/components/AnimatedTitle";
 import { PoolService, type Pool, type PoolStats } from "@/services/poolService";
 import EnhancedPoolCard, { EnhancedPool } from "@/components/EnhancedPoolCard";
+import RecentBetsLane from "@/components/RecentBetsLane";
 import { 
   FaChartLine, 
   FaFilter, 
@@ -302,6 +303,16 @@ export default function MarketsPage() {
         Discover and participate in prediction markets across sports, crypto, and more. 
         Put your knowledge to the test and earn rewards for accurate predictions.
       </motion.p>
+
+      {/* Recent Bets Lane */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="mb-8"
+      >
+        <RecentBetsLane />
+      </motion.div>
 
       {/* Filters & Search */}
       <div className="mb-8">

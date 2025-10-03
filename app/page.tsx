@@ -21,6 +21,7 @@ import {
 } from "@heroicons/react/24/solid";
 import { Pool, PlatformStats } from "@/lib/types";
 import EnhancedPoolCard, { EnhancedPool } from "@/components/EnhancedPoolCard";
+import RecentBetsLane from "@/components/RecentBetsLane";
 
 export default function HomePage() {
   const [pools, setPools] = useState<Pool[]>([]);
@@ -648,6 +649,16 @@ export default function HomePage() {
               </motion.div>
       </div>
               
+      {/* Recent Bets Lane */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="mb-12"
+      >
+        <RecentBetsLane />
+      </motion.div>
+
       {/* Platform Stats - Removed title */}
               <motion.div
         initial={{ opacity: 0, y: 20 }}

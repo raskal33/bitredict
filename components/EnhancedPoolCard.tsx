@@ -15,6 +15,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
 import { titleTemplatesService } from "../services/title-templates";
+import { calculatePoolFill } from "../utils/poolCalculations";
 
   // Enhanced Pool interface with indexed data
 export interface EnhancedPool {
@@ -578,12 +579,15 @@ export default function EnhancedPoolCard({
               if (indexedData && indexedData.fillPercentage > 0) {
                 return `${indexedData.fillPercentage}%`;
               }
-              // Fallback calculation based on pool data
-              const creatorStake = parseFloat(pool.creatorStake || "0") / 1e18;
-              const bettorStake = parseFloat(pool.totalBettorStake || "0") / 1e18;
-              const fillPercentage = creatorStake > 0 ? Math.min((bettorStake / creatorStake) * 100, 100) : 0;
-              console.log(`📊 Pool ${pool.id} progress calculation:`, { creatorStake, bettorStake, fillPercentage });
-              return `${fillPercentage.toFixed(1)}%`;
+              // CORRECTED: Use standardized calculation
+              const poolCalculation = calculatePoolFill({
+                creatorStake: pool.creatorStake,
+                totalBettorStake: pool.totalBettorStake,
+                odds: pool.odds,
+                isWei: true
+              });
+              console.log(`📊 Pool ${pool.id} progress calculation:`, poolCalculation);
+              return `${poolCalculation.fillPercentage.toFixed(1)}%`;
             })()}
           </span>
         </div>
@@ -594,11 +598,14 @@ export default function EnhancedPoolCard({
                 if (indexedData && indexedData.fillPercentage > 0) {
                   return getProgressColor(indexedData.fillPercentage);
                 }
-                // Fallback calculation
-                const creatorStake = parseFloat(pool.creatorStake || "0") / 1e18;
-                const bettorStake = parseFloat(pool.totalBettorStake || "0") / 1e18;
-                const fillPercentage = creatorStake > 0 ? Math.min((bettorStake / creatorStake) * 100, 100) : 0;
-                return getProgressColor(fillPercentage);
+                // CORRECTED: Use standardized calculation
+                const poolCalculation = calculatePoolFill({
+                  creatorStake: pool.creatorStake,
+                  totalBettorStake: pool.totalBettorStake,
+                  odds: pool.odds,
+                  isWei: true
+                });
+                return getProgressColor(poolCalculation.fillPercentage);
               })()
             }`}
             style={{ 
@@ -606,12 +613,15 @@ export default function EnhancedPoolCard({
                 if (indexedData && indexedData.fillPercentage > 0) {
                   return Math.min(indexedData.fillPercentage, 100);
                 }
-                // Fallback calculation
-                const creatorStake = parseFloat(pool.creatorStake || "0") / 1e18;
-                const bettorStake = parseFloat(pool.totalBettorStake || "0") / 1e18;
-                const fillPercentage = creatorStake > 0 ? Math.min((bettorStake / creatorStake) * 100, 100) : 0;
-                console.log(`📊 Pool ${pool.id} progress bar width:`, { creatorStake, bettorStake, fillPercentage, width: Math.min(fillPercentage, 100) });
-                return Math.min(fillPercentage, 100);
+                // CORRECTED: Use standardized calculation
+                const poolCalculation = calculatePoolFill({
+                  creatorStake: pool.creatorStake,
+                  totalBettorStake: pool.totalBettorStake,
+                  odds: pool.odds,
+                  isWei: true
+                });
+                console.log(`📊 Pool ${pool.id} progress bar width:`, poolCalculation);
+                return Math.min(poolCalculation.fillPercentage, 100);
               })()}%`,
               minWidth: '2px' // Ensure minimum visibility
             }}
