@@ -147,7 +147,7 @@ export default function ModernChart({
         </div>
       ) : (
         <div className="relative" style={{ height }}>
-          <ChartComponent data={data} options={chartOptions as any} />
+          <ChartComponent data={data} options={chartOptions as Record<string, unknown>} />
         </div>
       )}
     </motion.div>

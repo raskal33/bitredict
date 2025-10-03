@@ -7,8 +7,10 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useAccount, useChainId, useWalletClient } from "wagmi";
 import { toast } from "react-hot-toast";
 import { formatEther } from "viem";
+import { ethers } from "ethers";
 
 import { oddysseyService, type OddysseyMatch } from "@/services/oddysseyService";
+import { DailyStatsService, type DailyStats, type CycleInfo } from "@/services/dailyStatsService";
 import { useTransactionFeedback, TransactionFeedback } from "@/components/TransactionFeedback";
 import { safeStartTimeToISOString, safeStartTimeToDate } from "@/utils/time-helpers";
 import OddysseyMatchResults from "@/components/OddysseyMatchResults";
@@ -417,6 +419,8 @@ export default function OddysseyPage() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [currentPrizePool, setCurrentPrizePool] = useState<CurrentPrizePool | null>(null);
+  // const [dailyStats, setDailyStats] = useState<DailyStats | null>(null);
+  // const [cycleInfo, setCycleInfo] = useState<CycleInfo | null>(null);
   // const [dailyStats, setDailyStats] = useState<DailyStats>({
   //   date: new Date().toISOString().split('T')[0],
   //   dailyPlayers: 0,
@@ -587,6 +591,61 @@ export default function OddysseyPage() {
       setApiCallInProgress(false);
     }
   }, [apiCallInProgress]);
+
+  // Fetch daily stats from contract
+  const fetchDailyStats = useCallback(async () => {
+    try {
+      console.log('📊 Fetching daily stats from contract...');
+      
+      // Initialize the service if not already done
+      if (typeof window !== 'undefined' && window.ethereum) {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        DailyStatsService.initialize(provider);
+      }
+
+      // Get current cycle info and daily stats
+      const currentCycle = await DailyStatsService.getCurrentCycleInfo();
+      const dailyStatsData = await DailyStatsService.getDailyStats(Number(currentCycle.cycleId));
+
+      // setCycleInfo(currentCycle);
+      // setDailyStats(dailyStatsData);
+
+      // Format stats for display
+      const formattedStats = DailyStatsService.formatDailyStatsForDisplay(dailyStatsData, currentCycle);
+      
+      setStats({
+        totalPlayers: parseInt(formattedStats.totalPlayers.replace(/,/g, '')),
+        prizePool: formattedStats.averagePrizePool,
+        completedSlips: Number(dailyStatsData.slipCount).toLocaleString(),
+        averageOdds: formattedStats.averageOdds,
+        totalCycles: Number(currentCycle.cycleId),
+        activeCycles: Number(currentCycle.cycleId),
+        avgPrizePool: Number(currentCycle.prizePool) / 1e18,
+        winRate: parseFloat(formattedStats.winRate.replace('%', '')),
+        avgCorrect: Number(dailyStatsData.averageScore) / 100,
+        totalVolume: Number(dailyStatsData.volume) / 1e18,
+        highestOdd: Number(dailyStatsData.maxScore) / 100
+      });
+
+      console.log('✅ Daily stats received:', formattedStats);
+    } catch (error) {
+      console.error('❌ Error fetching daily stats:', error);
+      // Set default stats on error
+      setStats({
+        totalPlayers: 0,
+        prizePool: "0 STT",
+        completedSlips: "0",
+        averageOdds: "0x",
+        totalCycles: 0,
+        activeCycles: 0,
+        avgPrizePool: 0,
+        winRate: 0,
+        avgCorrect: 0,
+        totalVolume: 0,
+        highestOdd: 0
+      });
+    }
+  }, []);
 
   // Fetch stats using the service (contract-only)
   const fetchStats = useCallback(async () => {
@@ -840,7 +899,7 @@ export default function OddysseyPage() {
 
   useEffect(() => {
     if (address) {
-      fetchStats();
+      fetchDailyStats();
       fetchUserSlips();
       fetchCurrentData();
     }
@@ -1216,7 +1275,7 @@ export default function OddysseyPage() {
       toast.success('Refreshing data...');
       await Promise.all([
         fetchCurrentCycle(),
-        fetchStats(),
+        fetchDailyStats(),
         address ? fetchUserSlips() : Promise.resolve(),
         fetchCurrentData()
       ]);
@@ -1478,7 +1537,7 @@ export default function OddysseyPage() {
               <CurrencyDollarIcon className="h-12 w-12 mx-auto mb-4 text-primary" />
               <h3 className="text-2xl font-bold text-white mb-1">{stats.prizePool}</h3>
               <p className="text-lg font-semibold text-text-secondary mb-1">Average Prize Pool</p>
-              <p className="text-sm text-text-muted">Per cycle</p>
+              <p className="text-sm text-text-muted">Current cycle</p>
               </motion.div>
 
             <motion.div
@@ -1488,7 +1547,7 @@ export default function OddysseyPage() {
               <UsersIcon className="h-12 w-12 mx-auto mb-4 text-secondary" />
               <h3 className="text-2xl font-bold text-white mb-1">{stats.totalPlayers.toLocaleString()}</h3>
               <p className="text-lg font-semibold text-text-secondary mb-1">Total Players</p>
-              <p className="text-sm text-text-muted">All-time</p>
+              <p className="text-sm text-text-muted">Current cycle</p>
         </motion.div>
 
             <motion.div
@@ -1498,7 +1557,7 @@ export default function OddysseyPage() {
               <TrophyIcon className="h-12 w-12 mx-auto mb-4 text-accent" />
                               <h3 className="text-2xl font-bold text-white mb-1">{(stats.winRate || 0).toFixed(1)}%</h3>
               <p className="text-lg font-semibold text-text-secondary mb-1">Win Rate</p>
-              <p className="text-sm text-text-muted">Average</p>
+              <p className="text-sm text-text-muted">Current cycle</p>
             </motion.div>
 
             <motion.div
@@ -1508,7 +1567,7 @@ export default function OddysseyPage() {
               <EyeIcon className="h-12 w-12 mx-auto mb-4 text-green-400" />
               <h3 className="text-2xl font-bold text-white mb-1">{stats.avgCorrect}x</h3>
               <p className="text-lg font-semibold text-text-secondary mb-1">Average Odds</p>
-              <p className="text-sm text-text-muted">Successful slips</p>
+              <p className="text-sm text-text-muted">Current cycle</p>
             </motion.div>
           </motion.div>
         )}

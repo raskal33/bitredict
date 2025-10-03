@@ -82,6 +82,11 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
     }
   };
 
+  const getSelectionColor = () => {
+    // Standard yellowish color for all selections
+    return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30';
+  };
+
   const getScoreColor = (correctCount: number) => {
     if (correctCount >= 8) return 'text-green-400';
     if (correctCount >= 6) return 'text-yellow-400';
@@ -277,14 +282,14 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
                           <div className="text-xs text-gray-400">
                             {getBetTypeLabel(prediction.betType)}
                           </div>
-                          <div className="font-medium text-white">
+                          <div className={`font-medium px-2 py-1 rounded border ${getSelectionColor()}`}>
                             {getSelectionLabel(prediction.selection, prediction.betType)}
                           </div>
                         </div>
                         <div className="text-right">
                           <div className="text-xs text-gray-400">Odds</div>
                           <div className="font-bold text-green-400">
-                            {(prediction.selectedOdd / 1000).toFixed(2)}
+                            {(prediction.selectedOdd / 100).toFixed(2)}
                           </div>
                         </div>
                       </div>
