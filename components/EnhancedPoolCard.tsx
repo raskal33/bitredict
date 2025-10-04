@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
 import { titleTemplatesService } from "../services/title-templates";
 import { calculatePoolFill } from "../utils/poolCalculations";
+import { getPoolStatusDisplay, getStatusBadgeProps } from "../utils/poolStatus";
 
   // Enhanced Pool interface with indexed data
 export interface EnhancedPool {
@@ -329,35 +330,6 @@ export default function EnhancedPoolCard({
     }
   };
 
-  const formatTimeLeft = (endTime: number) => {
-    try {
-      const now = Math.floor(Date.now() / 1000);
-      const timeLeft = endTime - now;
-      
-      // Debug logging
-      console.log('🕐 Time calculation:', {
-        endTime,
-        now,
-        timeLeft,
-        endTimeDate: new Date(endTime * 1000).toISOString(),
-        nowDate: new Date(now * 1000).toISOString()
-      });
-      
-      if (timeLeft <= 0) return "Ended";
-      if (isNaN(timeLeft)) return "TBD";
-      
-      const days = Math.floor(timeLeft / 86400);
-      const hours = Math.floor((timeLeft % 86400) / 3600);
-      const minutes = Math.floor((timeLeft % 3600) / 60);
-      
-      if (days > 0) return `${days}d ${hours}h`;
-      if (hours > 0) return `${hours}h ${minutes}m`;
-      if (minutes > 0) return `${minutes}m`;
-      return `${Math.floor(timeLeft)}s`;
-    } catch {
-      return "TBD";
-    }
-  };
 
   const formatAddress = (address: string) => {
     if (!address) return "Unknown";
@@ -499,17 +471,27 @@ export default function EnhancedPoolCard({
         )}
 
         {/* Pool Status Badge */}
-        {pool.status && (
-          <div className={`px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 ${
-            pool.status === 'active' ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white' :
-            pool.status === 'closed' ? 'bg-gradient-to-r from-red-500 to-pink-500 text-white' :
-            pool.status === 'settled' ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white' :
-            'bg-gradient-to-r from-gray-500 to-gray-600 text-white'
-          }`}>
-            <ClockIcon className="w-3 h-3" />
-            {pool.status.toUpperCase()}
-          </div>
-        )}
+        {(() => {
+          const statusInfo = getPoolStatusDisplay({
+            id: pool.id,
+            settled: pool.settled,
+            creatorSideWon: pool.creatorSideWon,
+            eventStartTime: pool.eventStartTime,
+            eventEndTime: pool.eventEndTime,
+            bettingEndTime: pool.bettingEndTime,
+            oracleType: pool.oracleType,
+            marketId: pool.marketId
+          });
+          
+          const badgeProps = getStatusBadgeProps(statusInfo);
+          
+          return (
+            <div className={badgeProps.className}>
+              <span className="mr-1">{badgeProps.icon}</span>
+              {badgeProps.label}
+            </div>
+          );
+        })()}
 
         {/* Boost Button - Only show for creators */}
         {showBoostButton && canBoost && (
@@ -754,9 +736,47 @@ export default function EnhancedPoolCard({
         <div>
           <div className="text-xs text-gray-400 flex items-center justify-center gap-1">
             <ClockIcon className="w-3 h-3" />
-            Time Left
+            {(() => {
+              const statusInfo = getPoolStatusDisplay({
+                id: pool.id,
+                settled: pool.settled,
+                creatorSideWon: pool.creatorSideWon,
+                eventStartTime: pool.eventStartTime,
+                eventEndTime: pool.eventEndTime,
+                bettingEndTime: pool.bettingEndTime,
+                oracleType: pool.oracleType,
+                marketId: pool.marketId
+              });
+              
+              if (statusInfo.status === 'active' && statusInfo.timeRemainingFormatted) {
+                return 'Time Left';
+              } else if (statusInfo.status === 'pending_settlement' && statusInfo.timeRemainingFormatted) {
+                return 'Settlement In';
+              } else {
+                return 'Status';
+              }
+            })()}
           </div>
-          <div className="text-sm font-bold text-white">{formatTimeLeft(pool.bettingEndTime)}</div>
+          <div className="text-sm font-bold text-white">
+            {(() => {
+              const statusInfo = getPoolStatusDisplay({
+                id: pool.id,
+                settled: pool.settled,
+                creatorSideWon: pool.creatorSideWon,
+                eventStartTime: pool.eventStartTime,
+                eventEndTime: pool.eventEndTime,
+                bettingEndTime: pool.bettingEndTime,
+                oracleType: pool.oracleType,
+                marketId: pool.marketId
+              });
+              
+              if (statusInfo.timeRemainingFormatted) {
+                return statusInfo.timeRemainingFormatted;
+              } else {
+                return statusInfo.label;
+              }
+            })()}
+          </div>
         </div>
       </div>
 

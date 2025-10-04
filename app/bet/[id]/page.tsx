@@ -35,6 +35,7 @@ import { PoolExplanationService, PoolExplanation } from "@/services/poolExplanat
 import PoolTitleRow from "@/components/PoolTitleRow";
 import BetDisplay from "@/components/BetDisplay";
 import { calculatePoolFill } from "@/utils/poolCalculations";
+import { getStatusBadgeProps } from "@/utils/poolStatus";
 
 export default function BetPage() {
   const { address } = useAccount();
@@ -837,6 +838,69 @@ export default function BetPage() {
                     className="mb-4"
                   />
                 )}
+                
+                {/* Pool Status Display */}
+                {(() => {
+                  // For now, use basic status logic until we have the full pool data structure
+                  const now = Date.now();
+                  const eventStartTime = pool.eventDetails?.startTime ? pool.eventDetails.startTime.getTime() : 0;
+                  const eventEndTime = pool.eventDetails?.endTime ? pool.eventDetails.endTime.getTime() : 0;
+                  
+                  let statusInfo;
+                  
+                  if (now >= eventEndTime) {
+                    statusInfo = {
+                      status: 'event_ended' as const,
+                      label: 'Event Ended',
+                      description: 'Event has ended, awaiting settlement',
+                      color: 'text-orange-400',
+                      bgColor: 'bg-orange-500/20',
+                      icon: '⏳',
+                      canBet: false,
+                      canClaim: false,
+                      canRefund: false
+                    };
+                  } else if (now >= eventStartTime) {
+                    statusInfo = {
+                      status: 'event_started' as const,
+                      label: 'Event Started',
+                      description: 'Event is in progress, no more bets',
+                      color: 'text-yellow-400',
+                      bgColor: 'bg-yellow-500/20',
+                      icon: '🏃',
+                      canBet: false,
+                      canClaim: false,
+                      canRefund: false
+                    };
+                  } else {
+                    statusInfo = {
+                      status: 'active' as const,
+                      label: 'Active',
+                      description: 'Pool is accepting bets',
+                      color: 'text-cyan-400',
+                      bgColor: 'bg-cyan-500/20',
+                      icon: '🔥',
+                      canBet: true,
+                      canClaim: false,
+                      canRefund: false
+                    };
+                  }
+                  
+                  const badgeProps = getStatusBadgeProps(statusInfo);
+                  
+                  return (
+                    <div className="mb-4 p-4 bg-gray-800/30 border border-gray-700/30 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className={badgeProps.className}>
+                          <span className="mr-1">{badgeProps.icon}</span>
+                          {badgeProps.label}
+                        </div>
+                      </div>
+                      <p className="text-sm text-gray-300">{statusInfo.description}</p>
+                    </div>
+                  );
+                })()}
+                
                 <p className="text-sm sm:text-base text-gray-300 leading-relaxed">{pool.description}</p>
               </div>
             </div>
