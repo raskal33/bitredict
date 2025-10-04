@@ -825,7 +825,16 @@ export default function BetPage() {
               <div className="mb-6">
                 {poolExplanation && (
                   <PoolTitleRow
-                    title={pool.title}
+                    title={(() => {
+                      // Extract just the team names from the title
+                      // Remove all the extra information like "FT 1X2", "1.60", league, etc.
+                      const cleanTitle = pool.title
+                        .replace(/"FT \d+X?\d*"/g, '') // Remove "FT 1X2", "FT 1", etc.
+                        .replace(/"\d+\.\d+"/g, '') // Remove "1.60", etc.
+                        .replace(/\s+/g, ' ') // Clean up multiple spaces
+                        .trim();
+                      return cleanTitle;
+                    })()}
                     currencyBadge={poolExplanation.currencyBadge}
                     marketTypeBadge={poolExplanation.marketTypeBadge}
                     league={pool.eventDetails?.league || 'Unknown League'}

@@ -30,43 +30,62 @@ export default function PoolTitleRow({
 }: PoolTitleRowProps) {
   return (
     <div className={`bg-gradient-to-r from-gray-800/50 to-gray-700/50 rounded-xl border border-gray-600/30 backdrop-blur-sm shadow-lg overflow-hidden ${className}`}>
-      <div className="p-4">
-        {/* Time - Top row */}
-        <div className="text-sm text-gray-300 font-medium mb-2">
-          {time}
-        </div>
-        
-        {/* Main content row */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          {/* Left side - Teams and Market Type */}
-          <div className="flex-1 min-w-0">
-            <div className="text-lg sm:text-xl font-bold text-white mb-2">
+      <div className="p-4 sm:p-6">
+        {/* Professional Table Row Layout */}
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 sm:gap-6">
+          {/* Time Column */}
+          <div className="space-y-2">
+            <div className="text-xs text-gray-400 uppercase tracking-wider font-medium">Time</div>
+            <div className="text-sm sm:text-base text-white font-semibold">
+              {time}
+            </div>
+          </div>
+          
+          {/* Teams Column */}
+          <div className="space-y-2">
+            <div className="text-xs text-gray-400 uppercase tracking-wider font-medium">Match</div>
+            <div className="text-sm sm:text-base text-white font-semibold">
               {title}
             </div>
-            
-            {/* Odds and League */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-              <div className="flex items-center gap-2">
-                <div className="px-2 py-1 bg-green-500/20 text-green-400 text-xs font-bold rounded border border-green-500/30">
-                  {odds}
-                </div>
-                <div className="text-sm text-gray-400">
-                  {league}
-                </div>
+          </div>
+          
+          {/* Prediction Column */}
+          <div className="space-y-2">
+            <div className="text-xs text-gray-400 uppercase tracking-wider font-medium">Prediction</div>
+            <div className="flex items-center gap-2">
+              <div className={`px-2 py-1 rounded text-xs font-bold ${marketTypeBadge.color} ${marketTypeBadge.bgColor} border border-current/20`}>
+                {marketTypeBadge.label}
               </div>
             </div>
           </div>
           
-          {/* Right side - Badges */}
-          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-            {/* Currency Badge */}
-            <div className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-bold ${currencyBadge.color} ${currencyBadge.bgColor} border border-current/20 shadow-sm`}>
-              {currencyBadge.type}
+          {/* Odds Column */}
+          <div className="space-y-2">
+            <div className="text-xs text-gray-400 uppercase tracking-wider font-medium">Odds</div>
+            <div className="flex items-center gap-2">
+              <div className="px-3 py-1 bg-green-500/20 text-green-400 text-sm font-bold rounded border border-green-500/30">
+                {odds}
+              </div>
+              <div className={`px-2 py-1 rounded text-xs font-bold ${currencyBadge.color} ${currencyBadge.bgColor} border border-current/20`}>
+                {currencyBadge.type}
+              </div>
             </div>
-            
-            {/* Market Type Badge */}
-            <div className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-bold ${marketTypeBadge.color} ${marketTypeBadge.bgColor} border border-current/20 shadow-sm`}>
-              {marketTypeBadge.label}
+          </div>
+        </div>
+        
+        {/* League Info - Bottom row */}
+        <div className="mt-4 pt-4 border-t border-gray-600/30">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-400">
+              <span className="text-gray-500">League:</span> {league}
+            </div>
+            <div className="flex items-center gap-2">
+              <div className={`px-2 py-1 rounded text-xs font-bold ${marketTypeBadge.color} ${marketTypeBadge.bgColor} border border-current/20`}>
+                {marketTypeBadge.label}
+              </div>
+              <div className={`px-2 py-1 rounded text-xs font-bold ${currencyBadge.color} ${currencyBadge.bgColor} border border-current/20`}>
+                {currencyBadge.type}
+              </div>
             </div>
           </div>
         </div>
