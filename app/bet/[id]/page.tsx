@@ -827,16 +827,22 @@ export default function BetPage() {
                   <PoolTitleRow
                     title={(() => {
                       // Extract just the team names from the title
-                      // Remove all the extra information like "FT 1X2", "1.60", league, etc.
+                      // Remove time, league, and all extra information
                       const cleanTitle = pool.title
+                        .replace(/\d{2}:\d{2} UTC/g, '') // Remove time like "00:30 UTC"
                         .replace(/"FT \d+X?\d*"/g, '') // Remove "FT 1X2", "FT 1", etc.
                         .replace(/"\d+\.\d+"/g, '') // Remove "1.60", etc.
+                        .replace(/Serie [A-Z]|Premier League|Champions League|Bundesliga|Ligue 1|La Liga|Serie A|Eredivisie|Championship|First League|Liga Profesional de Fútbol|Primera Division/g, '') // Remove league names
                         .replace(/\s+/g, ' ') // Clean up multiple spaces
                         .trim();
                       return cleanTitle;
                     })()}
                     currencyBadge={poolExplanation.currencyBadge}
-                    marketTypeBadge={poolExplanation.marketTypeBadge}
+                    marketTypeBadge={{
+                      label: pool.predictedOutcome || 'Unknown', // Use actual predicted outcome
+                      color: poolExplanation.marketTypeBadge.color,
+                      bgColor: poolExplanation.marketTypeBadge.bgColor
+                    }}
                     league={pool.eventDetails?.league || 'Unknown League'}
                     time={pool.eventDetails?.startTime ? pool.eventDetails.startTime.toLocaleTimeString('en-GB', { 
                       hour: '2-digit', 
