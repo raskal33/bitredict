@@ -76,7 +76,7 @@ export class PoolExplanationService {
    */
   static generateExplanation(poolData: PoolData): PoolExplanation {
     const eventTime = this.formatEventTime(poolData.eventStartTime);
-    const marketTypeInfo = this.getMarketTypeInfo(poolData.marketType);
+    const marketTypeInfo = this.getMarketTypeInfo(poolData.marketType, poolData.predictedOutcome);
     const currencyInfo = this.getCurrencyInfo(poolData.usesBitr);
     
     return {
@@ -198,8 +198,11 @@ export class PoolExplanationService {
   /**
    * Get market type info
    */
-  private static getMarketTypeInfo(marketType: number): { label: string; color: string; bgColor: string; marketType: number } {
-    const label = this.MARKET_TYPE_LABELS[marketType as keyof typeof this.MARKET_TYPE_LABELS] || 'FT 1X2';
+  private static getMarketTypeInfo(marketType: number, predictedOutcome?: string): { label: string; color: string; bgColor: string; marketType: number } {
+    // Use predicted outcome if available, otherwise use market type label
+    const label = predictedOutcome && predictedOutcome.trim() !== '' 
+      ? predictedOutcome 
+      : this.MARKET_TYPE_LABELS[marketType as keyof typeof this.MARKET_TYPE_LABELS] || 'FT 1X2';
     const colors = this.MARKET_TYPE_COLORS[marketType as keyof typeof this.MARKET_TYPE_COLORS] || this.MARKET_TYPE_COLORS[0];
     
     return {

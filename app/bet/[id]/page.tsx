@@ -193,7 +193,8 @@ export default function BetPage() {
       // Use contract data with proper formatting
       const creatorStakeNum = parseFloat(poolData.creatorStake || "0") / 1e18; // Convert from wei
       const totalBettorStakeNum = parseFloat(poolData.totalBettorStake || "0") / 1e18; // Convert from wei
-      const potentialWinNum = creatorStakeNum * poolData.odds; // Calculate potential win
+      // Calculate creator potential win: creatorStake / (odds - 1) + creatorStake
+      const potentialWinNum = (creatorStakeNum / (poolData.odds - 1)) + creatorStakeNum;
       
       // Set state variables
       setCreatorStakeFormatted(creatorStakeNum);
