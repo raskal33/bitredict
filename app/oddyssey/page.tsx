@@ -806,6 +806,9 @@ export default function OddysseyPage() {
   const fetchUserSlips = useCallback(async () => {
     if (!address || apiCallInProgress) return;
     
+    console.log('🔍 fetchUserSlips called for address:', address);
+    console.log('🔍 apiCallInProgress:', apiCallInProgress);
+    
     try {
       setApiCallInProgress(true);
       console.log('🎯 Fetching user slips for address:', address);
@@ -920,6 +923,13 @@ export default function OddysseyPage() {
           // Separate past slips (evaluated) from current slips
           const pastSlips = enhancedSlips.filter(slip => slip.isEvaluated);
           const currentSlips = enhancedSlips.filter(slip => !slip.isEvaluated);
+          
+          console.log('🔍 Enhanced slips processing:');
+          console.log('🔍 Total enhanced slips:', enhancedSlips.length);
+          console.log('🔍 Past slips (evaluated):', pastSlips.length);
+          console.log('🔍 Current slips (non-evaluated):', currentSlips.length);
+          console.log('🔍 Past slips details:', pastSlips);
+          console.log('🔍 Current slips details:', currentSlips);
           
           setPastSlips(pastSlips);
           setCurrentSlips(currentSlips);

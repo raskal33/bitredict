@@ -406,11 +406,15 @@ class OddysseyService {
       });
 
       console.log('🔍 Raw getUserSlipsWithData result:', result);
+      console.log('🔍 Result type:', typeof result);
+      console.log('🔍 Result length:', Array.isArray(result) ? result.length : 'not array');
       
       const [slipIds, slipsData] = result as [bigint[], any[]];
       
       console.log('🔍 Processed slip IDs:', slipIds);
+      console.log('🔍 Processed slip IDs length:', slipIds.length);
       console.log('🔍 Processed slips data:', slipsData);
+      console.log('🔍 Processed slips data length:', slipsData.length);
       
       return {
         slipIds,
@@ -429,27 +433,91 @@ class OddysseyService {
   }> {
     try {
       console.log('🔍 Getting ALL user slips with data across all cycles for:', userAddress);
+      console.log('🔍 Contract address:', CONTRACTS.ODDYSSEY.address);
       
-      // Use the more efficient contract function that gets all user slips at once
-      const result = await this.publicClient.readContract({
-        ...CONTRACTS.ODDYSSEY,
-        functionName: 'getUserSlipsByStatus',
-        args: [userAddress, false], // false = get both evaluated and non-evaluated slips
-      });
+      // First, let's try to get the user's total slip count
+      try {
+        const slipCount = await this.publicClient.readContract({
+          ...CONTRACTS.ODDYSSEY,
+          functionName: 'getUserSlipCount',
+          args: [userAddress],
+        });
+        console.log('🔍 User slip count from contract:', slipCount);
+      } catch (countError) {
+        console.log('⚠️ Could not get slip count:', countError);
+      }
+      
+      // Also try to get all user slips directly
+      try {
+        const allUserSlips = await this.publicClient.readContract({
+          ...CONTRACTS.ODDYSSEY,
+          functionName: 'getUserSlips',
+          args: [userAddress],
+        });
+        console.log('🔍 All user slips from contract:', allUserSlips);
+      } catch (allSlipsError) {
+        console.log('⚠️ Could not get all user slips:', allSlipsError);
+      }
+      
+      // Try the getUserSlipsByStatus function
+      try {
+        const result = await this.publicClient.readContract({
+          ...CONTRACTS.ODDYSSEY,
+          functionName: 'getUserSlipsByStatus',
+          args: [userAddress, false], // false = get both evaluated and non-evaluated slips
+        });
 
-      console.log('🔍 Raw getUserSlipsByStatus result:', result);
-      
-      const [slipIds, rawSlipsData] = result as [bigint[], any[]];
-      
-      console.log(`🔍 Found ${slipIds.length} total slips across all cycles`);
-      
-      // Process the slip data
-      const slipsData: OddysseySlip[] = rawSlipsData.map(rawSlip => this.processSlipData(rawSlip));
-      
-      return {
-        slipIds: slipIds,
-        slipsData: slipsData
-      };
+        console.log('🔍 Raw getUserSlipsByStatus result:', result);
+        
+        const [slipIds, rawSlipsData] = result as [bigint[], any[]];
+        
+        console.log(`🔍 Found ${slipIds.length} total slips across all cycles`);
+        console.log('🔍 Slip IDs:', slipIds);
+        console.log('🔍 Raw slips data:', rawSlipsData);
+        
+        // Process the slip data
+        const slipsData: OddysseySlip[] = rawSlipsData.map(rawSlip => this.processSlipData(rawSlip));
+        
+        return {
+          slipIds: slipIds,
+          slipsData: slipsData
+        };
+      } catch (statusError) {
+        console.log('⚠️ getUserSlipsByStatus failed, trying alternative approach:', statusError);
+        
+        // Fallback: try to get slips from individual cycles
+        const currentCycle = await this.getCurrentCycle();
+        console.log('🔍 Current cycle:', currentCycle.toString());
+        
+        const allSlipIds: bigint[] = [];
+        const allSlipsData: OddysseySlip[] = [];
+        
+        // Check cycles from 0 to current cycle (inclusive)
+        for (let cycleId = 0; cycleId <= Number(currentCycle); cycleId++) {
+          try {
+            console.log(`🔍 Checking cycle ${cycleId} for user slips...`);
+            const cycleSlipsData = await this.getUserSlipsWithDataFromContract(userAddress, BigInt(cycleId));
+            
+            if (cycleSlipsData.slipIds.length > 0) {
+              console.log(`✅ Found ${cycleSlipsData.slipIds.length} slips in cycle ${cycleId}`);
+              allSlipIds.push(...cycleSlipsData.slipIds);
+              allSlipsData.push(...cycleSlipsData.slipsData);
+            } else {
+              console.log(`⚠️ No slips found in cycle ${cycleId}`);
+            }
+          } catch (error) {
+            console.log(`⚠️ Error checking cycle ${cycleId}:`, error);
+            continue;
+          }
+        }
+        
+        console.log(`🔍 Total slips found across all cycles: ${allSlipIds.length}`);
+        
+        return {
+          slipIds: allSlipIds,
+          slipsData: allSlipsData
+        };
+      }
     } catch (error) {
       console.error('Error getting all user slips with data:', error);
       throw error;
