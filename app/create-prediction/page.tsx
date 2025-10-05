@@ -583,6 +583,11 @@ function CreateMarketPageContent() {
     
     // Set the market type enum
     const marketTypeEnum = getMarketTypeEnum(marketType);
+    console.log('🔍 Market Selection Debug:', {
+      selectedMarketType: marketType,
+      mappedEnum: marketTypeEnum,
+      outcome: outcome
+    });
     handleInputChange('marketType', marketTypeEnum);
     
     // Set the outcome based on market type and outcome
@@ -906,6 +911,12 @@ function CreateMarketPageContent() {
           title: `${data.selectedFixture.homeTeam.name} vs ${data.selectedFixture.awayTeam.name}`
         };
 
+        console.log('🔍 Pool Creation Debug:', {
+          selectedMarketType: data.marketType,
+          finalMarketType: poolData.marketType,
+          outcome: data.outcome,
+          predictionOutcome: data.predictionOutcome
+        });
         console.log('Pool data for direct contract call:', poolData);
         
         showInfo('Creating Market', 'Preparing market creation transaction...');
