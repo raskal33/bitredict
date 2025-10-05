@@ -70,6 +70,7 @@ interface EnhancedSlip {
   id: number;
   cycleId: number;
   placedAt: number;
+  player: string; // Wallet address of the slip creator
   predictions: {
     matchId: number;
     betType: number;
@@ -899,6 +900,7 @@ export default function OddysseyPage() {
             id: Number(allSlipsData.slipIds[index]),
             cycleId: slip.cycleId,
             placedAt: slip.placedAt,
+            player: slip.player, // Include wallet address
             predictions: slip.predictions.map(pred => ({
               matchId: Number(pred.matchId),
               betType: pred.betType,
@@ -2506,9 +2508,39 @@ export default function OddysseyPage() {
                   </h2>
                   
                   {pastSlips.length > 0 ? (
-                    <EnhancedSlipDisplay 
-                      slips={pastSlips} 
-                    />
+                    <div className="space-y-4">
+                      {/* Wallet addresses info */}
+                      <div className="bg-purple-500/10 border border-purple-500/20 rounded-button p-4">
+                        <h3 className="text-lg font-semibold text-purple-300 mb-3 flex items-center gap-2">
+                          <DocumentTextIcon className="h-5 w-5" />
+                          Past Slips Wallet Addresses
+                        </h3>
+                        <div className="space-y-2">
+                          {pastSlips.map((slip) => (
+                            <div key={slip.id} className="flex items-center justify-between bg-purple-500/5 rounded-lg p-3">
+                              <div className="flex items-center gap-3">
+                                <span className="text-purple-400 font-medium">Slip #{slip.id}</span>
+                                <span className="text-text-muted">Cycle {slip.cycleId}</span>
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                  slip.status === 'won' 
+                                    ? 'bg-green-500/20 text-green-400' 
+                                    : 'bg-red-500/20 text-red-400'
+                                }`}>
+                                  {slip.correctCount}/10 correct
+                                </span>
+                              </div>
+                              <div className="text-purple-300 font-mono text-sm">
+                                {slip.player.slice(0, 6)}...{slip.player.slice(-4)}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      <EnhancedSlipDisplay 
+                        slips={pastSlips} 
+                      />
+                    </div>
                   ) : (
                     <div className="text-center py-12">
                       <DocumentTextIcon className="h-16 w-16 text-purple-400/50 mx-auto mb-4" />
