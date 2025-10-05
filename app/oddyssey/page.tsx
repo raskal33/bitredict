@@ -948,7 +948,7 @@ export default function OddysseyPage() {
         } catch (error) {
           console.error('❌ Error fetching enhanced slips:', error);
           console.error('❌ Error details:', error);
-          console.error('❌ Error stack:', error.stack);
+          console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace');
           setPastSlips([]);
           setCurrentSlips([]);
         }
