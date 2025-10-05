@@ -230,7 +230,7 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
         isPrivate: formData.isPrivate,
         creatorStake: BigInt(parseFloat(formData.creatorStake) * 1e18),
         region: formData.region || "global",
-        oracleType: 1, // Default oracle type for crypto
+        oracleType: 0, // GUIDED oracle type for crypto (should be resolved by oracle bot)
         marketId: formData.marketId || `crypto_${Date.now()}`,
         marketType: formData.marketType, // Use selected market type
       };
