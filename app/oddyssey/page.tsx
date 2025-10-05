@@ -468,8 +468,9 @@ export default function OddysseyPage() {
 
   const [picks, setPicks] = useState<Pick[]>([]);
   const [slips, setSlips] = useState<Pick[][]>([]);
-  const [allSlips, setAllSlips] = useState<EnhancedSlip[]>([]); // Enhanced slips with evaluation data
-  const [activeTab, setActiveTab] = useState<"today" | "slips" | "stats" | "results" | "leaderboard">("today");
+  const [pastSlips, setPastSlips] = useState<EnhancedSlip[]>([]); // Only evaluated (past) slips
+  const [currentSlips, setCurrentSlips] = useState<EnhancedSlip[]>([]); // Only current cycle slips
+  const [activeTab, setActiveTab] = useState<"today" | "slips" | "history" | "stats" | "results" | "leaderboard">("today");
   const [matches, setMatches] = useState<Match[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [currentPrizePool, setCurrentPrizePool] = useState<CurrentPrizePool | null>(null);
@@ -906,7 +907,7 @@ export default function OddysseyPage() {
               homeTeam: pred.homeTeam,
               awayTeam: pred.awayTeam,
               leagueName: pred.leagueName,
-              isCorrect: slip.isEvaluated ? pred.isCorrect : undefined // Will be determined by evaluation
+              isCorrect: slip.isEvaluated ? pred.isCorrect : undefined
             })),
             finalScore: slip.finalScore,
             correctCount: slip.correctCount,
@@ -914,11 +915,22 @@ export default function OddysseyPage() {
             status: slip.isEvaluated ? (slip.correctCount >= 8 ? 'won' : 'lost') : 'pending' as 'pending' | 'evaluated' | 'won' | 'lost'
           }));
           
-          setAllSlips(enhancedSlips);
-          console.log('✅ Enhanced slips set:', enhancedSlips);
+          // Separate past slips (evaluated) from current slips
+          const pastSlips = enhancedSlips.filter(slip => slip.isEvaluated);
+          const currentSlips = enhancedSlips.filter(slip => !slip.isEvaluated);
+          
+          setPastSlips(pastSlips);
+          setCurrentSlips(currentSlips);
+          
+          console.log('✅ Enhanced slips set:', {
+            total: enhancedSlips.length,
+            past: pastSlips.length,
+            current: currentSlips.length
+          });
         } catch (error) {
           console.error('❌ Error fetching enhanced slips:', error);
-          setAllSlips([]);
+          setPastSlips([]);
+          setCurrentSlips([]);
         }
       } else {
         console.warn('⚠️ No user slips received');
@@ -1790,6 +1802,25 @@ export default function OddysseyPage() {
               <span className="sm:hidden">Slips ({slips.length})</span>
             </button>
             <button
+              onClick={() => setActiveTab("history")}
+              className={`px-4 md:px-8 py-2 md:py-3 rounded-button font-semibold transition-all duration-300 flex items-center gap-1 md:gap-2 text-sm md:text-base relative overflow-hidden ${
+                activeTab === "history"
+                  ? "bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 shadow-lg shadow-purple-500/25 scale-105 border border border-purple-500/30"
+                  : "text-text-secondary hover:text-purple-300 hover:bg-gradient-to-r hover:from-purple-500/10 hover:to-pink-500/10 hover:border hover:border-purple-500/20"
+              }`}
+            >
+              <div className="relative">
+                <DocumentTextIcon className="h-4 w-4 md:h-5 md:w-5" />
+                {pastSlips.length > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
+                    {pastSlips.length}
+                  </span>
+                )}
+              </div>
+              <span className="hidden sm:inline">History ({pastSlips.length})</span>
+              <span className="sm:hidden">History ({pastSlips.length})</span>
+            </button>
+            <button
               onClick={() => setActiveTab("results")}
               className={`px-4 md:px-8 py-2 md:py-3 rounded-button font-semibold transition-all duration-300 flex items-center gap-1 md:gap-2 text-sm md:text-base relative overflow-hidden ${
                 activeTab === "results"
@@ -2455,8 +2486,38 @@ export default function OddysseyPage() {
                   </h2>
                   
                   <EnhancedSlipDisplay 
-                    slips={allSlips} 
+                    slips={currentSlips} 
                   />
+                </div>
+              </motion.div>
+            ) : activeTab === "history" ? (
+              <motion.div
+                key="history"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="lg:col-span-3"
+              >
+                <div className="glass-card p-4 sm:p-6 bg-gradient-to-br from-purple-500/5 to-pink-500/5 border border-purple-500/20 shadow-lg shadow-purple-500/10">
+                  <h2 className="text-xl sm:text-2xl font-bold text-purple-300 mb-4 sm:mb-6 flex items-center gap-2">
+                    <DocumentTextIcon className="h-5 w-5 sm:h-6 sm:w-6 text-purple-400" />
+                    <span className="hidden sm:inline">Past Slips History</span>
+                    <span className="sm:hidden">History</span>
+                  </h2>
+                  
+                  {pastSlips.length > 0 ? (
+                    <EnhancedSlipDisplay 
+                      slips={pastSlips} 
+                    />
+                  ) : (
+                    <div className="text-center py-12">
+                      <DocumentTextIcon className="h-16 w-16 text-purple-400/50 mx-auto mb-4" />
+                      <h3 className="text-xl font-semibold text-purple-300 mb-2">No Past Slips</h3>
+                      <p className="text-purple-400/70">
+                        Your evaluated slips from previous cycles will appear here.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             ) : activeTab === "results" ? (

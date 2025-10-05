@@ -430,39 +430,61 @@ class OddysseyService {
     try {
       console.log('🔍 Getting ALL user slips with data across all cycles for:', userAddress);
       
-      // Get current cycle to know how many cycles to check
-      const currentCycle = await this.getCurrentCycle();
-      console.log('🔍 Current cycle:', currentCycle.toString());
+      // Use the more efficient contract function that gets all user slips at once
+      const result = await this.publicClient.readContract({
+        ...CONTRACTS.ODDYSSEY,
+        functionName: 'getUserSlipsByStatus',
+        args: [userAddress, false], // false = get both evaluated and non-evaluated slips
+      });
+
+      console.log('🔍 Raw getUserSlipsByStatus result:', result);
       
-      const allSlipIds: bigint[] = [];
-      const allSlipsData: OddysseySlip[] = [];
+      const [slipIds, rawSlipsData] = result as [bigint[], any[]];
       
-      // Check cycles from 0 to current cycle (inclusive)
-      for (let cycleId = 0; cycleId <= Number(currentCycle); cycleId++) {
-        try {
-          console.log(`🔍 Checking cycle ${cycleId} for user slips...`);
-          const cycleSlipsData = await this.getUserSlipsWithDataFromContract(userAddress, BigInt(cycleId));
-          
-          if (cycleSlipsData.slipIds.length > 0) {
-            console.log(`✅ Found ${cycleSlipsData.slipIds.length} slips in cycle ${cycleId}`);
-            allSlipIds.push(...cycleSlipsData.slipIds);
-            allSlipsData.push(...cycleSlipsData.slipsData);
-          }
-        } catch (error) {
-          console.log(`⚠️ No slips found in cycle ${cycleId} or error:`, error);
-          // Continue to next cycle
-          continue;
-        }
-      }
+      console.log(`🔍 Found ${slipIds.length} total slips across all cycles`);
       
-      console.log(`🔍 Total slips found across all cycles: ${allSlipIds.length}`);
+      // Process the slip data
+      const slipsData: OddysseySlip[] = rawSlipsData.map(rawSlip => this.processSlipData(rawSlip));
       
       return {
-        slipIds: allSlipIds,
-        slipsData: allSlipsData
+        slipIds: slipIds,
+        slipsData: slipsData
       };
     } catch (error) {
       console.error('Error getting all user slips with data:', error);
+      throw error;
+    }
+  }
+
+  // Get only evaluated (past/resolved) user slips
+  async getEvaluatedUserSlipsFromContract(userAddress: Address): Promise<{
+    slipIds: bigint[];
+    slipsData: OddysseySlip[];
+  }> {
+    try {
+      console.log('🔍 Getting evaluated (past) user slips for:', userAddress);
+      
+      const result = await this.publicClient.readContract({
+        ...CONTRACTS.ODDYSSEY,
+        functionName: 'getUserSlipsByStatus',
+        args: [userAddress, true], // true = get only evaluated slips
+      });
+
+      console.log('🔍 Raw evaluated slips result:', result);
+      
+      const [slipIds, rawSlipsData] = result as [bigint[], any[]];
+      
+      console.log(`🔍 Found ${slipIds.length} evaluated slips`);
+      
+      // Process the slip data
+      const slipsData: OddysseySlip[] = rawSlipsData.map(rawSlip => this.processSlipData(rawSlip));
+      
+      return {
+        slipIds: slipIds,
+        slipsData: slipsData
+      };
+    } catch (error) {
+      console.error('Error getting evaluated user slips:', error);
       throw error;
     }
   }
