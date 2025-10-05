@@ -199,11 +199,15 @@ export class PoolExplanationService {
    * Get market type info
    */
   private static getMarketTypeInfo(marketType: number, predictedOutcome?: string): { label: string; color: string; bgColor: string; marketType: number } {
+    console.log('🔍 getMarketTypeInfo - marketType:', marketType, 'predictedOutcome:', predictedOutcome);
+    
     // Use predicted outcome if available, otherwise use market type label
     const label = predictedOutcome && predictedOutcome.trim() !== '' 
       ? predictedOutcome 
       : this.MARKET_TYPE_LABELS[marketType as keyof typeof this.MARKET_TYPE_LABELS] || 'FT 1X2';
     const colors = this.MARKET_TYPE_COLORS[marketType as keyof typeof this.MARKET_TYPE_COLORS] || this.MARKET_TYPE_COLORS[0];
+    
+    console.log('🔍 getMarketTypeInfo - final label:', label, 'colors:', colors);
     
     return {
       label,

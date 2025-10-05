@@ -31,6 +31,9 @@ interface CryptoMarketFormData {
   priceDirection: 'above' | 'below';
   timeFrame: string;
   
+  // Market type
+  marketType: number;
+  
   // Boost data
   enableBoost: boolean;
   boostTier: number;
@@ -91,6 +94,7 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
     targetPrice: '',
     priceDirection: 'above',
     timeFrame: '24h',
+    marketType: 7, // CUSTOM market type for crypto
     enableBoost: false,
     boostTier: 0,
   });
@@ -228,7 +232,7 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
         region: formData.region || "global",
         oracleType: 1, // Default oracle type for crypto
         marketId: formData.marketId || `crypto_${Date.now()}`,
-        marketType: 1, // Default market type
+        marketType: formData.marketType, // Use selected market type
       };
 
       let txHash: `0x${string}`;
@@ -409,6 +413,25 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
           {errors.predictedOutcome && (
             <p className="text-red-500 text-sm mt-1">{errors.predictedOutcome}</p>
           )}
+        </div>
+
+        {/* Market Type Selection */}
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Market Type
+          </label>
+          <select
+            value={formData.marketType}
+            onChange={(e) => handleInputChange('marketType', parseInt(e.target.value))}
+            className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value={7}>Custom Market (Recommended for Crypto)</option>
+            <option value={1}>Over/Under (Price Targets)</option>
+            <option value={0}>Moneyline (Price Direction)</option>
+          </select>
+          <p className="text-sm text-gray-400 mt-1">
+            Custom Market is most flexible for crypto predictions
+          </p>
         </div>
 
         {/* Odds */}

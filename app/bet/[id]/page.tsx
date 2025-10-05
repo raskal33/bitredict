@@ -145,6 +145,10 @@ export default function BetPage() {
       }
       
       console.log('🔍 Contract pool data for bet page:', poolData);
+      console.log('🔍 Market Type (raw):', poolData.marketType);
+      console.log('🔍 Predicted Outcome (raw):', poolData.predictedOutcome);
+      console.log('🔍 Market Type (decoded):', typeof poolData.marketType, poolData.marketType);
+      console.log('🔍 Predicted Outcome (decoded):', typeof poolData.predictedOutcome, poolData.predictedOutcome);
       
       // Determine currency based on stake amount (same logic as pool card)
       const stakeAmount = parseFloat(poolData.creatorStake || "0") / 1e18;

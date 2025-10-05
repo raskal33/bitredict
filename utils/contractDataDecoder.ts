@@ -231,6 +231,10 @@ export function processRawPoolData(rawPool: any) {
     isPrivate: flags.isPrivate,
     usesBitr: usesBitr, // Use corrected value
     filledAbove60: flags.filledAbove60,
+    
+    // Include market type and other contract data
+    marketType: rawPool.marketType,
+    oracleType: rawPool.oracleType,
   };
 }
 
