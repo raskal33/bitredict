@@ -359,6 +359,113 @@ const EnhancedFixtureSelector: React.FC<FixtureSelectorProps> = ({
       });
     }
 
+    // Double Chance Markets (1X, X2, 12)
+    // These are calculated from existing odds
+    if (odds.home && odds.draw) {
+      const homeOrDrawOdds = (odds.home * odds.draw) / (odds.home + odds.draw);
+      markets.push({
+        type: 'double_chance',
+        outcome: '1x',
+        label: 'Home or Draw (1X)',
+        odds: homeOrDrawOdds,
+        color: 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/20',
+        category: 'fulltime',
+        description: 'Home team wins or match ends in draw',
+        icon: '🏠🤝'
+      });
+    }
+    
+    if (odds.away && odds.draw) {
+      const awayOrDrawOdds = (odds.away * odds.draw) / (odds.away + odds.draw);
+      markets.push({
+        type: 'double_chance',
+        outcome: 'x2',
+        label: 'Away or Draw (X2)',
+        odds: awayOrDrawOdds,
+        color: 'bg-pink-500/10 border-pink-500/30 text-pink-400 hover:bg-pink-500/20',
+        category: 'fulltime',
+        description: 'Away team wins or match ends in draw',
+        icon: '✈️🤝'
+      });
+    }
+    
+    if (odds.home && odds.away) {
+      const homeOrAwayOdds = (odds.home * odds.away) / (odds.home + odds.away);
+      markets.push({
+        type: 'double_chance',
+        outcome: '12',
+        label: 'Home or Away (12)',
+        odds: homeOrAwayOdds,
+        color: 'bg-violet-500/10 border-violet-500/30 text-violet-400 hover:bg-violet-500/20',
+        category: 'fulltime',
+        description: 'Home or away team wins (no draw)',
+        icon: '🏠✈️'
+      });
+    }
+
+    // Correct Score Markets (Common scores)
+    const commonScores = [
+      { score: '1-0', odds: odds.home ? odds.home * 0.3 : null },
+      { score: '2-1', odds: odds.home ? odds.home * 0.2 : null },
+      { score: '2-0', odds: odds.home ? odds.home * 0.15 : null },
+      { score: '1-1', odds: odds.draw ? odds.draw * 0.4 : null },
+      { score: '0-1', odds: odds.away ? odds.away * 0.3 : null },
+      { score: '1-2', odds: odds.away ? odds.away * 0.2 : null },
+      { score: '0-2', odds: odds.away ? odds.away * 0.15 : null }
+    ];
+
+    commonScores.forEach(({ score, odds: scoreOdds }) => {
+      if (scoreOdds && scoreOdds > 1.0) {
+        markets.push({
+          type: 'correct_score',
+          outcome: score,
+          label: `Correct Score ${score}`,
+          odds: scoreOdds,
+          color: 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20',
+          category: 'goals',
+          description: `Exact final score: ${score}`,
+          icon: '🎯'
+        });
+      }
+    });
+
+    // First Goal Scorer Markets (Generic)
+    if (odds.home && odds.away) {
+      const firstGoalOdds = Math.min(odds.home, odds.away) * 0.8;
+      markets.push({
+        type: 'first_goal',
+        outcome: 'home_player',
+        label: 'Home Team Player Scores First',
+        odds: firstGoalOdds,
+        color: 'bg-sky-500/10 border-sky-500/30 text-sky-400 hover:bg-sky-500/20',
+        category: 'goals',
+        description: 'Any home team player scores first goal',
+        icon: '🏠⚽'
+      });
+      
+      markets.push({
+        type: 'first_goal',
+        outcome: 'away_player',
+        label: 'Away Team Player Scores First',
+        odds: firstGoalOdds,
+        color: 'bg-orange-500/10 border-orange-500/30 text-orange-400 hover:bg-orange-500/20',
+        category: 'goals',
+        description: 'Any away team player scores first goal',
+        icon: '✈️⚽'
+      });
+      
+      markets.push({
+        type: 'first_goal',
+        outcome: 'no_goal',
+        label: 'No Goal Scorer',
+        odds: firstGoalOdds * 1.5,
+        color: 'bg-gray-500/10 border-gray-500/30 text-gray-400 hover:bg-gray-500/20',
+        category: 'goals',
+        description: 'No goals scored in the match',
+        icon: '🚫⚽'
+      });
+    }
+
     return markets;
   };
 

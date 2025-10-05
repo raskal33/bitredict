@@ -105,6 +105,7 @@ interface GuidedMarketData {
   // Football specific (updated for SportMonks)
   selectedFixture?: Fixture;
   outcome?: 'home' | 'away' | 'draw' | 'over15' | 'under15' | 'over25' | 'under25' | 'over35' | 'under35' | 'bttsYes' | 'bttsNo' | 'htHome' | 'htDraw' | 'htAway' | 'ht_over_05' | 'ht_under_05' | 'ht_over_15' | 'ht_under_15';
+  marketType?: number; // Contract market type enum
   fixtures?: { fixtures: Fixture[] };
   
   // Cryptocurrency specific
@@ -550,9 +551,39 @@ function CreateMarketPageContent() {
 
 
 
+  // Map market type strings to contract enum values
+  const getMarketTypeEnum = (marketType: string): number => {
+    switch (marketType) {
+      case 'ft_1x2':
+      case 'moneyline':
+        return 0; // MONEYLINE
+      case 'ou_25':
+      case 'ou_35':
+      case 'ht_ou_15':
+      case 'over_under':
+        return 1; // OVER_UNDER
+      case 'btts':
+        return 2; // BOTH_TEAMS_SCORE
+      case 'ht_1x2':
+        return 3; // HALF_TIME
+      case 'double_chance':
+        return 4; // DOUBLE_CHANCE
+      case 'correct_score':
+        return 5; // CORRECT_SCORE
+      case 'first_goal':
+        return 6; // FIRST_GOAL
+      default:
+        return 0; // Default to MONEYLINE
+    }
+  };
+
   const handleMarketSelect = (fixture: Fixture, marketType: string, outcome: string) => {
     // Set the selected fixture
     handleInputChange('selectedFixture', fixture);
+    
+    // Set the market type enum
+    const marketTypeEnum = getMarketTypeEnum(marketType);
+    handleInputChange('marketType', marketTypeEnum);
     
     // Set the outcome based on market type and outcome
     handleInputChange('outcome', outcome as 'home' | 'away' | 'draw' | 'over15' | 'under15' | 'over25' | 'under25' | 'over35' | 'under35' | 'bttsYes' | 'bttsNo' | 'htHome' | 'htDraw' | 'htAway' | 'ht_over_05' | 'ht_under_05' | 'ht_over_15' | 'ht_under_15');
@@ -589,6 +620,38 @@ function CreateMarketPageContent() {
           else if (outcome === 'ht_under_05' && fixture.odds.ht_under_05) selectedOdds = Math.floor(fixture.odds.ht_under_05 * 100);
           else if (outcome === 'ht_over_15' && fixture.odds.ht_over_15) selectedOdds = Math.floor(fixture.odds.ht_over_15 * 100);
           else if (outcome === 'ht_under_15' && fixture.odds.ht_under_15) selectedOdds = Math.floor(fixture.odds.ht_under_15 * 100);
+          break;
+        case 'ft_1x2':
+          if (outcome === 'home' && fixture.odds.home) selectedOdds = Math.floor(fixture.odds.home * 100);
+          else if (outcome === 'draw' && fixture.odds.draw) selectedOdds = Math.floor(fixture.odds.draw * 100);
+          else if (outcome === 'away' && fixture.odds.away) selectedOdds = Math.floor(fixture.odds.away * 100);
+          break;
+        case 'ht_1x2':
+          if (outcome === 'htHome' && fixture.odds.htHome) selectedOdds = Math.floor(fixture.odds.htHome * 100);
+          else if (outcome === 'htDraw' && fixture.odds.htDraw) selectedOdds = Math.floor(fixture.odds.htDraw * 100);
+          else if (outcome === 'htAway' && fixture.odds.htAway) selectedOdds = Math.floor(fixture.odds.htAway * 100);
+          break;
+        case 'ou_25':
+        case 'ou_35':
+        case 'ht_ou_15':
+          if (outcome === 'over25' && fixture.odds.over25) selectedOdds = Math.floor(fixture.odds.over25 * 100);
+          else if (outcome === 'under25' && fixture.odds.under25) selectedOdds = Math.floor(fixture.odds.under25 * 100);
+          else if (outcome === 'over35' && fixture.odds.over35) selectedOdds = Math.floor(fixture.odds.over35 * 100);
+          else if (outcome === 'under35' && fixture.odds.under35) selectedOdds = Math.floor(fixture.odds.under35 * 100);
+          else if (outcome === 'ht_over_15' && fixture.odds.ht_over_15) selectedOdds = Math.floor(fixture.odds.ht_over_15 * 100);
+          else if (outcome === 'ht_under_15' && fixture.odds.ht_under_15) selectedOdds = Math.floor(fixture.odds.ht_under_15 * 100);
+          break;
+        case 'double_chance':
+          // For double chance, we'll use calculated odds from the market
+          selectedOdds = 200; // Default odds for double chance
+          break;
+        case 'correct_score':
+          // For correct score, we'll use calculated odds from the market
+          selectedOdds = 300; // Higher odds for correct score
+          break;
+        case 'first_goal':
+          // For first goal, we'll use calculated odds from the market
+          selectedOdds = 250; // Medium-high odds for first goal
           break;
       }
       
@@ -837,7 +900,7 @@ function CreateMarketPageContent() {
           useBitr: useBitr,
           oracleType: 0, // GUIDED
           marketId: data.selectedFixture.id.toString(), // 🎯 SportMonks fixture ID
-          marketType: 0, // MONEYLINE
+          marketType: data.marketType || 0, // Use selected market type or default to MONEYLINE
           homeTeam: data.selectedFixture.homeTeam.name,
           awayTeam: data.selectedFixture.awayTeam.name,
           title: `${data.selectedFixture.homeTeam.name} vs ${data.selectedFixture.awayTeam.name}`
