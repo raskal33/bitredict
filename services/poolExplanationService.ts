@@ -17,6 +17,7 @@ export interface PoolData {
   eventEndTime: number;
   usesBitr: boolean;
   creatorStake: string;
+  marketId?: string; // Optional market ID
 }
 
 export interface PoolExplanation {
@@ -94,7 +95,7 @@ export class PoolExplanationService {
    */
   private static generateTitle(poolData: PoolData, eventTime: string): string {
     // Import title templates service
-    const { titleTemplatesService } = require('../title-templates');
+    const { titleTemplatesService } = require('./title-templates');
     
     try {
       // Use the same title generation as enhanced pool cards
