@@ -90,11 +90,37 @@ export class PoolExplanationService {
   }
 
   /**
-   * Generate standardized title
+   * Generate standardized title using title templates service
    */
   private static generateTitle(poolData: PoolData, eventTime: string): string {
-    const marketTypeLabel = this.MARKET_TYPE_LABELS[poolData.marketType as keyof typeof this.MARKET_TYPE_LABELS] || 'FT 1X2';
-    return `${eventTime} ${poolData.homeTeam} vs ${poolData.awayTeam} "${marketTypeLabel}" "${poolData.odds.toFixed(2)}" ${poolData.league}`;
+    // Import title templates service
+    const { titleTemplatesService } = require('../title-templates');
+    
+    try {
+      // Use the same title generation as enhanced pool cards
+      const marketData = {
+        marketType: this.MARKET_TYPE_LABELS[poolData.marketType as keyof typeof this.MARKET_TYPE_LABELS] || '1X2',
+        homeTeam: poolData.homeTeam,
+        awayTeam: poolData.awayTeam,
+        predictedOutcome: poolData.predictedOutcome,
+        league: poolData.league,
+        marketId: poolData.marketId || ''
+      };
+      
+      // Generate professional title using templates
+      const generatedTitle = titleTemplatesService.generateTitle(marketData, {
+        short: false,
+        includeLeague: false,
+        maxLength: 60
+      });
+      
+      return generatedTitle;
+    } catch (error) {
+      console.error('Error generating title with templates:', error);
+      // Fallback to generic title
+      const marketTypeLabel = this.MARKET_TYPE_LABELS[poolData.marketType as keyof typeof this.MARKET_TYPE_LABELS] || 'FT 1X2';
+      return `${eventTime} ${poolData.homeTeam} vs ${poolData.awayTeam} "${marketTypeLabel}" "${poolData.odds.toFixed(2)}" ${poolData.league}`;
+    }
   }
 
   /**
