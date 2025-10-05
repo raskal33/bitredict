@@ -171,8 +171,8 @@ export class OddysseyContractService {
     try {
       const contract = await this.getContract();
       const result = await contract.getUserData(userAddress);
-      
-      return {
+
+    return {
         userStats: {
           totalSlips: Number(result.userStatsData.totalSlips),
           totalWins: Number(result.userStatsData.totalWins),
@@ -346,7 +346,7 @@ export class OddysseyContractService {
         finalScore: Number(entry.finalScore),
         correctCount: Number(entry.correctCount)
       }));
-    } catch (error) {
+        } catch (error) {
       console.error('Error fetching daily leaderboard:', error);
       return [];
     }

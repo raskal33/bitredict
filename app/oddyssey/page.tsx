@@ -895,8 +895,14 @@ export default function OddysseyPage() {
         // Also fetch all user slips with evaluation data from ALL cycles
         try {
           console.log('🎯 Fetching all user slips with evaluation data from ALL cycles...');
+          console.log('🔍 Calling getAllUserSlipsWithDataFromContract for address:', address);
+          console.log('🔍 oddysseyService:', oddysseyService);
+          console.log('🔍 oddysseyService.getAllUserSlipsWithDataFromContract:', typeof oddysseyService.getAllUserSlipsWithDataFromContract);
+          
           const allSlipsData = await oddysseyService.getAllUserSlipsWithDataFromContract(address);
           console.log('🔍 All slips data from all cycles:', allSlipsData);
+          console.log('🔍 All slips data type:', typeof allSlipsData);
+          console.log('🔍 All slips data keys:', Object.keys(allSlipsData));
           
           // Convert to enhanced slip format
           const enhancedSlips = allSlipsData.slipsData.map((slip, index) => ({
@@ -941,6 +947,8 @@ export default function OddysseyPage() {
           });
         } catch (error) {
           console.error('❌ Error fetching enhanced slips:', error);
+          console.error('❌ Error details:', error);
+          console.error('❌ Error stack:', error.stack);
           setPastSlips([]);
           setCurrentSlips([]);
         }
