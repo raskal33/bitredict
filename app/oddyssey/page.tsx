@@ -951,14 +951,32 @@ export default function OddysseyPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount to prevent infinite loops
 
+  // Fetch public data (stats, matches) regardless of wallet connection
+  useEffect(() => {
+    const fetchPublicData = async () => {
+      try {
+        await Promise.all([
+          fetchDailyStats(),
+          fetchCurrentData()
+        ]);
+        setIsLoading(false); // Set loading to false after public data is fetched
+      } catch (error) {
+        console.error('Error fetching public data:', error);
+        setIsLoading(false); // Set loading to false even if there's an error
+      }
+    };
+    
+    fetchPublicData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run once on mount for public data
+
+  // Fetch user-specific data only when wallet is connected
   useEffect(() => {
     if (address) {
-      fetchDailyStats();
       fetchUserSlips();
-      fetchCurrentData();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [address]); // Only depend on address to prevent infinite loops
+  }, [address]); // Only depend on address for user-specific data
   
   
   // Winner notification system
@@ -2171,6 +2189,38 @@ export default function OddysseyPage() {
                       <span className="hidden sm:inline">Slip Builder</span>
                       <span className="sm:hidden">Slip</span>
                     </h3>
+
+                    {/* Wallet Connection Prompt */}
+                    {!isConnected && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mb-4 p-4 bg-gradient-to-r from-primary/20 to-secondary/20 border border-primary/30 rounded-button"
+                      >
+                        <div className="text-center">
+                          <div className="flex items-center justify-center gap-2 mb-2">
+                            <BoltIcon className="h-5 w-5 text-primary" />
+                            <span className="font-semibold text-primary">Connect Wallet to Place Slips</span>
+                          </div>
+                          <p className="text-sm text-text-secondary mb-3">
+                            Connect your wallet to start building prediction slips and compete for prizes!
+                          </p>
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={() => {
+                              // Trigger wallet connection
+                              if (typeof window !== 'undefined' && window.ethereum) {
+                                window.ethereum.request({ method: 'eth_requestAccounts' });
+                              }
+                            }}
+                            className="w-full"
+                          >
+                            Connect Wallet
+                          </Button>
+                        </div>
+                      </motion.div>
+                    )}
 
                     {/* CRITICAL: Progress indicator for 10 predictions requirement */}
                     <div className="mb-4 p-3 bg-primary/10 border border-primary/20 rounded-button">
