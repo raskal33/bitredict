@@ -786,34 +786,42 @@ function CreateMarketPageContent() {
 
   const generatePredictedOutcome = (): string => {
     if (data.category === 'football' && data.selectedFixture) {
-      const fixture = data.selectedFixture;
+      // Use standardized oracle-compatible outcomes
       switch (data.outcome) {
         case 'home':
-          return `${fixture.homeTeam.name} wins`;
+          return 'Home wins';
         case 'away':
-          return `${fixture.awayTeam.name} wins`;
+          return 'Away wins';
         case 'draw':
-          return `Draw between ${fixture.homeTeam.name} and ${fixture.awayTeam.name}`;
+          return 'Draw';
         case 'over25':
-          return `Over 2.5 goals in ${fixture.homeTeam.name} vs ${fixture.awayTeam.name}`;
+          return 'Over 2.5';
         case 'under25':
-          return `Under 2.5 goals in ${fixture.homeTeam.name} vs ${fixture.awayTeam.name}`;
+          return 'Under 2.5';
         case 'over35':
-          return `Over 3.5 goals in ${fixture.homeTeam.name} vs ${fixture.awayTeam.name}`;
+          return 'Over 3.5';
         case 'under35':
-          return `Under 3.5 goals in ${fixture.homeTeam.name} vs ${fixture.awayTeam.name}`;
+          return 'Under 3.5';
         case 'bttsYes':
-          return `Both teams to score in ${fixture.homeTeam.name} vs ${fixture.awayTeam.name}`;
+          return 'Yes';
         case 'bttsNo':
-          return `Not both teams to score in ${fixture.homeTeam.name} vs ${fixture.awayTeam.name}`;
+          return 'No';
         case 'htHome':
-          return `${fixture.homeTeam.name} leading at half-time`;
+          return 'Home HT';
         case 'htDraw':
-          return `Draw at half-time in ${fixture.homeTeam.name} vs ${fixture.awayTeam.name}`;
+          return 'Draw HT';
         case 'htAway':
-          return `${fixture.awayTeam.name} leading at half-time`;
+          return 'Away HT';
+        case 'ht_over_05':
+          return 'Over 0.5 HT';
+        case 'ht_under_05':
+          return 'Under 0.5 HT';
+        case 'ht_over_15':
+          return 'Over 1.5 HT';
+        case 'ht_under_15':
+          return 'Under 1.5 HT';
         default:
-          return `${fixture.homeTeam.name} vs ${fixture.awayTeam.name}`;
+          return 'Home wins'; // Default to home wins for unknown outcomes
       }
     }
 

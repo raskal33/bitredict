@@ -88,7 +88,7 @@ export default function BetPage() {
   // Rate limiting for API calls
   const [lastFetchTime, setLastFetchTime] = useState<number>(0);
   const FETCH_COOLDOWN = 5000; // 5 seconds between fetches
-  
+
   // Real-time stats fetching with contract data ONLY (no backend dependency)
   const fetchRealTimeStats = useCallback(async () => {
     try {
@@ -786,10 +786,10 @@ export default function BetPage() {
                 <div className="text-xs sm:text-sm text-red-400 font-medium mb-2">🎯 Creator&apos;s Position:</div>
                 <div className="text-base sm:text-lg font-bold text-white mb-2">
                   {poolExplanation?.creatorPosition || `Creator believes "${pool.title}" WON'T happen`}
-                </div>
+                      </div>
                 <div className="text-xs sm:text-sm text-gray-400 mb-3">
                   Challenging users who think it WILL happen. Dare to challenge?
-                </div>
+                    </div>
                 
                 {/* Pool Economics - Real Data */}
                 <div className="grid grid-cols-3 gap-2 sm:gap-4 p-2 sm:p-3 bg-gray-800/30 rounded border border-gray-700/30">
@@ -921,7 +921,7 @@ export default function BetPage() {
                   );
                 })()}
                 
-                <p className="text-sm sm:text-base text-gray-300 leading-relaxed">{pool.description}</p>
+              <p className="text-sm sm:text-base text-gray-300 leading-relaxed">{pool.description}</p>
               </div>
             </div>
 
@@ -935,9 +935,9 @@ export default function BetPage() {
                 <div className="flex items-center gap-2">
                   <span className="text-lg font-bold text-white">
                     {realTimeStats.fillPercentage.toFixed(1)}%
-                  </span>
+                </span>
                   <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
-                </div>
+              </div>
               </div>
               <div className="w-full bg-gray-700/50 rounded-full h-4 mb-3 relative overflow-hidden">
                 <div
@@ -993,7 +993,7 @@ export default function BetPage() {
                   <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
                   <div className="text-sm font-medium text-gray-300 uppercase tracking-wider">Time Remaining</div>
                   <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
-                </div>
+                    </div>
                 <div className="flex items-center justify-center gap-3 sm:gap-6 text-2xl sm:text-4xl font-bold text-cyan-400">
                   <div className="text-center group hover:scale-110 transition-transform">
                     <div className="bg-cyan-500/20 rounded-lg px-3 py-2 group-hover:bg-cyan-500/30 transition-colors">{timeLeft.days}</div>
@@ -1008,8 +1008,8 @@ export default function BetPage() {
                   <div className="text-center group hover:scale-110 transition-transform">
                     <div className="bg-cyan-500/20 rounded-lg px-3 py-2 group-hover:bg-cyan-500/30 transition-colors">{timeLeft.minutes}</div>
                     <div className="text-xs text-gray-400 mt-1 uppercase tracking-wider">Minutes</div>
-                  </div>
                 </div>
+              </div>
               </div>
             )}
           </div>
@@ -1165,8 +1165,8 @@ export default function BetPage() {
                             !canBet 
                               ? 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-50' 
                               : betAmount === amount 
-                                ? 'bg-primary text-black shadow-lg' 
-                                : 'bg-bg-card hover:bg-bg-card/80 text-white hover:scale-105 border border-border-card'
+                              ? 'bg-primary text-black shadow-lg' 
+                              : 'bg-bg-card hover:bg-bg-card/80 text-white hover:scale-105 border border-border-card'
                           }`}
                         >
                           {amount}
@@ -1221,8 +1221,8 @@ export default function BetPage() {
                     ${!canBet 
                       ? 'bg-gray-600 text-gray-400 cursor-not-allowed opacity-50' 
                       : betType && betAmount > 0
-                        ? 'bg-gradient-primary hover:brightness-110 text-black shadow-lg hover:shadow-primary/25 hover:scale-105 active:scale-95'
-                        : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                      ? 'bg-gradient-primary hover:brightness-110 text-black shadow-lg hover:shadow-primary/25 hover:scale-105 active:scale-95'
+                      : 'bg-gray-600 text-gray-400 cursor-not-allowed'
                     }
                   `}
                 >
@@ -1256,7 +1256,7 @@ export default function BetPage() {
                   <p className="text-sm sm:text-base text-gray-400">
                     Detailed analysis and insights for this prediction
                   </p>
-                </div>
+                            </div>
 
                 {/* Analysis Content */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
@@ -1266,16 +1266,16 @@ export default function BetPage() {
                       <div className="flex justify-between">
                         <span className="text-gray-400">Success Rate:</span>
                         <span className="text-green-400">{pool.creator.successRate.toFixed(1)}%</span>
-                      </div>
+                            </div>
                       <div className="flex justify-between">
                         <span className="text-gray-400">Total Pools:</span>
                         <span className="text-white">{pool.creator.totalPools}</span>
-                      </div>
+                          </div>
                       <div className="flex justify-between">
                         <span className="text-gray-400">Total Volume:</span>
                         <span className="text-cyan-400">{(pool.creator.totalVolume / 1000).toFixed(0)}k {pool.currency}</span>
+                        </div>
                       </div>
-                    </div>
                   </div>
 
                   <div className="p-4 sm:p-6 bg-gray-700/30 rounded-lg border border-gray-600/30">
@@ -1284,7 +1284,7 @@ export default function BetPage() {
                       <div className="flex justify-between">
                         <span className="text-gray-400">Participants:</span>
                         <span className="text-white">{pool.participants}</span>
-                      </div>
+              </div>
                       <div className="flex justify-between">
                         <span className="text-gray-400">Defeated:</span>
                         <span className="text-red-400">{pool.defeated}</span>
@@ -1295,7 +1295,7 @@ export default function BetPage() {
                       </div>
                     </div>
                   </div>
-                </div>
+          </div>
 
                 {/* Additional Analysis */}
                 <div className="p-4 sm:p-6 bg-gray-700/30 rounded-lg border border-gray-600/30">
@@ -1311,7 +1311,7 @@ export default function BetPage() {
                       premium to challengers, suggesting they have high confidence in their prediction.
                     </p>
                   </div>
-                </div>
+              </div>
 
                 {/* Bet Display Component */}
                 <BetDisplay poolId={poolId} />

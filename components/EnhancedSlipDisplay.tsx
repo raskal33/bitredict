@@ -15,7 +15,6 @@ interface EnhancedSlip {
   id: number;
   cycleId: number;
   placedAt: number;
-  player: string; // Wallet address of the slip creator
   predictions: {
     matchId: number;
     betType: number;
