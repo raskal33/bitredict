@@ -10,24 +10,25 @@ import {
 } from "@heroicons/react/24/outline";
 
 interface RecentBet {
-  id: string;
-  user: {
-    address: string;
-    username: string;
-    avatar?: string;
-  };
-  pool: {
-    id: string;
-    title: string;
-    category: string;
-    odds: number;
-    currency: 'BITR' | 'STT';
-  };
+  id: number;
+  poolId: string;
+  bettorAddress: string;
   amount: string;
-  side: 'creator' | 'bettor';
-  timestamp: number;
-  boostTier?: 'BRONZE' | 'SILVER' | 'GOLD';
-  trending?: boolean;
+  amountFormatted: string;
+  isForOutcome: boolean;
+  createdAt: string;
+  timeAgo: string;
+  pool: {
+    predictedOutcome: string;
+    league: string;
+    category: string;
+    homeTeam: string;
+    awayTeam: string;
+    title: string;
+    useBitr: boolean;
+    odds: number;
+    creatorAddress: string;
+  };
 }
 
 interface RecentBetsLaneProps {
@@ -42,120 +43,67 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
   // Demo data for the moving lane
   const demoBets: RecentBet[] = useMemo(() => [
     {
-      id: "bet-1",
-      user: {
-        address: "0x1234...5678",
-        username: "CryptoWhale",
-        avatar: "/logo.png"
-      },
+      id: 1,
+      poolId: "1",
+      bettorAddress: "0x1234567890123456789012345678901234567890",
+      amount: "2500000000000000000000",
+      amountFormatted: "2,500.00",
+      isForOutcome: true,
+      createdAt: new Date(Date.now() - 30000).toISOString(),
+      timeAgo: "5m ago",
       pool: {
-        id: "pool-1",
-        title: "Bitcoin will reach $100,000 by March 2025",
-        category: "crypto",
-        odds: 1.75,
-        currency: "BITR"
-      },
-      amount: "2,500",
-      side: "bettor",
-      timestamp: Date.now() - 30000,
-      boostTier: "GOLD",
-      trending: true
+        predictedOutcome: "Over 2.5",
+        league: "Premier League",
+        category: "football",
+        homeTeam: "Manchester United",
+        awayTeam: "Liverpool",
+        title: "Manchester United vs Liverpool",
+        useBitr: true,
+        odds: 175,
+        creatorAddress: "0x9876543210987654321098765432109876543210"
+      }
     },
     {
-      id: "bet-2",
-      user: {
-        address: "0x2345...6789",
-        username: "StockMaster",
-        avatar: "/logo.png"
-      },
+      id: 2,
+      poolId: "2",
+      bettorAddress: "0x2345678901234567890123456789012345678901",
+      amount: "1800000000000000000000",
+      amountFormatted: "1,800.00",
+      isForOutcome: false,
+      createdAt: new Date(Date.now() - 45000).toISOString(),
+      timeAgo: "8m ago",
       pool: {
-        id: "pool-2",
-        title: "Tesla stock will hit $300 by end of 2024",
-        category: "stocks",
-        odds: 2.1,
-        currency: "BITR"
-      },
-      amount: "1,800",
-      side: "creator",
-      timestamp: Date.now() - 45000,
-      boostTier: "SILVER"
+        predictedOutcome: "Under 2.5",
+        league: "La Liga",
+        category: "football",
+        homeTeam: "Barcelona",
+        awayTeam: "Real Madrid",
+        title: "Barcelona vs Real Madrid",
+        useBitr: true,
+        odds: 210,
+        creatorAddress: "0x8765432109876543210987654321098765432109"
+      }
     },
     {
-      id: "bet-3",
-      user: {
-        address: "0x3456...7890",
-        username: "MacroGuru",
-        avatar: "/logo.png"
-      },
+      id: 3,
+      poolId: "3",
+      bettorAddress: "0x3456789012345678901234567890123456789012",
+      amount: "5200000000000000000000",
+      amountFormatted: "5,200.00",
+      isForOutcome: true,
+      createdAt: new Date(Date.now() - 60000).toISOString(),
+      timeAgo: "12m ago",
       pool: {
-        id: "pool-3",
-        title: "US Federal Reserve will cut rates 3 times in 2024",
-        category: "economics",
-        odds: 1.25,
-        currency: "BITR"
-      },
-      amount: "5,200",
-      side: "bettor",
-      timestamp: Date.now() - 60000,
-      boostTier: "GOLD",
-      trending: true
-    },
-    {
-      id: "bet-4",
-      user: {
-        address: "0x4567...8901",
-        username: "TechProphet",
-        avatar: "/logo.png"
-      },
-      pool: {
-        id: "pool-4",
-        title: "OpenAI will release GPT-5 by Q3 2024",
-        category: "technology",
-        odds: 1.8,
-        currency: "STT"
-      },
-      amount: "3,100",
-      side: "creator",
-      timestamp: Date.now() - 75000,
-      boostTier: "BRONZE"
-    },
-    {
-      id: "bet-5",
-      user: {
-        address: "0x5678...9012",
-        username: "SpaceExplorer",
-        avatar: "/logo.png"
-      },
-      pool: {
-        id: "pool-5",
-        title: "SpaceX will successfully land on Mars by 2026",
-        category: "space",
-        odds: 2.5,
-        currency: "BITR"
-      },
-      amount: "950",
-      side: "bettor",
-      timestamp: Date.now() - 90000,
-      trending: true
-    },
-    {
-      id: "bet-6",
-      user: {
-        address: "0x6789...0123",
-        username: "EthereumOracle",
-        avatar: "/logo.png"
-      },
-      pool: {
-        id: "pool-6",
-        title: "Ethereum will complete The Merge by September 2024",
-        category: "crypto",
-        odds: 2.1,
-        currency: "BITR"
-      },
-      amount: "4,200",
-      side: "creator",
-      timestamp: Date.now() - 105000,
-      boostTier: "SILVER"
+        predictedOutcome: "Home wins",
+        league: "Serie A",
+        category: "football",
+        homeTeam: "Juventus",
+        awayTeam: "AC Milan",
+        title: "Juventus vs AC Milan",
+        useBitr: true,
+        odds: 125,
+        creatorAddress: "0x7654321098765432109876543210987654321098"
+      }
     }
   ], []);
 
@@ -163,11 +111,11 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
     const fetchRecentBets = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch('/api/bets/recent?limit=8');
+        const response = await fetch('/api/guided-markets/recent-bets');
         const data = await response.json();
         
-        if (data.success) {
-          setBets(data.data);
+        if (data.success && data.data.recentBets) {
+          setBets(data.data.recentBets);
         } else {
           // Fallback to demo data
           setBets(demoBets);
@@ -182,6 +130,10 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
     };
 
     fetchRecentBets();
+    
+    // Set up polling for real-time updates
+    const interval = setInterval(fetchRecentBets, 30000); // Update every 30 seconds
+    return () => clearInterval(interval);
   }, [demoBets]);
 
   // Auto-rotate through bets
@@ -195,21 +147,16 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
     return () => clearInterval(interval);
   }, [bets.length]);
 
-  const formatTimeAgo = (timestamp: number): string => {
-    const now = Date.now();
-    const diff = now - timestamp;
-    const minutes = Math.floor(diff / 60000);
-    const seconds = Math.floor((diff % 60000) / 1000);
-
-    if (minutes > 0) {
-      return `${minutes}m ago`;
-    }
-    return `${seconds}s ago`;
+  const formatTimeAgo = (timeAgo: string): string => {
+    // Use the timeAgo string directly from the API
+    return timeAgo;
   };
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
       case 'crypto': return '₿';
+      case 'football': return '⚽';
+      case 'basketball': return '🏀';
       case 'stocks': return '📈';
       case 'economics': return '🏦';
       case 'technology': return '🤖';
@@ -219,23 +166,6 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
     }
   };
 
-  const getBoostColor = (tier?: string) => {
-    switch (tier) {
-      case 'GOLD': return 'text-yellow-400';
-      case 'SILVER': return 'text-gray-300';
-      case 'BRONZE': return 'text-orange-400';
-      default: return 'text-gray-400';
-    }
-  };
-
-  const getBoostIcon = (tier?: string) => {
-    switch (tier) {
-      case 'GOLD': return '🥇';
-      case 'SILVER': return '🥈';
-      case 'BRONZE': return '🥉';
-      default: return '';
-    }
-  };
 
   if (isLoading) {
     return (
@@ -294,22 +224,19 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
                     <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full flex items-center justify-center">
                       <UserIcon className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
                     </div>
-                    {bet.trending && (
-                      <div className="absolute -top-1 -right-1 w-2 h-2 sm:w-3 sm:h-3 bg-red-500 rounded-full animate-pulse"></div>
-                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs sm:text-sm font-semibold text-white truncate">
-                      {bet.user.username}
+                      {bet.bettorAddress.slice(0, 6)}...{bet.bettorAddress.slice(-4)}
                     </p>
                     <p className="text-xs text-gray-400 truncate hidden sm:block">
-                      {bet.user.address}
+                      {bet.bettorAddress}
                     </p>
                   </div>
                   <div className="flex items-center gap-1">
                     <ClockIcon className="h-3 w-3 text-gray-400" />
                     <span className="text-xs text-gray-400">
-                      {formatTimeAgo(bet.timestamp)}
+                      {formatTimeAgo(bet.timeAgo)}
                     </span>
                   </div>
                 </div>
@@ -326,25 +253,23 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1 sm:gap-2">
                       <span className={`text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full ${
-                        bet.side === 'creator' 
-                          ? 'bg-purple-500/20 text-purple-400' 
-                          : 'bg-cyan-500/20 text-cyan-400'
+                        bet.isForOutcome 
+                          ? 'bg-cyan-500/20 text-cyan-400' 
+                          : 'bg-purple-500/20 text-purple-400'
                       }`}>
-                        {bet.side === 'creator' ? 'Creator' : 'Bettor'}
+                        {bet.isForOutcome ? 'YES' : 'NO'}
                       </span>
-                      {bet.boostTier && (
-                        <span className={`text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full bg-yellow-500/20 ${getBoostColor(bet.boostTier)}`}>
-                          {getBoostIcon(bet.boostTier)} {bet.boostTier}
-                        </span>
-                      )}
+                      <span className="text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full bg-gray-500/20 text-gray-400">
+                        {bet.pool.predictedOutcome}
+                      </span>
                     </div>
                     
                     <div className="text-right">
                       <p className="text-xs sm:text-sm font-bold text-white">
-                        {bet.amount} {bet.pool.currency}
+                        {bet.amountFormatted} {bet.pool.useBitr ? 'BITR' : 'STT'}
                       </p>
                       <p className="text-xs text-gray-400">
-                        {bet.pool.odds}x odds
+                        {(bet.pool.odds / 100).toFixed(2)}x odds
                       </p>
                     </div>
                   </div>
