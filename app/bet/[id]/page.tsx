@@ -73,6 +73,13 @@ export default function BetPage() {
     totalVolume: 0,
     fillPercentage: 0
   });
+  const [betStats, setBetStats] = useState({
+    totalBets: 0,
+    totalVolume: 0,
+    yesBets: 0,
+    noBets: 0
+  });
+  const [bookmakerOdds, setBookmakerOdds] = useState<number | null>(null);
   
   // Pool state checks for betting
   const [isEventStarted, setIsEventStarted] = useState(false);
@@ -119,7 +126,72 @@ export default function BetPage() {
     }
   }, [poolId]);
 
+  const fetchBetStats = useCallback(async () => {
+    if (!poolId) return;
+    
+    try {
+      const response = await fetch(`/api/pool-bets/${poolId}?limit=1000`, {
+        headers: { 'Cache-Control': 'no-cache' }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data.bets) {
+          const bets = data.data.bets;
+          const totalBets = bets.length;
+          const totalVolume = bets.reduce((sum: number, bet: { amount: string }) => sum + parseFloat(bet.amount), 0);
+          const yesBets = bets.filter((bet: { is_for_outcome: boolean }) => bet.is_for_outcome).length;
+          const noBets = bets.filter((bet: { is_for_outcome: boolean }) => !bet.is_for_outcome).length;
+          
+          setBetStats({
+            totalBets,
+            totalVolume,
+            yesBets,
+            noBets
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching bet stats:', error);
+    }
+  }, [poolId]);
 
+  const fetchBookmakerOdds = useCallback(async () => {
+    if (!pool || !pool.eventDetails) return;
+    
+    try {
+      // Try to get bookmaker odds from the fixture API
+      const response = await fetch(`/api/fixtures/upcoming?league=${pool.eventDetails.league}&limit=100`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data.fixtures) {
+          // Find matching fixture
+          const matchingFixture = data.data.fixtures.find((fixture: { homeTeam: { name: string }, awayTeam: { name: string }, odds?: { under_25?: string, over_25?: string, home?: string } }) => 
+            fixture.homeTeam.name === pool.title.split(' vs ')[0] && 
+            fixture.awayTeam.name === pool.title.split(' vs ')[1]
+          );
+          
+          if (matchingFixture && matchingFixture.odds) {
+            // Get the appropriate odds based on market type
+            let bookmakerOdd = null;
+            if (pool.predictedOutcome?.includes('Under') && matchingFixture.odds.under_25) {
+              bookmakerOdd = matchingFixture.odds.under_25;
+            } else if (pool.predictedOutcome?.includes('Over') && matchingFixture.odds.over_25) {
+              bookmakerOdd = matchingFixture.odds.over_25;
+            } else if (matchingFixture.odds.home) {
+              bookmakerOdd = matchingFixture.odds.home;
+            }
+            
+            if (bookmakerOdd) {
+              setBookmakerOdds(parseFloat(bookmakerOdd));
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching bookmaker odds:', error);
+    }
+  }, [pool]);
 
   const fetchPoolData = useCallback(async () => {
     // Rate limiting check
@@ -367,16 +439,19 @@ export default function BetPage() {
     fetchPoolData();
     checkUserBetStatus();
     fetchRealTimeStats();
-  }, [fetchPoolData, checkUserBetStatus, fetchRealTimeStats]);
+    fetchBetStats();
+    fetchBookmakerOdds();
+  }, [fetchPoolData, checkUserBetStatus, fetchRealTimeStats, fetchBetStats, fetchBookmakerOdds]);
   
   // Set up real-time stats polling
   useEffect(() => {
     const interval = setInterval(() => {
       fetchRealTimeStats();
+      fetchBetStats();
     }, 10000); // Update every 10 seconds
     
     return () => clearInterval(interval);
-  }, [fetchRealTimeStats]);
+  }, [fetchRealTimeStats, fetchBetStats]);
 
   // State to track if we're waiting for approval to complete
   const [waitingForApproval, setWaitingForApproval] = useState(false);
@@ -854,12 +929,14 @@ export default function BetPage() {
                   <PoolTitleRow
                     title={(() => {
                       // Extract just the team names from the title
-                      // Remove time, league, and all extra information
+                      // Remove time, league, prediction, and all extra information
                       const cleanTitle = pool.title
                         .replace(/\d{2}:\d{2} UTC/g, '') // Remove time like "00:30 UTC"
                         .replace(/"FT \d+X?\d*"/g, '') // Remove "FT 1X2", "FT 1", etc.
                         .replace(/"\d+\.\d+"/g, '') // Remove "1.60", etc.
                         .replace(/Serie [A-Z]|Premier League|Champions League|Bundesliga|Ligue 1|La Liga|Serie A|Eredivisie|Championship|First League|Liga Profesional de Fútbol|Primera Division/g, '') // Remove league names
+                        .replace(/will be.*?!/g, '') // Remove "will be Under 2.5!" etc.
+                        .replace(/Under \d+\.\d+|Over \d+\.\d+|Yes|No|Home|Away|Draw|HT|FT/g, '') // Remove prediction outcomes
                         .replace(/\s+/g, ' ') // Clean up multiple spaces
                         .trim();
                       return cleanTitle;
@@ -1310,7 +1387,7 @@ export default function BetPage() {
                     <div className="space-y-3 text-sm sm:text-base">
                       <div className="flex justify-between">
                         <span className="text-gray-400">Participants:</span>
-                        <span className="text-white">{pool.participants}</span>
+                        <span className="text-white">{betStats.totalBets}</span>
               </div>
                       <div className="flex justify-between">
                         <span className="text-gray-400">Defeated:</span>
@@ -1335,7 +1412,7 @@ export default function BetPage() {
                     </p>
                     <p>
                       The {pool.odds}x odds indicate the creator is offering a {((pool.odds - 1) * 100).toFixed(0)}% 
-                      premium to challengers, suggesting they have high confidence in their prediction.
+                      premium to challengers{bookmakerOdds ? `, which is ${((pool.odds - bookmakerOdds) / bookmakerOdds * 100).toFixed(0)}% ${pool.odds > bookmakerOdds ? 'higher' : 'lower'} than popular bookmakers` : ', suggesting they have high confidence in their prediction'}.
                     </p>
                   </div>
               </div>
@@ -1353,7 +1430,7 @@ export default function BetPage() {
                   </div>
 
                 {/* Liquidity Stats */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 sm:gap-6">
                   <div className="p-4 sm:p-6 bg-gray-700/30 rounded-lg border border-gray-600/30 text-center">
                     <div className="text-2xl sm:text-3xl font-bold text-cyan-400 mb-2">
                       {pool.volume.toLocaleString()}
@@ -1368,9 +1445,15 @@ export default function BetPage() {
                 </div>
                   <div className="p-4 sm:p-6 bg-gray-700/30 rounded-lg border border-gray-600/30 text-center">
                     <div className="text-2xl sm:text-3xl font-bold text-yellow-400 mb-2">
-                      {pool.participants}
+                      {betStats.totalBets}
               </div>
-                    <div className="text-sm sm:text-base text-gray-400">Active Participants</div>
+                    <div className="text-sm sm:text-base text-gray-400">Total Bets</div>
+                  </div>
+                  <div className="p-4 sm:p-6 bg-gray-700/30 rounded-lg border border-gray-600/30 text-center">
+                    <div className="text-2xl sm:text-3xl font-bold text-purple-400 mb-2">
+                      {betStats.totalVolume.toLocaleString()}
+              </div>
+                    <div className="text-sm sm:text-base text-gray-400">Total Volume</div>
                   </div>
               </div>
 
