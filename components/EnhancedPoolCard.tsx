@@ -252,6 +252,26 @@ export default function EnhancedPoolCard({
                         pool.odds >= 200 ? 'ADVANCED' : 
                         pool.odds >= 150 ? 'INTERMEDIATE' : 'BEGINNER';
   
+  // Map numeric market type to string format expected by title templates
+  const getMarketTypeString = (marketType: number | string | undefined): string => {
+    if (typeof marketType === 'string') {
+      return marketType; // Already a string
+    }
+    
+    const marketTypeMap: Record<number, string> = {
+      0: '1X2',           // MONEYLINE
+      1: 'OU25',          // OVER_UNDER (default to 2.5)
+      2: 'BTTS',          // BOTH_TEAMS_SCORE
+      3: 'HT_1X2',        // HALF_TIME
+      4: 'DC',            // DOUBLE_CHANCE
+      5: 'CS',            // CORRECT_SCORE
+      6: 'FG',            // FIRST_GOAL
+      7: 'CUSTOM'         // CUSTOM
+    };
+    
+    return marketTypeMap[marketType as number] || '1X2';
+  };
+
   // Generate enhanced title using title service instead of using contract title directly
   const displayTitle = pool.isComboPool 
     ? `Combo Pool #${pool.id} (${pool.comboConditions?.length || 0} conditions)`
@@ -259,7 +279,7 @@ export default function EnhancedPoolCard({
         try {
           // Ensure we have all required data for title generation
           const marketData = {
-            marketType: pool.marketType || '1X2',
+            marketType: getMarketTypeString(pool.marketType),
             homeTeam: pool.homeTeam || 'Team A',
             awayTeam: pool.awayTeam || 'Team B',
             predictedOutcome: pool.predictedOutcome || 'Unknown',
@@ -268,6 +288,8 @@ export default function EnhancedPoolCard({
           };
           
           console.log('🎯 Generating title with data:', marketData);
+          console.log('🎯 Pool marketType (numeric):', pool.marketType);
+          console.log('🎯 Mapped marketType (string):', marketData.marketType);
           
           const generatedTitle = titleTemplatesService.generateTitle(marketData, {
             short: false,

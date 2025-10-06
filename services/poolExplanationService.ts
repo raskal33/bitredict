@@ -98,9 +98,25 @@ export class PoolExplanationService {
     const { titleTemplatesService } = require('./title-templates');
     
     try {
+      // Map numeric market type to string format expected by title templates
+      const getMarketTypeString = (marketType: number): string => {
+        const marketTypeMap: Record<number, string> = {
+          0: '1X2',           // MONEYLINE
+          1: 'OU25',          // OVER_UNDER (default to 2.5)
+          2: 'BTTS',          // BOTH_TEAMS_SCORE
+          3: 'HT_1X2',        // HALF_TIME
+          4: 'DC',            // DOUBLE_CHANCE
+          5: 'CS',            // CORRECT_SCORE
+          6: 'FG',            // FIRST_GOAL
+          7: 'CUSTOM'         // CUSTOM
+        };
+        
+        return marketTypeMap[marketType] || '1X2';
+      };
+
       // Use the same title generation as enhanced pool cards
       const marketData = {
-        marketType: this.MARKET_TYPE_LABELS[poolData.marketType as keyof typeof this.MARKET_TYPE_LABELS] || '1X2',
+        marketType: getMarketTypeString(poolData.marketType),
         homeTeam: poolData.homeTeam,
         awayTeam: poolData.awayTeam,
         predictedOutcome: poolData.predictedOutcome,
