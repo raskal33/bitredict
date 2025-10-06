@@ -17,13 +17,13 @@ interface CryptoMarketFormData {
   eventStartTime: string;
   eventEndTime: string;
   league: string;
-  category: 'crypto';
+  category: string;
   useBitr: boolean;
   maxBetPerUser: string;
   isPrivate: boolean;
   creatorStake: string;
   region?: string;
-  marketId?: string;
+  marketId: string;
   
   // Crypto-specific data
   cryptoAsset: string;
@@ -31,8 +31,14 @@ interface CryptoMarketFormData {
   priceDirection: 'above' | 'below';
   timeFrame: string;
   
-  // Market type
+  // Required contract parameters
+  homeTeam: string;
+  awayTeam: string;
+  title: string;
+  
+  // Market type and oracle
   marketType: number;
+  oracleType: number;
   
   // Boost data
   enableBoost: boolean;
@@ -83,18 +89,22 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
     eventStartTime: '',
     eventEndTime: '',
     league: 'Crypto',
-    category: 'crypto',
-    useBitr: false,
-    maxBetPerUser: '',
+    category: 'bitcoin',
+    useBitr: true, // Default to BITR for crypto
+    maxBetPerUser: '100',
     isPrivate: false,
-    creatorStake: '0',
+    creatorStake: '1.0',
     region: 'global',
     marketId: '',
     cryptoAsset: 'BTC',
-    targetPrice: '',
+    targetPrice: '130000',
     priceDirection: 'above',
     timeFrame: '24h',
-    marketType: 7, // CUSTOM market type for crypto
+    homeTeam: 'BTC',
+    awayTeam: 'USD',
+    title: 'BTC Price Prediction',
+    marketType: 0, // MONEYLINE for crypto price direction
+    oracleType: 0, // GUIDED oracle type
     enableBoost: false,
     boostTier: 0,
   });
@@ -119,6 +129,7 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
     const interval = setInterval(fetchPrices, 30000); // Update every 30 seconds
     return () => clearInterval(interval);
   }, []);
+
 
   const validateForm = useCallback((): boolean => {
     const newErrors: Partial<CryptoMarketFormData> = {};
@@ -160,13 +171,61 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
   }, [errors]);
 
   const generatePredictedOutcome = useCallback(() => {
-    const asset = CRYPTO_ASSETS.find(a => a.symbol === formData.cryptoAsset);
-    const direction = formData.priceDirection === 'above' ? 'above' : 'below';
     const targetPrice = parseFloat(formData.targetPrice);
-    const timeFrame = TIME_FRAMES.find(tf => tf.value === formData.timeFrame)?.label || formData.timeFrame;
     
-    return `${asset?.name} (${formData.cryptoAsset}) will be ${direction} $${targetPrice.toLocaleString()} within ${timeFrame}`;
-  }, [formData.cryptoAsset, formData.priceDirection, formData.targetPrice, formData.timeFrame]);
+    // Generate generic oracle-compatible outcome
+    return `${formData.cryptoAsset} > $${targetPrice.toLocaleString()}`;
+  }, [formData.cryptoAsset, formData.targetPrice]);
+
+  const generateMarketId = useCallback(() => {
+    const targetPrice = parseFloat(formData.targetPrice);
+    const date = new Date().toISOString().split('T')[0].replace(/-/g, '_');
+    return `${formData.cryptoAsset.toLowerCase()}_${targetPrice}_${date}`;
+  }, [formData.cryptoAsset, formData.targetPrice]);
+
+  const calculateEventTimes = useCallback((timeframe: string) => {
+    const now = new Date();
+    const hours = getTimeframeHours(timeframe);
+    
+    const eventStart = new Date(now.getTime() + (hours * 60 * 60 * 1000));
+    const eventEnd = new Date(eventStart.getTime() + (24 * 60 * 60 * 1000)); // 24 hours later
+    
+    return {
+      eventStartTime: eventStart.toISOString().slice(0, 16), // Format for datetime-local input
+      eventEndTime: eventEnd.toISOString().slice(0, 16)
+    };
+  }, []);
+
+  const getTimeframeHours = (timeframe: string): number => {
+    const hoursMap: Record<string, number> = {
+      '1h': 1,
+      '4h': 4,
+      '24h': 24,
+      '3d': 72,
+      '7d': 168,
+      '30d': 720
+    };
+    return hoursMap[timeframe] || 24;
+  };
+
+  // Auto-generate prediction outcome and market ID
+  useEffect(() => {
+    const predictedOutcome = generatePredictedOutcome();
+    const marketId = generateMarketId();
+    const times = calculateEventTimes(formData.timeFrame);
+    
+    setFormData(prev => ({
+      ...prev,
+      predictedOutcome,
+      marketId,
+      eventStartTime: times.eventStartTime,
+      eventEndTime: times.eventEndTime,
+      title: `${formData.cryptoAsset} Price Prediction`,
+      homeTeam: formData.cryptoAsset,
+      awayTeam: 'USD',
+      category: formData.cryptoAsset.toLowerCase()
+    }));
+  }, [formData.cryptoAsset, formData.targetPrice, formData.timeFrame, generatePredictedOutcome, generateMarketId, calculateEventTimes]);
 
   const calculateOdds = useCallback(() => {
     const currentPrice = currentPrices[formData.cryptoAsset];
@@ -217,7 +276,7 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
       // Generate predicted outcome if not provided
       const predictedOutcome = formData.predictedOutcome || generatePredictedOutcome();
 
-      // Prepare pool data
+      // Prepare pool data with all required contract parameters
       const poolData = {
         predictedOutcome,
         odds: BigInt(Math.floor(parseFloat(formData.odds) * 100)), // Convert to basis points
@@ -230,9 +289,12 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
         isPrivate: formData.isPrivate,
         creatorStake: BigInt(parseFloat(formData.creatorStake) * 1e18),
         region: formData.region || "global",
-        oracleType: 0, // GUIDED oracle type for crypto (should be resolved by oracle bot)
-        marketId: formData.marketId || `crypto_${Date.now()}`,
-        marketType: formData.marketType, // Use selected market type
+        homeTeam: formData.homeTeam,
+        awayTeam: formData.awayTeam,
+        title: formData.title,
+        oracleType: formData.oracleType, // GUIDED oracle type for crypto
+        marketId: formData.marketId,
+        marketType: formData.marketType, // MONEYLINE for crypto price direction
       };
 
       let txHash: `0x${string}`;
@@ -368,7 +430,16 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
               <button
                 key={timeFrame.value}
                 type="button"
-                onClick={() => handleInputChange('timeFrame', timeFrame.value)}
+                onClick={() => {
+                  handleInputChange('timeFrame', timeFrame.value);
+                  // Update event times when timeframe changes
+                  const times = calculateEventTimes(timeFrame.value);
+                  setFormData(prev => ({
+                    ...prev,
+                    eventStartTime: times.eventStartTime,
+                    eventEndTime: times.eventEndTime
+                  }));
+                }}
                 className={`p-3 rounded-lg font-medium ${
                   formData.timeFrame === timeFrame.value
                     ? 'bg-blue-600 text-white'
@@ -381,21 +452,61 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
           </div>
         </div>
 
-        {/* Auto-generated Prediction */}
-        <div className="bg-gray-800 rounded-lg p-4">
-          <label className="block text-sm font-medium text-gray-300 mb-2">
-            Generated Prediction
-          </label>
-          <div className="text-white text-sm">
-            {generatePredictedOutcome()}
+        {/* Auto-generated Values Display */}
+        <div className="bg-gray-800 rounded-lg p-4 space-y-3">
+          <h3 className="text-lg font-medium text-white mb-3">🎯 Auto-Generated Values</h3>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">
+              Prediction Outcome:
+            </label>
+            <div className="text-white text-sm font-mono bg-gray-700 p-2 rounded">
+              {formData.predictedOutcome}
+            </div>
+            <p className="text-xs text-gray-400 mt-1">
+              This is the generic outcome sent to the oracle
+            </p>
           </div>
-          <button
-            type="button"
-            onClick={() => handleInputChange('predictedOutcome', generatePredictedOutcome())}
-            className="mt-2 text-blue-400 hover:text-blue-300 text-sm"
-          >
-            Use this prediction
-          </button>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">
+              Market ID:
+            </label>
+            <div className="text-white text-sm font-mono bg-gray-700 p-2 rounded">
+              {formData.marketId}
+            </div>
+            <p className="text-xs text-gray-400 mt-1">
+              Unique identifier for this market
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">
+              Pool Title:
+            </label>
+            <div className="text-white text-sm font-mono bg-gray-700 p-2 rounded">
+              {formData.title}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">
+                Home Team:
+              </label>
+              <div className="text-white text-sm font-mono bg-gray-700 p-2 rounded">
+                {formData.homeTeam}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-1">
+                Away Team:
+              </label>
+              <div className="text-white text-sm font-mono bg-gray-700 p-2 rounded">
+                {formData.awayTeam}
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Custom Prediction Override */}
@@ -425,12 +536,25 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
             onChange={(e) => handleInputChange('marketType', parseInt(e.target.value))}
             className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value={7}>Custom Market (Recommended for Crypto)</option>
+            <option value={0}>Moneyline (Price Direction) - Recommended</option>
             <option value={1}>Over/Under (Price Targets)</option>
-            <option value={0}>Moneyline (Price Direction)</option>
+            <option value={7}>Custom Market</option>
           </select>
           <p className="text-sm text-gray-400 mt-1">
-            Custom Market is most flexible for crypto predictions
+            Moneyline is best for crypto price direction predictions
+          </p>
+        </div>
+
+        {/* Oracle Type (Read-only) */}
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Oracle Type
+          </label>
+          <div className="px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-gray-300">
+            GUIDED (Automatic Resolution)
+          </div>
+          <p className="text-sm text-gray-400 mt-1">
+            Crypto pools use guided oracle for automatic price resolution
           </p>
         </div>
 
@@ -464,35 +588,54 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
           )}
         </div>
 
-        {/* Event Times */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Event Start Time
-            </label>
-            <input
-              type="datetime-local"
-              value={formData.eventStartTime}
-              onChange={(e) => handleInputChange('eventStartTime', e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            {errors.eventStartTime && (
-              <p className="text-red-500 text-sm mt-1">{errors.eventStartTime}</p>
-            )}
+        {/* Event Timeline */}
+        <div className="bg-gray-800 rounded-lg p-4">
+          <h3 className="text-lg font-medium text-white mb-3">⏰ Event Timeline</h3>
+          
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Event Start Time
+              </label>
+              <input
+                type="datetime-local"
+                value={formData.eventStartTime}
+                onChange={(e) => handleInputChange('eventStartTime', e.target.value)}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              {errors.eventStartTime && (
+                <p className="text-red-500 text-sm mt-1">{errors.eventStartTime}</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Event End Time
+              </label>
+              <input
+                type="datetime-local"
+                value={formData.eventEndTime}
+                onChange={(e) => handleInputChange('eventEndTime', e.target.value)}
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              {errors.eventEndTime && (
+                <p className="text-red-500 text-sm mt-1">{errors.eventEndTime}</p>
+              )}
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Event End Time
-            </label>
-            <input
-              type="datetime-local"
-              value={formData.eventEndTime}
-              onChange={(e) => handleInputChange('eventEndTime', e.target.value)}
-              className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            {errors.eventEndTime && (
-              <p className="text-red-500 text-sm mt-1">{errors.eventEndTime}</p>
-            )}
+
+          <div className="text-sm text-gray-300 space-y-1">
+            <div className="flex justify-between">
+              <span className="text-gray-400">Betting Window:</span>
+              <span>Now → {new Date(formData.eventStartTime).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Event Window:</span>
+              <span>{new Date(formData.eventStartTime).toLocaleString()} → {new Date(formData.eventEndTime).toLocaleString()}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Price Snapshot:</span>
+              <span>{new Date(formData.eventEndTime).toLocaleString()}</span>
+            </div>
           </div>
         </div>
 
