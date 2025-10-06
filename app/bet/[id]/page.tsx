@@ -36,6 +36,7 @@ import PoolTitleRow from "@/components/PoolTitleRow";
 import BetDisplay from "@/components/BetDisplay";
 import { calculatePoolFill } from "@/utils/poolCalculations";
 import { getStatusBadgeProps } from "@/utils/poolStatus";
+import useOptimizedPolling from "@/hooks/useOptimizedPolling";
 
 export default function BetPage() {
   const { address } = useAccount();
@@ -68,17 +69,6 @@ export default function BetPage() {
   const [comments] = useState<Comment[]>([]);
   const [betType, setBetType] = useState<'yes' | 'no' | null>(null);
   const [poolExplanation, setPoolExplanation] = useState<PoolExplanation | null>(null);
-  const [realTimeStats, setRealTimeStats] = useState({
-    challengerCount: 0,
-    totalVolume: 0,
-    fillPercentage: 0
-  });
-  const [betStats, setBetStats] = useState({
-    totalBets: 0,
-    totalVolume: 0,
-    yesBets: 0,
-    noBets: 0
-  });
   const [bookmakerOdds, setBookmakerOdds] = useState<number | null>(null);
   
   // Pool state checks for betting
@@ -115,19 +105,35 @@ export default function BetPage() {
         // Estimate participants from contract (no backend needed)
         const estimatedParticipants = currentBettorStake > 0 ? Math.max(1, Math.floor(currentBettorStake / 100)) : 0;
         
-        setRealTimeStats({
+        return {
           challengerCount: estimatedParticipants,
           totalVolume: currentBettorStake,
           fillPercentage: poolCalculation.fillPercentage
-        });
+        };
       }
+      
+      return {
+        challengerCount: 0,
+        totalVolume: 0,
+        fillPercentage: 0
+      };
     } catch (error) {
       console.error('Error fetching real-time stats:', error);
+      return {
+        challengerCount: 0,
+        totalVolume: 0,
+        fillPercentage: 0
+      };
     }
   }, [poolId]);
 
   const fetchBetStats = useCallback(async () => {
-    if (!poolId) return;
+    if (!poolId) return {
+      totalBets: 0,
+      totalVolume: 0,
+      yesBets: 0,
+      noBets: 0
+    };
     
     try {
       const response = await fetch(`/api/pool-bets/${poolId}?limit=1000`, {
@@ -143,16 +149,29 @@ export default function BetPage() {
           const yesBets = bets.filter((bet: { is_for_outcome: boolean }) => bet.is_for_outcome).length;
           const noBets = bets.filter((bet: { is_for_outcome: boolean }) => !bet.is_for_outcome).length;
           
-          setBetStats({
+          return {
             totalBets,
             totalVolume,
             yesBets,
             noBets
-          });
+          };
         }
       }
+      
+      return {
+        totalBets: 0,
+        totalVolume: 0,
+        yesBets: 0,
+        noBets: 0
+      };
     } catch (error) {
       console.error('Error fetching bet stats:', error);
+      return {
+        totalBets: 0,
+        totalVolume: 0,
+        yesBets: 0,
+        noBets: 0
+      };
     }
   }, [poolId]);
 
@@ -443,15 +462,40 @@ export default function BetPage() {
     fetchBookmakerOdds();
   }, [fetchPoolData, checkUserBetStatus, fetchRealTimeStats, fetchBetStats, fetchBookmakerOdds]);
   
-  // Set up real-time stats polling
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchRealTimeStats();
-      fetchBetStats();
-    }, 10000); // Update every 10 seconds
-    
-    return () => clearInterval(interval);
-  }, [fetchRealTimeStats, fetchBetStats]);
+  // Optimized polling for real-time stats
+  const { data: realTimeData } = useOptimizedPolling<{
+    challengerCount: number;
+    totalVolume: number;
+    fillPercentage: number;
+  }>(
+    fetchRealTimeStats,
+    {
+      interval: 30000, // 30 seconds
+      websocketChannel: `pool:${poolId}:progress`,
+      enabled: true,
+      cacheKey: `pool:${poolId}:progress`,
+      retryAttempts: 3,
+      retryDelay: 1000
+    }
+  );
+
+  // Optimized polling for bet stats
+  const { data: betStatsData } = useOptimizedPolling<{
+    totalBets: number;
+    totalVolume: number;
+    yesBets: number;
+    noBets: number;
+  }>(
+    fetchBetStats,
+    {
+      interval: 30000, // 30 seconds
+      websocketChannel: `pool:${poolId}:bets`,
+      enabled: true,
+      cacheKey: `pool:${poolId}:bets`,
+      retryAttempts: 3,
+      retryDelay: 1000
+    }
+  );
 
   // State to track if we're waiting for approval to complete
   const [waitingForApproval, setWaitingForApproval] = useState(false);
@@ -1033,7 +1077,7 @@ export default function BetPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-lg font-bold text-white">
-                    {realTimeStats.fillPercentage.toFixed(1)}%
+                    {(realTimeData?.fillPercentage || 0).toFixed(1)}%
                 </span>
                   <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
               </div>
@@ -1041,7 +1085,7 @@ export default function BetPage() {
               <div className="w-full bg-gray-700/50 rounded-full h-4 mb-3 relative overflow-hidden">
                 <div
                   className="bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 h-4 rounded-full transition-all duration-1000 relative overflow-hidden"
-                  style={{ width: `${Math.min(100, realTimeStats.fillPercentage || 0)}%` }}
+                  style={{ width: `${Math.min(100, realTimeData?.fillPercentage || 0)}%` }}
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse"></div>
                   <div className="absolute inset-0 bg-gradient-to-r from-cyan-400/50 to-blue-400/50 animate-pulse"></div>
@@ -1079,7 +1123,7 @@ export default function BetPage() {
                 <div className="w-full h-0.5 bg-yellow-500/20 rounded-full mt-2"></div>
               </div>
               <div className="text-center group hover:scale-105 transition-transform">
-                <div className="text-xl sm:text-3xl font-bold text-cyan-400 mb-1 group-hover:text-cyan-300 transition-colors">{realTimeStats.challengerCount}</div>
+                <div className="text-xl sm:text-3xl font-bold text-cyan-400 mb-1 group-hover:text-cyan-300 transition-colors">{realTimeData?.challengerCount || 0}</div>
                 <div className="text-xs text-gray-400 uppercase tracking-wider">Challengers</div>
                 <div className="w-full h-0.5 bg-cyan-500/20 rounded-full mt-2"></div>
               </div>
@@ -1387,7 +1431,7 @@ export default function BetPage() {
                     <div className="space-y-3 text-sm sm:text-base">
                       <div className="flex justify-between">
                         <span className="text-gray-400">Participants:</span>
-                        <span className="text-white">{betStats.totalBets}</span>
+                        <span className="text-white">{betStatsData?.totalBets || 0}</span>
               </div>
                       <div className="flex justify-between">
                         <span className="text-gray-400">Defeated:</span>
@@ -1445,13 +1489,13 @@ export default function BetPage() {
                 </div>
                   <div className="p-4 sm:p-6 bg-gray-700/30 rounded-lg border border-gray-600/30 text-center">
                     <div className="text-2xl sm:text-3xl font-bold text-yellow-400 mb-2">
-                      {betStats.totalBets}
+                      {betStatsData?.totalBets || 0}
               </div>
                     <div className="text-sm sm:text-base text-gray-400">Total Bets</div>
                   </div>
                   <div className="p-4 sm:p-6 bg-gray-700/30 rounded-lg border border-gray-600/30 text-center">
                     <div className="text-2xl sm:text-3xl font-bold text-purple-400 mb-2">
-                      {betStats.totalVolume.toLocaleString()}
+                      {(betStatsData?.totalVolume || 0).toLocaleString()}
               </div>
                     <div className="text-sm sm:text-base text-gray-400">Total Volume</div>
                   </div>

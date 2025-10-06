@@ -8,6 +8,7 @@ import {
   ClockIcon,
   UserIcon,
 } from "@heroicons/react/24/outline";
+import useOptimizedPolling from "@/hooks/useOptimizedPolling";
 
 interface RecentBet {
   id: number;
@@ -36,8 +37,6 @@ interface RecentBetsLaneProps {
 }
 
 export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) {
-  const [bets, setBets] = useState<RecentBet[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
 
   // Demo data for the moving lane
@@ -107,34 +106,30 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
     }
   ], []);
 
-  useEffect(() => {
-    const fetchRecentBets = async () => {
-      try {
-        setIsLoading(true);
-        const response = await fetch('/api/guided-markets/recent-bets');
-        const data = await response.json();
-        
-        if (data.success && data.data.recentBets) {
-          setBets(data.data.recentBets);
-        } else {
-          // Fallback to demo data
-          setBets(demoBets);
-        }
-      } catch (error) {
-        console.error('Error fetching recent bets:', error);
-        // Fallback to demo data
-        setBets(demoBets);
-      } finally {
-        setIsLoading(false);
+  // Optimized polling with WebSocket support
+  const { data: apiData, loading: isLoading } = useOptimizedPolling(
+    async () => {
+      const response = await fetch('/api/guided-markets/recent-bets');
+      const data = await response.json();
+      
+      if (data.success && data.data.recentBets) {
+        return data.data.recentBets;
+      } else {
+        throw new Error('Failed to fetch recent bets');
       }
-    };
+    },
+    {
+      interval: 60000, // 1 minute polling
+      websocketChannel: 'recent_bets',
+      enabled: true,
+      cacheKey: 'recent_bets',
+      retryAttempts: 3,
+      retryDelay: 1000
+    }
+  );
 
-    fetchRecentBets();
-    
-    // Set up polling for real-time updates
-    const interval = setInterval(fetchRecentBets, 30000); // Update every 30 seconds
-    return () => clearInterval(interval);
-  }, [demoBets]);
+  // Use API data or fallback to demo data
+  const bets = apiData || demoBets;
 
   // Auto-rotate through bets
   useEffect(() => {
@@ -167,7 +162,7 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
   };
 
 
-  if (isLoading) {
+  if (isLoading && bets.length === 0) {
     return (
       <div className={`bg-gradient-to-r from-gray-800/20 to-gray-900/20 backdrop-blur-lg border border-gray-700/30 rounded-2xl p-4 ${className}`}>
         <div className="flex items-center justify-center">
@@ -210,7 +205,7 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
             ease: "easeInOut"
           }}
         >
-          {bets.map((bet) => (
+          {bets.map((bet: RecentBet) => (
             <motion.div
               key={bet.id}
               initial={{ opacity: 0, scale: 0.9 }}
@@ -284,7 +279,7 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
 
         {/* Navigation Dots */}
         <div className="flex justify-center gap-2 mt-4">
-          {bets.map((bet, index) => (
+          {bets.map((bet: RecentBet, index: number) => (
             <button
               key={index}
               onClick={() => setCurrentIndex(index)}
