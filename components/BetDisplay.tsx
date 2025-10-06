@@ -103,7 +103,15 @@ export default function BetDisplay({ poolId, className = "" }: BetDisplayProps) 
 
   const formatAmount = (amount: string) => {
     const num = parseFloat(amount);
-    if (num >= 1000) {
+    if (num >= 1000000000000000000) { // 1e18 (1 ETH/STT in wei)
+      return `${(num / 1000000000000000000).toFixed(1)}`;
+    } else if (num >= 1000000000000000) { // 1e15
+      return `${(num / 1000000000000000).toFixed(1)}K`;
+    } else if (num >= 1000000000000) { // 1e12
+      return `${(num / 1000000000000).toFixed(1)}M`;
+    } else if (num >= 1000000000) { // 1e9
+      return `${(num / 1000000000).toFixed(1)}B`;
+    } else if (num >= 1000) {
       return `${(num / 1000).toFixed(1)}K`;
     }
     return num.toFixed(0);
@@ -121,6 +129,11 @@ export default function BetDisplay({ poolId, className = "" }: BetDisplayProps) 
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
     return `${diffDays}d ago`;
+  };
+
+  const getExplorerUrl = (txHash: string) => {
+    // Assuming Somnia network - adjust as needed
+    return `https://explorer.somnia.network/tx/${txHash}`;
   };
 
   if (loading) {
@@ -276,6 +289,19 @@ export default function BetDisplay({ poolId, className = "" }: BetDisplayProps) 
                     <ClockIcon className="w-3 h-3" />
                     Block #{bet.block_number}
                   </div>
+                </div>
+                
+                {/* Transaction Hash */}
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="text-xs text-gray-500">Tx:</span>
+                  <a
+                    href={getExplorerUrl(bet.transaction_hash)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-cyan-400 hover:text-cyan-300 underline hover:no-underline transition-colors"
+                  >
+                    {bet.transaction_hash.slice(0, 6)}...{bet.transaction_hash.slice(-4)}
+                  </a>
                 </div>
                 
                 {bet.title && (

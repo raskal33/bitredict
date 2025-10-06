@@ -766,6 +766,28 @@ export default function BetPage() {
               </div>
             </div>
 
+            {/* Community Stats - Moved to top */}
+            <div className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-800/30 to-gray-700/30 rounded-lg border border-gray-600/30">
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <ChatBubbleLeftRightIcon className="w-4 h-4 text-blue-400" />
+                  <span className="text-sm text-gray-400">{pool.socialStats.comments}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <ThumbUpSolid className="w-4 h-4 text-pink-400" />
+                  <span className="text-sm text-gray-400">{pool.socialStats.likes}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <UserIcon className="w-4 h-4 text-cyan-400" />
+                  <span className="text-sm text-gray-400">{pool.socialStats.views}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <PaperAirplaneIcon className="w-4 h-4 text-green-400" />
+                  <span className="text-sm text-gray-400">{pool.socialStats.shares}</span>
+                </div>
+              </div>
+            </div>
+
             {/* Pool Title & Description */}
             <div>
               <div className="flex flex-wrap items-center gap-2 mb-3">
@@ -1246,6 +1268,11 @@ export default function BetPage() {
                   </p>
                 )}
               </div>
+              
+              {/* Bet Display Component - Moved from Analysis tab */}
+              <div className="mt-8">
+                <BetDisplay poolId={poolId} />
+              </div>
                           </div>
           )}
 
@@ -1313,8 +1340,6 @@ export default function BetPage() {
                   </div>
               </div>
 
-                {/* Bet Display Component */}
-                <BetDisplay poolId={poolId} />
               </div>
             )}
 
@@ -1377,57 +1402,7 @@ export default function BetPage() {
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* Social Stats */}
-            <div className="glass-card">
-              <h3 className="text-lg font-bold text-white mb-4">Community</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-white">{pool.socialStats.comments}</div>
-                  <div className="text-xs text-gray-400">Comments</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-pink-400">{pool.socialStats.likes}</div>
-                  <div className="text-xs text-gray-400">Likes</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-400">{pool.socialStats.views}</div>
-                  <div className="text-xs text-gray-400">Views</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-green-400">{pool.socialStats.shares}</div>
-                  <div className="text-xs text-gray-400">Shares</div>
-                </div>
-              </div>
-                  </div>
 
-            {/* Event Details */}
-            {pool.eventDetails && (
-              <div className="glass-card">
-                <h3 className="text-lg font-bold text-white mb-4">Event Details</h3>
-                <div className="space-y-3 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">League:</span>
-                    <span className="text-white">{pool.eventDetails.league}</span>
-                    </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Region:</span>
-                    <span className="text-white">{pool.eventDetails.region}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Start:</span>
-                    <span className="text-white">
-                      {pool.eventDetails.startTime.toLocaleDateString()}
-                      </span>
-                    </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">End:</span>
-                    <span className="text-white">
-                      {pool.eventDetails.endTime.toLocaleDateString()}
-                    </span>
-                  </div>
-                        </div>
-                      </div>
-            )}
                     </div>
                   </div>
 
