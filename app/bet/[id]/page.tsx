@@ -35,7 +35,6 @@ import { PoolExplanationService, PoolExplanation } from "@/services/poolExplanat
 import PoolTitleRow from "@/components/PoolTitleRow";
 import BetDisplay from "@/components/BetDisplay";
 import { calculatePoolFill } from "@/utils/poolCalculations";
-import { getStatusBadgeProps } from "@/utils/poolStatus";
 import useOptimizedPolling from "@/hooks/useOptimizedPolling";
 
 export default function BetPage() {
