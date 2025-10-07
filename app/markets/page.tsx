@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-hot-toast";
 import AnimatedTitle from "@/components/AnimatedTitle";
-import { optimizedPoolService, type OptimizedPool, type PoolsResponse, type Analytics } from "@/services/optimizedPoolService";
+import { optimizedPoolService, type OptimizedPool, type Analytics } from "@/services/optimizedPoolService";
 import { EnhancedPool } from "@/components/EnhancedPoolCard";
 import LazyPoolCard from "@/components/LazyPoolCard";
 import SkeletonLoader from "@/components/SkeletonLoader";
@@ -155,7 +155,7 @@ export default function MarketsPage() {
     };
 
     loadData();
-  }, [categoryFilter, activeCategory, sortBy]);
+  }, [categoryFilter, activeCategory, sortBy, convertToEnhancedPool]);
 
   const handleCreateMarket = () => {
     router.push("/create-prediction");

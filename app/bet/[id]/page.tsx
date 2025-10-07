@@ -32,7 +32,7 @@ import { parseUnits } from "viem";
 import { toast } from "react-hot-toast";
 import { PoolContractService } from "@/services/poolContractService";
 import { PoolExplanationService, PoolExplanation } from "@/services/poolExplanationService";
-import { optimizedPoolService, type OptimizedPool } from "@/services/optimizedPoolService";
+import { optimizedPoolService } from "@/services/optimizedPoolService";
 import PoolTitleRow from "@/components/PoolTitleRow";
 import CryptoTitleRow from "@/components/CryptoTitleRow";
 import BetDisplay from "@/components/BetDisplay";
@@ -281,7 +281,6 @@ export default function BetPage() {
       console.log('🎯 Generated pool explanation:', explanation);
       
       // Use optimized pool data for progress calculation
-      const currentBettorStake = parseFloat(optimizedPool.totalBettorStake || "0");
       const participants = optimizedPool.participants;
       const fillPercentage = optimizedPool.fillPercentage;
       
