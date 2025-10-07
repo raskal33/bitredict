@@ -33,6 +33,7 @@ import { toast } from "react-hot-toast";
 import { PoolContractService } from "@/services/poolContractService";
 import { PoolExplanationService, PoolExplanation } from "@/services/poolExplanationService";
 import PoolTitleRow from "@/components/PoolTitleRow";
+import CryptoTitleRow from "@/components/CryptoTitleRow";
 import BetDisplay from "@/components/BetDisplay";
 import { calculatePoolFill } from "@/utils/poolCalculations";
 import useOptimizedPolling from "@/hooks/useOptimizedPolling";
@@ -926,23 +927,47 @@ export default function BetPage() {
               {/* Title Section - Moved to top */}
               <div className="mb-6">
                 {poolExplanation && (
-                  <PoolTitleRow
-                    title={`${pool.homeTeam || 'Team A'} vs ${pool.awayTeam || 'Team B'}`}
-                    currencyBadge={poolExplanation.currencyBadge}
-                    marketTypeBadge={{
-                      label: pool.predictedOutcome || 'Unknown', // Use actual predicted outcome
-                      color: poolExplanation.marketTypeBadge.color,
-                      bgColor: poolExplanation.marketTypeBadge.bgColor
-                    }}
-                    league={pool.eventDetails?.league || 'Unknown League'}
-                    time={pool.eventDetails?.startTime ? pool.eventDetails.startTime.toLocaleTimeString('en-GB', { 
-                      hour: '2-digit', 
-                      minute: '2-digit', 
-                      timeZone: 'UTC' 
-                    }) + ' UTC' : 'TBD'}
-                    odds={pool.odds.toFixed(2)}
-                    className="mb-4"
-                  />
+                  // Check if this is a crypto market
+                  pool.category === 'crypto' || pool.category === 'cryptocurrency' ? (
+                    <CryptoTitleRow
+                      asset={pool.homeTeam || 'BTC'}
+                      targetPrice={(() => {
+                        // Extract target price from predictedOutcome
+                        const match = pool.predictedOutcome?.match(/\$?([\d,]+)/);
+                        return match ? parseFloat(match[1].replace(/,/g, '')) : undefined;
+                      })()}
+                      direction={(() => {
+                        const outcome = pool.predictedOutcome?.toLowerCase() || '';
+                        if (outcome.includes('above')) return 'above';
+                        if (outcome.includes('below')) return 'below';
+                        if (outcome.includes('up')) return 'up';
+                        if (outcome.includes('down')) return 'down';
+                        return 'above';
+                      })()}
+                      timeframe="1d" // Default timeframe, should be extracted from pool data
+                      odds={pool.odds.toFixed(2)}
+                      currency={pool.currency || 'BITR'}
+                      className="mb-4"
+                    />
+                  ) : (
+                    <PoolTitleRow
+                      title={`${pool.homeTeam || 'Team A'} vs ${pool.awayTeam || 'Team B'}`}
+                      currencyBadge={poolExplanation.currencyBadge}
+                      marketTypeBadge={{
+                        label: pool.predictedOutcome || 'Unknown', // Use actual predicted outcome
+                        color: poolExplanation.marketTypeBadge.color,
+                        bgColor: poolExplanation.marketTypeBadge.bgColor
+                      }}
+                      league={pool.eventDetails?.league || 'Unknown League'}
+                      time={pool.eventDetails?.startTime ? pool.eventDetails.startTime.toLocaleTimeString('en-GB', { 
+                        hour: '2-digit', 
+                        minute: '2-digit', 
+                        timeZone: 'UTC' 
+                      }) + ' UTC' : 'TBD'}
+                      odds={pool.odds.toFixed(2)}
+                      className="mb-4"
+                    />
+                  )
                 )}
                 
                 {/* Pool Status Display */}

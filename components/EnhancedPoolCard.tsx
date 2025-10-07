@@ -284,7 +284,8 @@ export default function EnhancedPoolCard({
             awayTeam: pool.awayTeam || 'Team B',
             predictedOutcome: pool.predictedOutcome || 'Unknown',
             league: pool.league || 'Unknown League',
-            marketId: pool.marketId || ''
+            marketId: pool.marketId || '',
+            category: pool.category || 'sports' // Add category for crypto detection
           };
           
           console.log('🎯 ENHANCED POOL CARD - Generating title with data:', marketData);
@@ -294,6 +295,7 @@ export default function EnhancedPoolCard({
           console.log('🎯 ENHANCED POOL CARD - Home team:', marketData.homeTeam);
           console.log('🎯 ENHANCED POOL CARD - Away team:', marketData.awayTeam);
           console.log('🎯 ENHANCED POOL CARD - Pool ID:', pool.id);
+          console.log('🎯 ENHANCED POOL CARD - Full pool data:', pool);
           
           const generatedTitle = titleTemplatesService.generateTitle(marketData, {
             short: false,

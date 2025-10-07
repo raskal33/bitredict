@@ -11,6 +11,7 @@ export interface MarketData {
   predictedOutcome: string;
   league?: string;
   marketId?: string;
+  category?: string; // Add category to detect crypto markets
 }
 
 export interface TitleOptions {
@@ -40,8 +41,13 @@ class TitleTemplatesService {
    * Generate title for any market type
    */
   generateTitle(marketData: MarketData, options: TitleOptions = {}): string {
-    const { marketType, homeTeam, awayTeam, predictedOutcome, league } = marketData;
+    const { marketType, homeTeam, awayTeam, predictedOutcome, league, category } = marketData;
     const { short = false, includeLeague = false, maxLength = 50 } = options;
+
+    // Check if this is a crypto market
+    if (this.isCryptoMarket(marketData)) {
+      return this.generateCryptoTitle(marketData, options);
+    }
 
     if (!homeTeam || !awayTeam) {
       return this.generateFallbackTitle(predictedOutcome, marketType);
@@ -67,6 +73,8 @@ class TitleTemplatesService {
     console.log('🎯 TITLE TEMPLATES SERVICE - Predicted outcome:', predictedOutcome);
     console.log('🎯 TITLE TEMPLATES SERVICE - Available templates:', Object.keys(templates));
     console.log('🎯 TITLE TEMPLATES SERVICE - Templates for market type:', templates);
+    console.log('🎯 TITLE TEMPLATES SERVICE - Looking for exact match:', predictedOutcome);
+    console.log('🎯 TITLE TEMPLATES SERVICE - Template exists?', templates[predictedOutcome]);
     
     // Find exact match for predicted outcome
     if (templates[predictedOutcome]) {
@@ -78,9 +86,39 @@ class TitleTemplatesService {
       return this.truncateTitle(title, maxLength);
     }
 
+    // Try normalized matches (remove "goals" suffix, handle variations)
+    const normalizedOutcome = predictedOutcome.toLowerCase().replace(/\s+goals?/g, '').trim();
+    for (const [key, template] of Object.entries(templates)) {
+      const normalizedKey = key.toLowerCase().replace(/\s+goals?/g, '').trim();
+      if (normalizedOutcome === normalizedKey) {
+        console.log('🎯 Found normalized match for:', predictedOutcome, '->', key);
+        let title = this.processTemplate(template, { homeTeam, awayTeam, league });
+        if (includeLeague && league) {
+          title = `${title} (${league})`;
+        }
+        return this.truncateTitle(title, maxLength);
+      }
+    }
+
+    // Try specific Over/Under variations
+    if (marketType.startsWith('OU')) {
+      const ouVariations = this.getOverUnderVariations(predictedOutcome);
+      for (const variation of ouVariations) {
+        if (templates[variation]) {
+          console.log('🎯 Found OU variation match for:', predictedOutcome, '->', variation);
+          let title = this.processTemplate(templates[variation], { homeTeam, awayTeam, league });
+          if (includeLeague && league) {
+            title = `${title} (${league})`;
+          }
+          return this.truncateTitle(title, maxLength);
+        }
+      }
+    }
+
     // Try partial matches
     for (const [key, template] of Object.entries(templates)) {
       if (this.isPartialMatch(predictedOutcome, key)) {
+        console.log('🎯 Found partial match for:', predictedOutcome, '->', key);
         let title = this.processTemplate(template, { homeTeam, awayTeam, league });
         if (includeLeague && league) {
           title = `${title} (${league})`;
@@ -167,9 +205,89 @@ class TitleTemplatesService {
   }
 
   /**
-   * Generate crypto title from market ID
+   * Get Over/Under variations for better matching
    */
-  generateCryptoTitle(marketId: string, predictedOutcome: string): string {
+  private getOverUnderVariations(predictedOutcome: string): string[] {
+    const variations: string[] = [];
+    const outcome = predictedOutcome.toLowerCase();
+    
+    // Add original
+    variations.push(predictedOutcome);
+    
+    // Add with/without "goals"
+    if (outcome.includes('over') || outcome.includes('under')) {
+      variations.push(predictedOutcome + ' goals');
+      variations.push(predictedOutcome.replace(/\s+goals?/g, ''));
+    }
+    
+    // Add simple Over/Under variations
+    if (outcome.includes('over')) {
+      variations.push('Over');
+    }
+    if (outcome.includes('under')) {
+      variations.push('Under');
+    }
+    
+    return variations;
+  }
+
+  /**
+   * Check if market data is crypto
+   */
+  isCryptoMarket(marketData: MarketData): boolean {
+    return Boolean(
+      marketData.category === 'cryptocurrency' || 
+      marketData.category === 'crypto' ||
+      (marketData.league && marketData.league === 'crypto') ||
+      marketData.marketType?.startsWith('CRYPTO_') ||
+      (marketData.homeTeam && marketData.awayTeam && 
+       ['BTC', 'ETH', 'BNB', 'ADA', 'SOL', 'MATIC', 'AVAX', 'DOT', 'LINK', 'UNI'].includes(marketData.homeTeam))
+    );
+  }
+
+  /**
+   * Generate crypto-specific title
+   */
+  generateCryptoTitle(marketData: MarketData, options: TitleOptions = {}): string {
+    const { homeTeam, awayTeam, predictedOutcome, marketType } = marketData;
+    const { short = false, maxLength = 60 } = options;
+
+    // Import crypto title generator
+    const { cryptoTitleGenerator } = require('./crypto-title-generator');
+    
+    // Extract crypto data
+    const cryptoData = cryptoTitleGenerator.extractCryptoData({
+      ...marketData,
+      homeTeam: homeTeam || awayTeam, // Use homeTeam as asset
+      category: marketData.category || 'crypto'
+    });
+
+    if (cryptoData) {
+      return cryptoTitleGenerator.generateTitle(cryptoData, options);
+    }
+
+    // Fallback crypto title generation
+    const asset = homeTeam || awayTeam || 'Crypto';
+    const timeText = short ? '' : ' in 1 day';
+    
+    if (predictedOutcome.toLowerCase().includes('above')) {
+      return short ? `${asset} above target` : `${asset} will reach above target${timeText}!`;
+    } else if (predictedOutcome.toLowerCase().includes('below')) {
+      return short ? `${asset} below target` : `${asset} will stay below target${timeText}!`;
+    } else if (predictedOutcome.toLowerCase().includes('up')) {
+      return short ? `${asset} goes up` : `${asset} will go up${timeText}!`;
+    } else if (predictedOutcome.toLowerCase().includes('down')) {
+      return short ? `${asset} goes down` : `${asset} will go down${timeText}!`;
+    }
+
+    // Generic crypto title
+    return short ? `${asset} prediction` : `${asset} price prediction${timeText}!`;
+  }
+
+  /**
+   * Generate crypto title from market ID (legacy method)
+   */
+  generateCryptoTitleFromMarketId(marketId: string, predictedOutcome: string): string {
     try {
       // Parse marketId format: crypto-${coinId}-${targetPrice}-${direction}-${timeframe}
       const parts = marketId.split('-');
