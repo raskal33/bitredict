@@ -5,12 +5,11 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-hot-toast";
 import AnimatedTitle from "@/components/AnimatedTitle";
-import { PoolService, type PoolStats } from "@/services/poolService";
+import { optimizedPoolService, type OptimizedPool, type PoolsResponse, type Analytics } from "@/services/optimizedPoolService";
 import { EnhancedPool } from "@/components/EnhancedPoolCard";
 import LazyPoolCard from "@/components/LazyPoolCard";
 import SkeletonLoader from "@/components/SkeletonLoader";
 import RecentBetsLane from "@/components/RecentBetsLane";
-import { useSmartPoolLoading } from "@/hooks/useBatchPoolData";
 import { 
   FaChartLine, 
   FaFilter, 
@@ -41,16 +40,16 @@ export default function MarketsPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [pools, setPools] = useState<EnhancedPool[]>([]);
   const [filteredPools, setFilteredPools] = useState<EnhancedPool[]>([]);
-  const [stats, setStats] = useState<PoolStats>({
+  const [stats, setStats] = useState<Analytics>({
+    totalPools: 0,
+    activePools: 0,
+    settledPools: 0,
     totalVolume: "0",
     bitrVolume: "0",
     sttVolume: "0",
-    activeMarkets: 0,
     participants: 0,
-    totalPools: 0,
     boostedPools: 0,
-    comboPools: 0,
-    privatePools: 0
+    trendingPools: 0
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -65,131 +64,98 @@ export default function MarketsPage() {
     return num.toFixed(2);
   };
 
-  // Raw pool type from contract
-  interface RawPool {
-    poolId: number;
-    creator: string;
-    odds: number;
-    flags: number;
-    oracleType: number;
-    marketType: number;
-    creatorStake: string;
-    totalCreatorSideStake: string;
-    maxBettorStake: string;
-    totalBettorStake: string;
-    predictedOutcome: string;
-    result: string;
-    eventStartTime: number;
-    eventEndTime: number;
-    bettingEndTime: number;
-    resultTimestamp: number;
-    arbitrationDeadline: number;
-    maxBetPerUser: number;
-    marketId: string;
-    league: string;
-    category: string;
-    region: string;
-    homeTeam: string;
-    awayTeam: string;
-    title: string;
-    reserved: number;
-    // Additional properties for EnhancedPool
-    settled?: boolean;
-    creatorSideWon?: boolean;
-    isPrivate?: boolean;
-    usesBitr?: boolean;
-    filledAbove60?: boolean;
-    boostTier?: number;
-    boostExpiry?: number;
-  }
-
-  // Convert RawPool to EnhancedPool format
-  const convertToEnhancedPool = useCallback((pool: RawPool): EnhancedPool => {
+  // Convert OptimizedPool to EnhancedPool format for compatibility
+  const convertToEnhancedPool = useCallback((pool: OptimizedPool): EnhancedPool => {
     return {
-      id: pool.poolId,
-      creator: pool.creator,
+      id: pool.id,
+      creator: pool.creator.address,
       odds: pool.odds,
-      settled: pool.settled || false,
-      creatorSideWon: pool.creatorSideWon || false,
-      isPrivate: pool.isPrivate || false,
-      usesBitr: pool.usesBitr || false,
-      filledAbove60: pool.filledAbove60 || false,
-      oracleType: pool.oracleType === 0 ? 'GUIDED' : 'OPEN',
+      settled: pool.status === 'settled',
+      creatorSideWon: false, // Not available in OptimizedPool
+      isPrivate: false, // Not available in OptimizedPool
+      usesBitr: pool.currency === 'BITR',
+      filledAbove60: pool.fillPercentage > 60,
+      oracleType: 'GUIDED', // Default for now
+      status: pool.status,
       
       creatorStake: pool.creatorStake,
-      totalCreatorSideStake: pool.totalCreatorSideStake || pool.creatorStake,
-      maxBettorStake: pool.maxBettorStake || pool.totalBettorStake,
+      totalCreatorSideStake: pool.creatorStake,
+      maxBettorStake: pool.maxPoolSize,
       totalBettorStake: pool.totalBettorStake,
-      predictedOutcome: pool.predictedOutcome,
-      result: pool.result || '',
-      marketId: pool.marketId,
+      predictedOutcome: pool.title, // Use title as predicted outcome
+      result: '',
+      marketId: `pool_${pool.id}`,
       
       eventStartTime: pool.eventStartTime,
       eventEndTime: pool.eventEndTime,
       bettingEndTime: pool.bettingEndTime,
-      resultTimestamp: pool.resultTimestamp,
-      arbitrationDeadline: pool.arbitrationDeadline || (pool.eventEndTime + (24 * 60 * 60)),
+      resultTimestamp: 0,
+      arbitrationDeadline: pool.eventEndTime + (24 * 60 * 60),
       
-      league: pool.league,
+      league: pool.category,
       category: pool.category,
-      region: pool.region,
-      title: pool.title || '',
-      homeTeam: pool.homeTeam || '',
-      awayTeam: pool.awayTeam || '',
-      maxBetPerUser: pool.maxBetPerUser.toString(),
+      region: 'Global',
+      title: pool.title,
+      homeTeam: pool.title.split(' vs ')[0] || 'Team A',
+      awayTeam: pool.title.split(' vs ')[1] || 'Team B',
+      maxBetPerUser: '1000',
       
-      boostTier: (pool.boostTier === 0 ? 'NONE' : pool.boostTier === 1 ? 'BRONZE' : pool.boostTier === 2 ? 'SILVER' : 'GOLD') as 'NONE' | 'BRONZE' | 'SILVER' | 'GOLD',
-      boostExpiry: pool.boostExpiry || 0,
-      trending: false,
-      socialStats: {
-        likes: 0,
-        comments: 0,
-        views: 0
-      },
-      change24h: 0
+      boostTier: pool.boostTier,
+      boostExpiry: 0,
+      trending: pool.trending,
+      socialStats: pool.socialStats,
+      change24h: 0,
+      
+      // Additional fields for EnhancedPool
+      indexedData: {
+        participantCount: pool.participants,
+        fillPercentage: pool.fillPercentage,
+        totalVolume: pool.totalBettorStake,
+        betCount: pool.participants,
+        avgBetSize: (parseFloat(pool.totalBettorStake) / pool.participants).toString(),
+        creatorReputation: pool.creator.successRate,
+        categoryRank: 1,
+        isHot: pool.trending,
+        lastActivity: new Date()
+      }
     };
   }, []);
 
-  // Use optimized pool loading with batching
-  const { pools: rawPools, loading: poolsLoading, error: poolsError } = useSmartPoolLoading(50, 0);
-  
-  // Convert raw pools to enhanced pools and update state
-  useEffect(() => {
-    if (rawPools.length > 0) {
-      const enhancedPools = rawPools.map(convertToEnhancedPool);
-      setPools(enhancedPools);
-      setFilteredPools(enhancedPools);
-      console.log('✅ Successfully loaded', enhancedPools.length, 'pools');
-    }
-  }, [rawPools, convertToEnhancedPool]);
 
-  // Load stats separately
+  // Load pools and stats using optimized service
   useEffect(() => {
-    const loadStats = async () => {
+    const loadData = async () => {
+      setIsLoading(true);
       try {
-        const poolStats = await PoolService.getPoolStats();
-        setStats(poolStats);
-        console.log('📊 Stats:', poolStats);
+        // Load pools with current filters
+        const filters = {
+          category: categoryFilter !== 'all' ? categoryFilter : undefined,
+          status: activeCategory !== 'all' && ['active', 'closed', 'settled'].includes(activeCategory) ? activeCategory as 'active' | 'closed' | 'settled' : undefined,
+          sortBy: sortBy,
+          limit: 50
+        };
+        
+        const poolsData = await optimizedPoolService.getPools(filters);
+        const enhancedPools = poolsData.pools.map(convertToEnhancedPool);
+        setPools(enhancedPools);
+        setFilteredPools(enhancedPools);
+        
+        // Load analytics for stats
+        const analytics = await optimizedPoolService.getAnalytics();
+        setStats(analytics);
+        
+        console.log('✅ Successfully loaded', poolsData.pools.length, 'pools');
+        console.log('📊 Analytics:', analytics);
       } catch (error) {
-        console.error('❌ Error loading stats:', error);
+        console.error('❌ Error loading data:', error);
+        toast.error('Failed to load markets. Please try again.');
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    loadStats();
-  }, []);
-
-  // Update loading state
-  useEffect(() => {
-    setIsLoading(poolsLoading);
-  }, [poolsLoading]);
-
-  // Handle errors
-  useEffect(() => {
-    if (poolsError) {
-      console.error('❌ Error loading pools:', poolsError);
-      toast.error('Failed to load markets. Please try again.');
-    }
-  }, [poolsError]);
+    loadData();
+  }, [categoryFilter, activeCategory, sortBy]);
 
   const handleCreateMarket = () => {
     router.push("/create-prediction");
@@ -257,11 +223,11 @@ export default function MarketsPage() {
       filtered = filtered.filter(pool => {
         switch (activeCategory) {
           case "active":
-            return !pool.settled && new Date(pool.eventStartTime).getTime() > Date.now();
+            return pool.status === 'active';
           case "closed":
-            return !pool.settled && new Date(pool.eventStartTime).getTime() <= Date.now();
+            return pool.status === 'closed';
           case "settled":
-            return pool.settled;
+            return pool.status === 'settled';
           case "boosted":
             return pool.boostTier !== "NONE";
           case "private":
@@ -293,8 +259,7 @@ export default function MarketsPage() {
     // Search filter
     if (searchTerm) {
       filtered = filtered.filter(pool => 
-        pool.predictedOutcome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        pool.league.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (pool.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         pool.category.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
@@ -318,17 +283,6 @@ export default function MarketsPage() {
     setFilteredPools(filtered);
     }, [pools, activeCategory, categoryFilter, searchTerm, sortBy]);
 
-  // Utility functions for pool display (available for future use)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const formatStake = PoolService.formatStake;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const formatOdds = PoolService.formatOdds;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const formatTimeLeft = PoolService.formatTimeLeft;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const getBoostBadge = PoolService.getBoostBadge;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const getCategoryIcon = PoolService.getCategoryIcon;
 
   return (
     <motion.div
@@ -548,7 +502,7 @@ export default function MarketsPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-300">Active Markets</span>
-                  <span className="text-white font-semibold">{stats.activeMarkets}</span>
+                  <span className="text-white font-semibold">{stats.activePools}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-300">Participants</span>
