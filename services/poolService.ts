@@ -30,6 +30,7 @@ export interface Pool {
   // Additional fields from backend
   filledAbove60?: boolean;
   oracleType?: string;
+  marketType?: number; // Market type enum from contract
   totalCreatorSideStake?: string;
   maxBettorStake?: string;
   result?: string | null;

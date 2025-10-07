@@ -128,7 +128,7 @@ export default function EnhancedPoolCard({
             totalVolume: progressData.data.totalPoolSize || '0',
             betCount: progressData.data.bettorCount || 0,
             avgBetSize: progressData.data.currentBettorStake && progressData.data.bettorCount > 0 
-              ? (parseFloat(progressData.data.currentBettorStake) / progressData.data.bettorCount).toString()
+              ? (parseFloat(formatEther(BigInt(progressData.data.currentBettorStake))) / progressData.data.bettorCount).toFixed(2)
               : '0',
             creatorReputation: 0, // TODO: Implement reputation system
             categoryRank: 0, // TODO: Implement ranking
@@ -442,7 +442,7 @@ export default function EnhancedPoolCard({
       whileHover={{ y: -4, scale: 1.01 }}
       onClick={handleClick}
       className={`
-        relative overflow-hidden group cursor-pointer min-h-[480px] max-h-[520px] flex flex-col
+        relative overflow-hidden group cursor-pointer min-h-[420px] md:min-h-[480px] flex flex-col
         glass-card ${theme.glow} ${theme.hoverGlow}
         ${pool.boostTier && pool.boostTier !== 'NONE' ? getBoostGlow(pool.boostTier) : ''}
         transition-all duration-500 backdrop-blur-card
@@ -811,7 +811,14 @@ export default function EnhancedPoolCard({
         <div className="grid grid-cols-2 gap-2 mb-3 text-center flex-shrink-0">
           <div>
             <div className="text-xs text-gray-400">Avg Bet</div>
-            <div className="text-xs font-bold text-white">{formatStake(indexedData.avgBetSize)} {pool.usesBitr ? 'BITR' : 'STT'}</div>
+            <div className="text-xs font-bold text-white">
+              {(() => {
+                const avgBet = parseFloat(indexedData.avgBetSize);
+                if (avgBet >= 1000000) return `${(avgBet / 1000000).toFixed(1)}M`;
+                if (avgBet >= 1000) return `${(avgBet / 1000).toFixed(1)}K`;
+                return avgBet.toFixed(1);
+              })()} {pool.usesBitr ? 'BITR' : 'STT'}
+            </div>
           </div>
           <div>
             <div className="text-xs text-gray-400">Total Bets</div>

@@ -317,6 +317,8 @@ export default function BetPage() {
         title: title,
         description: description,
         category: poolData.category || "sports",
+        homeTeam: poolData.homeTeam,
+        awayTeam: poolData.awayTeam,
         creator: {
           address: poolData.creator,
           username: `${poolData.creator.slice(0, 6)}...${poolData.creator.slice(-4)}`,
@@ -922,6 +924,81 @@ export default function BetPage() {
                       </div>
                     </div>
               
+              {/* Title Section - Moved to top */}
+              <div className="mb-6">
+                {poolExplanation && (
+                  <PoolTitleRow
+                    title={`${pool.homeTeam || 'Team A'} vs ${pool.awayTeam || 'Team B'}`}
+                    currencyBadge={poolExplanation.currencyBadge}
+                    marketTypeBadge={{
+                      label: pool.predictedOutcome || 'Unknown', // Use actual predicted outcome
+                      color: poolExplanation.marketTypeBadge.color,
+                      bgColor: poolExplanation.marketTypeBadge.bgColor
+                    }}
+                    league={pool.eventDetails?.league || 'Unknown League'}
+                    time={pool.eventDetails?.startTime ? pool.eventDetails.startTime.toLocaleTimeString('en-GB', { 
+                      hour: '2-digit', 
+                      minute: '2-digit', 
+                      timeZone: 'UTC' 
+                    }) + ' UTC' : 'TBD'}
+                    odds={pool.odds.toFixed(2)}
+                    className="mb-4"
+                  />
+                )}
+                
+                {/* Pool Status Display */}
+                {(() => {
+                  // For now, use basic status logic until we have the full pool data structure
+                  const now = Date.now();
+                  const eventStartTime = pool.eventDetails?.startTime ? pool.eventDetails.startTime.getTime() : 0;
+                  const eventEndTime = pool.eventDetails?.endTime ? pool.eventDetails.endTime.getTime() : 0;
+                  
+                  let statusInfo;
+                  
+                  if (now >= eventEndTime) {
+                    statusInfo = {
+                      status: 'event_ended' as const,
+                      label: 'Event Ended',
+                      description: 'Event has ended, awaiting settlement',
+                      color: 'text-orange-400',
+                      bgColor: 'bg-orange-500/10',
+                      borderColor: 'border-orange-500/30'
+                    };
+                  } else if (now >= eventStartTime) {
+                    statusInfo = {
+                      status: 'event_live' as const,
+                      label: 'Event Live',
+                      description: 'Event is currently in progress',
+                      color: 'text-green-400',
+                      bgColor: 'bg-green-500/10',
+                      borderColor: 'border-green-500/30'
+                    };
+                  } else {
+                    statusInfo = {
+                      status: 'active' as const,
+                      label: 'Active',
+                      description: 'Pool is accepting bets',
+                      color: 'text-blue-400',
+                      bgColor: 'bg-blue-500/10',
+                      borderColor: 'border-blue-500/30'
+                    };
+                  }
+                  
+                  return (
+                    <div className={`p-2 sm:p-3 rounded-lg border ${statusInfo.bgColor} ${statusInfo.borderColor} mb-4`}>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className={`text-xs sm:text-sm font-medium ${statusInfo.color}`}>
+                            {statusInfo.label}
+                          </div>
+                          <div className="text-xs text-gray-400">{statusInfo.description}</div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+              
               {/* Creator Prediction - Core Mechanic */}
               <div className="mb-4 p-3 sm:p-4 bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/20 rounded-lg">
                 <div className="text-xs sm:text-sm text-red-400 font-medium mb-2">🎯 Creator&apos;s Position:</div>
@@ -967,106 +1044,6 @@ export default function BetPage() {
                   </div>
                 </div>
                   </div>
-              
-              <div className="mb-6">
-                {poolExplanation && (
-                  <PoolTitleRow
-                    title={(() => {
-                      // Extract just the team names from the title
-                      // Remove time, league, prediction, and all extra information
-                      const cleanTitle = pool.title
-                        .replace(/\d{2}:\d{2} UTC/g, '') // Remove time like "00:30 UTC"
-                        .replace(/"FT \d+X?\d*"/g, '') // Remove "FT 1X2", "FT 1", etc.
-                        .replace(/"\d+\.\d+"/g, '') // Remove "1.60", etc.
-                        .replace(/Serie [A-Z]|Premier League|Champions League|Bundesliga|Ligue 1|La Liga|Serie A|Eredivisie|Championship|First League|Liga Profesional de Fútbol|Primera Division/g, '') // Remove league names
-                        .replace(/will be.*?!/g, '') // Remove "will be Under 2.5!" etc.
-                        .replace(/Under \d+\.\d+|Over \d+\.\d+|Yes|No|Home|Away|Draw|HT|FT/g, '') // Remove prediction outcomes
-                        .replace(/\s+/g, ' ') // Clean up multiple spaces
-                        .trim();
-                      return cleanTitle;
-                    })()}
-                    currencyBadge={poolExplanation.currencyBadge}
-                    marketTypeBadge={{
-                      label: pool.predictedOutcome || 'Unknown', // Use actual predicted outcome
-                      color: poolExplanation.marketTypeBadge.color,
-                      bgColor: poolExplanation.marketTypeBadge.bgColor
-                    }}
-                    league={pool.eventDetails?.league || 'Unknown League'}
-                    time={pool.eventDetails?.startTime ? pool.eventDetails.startTime.toLocaleTimeString('en-GB', { 
-                      hour: '2-digit', 
-                      minute: '2-digit', 
-                      timeZone: 'UTC' 
-                    }) + ' UTC' : 'TBD'}
-                    odds={pool.odds.toFixed(2)}
-                    className="mb-4"
-                  />
-                )}
-                
-                {/* Pool Status Display */}
-                {(() => {
-                  // For now, use basic status logic until we have the full pool data structure
-                  const now = Date.now();
-                  const eventStartTime = pool.eventDetails?.startTime ? pool.eventDetails.startTime.getTime() : 0;
-                  const eventEndTime = pool.eventDetails?.endTime ? pool.eventDetails.endTime.getTime() : 0;
-                  
-                  let statusInfo;
-                  
-                  if (now >= eventEndTime) {
-                    statusInfo = {
-                      status: 'event_ended' as const,
-                      label: 'Event Ended',
-                      description: 'Event has ended, awaiting settlement',
-                      color: 'text-orange-400',
-                      bgColor: 'bg-orange-500/20',
-                      icon: '⏳',
-                      canBet: false,
-                      canClaim: false,
-                      canRefund: false
-                    };
-                  } else if (now >= eventStartTime) {
-                    statusInfo = {
-                      status: 'event_started' as const,
-                      label: 'Event Started',
-                      description: 'Event is in progress, no more bets',
-                      color: 'text-yellow-400',
-                      bgColor: 'bg-yellow-500/20',
-                      icon: '🏃',
-                      canBet: false,
-                      canClaim: false,
-                      canRefund: false
-                    };
-                  } else {
-                    statusInfo = {
-                      status: 'active' as const,
-                      label: 'Active',
-                      description: 'Pool is accepting bets',
-                      color: 'text-cyan-400',
-                      bgColor: 'bg-cyan-500/20',
-                      icon: '🔥',
-                      canBet: true,
-                      canClaim: false,
-                      canRefund: false
-                    };
-                  }
-                  
-                  const badgeProps = getStatusBadgeProps(statusInfo);
-                  
-                  return (
-                    <div className="mb-4 p-4 bg-gray-800/30 border border-gray-700/30 rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className={badgeProps.className}>
-                          <span className="mr-1">{badgeProps.icon}</span>
-                          {badgeProps.label}
-                        </div>
-                      </div>
-                      <p className="text-sm text-gray-300">{statusInfo.description}</p>
-                    </div>
-                  );
-                })()}
-                
-              <p className="text-sm sm:text-base text-gray-300 leading-relaxed">{pool.description}</p>
-              </div>
-            </div>
 
             {/* Enhanced Pool Progress Bar */}
             <div className="mb-4 p-4 sm:p-6 bg-gradient-to-br from-gray-800/50 to-gray-700/50 rounded-xl border border-gray-600/30 backdrop-blur-sm shadow-lg">
@@ -1636,6 +1613,6 @@ export default function BetPage() {
           </div>
         </div>
       </div>
-  
+    </div>
   );
 }

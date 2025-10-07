@@ -24,6 +24,8 @@ export interface Pool {
   title: string;
   description: string;
   category: string;
+  homeTeam?: string;
+  awayTeam?: string;
   creator: Creator;
   challengeScore: number;
   qualityScore?: number;
