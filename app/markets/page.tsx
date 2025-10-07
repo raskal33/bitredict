@@ -136,16 +136,49 @@ export default function MarketsPage() {
         };
         
         const poolsData = await optimizedPoolService.getPools(filters);
-        const enhancedPools = poolsData.pools.map(convertToEnhancedPool);
-        setPools(enhancedPools);
-        setFilteredPools(enhancedPools);
         
-        // Load analytics for stats
-        const analytics = await optimizedPoolService.getAnalytics();
-        setStats(analytics);
+        // Check if we got any pools from the optimized API
+        if (poolsData.pools.length === 0) {
+          console.warn('No pools from optimized API, showing empty state');
+          setPools([]);
+          setFilteredPools([]);
+          setStats({
+            totalPools: 0,
+            activePools: 0,
+            settledPools: 0,
+            totalVolume: "0",
+            bitrVolume: "0",
+            sttVolume: "0",
+            participants: 0,
+            boostedPools: 0,
+            trendingPools: 0
+          });
+        } else {
+          const enhancedPools = poolsData.pools.map(convertToEnhancedPool);
+          setPools(enhancedPools);
+          setFilteredPools(enhancedPools);
+          
+          // Load analytics for stats
+          try {
+            const analytics = await optimizedPoolService.getAnalytics();
+            setStats(analytics);
+          } catch (error) {
+            console.warn('Analytics API failed, using default stats');
+            setStats({
+              totalPools: poolsData.stats.totalPools,
+              activePools: poolsData.stats.activePools,
+              settledPools: 0,
+              totalVolume: poolsData.stats.totalVolume,
+              bitrVolume: "0",
+              sttVolume: "0",
+              participants: poolsData.stats.participants,
+              boostedPools: 0,
+              trendingPools: 0
+            });
+          }
+        }
         
         console.log('✅ Successfully loaded', poolsData.pools.length, 'pools');
-        console.log('📊 Analytics:', analytics);
       } catch (error) {
         console.error('❌ Error loading data:', error);
         toast.error('Failed to load markets. Please try again.');

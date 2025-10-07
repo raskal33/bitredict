@@ -228,7 +228,49 @@ export default function BetPage() {
       
       // Fetch pool data using optimized service (10-25x faster)
       console.log('🚀 Fetching pool data using optimized service for bet page:', poolId);
-      const optimizedPool = await optimizedPoolService.getPool(parseInt(poolId));
+      
+      let optimizedPool;
+      try {
+        optimizedPool = await optimizedPoolService.getPool(parseInt(poolId));
+      } catch (error) {
+        console.warn('Optimized API failed, falling back to contract calls:', error);
+        // Fallback to contract calls
+        const contractData = await PoolContractService.getPool(parseInt(poolId));
+        if (!contractData) {
+          throw new Error(`Pool ${poolId} not found`);
+        }
+        
+        // Convert contract data to OptimizedPool format
+        const stakeAmount = parseFloat(contractData.creatorStake || "0") / 1e18;
+        optimizedPool = {
+          id: parseInt(poolId),
+          title: contractData.title || `Pool ${poolId}`,
+          category: contractData.category || 'sports',
+          creator: {
+            address: contractData.creator,
+            username: `${contractData.creator.slice(0, 6)}...${contractData.creator.slice(-4)}`,
+            successRate: 0,
+            totalPools: 0,
+            totalVolume: 0,
+            badges: []
+          },
+          odds: contractData.odds,
+          creatorStake: (stakeAmount).toString(),
+          totalBettorStake: (parseFloat(contractData.totalBettorStake || "0") / 1e18).toString(),
+          maxPoolSize: ((stakeAmount * 100) / (Math.round(contractData.odds * 100) - 100)).toString(),
+          fillPercentage: 0,
+          participants: 0,
+          eventStartTime: contractData.eventStartTime,
+          eventEndTime: contractData.eventEndTime,
+          bettingEndTime: contractData.bettingEndTime,
+          status: 'active' as const,
+          currency: stakeAmount >= 1000 ? 'BITR' as const : 'STT' as const,
+          boostTier: 'NONE' as const,
+          trending: false,
+          socialStats: { likes: 0, comments: 0, views: 0 },
+          timeLeft: { days: 0, hours: 0, minutes: 0, seconds: 0 }
+        };
+      }
       
       if (!optimizedPool) {
         throw new Error(`Pool ${poolId} not found`);

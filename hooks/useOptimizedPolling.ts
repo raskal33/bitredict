@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import websocketClient from '@/services/websocket-client';
+// import websocketClient from '@/services/websocket-client'; // Disabled for now
 
 interface PollingOptions {
   interval?: number;
@@ -190,28 +190,29 @@ export function useOptimizedPolling<T>(
     fetchData(true);
   }, [fetchData]);
 
-  // WebSocket subscription
+  // WebSocket subscription (DISABLED for now)
   useEffect(() => {
-    if (websocketChannel && enabled) {
-      const unsubscribe = websocketClient.subscribe(websocketChannel, (wsData) => {
-        setData(wsData);
-        setLastUpdated(new Date());
-        
-        // Update cache
-        if (cacheKey) {
-          const ttl = getCacheTTL(cacheKey);
-          setCachedData(cacheKey, wsData, ttl);
-        }
-      });
-      
-      websocketUnsubscribeRef.current = unsubscribe;
-      
-      return () => {
-        if (websocketUnsubscribeRef.current) {
-          websocketUnsubscribeRef.current();
-        }
-      };
-    }
+    // WebSocket functionality disabled to prevent connection errors
+    // if (websocketChannel && enabled) {
+    //   const unsubscribe = websocketClient.subscribe(websocketChannel, (wsData) => {
+    //     setData(wsData);
+    //     setLastUpdated(new Date());
+    //     
+    //     // Update cache
+    //     if (cacheKey) {
+    //       const ttl = getCacheTTL(cacheKey);
+    //       setCachedData(cacheKey, wsData, ttl);
+    //     }
+    //   });
+    //   
+    //   websocketUnsubscribeRef.current = unsubscribe;
+    //   
+    //   return () => {
+    //     if (websocketUnsubscribeRef.current) {
+    //       websocketUnsubscribeRef.current();
+    //     }
+    //   };
+    // }
   }, [websocketChannel, enabled, cacheKey, getCacheTTL, setCachedData]);
 
   // Polling interval
