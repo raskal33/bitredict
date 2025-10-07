@@ -48,7 +48,10 @@ class TitleTemplatesService {
     }
 
     // For team-specific predictions, determine which team is winning
-    const teamSpecificTitle = this.generateTeamSpecificTitle(predictedOutcome, homeTeam, awayTeam, marketType, short);
+    // Only use team-specific logic for moneyline markets (1X2)
+    const teamSpecificTitle = marketType === '1X2' 
+      ? this.generateTeamSpecificTitle(predictedOutcome, homeTeam, awayTeam, marketType, short)
+      : null;
     if (teamSpecificTitle) {
       let title = teamSpecificTitle;
       if (includeLeague && league) {
@@ -59,8 +62,15 @@ class TitleTemplatesService {
 
     const templates = this.getTemplates(marketType, short);
     
+    console.log('🎯 Title Templates Debug:');
+    console.log('🎯 Market type:', marketType);
+    console.log('🎯 Predicted outcome:', predictedOutcome);
+    console.log('🎯 Available templates:', Object.keys(templates));
+    console.log('🎯 Templates for market type:', templates);
+    
     // Find exact match for predicted outcome
     if (templates[predictedOutcome]) {
+      console.log('🎯 Found exact match for:', predictedOutcome);
       let title = this.processTemplate(templates[predictedOutcome], { homeTeam, awayTeam, league });
       if (includeLeague && league) {
         title = `${title} (${league})`;

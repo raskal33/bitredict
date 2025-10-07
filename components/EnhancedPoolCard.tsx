@@ -290,6 +290,9 @@ export default function EnhancedPoolCard({
           console.log('🎯 Generating title with data:', marketData);
           console.log('🎯 Pool marketType (numeric):', pool.marketType);
           console.log('🎯 Mapped marketType (string):', marketData.marketType);
+          console.log('🎯 Predicted outcome:', marketData.predictedOutcome);
+          console.log('🎯 Home team:', marketData.homeTeam);
+          console.log('🎯 Away team:', marketData.awayTeam);
           
           const generatedTitle = titleTemplatesService.generateTitle(marketData, {
             short: false,
