@@ -187,9 +187,12 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
     const now = new Date();
     const hours = getTimeframeHours(timeframe);
     
-    // CORRECT LOGIC: Event starts now, ends after the timeframe duration
-    const eventStart = new Date(now.getTime()); // Start immediately
-    const eventEnd = new Date(now.getTime() + (hours * 60 * 60 * 1000)); // End after timeframe duration
+    // CORRECT LOGIC: 
+    // - Event Start: Creator sets when betting closes and price tracking begins
+    // - Event End: Event Start + Timeframe (when final price is fetched)
+    // - Default: Event starts in 1 hour, ends after timeframe duration
+    const eventStart = new Date(now.getTime() + (60 * 60 * 1000)); // 1 hour from now (default)
+    const eventEnd = new Date(eventStart.getTime() + (hours * 60 * 60 * 1000)); // Event Start + Timeframe
     
     return {
       eventStartTime: eventStart.toISOString().slice(0, 16), // Format for datetime-local input

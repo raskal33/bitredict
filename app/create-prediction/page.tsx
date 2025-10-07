@@ -990,9 +990,12 @@ function CreateMarketPageContent() {
         // Calculate event times based on timeframe
         const now = new Date();
         const hours = getTimeframeHours(data.timeframe || '1d');
-        // CORRECT LOGIC: Event starts now, ends after the timeframe duration
-        const eventStartTime = new Date(now.getTime()); // Start immediately
-        const eventEndTime = new Date(now.getTime() + (hours * 60 * 60 * 1000)); // End after timeframe duration
+        // CORRECT LOGIC: 
+        // - Event Start: Creator sets when betting closes and price tracking begins
+        // - Event End: Event Start + Timeframe (when final price is fetched)
+        // - Default: Event starts in 1 hour, ends after timeframe duration
+        const eventStartTime = new Date(now.getTime() + (60 * 60 * 1000)); // 1 hour from now (default)
+        const eventEndTime = new Date(eventStartTime.getTime() + (hours * 60 * 60 * 1000)); // Event Start + Timeframe
         
         const poolData = {
           predictedOutcome: predictedOutcome,
