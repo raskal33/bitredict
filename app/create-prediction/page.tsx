@@ -177,6 +177,24 @@ function CreateMarketPageContent() {
 
   const token = useBITRToken();
 
+  // Helper functions for crypto market creation
+  const getTimeframeHours = (timeframe: string): number => {
+    const hoursMap: Record<string, number> = {
+      '1h': 1,
+      '4h': 4,
+      '1d': 24,
+      '3d': 72,
+      '7d': 168,
+      '30d': 720
+    };
+    return hoursMap[timeframe] || 24;
+  };
+
+  const getDateString = (): string => {
+    const now = new Date();
+    return now.toISOString().split('T')[0].replace(/-/g, '_');
+  };
+
   // Check URL params for pre-selected type
   useEffect(() => {
     const type = searchParams.get('type');
@@ -966,60 +984,80 @@ function CreateMarketPageContent() {
         }
 
       } else if (data.category === 'cryptocurrency' && data.selectedCrypto) {
-        // For crypto markets, use the existing backend API for now
-        const marketData = {
-          cryptocurrency: {
-            symbol: data.selectedCrypto.symbol,
-            name: data.selectedCrypto.name
-          },
-          targetPrice: data.targetPrice || 0,
-          direction: data.direction || 'above',
-          timeframe: data.timeframe || '1d',
+        // Use direct contract call for crypto markets (same as football)
+        console.log('Creating crypto market via direct contract call');
+        
+        // Calculate event times based on timeframe
+        const now = new Date();
+        const hours = getTimeframeHours(data.timeframe || '1d');
+        const eventStartTime = new Date(now.getTime() + (hours * 60 * 60 * 1000));
+        const eventEndTime = new Date(eventStartTime.getTime() + (24 * 60 * 60 * 1000)); // 24 hours later
+        
+        const poolData = {
           predictedOutcome: predictedOutcome,
-          odds: data.odds,
-          creatorStake: data.creatorStake,
-          useBitr: useBitr,
-          description: data.description,
+          odds: BigInt(data.odds),
+          creatorStake: parseUnits(data.creatorStake.toString(), 18),
+          eventStartTime: BigInt(Math.floor(eventStartTime.getTime() / 1000)),
+          eventEndTime: BigInt(Math.floor(eventEndTime.getTime() / 1000)),
+          league: 'crypto',
+          category: 'cryptocurrency',
+          region: 'Global',
           isPrivate: data.isPrivate || false,
-          maxBetPerUser: data.maxBetPerUser || 500
+          maxBetPerUser: data.maxBetPerUser ? parseUnits(data.maxBetPerUser.toString(), 18) : BigInt(0),
+          useBitr: useBitr,
+          oracleType: 0, // GUIDED
+          marketId: `${data.selectedCrypto.symbol.toLowerCase()}_${data.targetPrice}_${getDateString()}`,
+          marketType: 0, // MONEYLINE for crypto price direction
+          homeTeam: data.selectedCrypto.symbol,
+          awayTeam: 'USD',
+          title: `${data.selectedCrypto.symbol} Price Prediction`
         };
 
-        console.log('Creating crypto market via backend API:', marketData);
+        console.log('🔍 Crypto Pool Creation Debug:', {
+          cryptoAsset: data.selectedCrypto.symbol,
+          targetPrice: data.targetPrice,
+          direction: data.direction,
+          timeframe: data.timeframe,
+          predictedOutcome: predictedOutcome
+        });
+        console.log('Crypto pool data for direct contract call:', poolData);
         
-        const result = await GuidedMarketService.createCryptoMarket(marketData);
+        showInfo('Creating Market', 'Preparing crypto market creation transaction...');
         
-        if (!result.success) {
-          showError('Market Creation Failed', result.error || 'Failed to create crypto market');
-        setIsLoading(false);
-        return;
-      }
-      
-        console.log('Crypto market created successfully:', result.data);
+        // Use direct contract call
+        const txHash = await createPool(poolData);
         
-        // Calculate total cost for display
-        const creationFee = useBitr ? '50 BITR' : '1 STT';
-        const boostCost = data.boostTier && data.boostTier !== 'NONE' 
-          ? `${data.boostTier === 'BRONZE' ? '2' : data.boostTier === 'SILVER' ? '5' : '10'} ${useBitr ? 'BITR' : 'STT'}`
-          : '0';
-        const totalCost = data.boostTier && data.boostTier !== 'NONE' 
-          ? `${boostCost} + ${creationFee}`
-          : creationFee;
+        if (txHash) {
+          // Calculate total cost for display
+          const creationFee = useBitr ? '50 BITR' : '1 STT';
+          const boostCost = data.boostTier && data.boostTier !== 'NONE' 
+            ? `${data.boostTier === 'BRONZE' ? '2' : data.boostTier === 'SILVER' ? '5' : '10'} ${useBitr ? 'BITR' : 'STT'}`
+            : '0';
+          const totalCost = data.boostTier && data.boostTier !== 'NONE' 
+            ? `${boostCost} + ${creationFee}`
+            : creationFee;
 
-        showSuccess(
-          'Market Created Successfully!', 
-          'Your cryptocurrency prediction market has been created and is now live on the blockchain!', 
-          result.data.transactionHash,
-          data.boostTier,
-          totalCost
-        );
-        
-        // Add reputation for market creation
-        if (address) {
-          addReputationAction(address, {
-            type: 'market_created',
-            points: 10,
-            description: 'Created a cryptocurrency prediction market'
-          });
+          showSuccess(
+            'Market Created Successfully!', 
+            'Your cryptocurrency prediction market has been created and is now live on the blockchain!', 
+            txHash,
+            data.boostTier,
+            totalCost
+          );
+          
+          // Add reputation for market creation
+          if (address) {
+            addReputationAction(address, {
+              type: 'market_created',
+              points: 10,
+              description: 'Created a cryptocurrency prediction market'
+            });
+          }
+          
+          // Reset form and go to success step
+          setStep(3);
+        } else {
+          showError('Market Creation Failed', 'Failed to create crypto market');
         }
 
       } else {
