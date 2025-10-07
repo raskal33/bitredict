@@ -62,11 +62,11 @@ class TitleTemplatesService {
 
     const templates = this.getTemplates(marketType, short);
     
-    console.log('🎯 Title Templates Debug:');
-    console.log('🎯 Market type:', marketType);
-    console.log('🎯 Predicted outcome:', predictedOutcome);
-    console.log('🎯 Available templates:', Object.keys(templates));
-    console.log('🎯 Templates for market type:', templates);
+    console.log('🎯 TITLE TEMPLATES SERVICE - Debug:');
+    console.log('🎯 TITLE TEMPLATES SERVICE - Market type:', marketType);
+    console.log('🎯 TITLE TEMPLATES SERVICE - Predicted outcome:', predictedOutcome);
+    console.log('🎯 TITLE TEMPLATES SERVICE - Available templates:', Object.keys(templates));
+    console.log('🎯 TITLE TEMPLATES SERVICE - Templates for market type:', templates);
     
     // Find exact match for predicted outcome
     if (templates[predictedOutcome]) {
