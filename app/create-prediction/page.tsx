@@ -195,6 +195,23 @@ function CreateMarketPageContent() {
     return now.toISOString().split('T')[0].replace(/-/g, '_');
   };
 
+  const getMarketTypeEnum = (marketType: string): number => {
+    const marketTypeMap: Record<string, number> = {
+      '1X2': 0,           // MONEYLINE
+      'OU25': 1,          // OVER_UNDER (2.5)
+      'OU35': 1,          // OVER_UNDER (3.5)
+      'HT_OU15': 1,       // HALF_TIME_OVER_UNDER (1.5)
+      'BTTS': 2,          // BOTH_TEAMS_SCORE
+      'HT_1X2': 3,        // HALF_TIME
+      'DC': 4,            // DOUBLE_CHANCE
+      'CS': 5,            // CORRECT_SCORE
+      'FG': 6,            // FIRST_GOAL
+      'CUSTOM': 7         // CUSTOM
+    };
+    
+    return marketTypeMap[marketType] || 0; // Default to MONEYLINE
+  };
+
   // Check URL params for pre-selected type
   useEffect(() => {
     const type = searchParams.get('type');
@@ -569,31 +586,6 @@ function CreateMarketPageContent() {
 
 
 
-  // Map market type strings to contract enum values
-  const getMarketTypeEnum = (marketType: string): number => {
-    switch (marketType) {
-      case 'ft_1x2':
-      case 'moneyline':
-        return 0; // MONEYLINE
-      case 'ou_25':
-      case 'ou_35':
-      case 'ht_ou_15':
-      case 'over_under':
-        return 1; // OVER_UNDER
-      case 'btts':
-        return 2; // BOTH_TEAMS_SCORE
-      case 'ht_1x2':
-        return 3; // HALF_TIME
-      case 'double_chance':
-        return 4; // DOUBLE_CHANCE
-      case 'correct_score':
-        return 5; // CORRECT_SCORE
-      case 'first_goal':
-        return 6; // FIRST_GOAL
-      default:
-        return 0; // Default to MONEYLINE
-    }
-  };
 
   const handleMarketSelect = (fixture: Fixture, marketType: string, outcome: string) => {
     // Set the selected fixture
