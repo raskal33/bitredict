@@ -21,6 +21,45 @@ export function bytes32ToString(bytes32: string): string {
 }
 
 /**
+ * Determine category from pool data
+ */
+export function getCategoryFromHash(categoryHash: string, rawPool?: any): string | null {
+  if (!categoryHash || categoryHash === '0x' || categoryHash === '0x0000000000000000000000000000000000000000000000000000000000000000') {
+    return null;
+  }
+
+  // Try to determine category from other pool data
+  if (rawPool) {
+    // Check if it's a crypto pool based on league or market type
+    const league = rawPool.league ? bytes32ToString(rawPool.league) : '';
+    const marketType = rawPool.marketType;
+    
+    // If league contains crypto-related terms
+    if (league.toLowerCase().includes('crypto') || league.toLowerCase().includes('bitcoin') || league.toLowerCase().includes('ethereum')) {
+      return 'Cryptocurrency';
+    }
+    
+    // If market type suggests crypto (custom markets are often crypto)
+    if (marketType === 7) { // CUSTOM market type is often used for crypto
+      return 'Cryptocurrency';
+    }
+    
+    // If league contains football/sports terms
+    if (league.toLowerCase().includes('premier') || league.toLowerCase().includes('league') || league.toLowerCase().includes('championship')) {
+      return 'Football';
+    }
+    
+    // If league contains basketball terms
+    if (league.toLowerCase().includes('nba') || league.toLowerCase().includes('basketball')) {
+      return 'Basketball';
+    }
+  }
+
+  // Fallback to Sports for unknown categories
+  return 'Sports';
+}
+
+/**
  * Decode hash back to original prediction value
  * Tests common prediction values against the hash
  */
@@ -219,7 +258,7 @@ export function processRawPoolData(rawPool: any) {
     homeTeam: homeTeam,
     awayTeam: awayTeam,
     league: league,
-    category: rawPool.category ? bytes32ToString(rawPool.category) : 'Sports',
+    category: getCategoryFromHash(rawPool.category, rawPool) || 'Sports',
     region: bytes32ToString(rawPool.region),
     predictedOutcome: decodePredictedOutcome(rawPool.predictedOutcome),
     result: bytes32ToString(rawPool.result),
