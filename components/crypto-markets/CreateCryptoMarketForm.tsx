@@ -187,8 +187,9 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
     const now = new Date();
     const hours = getTimeframeHours(timeframe);
     
-    const eventStart = new Date(now.getTime() + (hours * 60 * 60 * 1000));
-    const eventEnd = new Date(eventStart.getTime() + (24 * 60 * 60 * 1000)); // 24 hours later
+    // CORRECT LOGIC: Event starts now, ends after the timeframe duration
+    const eventStart = new Date(now.getTime()); // Start immediately
+    const eventEnd = new Date(now.getTime() + (hours * 60 * 60 * 1000)); // End after timeframe duration
     
     return {
       eventStartTime: eventStart.toISOString().slice(0, 16), // Format for datetime-local input

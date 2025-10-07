@@ -990,8 +990,9 @@ function CreateMarketPageContent() {
         // Calculate event times based on timeframe
         const now = new Date();
         const hours = getTimeframeHours(data.timeframe || '1d');
-        const eventStartTime = new Date(now.getTime() + (hours * 60 * 60 * 1000));
-        const eventEndTime = new Date(eventStartTime.getTime() + (24 * 60 * 60 * 1000)); // 24 hours later
+        // CORRECT LOGIC: Event starts now, ends after the timeframe duration
+        const eventStartTime = new Date(now.getTime()); // Start immediately
+        const eventEndTime = new Date(now.getTime() + (hours * 60 * 60 * 1000)); // End after timeframe duration
         
         const poolData = {
           predictedOutcome: predictedOutcome,
