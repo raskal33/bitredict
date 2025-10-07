@@ -36,6 +36,7 @@ import PoolTitleRow from "@/components/PoolTitleRow";
 import BetDisplay from "@/components/BetDisplay";
 import { calculatePoolFill } from "@/utils/poolCalculations";
 import useOptimizedPolling from "@/hooks/useOptimizedPolling";
+import SkeletonLoader from "@/components/SkeletonLoader";
 
 export default function BetPage() {
   const { address } = useAccount();
@@ -789,12 +790,11 @@ export default function BetPage() {
   };
 
   if (loading) return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
-                    <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto mb-4"></div>
-        <p className="text-gray-400">Loading challenge...</p>
-                      </div>
-                    </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-4">
+      <div className="max-w-7xl mx-auto">
+        <SkeletonLoader type="bet-page" />
+      </div>
+    </div>
   );
 
   if (!pool) return (
