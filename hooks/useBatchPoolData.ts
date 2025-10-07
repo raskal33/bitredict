@@ -2,7 +2,35 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { PoolContractService } from '@/services/poolContractService';
-import { Pool } from '@/lib/types';
+// Raw pool type from contract
+interface RawPool {
+  poolId: number;
+  creator: string;
+  odds: number;
+  flags: number;
+  oracleType: number;
+  marketType: number;
+  creatorStake: string;
+  totalCreatorSideStake: string;
+  maxBettorStake: string;
+  totalBettorStake: string;
+  predictedOutcome: string;
+  result: string;
+  eventStartTime: number;
+  eventEndTime: number;
+  bettingEndTime: number;
+  resultTimestamp: number;
+  arbitrationDeadline: number;
+  maxBetPerUser: number;
+  marketId: string;
+  league: string;
+  category: string;
+  region: string;
+  homeTeam: string;
+  awayTeam: string;
+  title: string;
+  reserved: number;
+}
 
 interface BatchPoolDataOptions {
   batchSize?: number;
@@ -11,7 +39,7 @@ interface BatchPoolDataOptions {
 }
 
 interface BatchPoolDataResult {
-  pools: Pool[];
+  pools: RawPool[];
   loading: boolean;
   error: string | null;
   progress: number;
@@ -28,7 +56,7 @@ export function useBatchPoolData(
     enabled = true
   } = options;
 
-  const [pools, setPools] = useState<Pool[]>([]);
+  const [pools, setPools] = useState<RawPool[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
@@ -42,7 +70,7 @@ export function useBatchPoolData(
     setPools([]);
 
     try {
-      const allPools: Pool[] = [];
+      const allPools: RawPool[] = [];
       
       for (let i = 0; i < poolIds.length; i += batchSize) {
         const batch = poolIds.slice(i, i + batchSize);
@@ -59,7 +87,7 @@ export function useBatchPoolData(
         });
 
         const batchResults = await Promise.all(batchPromises);
-        const validPools = batchResults.filter((pool): pool is Pool => pool !== null);
+        const validPools = batchResults.filter((pool): pool is RawPool => pool !== null);
         
         allPools.push(...validPools);
         setPools([...allPools]);
@@ -98,7 +126,7 @@ export function useSmartPoolLoading(
   limit: number = 50,
   offset: number = 0
 ) {
-  const [pools, setPools] = useState<Pool[]>([]);
+  const [pools, setPools] = useState<RawPool[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -129,7 +157,7 @@ export function useSmartPoolLoading(
 
       // Load in batches
       const batchSize = 5;
-      const allPools: Pool[] = [];
+      const allPools: RawPool[] = [];
 
       for (let i = 0; i < poolIds.length; i += batchSize) {
         const batch = poolIds.slice(i, i + batchSize);
@@ -144,7 +172,7 @@ export function useSmartPoolLoading(
         });
 
         const batchResults = await Promise.all(batchPromises);
-        const validPools = batchResults.filter((pool): pool is Pool => pool !== null);
+        const validPools = batchResults.filter((pool): pool is RawPool => pool !== null);
         allPools.push(...validPools);
 
         // Small delay between batches

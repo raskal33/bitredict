@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-hot-toast";
 import AnimatedTitle from "@/components/AnimatedTitle";
-import { PoolService, type Pool, type PoolStats } from "@/services/poolService";
+import { PoolService, type PoolStats } from "@/services/poolService";
 import { EnhancedPool } from "@/components/EnhancedPoolCard";
 import LazyPoolCard from "@/components/LazyPoolCard";
 import SkeletonLoader from "@/components/SkeletonLoader";
@@ -65,18 +65,56 @@ export default function MarketsPage() {
     return num.toFixed(2);
   };
 
-  // Convert Pool to EnhancedPool format
-  const convertToEnhancedPool = (pool: Pool): EnhancedPool => {
+  // Raw pool type from contract
+  interface RawPool {
+    poolId: number;
+    creator: string;
+    odds: number;
+    flags: number;
+    oracleType: number;
+    marketType: number;
+    creatorStake: string;
+    totalCreatorSideStake: string;
+    maxBettorStake: string;
+    totalBettorStake: string;
+    predictedOutcome: string;
+    result: string;
+    eventStartTime: number;
+    eventEndTime: number;
+    bettingEndTime: number;
+    resultTimestamp: number;
+    arbitrationDeadline: number;
+    maxBetPerUser: number;
+    marketId: string;
+    league: string;
+    category: string;
+    region: string;
+    homeTeam: string;
+    awayTeam: string;
+    title: string;
+    reserved: number;
+    // Additional properties for EnhancedPool
+    settled?: boolean;
+    creatorSideWon?: boolean;
+    isPrivate?: boolean;
+    usesBitr?: boolean;
+    filledAbove60?: boolean;
+    boostTier?: number;
+    boostExpiry?: number;
+  }
+
+  // Convert RawPool to EnhancedPool format
+  const convertToEnhancedPool = useCallback((pool: RawPool): EnhancedPool => {
     return {
       id: pool.poolId,
       creator: pool.creator,
       odds: pool.odds,
-      settled: pool.settled,
+      settled: pool.settled || false,
       creatorSideWon: pool.creatorSideWon || false,
-      isPrivate: pool.isPrivate,
-      usesBitr: pool.usesBitr,
+      isPrivate: pool.isPrivate || false,
+      usesBitr: pool.usesBitr || false,
       filledAbove60: pool.filledAbove60 || false,
-      oracleType: (pool.oracleType as 'GUIDED' | 'OPEN') || 'GUIDED',
+      oracleType: pool.oracleType === 0 ? 'GUIDED' : 'OPEN',
       
       creatorStake: pool.creatorStake,
       totalCreatorSideStake: pool.totalCreatorSideStake || pool.creatorStake,
@@ -86,11 +124,11 @@ export default function MarketsPage() {
       result: pool.result || '',
       marketId: pool.marketId,
       
-      eventStartTime: typeof pool.eventStartTime === 'string' ? new Date(pool.eventStartTime).getTime() / 1000 : pool.eventStartTime,
-      eventEndTime: typeof pool.eventEndTime === 'string' ? new Date(pool.eventEndTime).getTime() / 1000 : pool.eventEndTime,
-      bettingEndTime: typeof pool.bettingEndTime === 'string' ? new Date(pool.bettingEndTime).getTime() / 1000 : pool.bettingEndTime,
-      resultTimestamp: pool.resultTimestamp ? new Date(pool.resultTimestamp).getTime() / 1000 : 0,
-      arbitrationDeadline: pool.arbitrationDeadline ? new Date(pool.arbitrationDeadline).getTime() / 1000 : (typeof pool.eventEndTime === 'string' ? new Date(pool.eventEndTime).getTime() / 1000 + (24 * 60 * 60) : pool.eventEndTime + (24 * 60 * 60)),
+      eventStartTime: pool.eventStartTime,
+      eventEndTime: pool.eventEndTime,
+      bettingEndTime: pool.bettingEndTime,
+      resultTimestamp: pool.resultTimestamp,
+      arbitrationDeadline: pool.arbitrationDeadline || (pool.eventEndTime + (24 * 60 * 60)),
       
       league: pool.league,
       category: pool.category,
@@ -98,9 +136,9 @@ export default function MarketsPage() {
       title: pool.title || '',
       homeTeam: pool.homeTeam || '',
       awayTeam: pool.awayTeam || '',
-      maxBetPerUser: pool.maxBetPerUser,
+      maxBetPerUser: pool.maxBetPerUser.toString(),
       
-      boostTier: pool.boostTier || 'NONE',
+      boostTier: (pool.boostTier === 0 ? 'NONE' : pool.boostTier === 1 ? 'BRONZE' : pool.boostTier === 2 ? 'SILVER' : 'GOLD') as 'NONE' | 'BRONZE' | 'SILVER' | 'GOLD',
       boostExpiry: pool.boostExpiry || 0,
       trending: false,
       socialStats: {
@@ -110,7 +148,7 @@ export default function MarketsPage() {
       },
       change24h: 0
     };
-  };
+  }, []);
 
   // Use optimized pool loading with batching
   const { pools: rawPools, loading: poolsLoading, error: poolsError } = useSmartPoolLoading(50, 0);
@@ -123,7 +161,7 @@ export default function MarketsPage() {
       setFilteredPools(enhancedPools);
       console.log('✅ Successfully loaded', enhancedPools.length, 'pools');
     }
-  }, [rawPools]);
+  }, [rawPools, convertToEnhancedPool]);
 
   // Load stats separately
   useEffect(() => {

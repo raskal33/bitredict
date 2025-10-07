@@ -3,15 +3,15 @@
 import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import EnhancedPoolCard from './EnhancedPoolCard';
-import { Pool } from '@/lib/types';
+import { EnhancedPool } from '@/components/EnhancedPoolCard';
 
 interface LazyPoolCardProps {
-  pool: Pool;
+  pool: EnhancedPool;
   index: number;
-  onPoolSelect?: (pool: Pool) => void;
+  onPoolSelect?: (pool: EnhancedPool) => void;
 }
 
-export default function LazyPoolCard({ pool, index, onPoolSelect }: LazyPoolCardProps) {
+export default function LazyPoolCard({ pool, index }: LazyPoolCardProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -46,8 +46,8 @@ export default function LazyPoolCard({ pool, index, onPoolSelect }: LazyPoolCard
           transition={{ duration: 0.3, delay: index * 0.05 }}
         >
           <EnhancedPoolCard 
-            pool={pool} 
-            onPoolSelect={onPoolSelect}
+            pool={pool}
+            index={index}
           />
         </motion.div>
       ) : (

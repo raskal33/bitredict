@@ -1,72 +1,17 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { FixedSizeList as List } from 'react-window';
-import { Pool } from '@/lib/types';
+import { useRef } from 'react';
+import { EnhancedPool } from '@/components/EnhancedPoolCard';
 import LazyPoolCard from './LazyPoolCard';
 
 interface VirtualizedPoolListProps {
-  pools: Pool[];
-  height?: number;
-  itemHeight?: number;
-  onPoolSelect?: (pool: Pool) => void;
-}
-
-interface PoolItemProps {
-  index: number;
-  style: React.CSSProperties;
-  data: {
-    pools: Pool[];
-    onPoolSelect?: (pool: Pool) => void;
-  };
-}
-
-function PoolItem({ index, style, data }: PoolItemProps) {
-  const { pools, onPoolSelect } = data;
-  const pool = pools[index];
-
-  if (!pool) return null;
-
-  return (
-    <div style={style} className="px-2">
-      <LazyPoolCard
-        pool={pool}
-        index={index}
-        onPoolSelect={onPoolSelect}
-      />
-    </div>
-  );
+  pools: EnhancedPool[];
 }
 
 export default function VirtualizedPoolList({
-  pools,
-  height = 600,
-  itemHeight = 200,
-  onPoolSelect
+  pools
 }: VirtualizedPoolListProps) {
-  const [containerHeight, setContainerHeight] = useState(height);
   const containerRef = useRef<HTMLDivElement>(null);
-
-  // Calculate container height based on viewport
-  useEffect(() => {
-    const updateHeight = () => {
-      if (containerRef.current) {
-        const rect = containerRef.current.getBoundingClientRect();
-        const viewportHeight = window.innerHeight;
-        const availableHeight = viewportHeight - rect.top - 100; // 100px padding
-        setContainerHeight(Math.min(height, availableHeight));
-      }
-    };
-
-    updateHeight();
-    window.addEventListener('resize', updateHeight);
-    return () => window.removeEventListener('resize', updateHeight);
-  }, [height]);
-
-  const itemData = {
-    pools,
-    onPoolSelect
-  };
 
   if (pools.length === 0) {
     return (
@@ -78,15 +23,15 @@ export default function VirtualizedPoolList({
 
   return (
     <div ref={containerRef} className="w-full">
-      <List
-        height={containerHeight}
-        itemCount={pools.length}
-        itemSize={itemHeight}
-        itemData={itemData}
-        overscanCount={3} // Render 3 extra items for smooth scrolling
-      >
-        {PoolItem}
-      </List>
+      <div className="space-y-4">
+        {pools.map((pool, index) => (
+          <LazyPoolCard
+            key={pool.id}
+            pool={pool}
+            index={index}
+          />
+        ))}
+      </div>
     </div>
   );
 }
