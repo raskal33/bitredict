@@ -52,16 +52,30 @@ export function getPoolStatus(pool: PoolData): PoolStatusInfo {
   const bettingEndTime = pool.bettingEndTime * 1000;
   const arbitrationDeadline = pool.arbitrationDeadline ? pool.arbitrationDeadline * 1000 : null;
 
+  // Enhanced settlement detection - check multiple indicators
+  const isSettled = pool.settled || 
+                   (pool.resultTimestamp && pool.resultTimestamp > 0) ||
+                   (pool.result && pool.result !== '0x0000000000000000000000000000000000000000000000000000000000000000');
+
+  console.log('🔍 Pool Status Debug:', {
+    poolId: pool.id || 'unknown',
+    settled: pool.settled,
+    resultTimestamp: pool.resultTimestamp,
+    result: pool.result,
+    isSettled,
+    creatorSideWon: pool.creatorSideWon
+  });
+
   // Check if pool is settled first
-  if (pool.settled) {
+  if (isSettled) {
     if (pool.creatorSideWon === true) {
       return {
         status: 'creator_won',
         label: 'Creator Won',
         description: 'The creator\'s prediction was correct',
-        color: 'text-green-400',
-        bgColor: 'bg-green-500/20',
-        icon: '🎉',
+        color: 'text-emerald-400',
+        bgColor: 'bg-gradient-to-r from-emerald-500/20 to-green-500/20',
+        icon: '🏆',
         canBet: false,
         canClaim: true,
         canRefund: false
@@ -71,8 +85,8 @@ export function getPoolStatus(pool: PoolData): PoolStatusInfo {
         status: 'bettor_won',
         label: 'Bettor Won',
         description: 'The bettors\' prediction was correct',
-        color: 'text-blue-400',
-        bgColor: 'bg-blue-500/20',
+        color: 'text-cyan-400',
+        bgColor: 'bg-gradient-to-r from-cyan-500/20 to-blue-500/20',
         icon: '🎯',
         canBet: false,
         canClaim: true,
@@ -83,8 +97,8 @@ export function getPoolStatus(pool: PoolData): PoolStatusInfo {
         status: 'settled',
         label: 'Settled',
         description: 'Pool has been settled',
-        color: 'text-gray-400',
-        bgColor: 'bg-gray-500/20',
+        color: 'text-slate-400',
+        bgColor: 'bg-gradient-to-r from-slate-500/20 to-gray-500/20',
         icon: '✅',
         canBet: false,
         canClaim: true,
@@ -105,8 +119,8 @@ export function getPoolStatus(pool: PoolData): PoolStatusInfo {
           status: 'pending_settlement',
           label: 'Pending Settlement',
           description: 'Event ended, waiting for oracle settlement',
-          color: 'text-orange-400',
-          bgColor: 'bg-orange-500/20',
+          color: 'text-amber-400',
+          bgColor: 'bg-gradient-to-r from-amber-500/20 to-orange-500/20',
           icon: '⏳',
           canBet: false,
           canClaim: false,
@@ -119,7 +133,7 @@ export function getPoolStatus(pool: PoolData): PoolStatusInfo {
           label: 'Event Ended',
           description: 'Event ended, settlement overdue',
           color: 'text-red-400',
-          bgColor: 'bg-red-500/20',
+          bgColor: 'bg-gradient-to-r from-red-500/20 to-rose-500/20',
           icon: '⚠️',
           canBet: false,
           canClaim: false,

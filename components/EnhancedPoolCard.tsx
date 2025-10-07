@@ -17,6 +17,7 @@ import { useAccount } from "wagmi";
 import { titleTemplatesService } from "../services/title-templates";
 import { calculatePoolFill } from "../utils/poolCalculations";
 import { getPoolStatusDisplay, getStatusBadgeProps } from "../utils/poolStatus";
+import { getPoolIcon } from "../services/crypto-icons";
 
   // Enhanced Pool interface with indexed data
 export interface EnhancedPool {
@@ -271,7 +272,7 @@ export default function EnhancedPoolCard({
     
     return marketTypeMap[marketType as number] || '1X2';
   };
-
+  
   // Generate enhanced title using title service instead of using contract title directly
   const displayTitle = pool.isComboPool 
     ? `Combo Pool #${pool.id} (${pool.comboConditions?.length || 0} conditions)`
@@ -298,9 +299,9 @@ export default function EnhancedPoolCard({
           console.log('🎯 ENHANCED POOL CARD - Full pool data:', pool);
           
           const generatedTitle = titleTemplatesService.generateTitle(marketData, {
-            short: false,
-            includeLeague: false,
-            maxLength: 60
+          short: false,
+          includeLeague: false,
+          maxLength: 60
           });
           
           console.log('🎯 Generated title:', generatedTitle);
@@ -378,35 +379,17 @@ export default function EnhancedPoolCard({
   };
 
   const getCategoryIcon = (category: string) => {
-    const icons: { [key: string]: string } = {
-      'football': '⚽',
-      'crypto': '₿',
-      'cryptocurrency': '₿',
-      'basketball': '🏀',
-      'politics': '🏛️',
-      'entertainment': '🎬',
-      'technology': '💻',
-      'finance': '💰',
-      'sports': '🏆',
-      'other': '🎯'
-    };
-    return icons[category.toLowerCase()] || '🎯';
+    const poolIcon = getPoolIcon(category, pool.homeTeam);
+    return poolIcon.icon;
   };
 
   const getCategoryBadgeProps = (category: string) => {
-    const badges: { [key: string]: { color: string; bgColor: string; label: string } } = {
-      'football': { color: 'text-green-400', bgColor: 'bg-green-500/20', label: 'Football' },
-      'crypto': { color: 'text-orange-400', bgColor: 'bg-orange-500/20', label: 'Crypto' },
-      'cryptocurrency': { color: 'text-orange-400', bgColor: 'bg-orange-500/20', label: 'Crypto' },
-      'basketball': { color: 'text-blue-400', bgColor: 'bg-blue-500/20', label: 'Basketball' },
-      'politics': { color: 'text-purple-400', bgColor: 'bg-purple-500/20', label: 'Politics' },
-      'entertainment': { color: 'text-pink-400', bgColor: 'bg-pink-500/20', label: 'Entertainment' },
-      'technology': { color: 'text-cyan-400', bgColor: 'bg-cyan-500/20', label: 'Technology' },
-      'finance': { color: 'text-yellow-400', bgColor: 'bg-yellow-500/20', label: 'Finance' },
-      'sports': { color: 'text-red-400', bgColor: 'bg-red-500/20', label: 'Sports' },
-      'other': { color: 'text-gray-400', bgColor: 'bg-gray-500/20', label: 'Other' }
+    const poolIcon = getPoolIcon(category, pool.homeTeam);
+    return {
+      color: poolIcon.color,
+      bgColor: poolIcon.bgColor,
+      label: poolIcon.name
     };
-    return badges[category.toLowerCase()] || badges['other'];
   };
 
   // Check if current user is the pool creator
@@ -517,7 +500,7 @@ export default function EnhancedPoolCard({
             <div className={badgeProps.className}>
               <span className="mr-1">{badgeProps.icon}</span>
               {badgeProps.label}
-            </div>
+          </div>
           );
         })()}
 
@@ -543,7 +526,7 @@ export default function EnhancedPoolCard({
               return (
                 <span className={`text-xs px-2 py-1 rounded-full font-medium border ${badgeProps.color} ${badgeProps.bgColor} border-current/30`}>
                   {badgeProps.label}
-                </span>
+            </span>
               );
             })()}
             <div className={`flex items-center gap-1 text-xs ${difficultyColor}`}>
@@ -581,9 +564,9 @@ export default function EnhancedPoolCard({
       )}
 
       {/* Progress Bar - Always show with fallback */}
-      <div className="mb-3 flex-shrink-0">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-xs text-gray-400">Pool Progress</span>
+        <div className="mb-3 flex-shrink-0">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-gray-400">Pool Progress</span>
           <span className="text-xs text-white font-medium">
             {(() => {
               if (indexedData && indexedData.fillPercentage > 0) {
@@ -600,7 +583,7 @@ export default function EnhancedPoolCard({
               return `${poolCalculation.fillPercentage.toFixed(1)}%`;
             })()}
           </span>
-        </div>
+          </div>
         <div className="w-full rounded-full h-2 bg-gray-800/30 border border-gray-600/20 shadow-inner">
           <div
             className={`h-2 rounded-full transition-all duration-500 shadow-sm ${
@@ -635,8 +618,8 @@ export default function EnhancedPoolCard({
               })()}%`,
               minWidth: '2px' // Ensure minimum visibility
             }}
-          />
-        </div>
+            />
+          </div>
         
         {/* Pool Capacity Info */}
         <div className="flex justify-between text-xs text-gray-400 mt-1">

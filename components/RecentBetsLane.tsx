@@ -9,6 +9,7 @@ import {
   UserIcon,
 } from "@heroicons/react/24/outline";
 import useOptimizedPolling from "@/hooks/useOptimizedPolling";
+import { getPoolIcon } from "@/services/crypto-icons";
 
 interface RecentBet {
   id: number;
@@ -103,6 +104,27 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
         odds: 125,
         creatorAddress: "0x7654321098765432109876543210987654321098"
       }
+    },
+    {
+      id: 4,
+      poolId: "4",
+      bettorAddress: "0x4567890123456789012345678901234567890123",
+      amount: "3500000000000000000000",
+      amountFormatted: "3,500.00",
+      isForOutcome: true,
+      createdAt: new Date(Date.now() - 90000).toISOString(),
+      timeAgo: "15m ago",
+      pool: {
+        predictedOutcome: "BTC above $1450",
+        league: "crypto",
+        category: "cryptocurrency",
+        homeTeam: "BTC",
+        awayTeam: "USD",
+        title: "BTC Price Prediction",
+        useBitr: true,
+        odds: 190,
+        creatorAddress: "0x6543210987654321098765432109876543210987"
+      }
     }
   ], []);
 
@@ -147,18 +169,9 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
     return timeAgo;
   };
 
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'crypto': return '₿';
-      case 'football': return '⚽';
-      case 'basketball': return '🏀';
-      case 'stocks': return '📈';
-      case 'economics': return '🏦';
-      case 'technology': return '🤖';
-      case 'space': return '🚀';
-      case 'sports': return '⚽';
-      default: return '🎯';
-    }
+  const getCategoryIcon = (category: string, homeTeam?: string) => {
+    const poolIcon = getPoolIcon(category, homeTeam);
+    return poolIcon.icon;
   };
 
 
@@ -239,7 +252,7 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
                 {/* Bet Details */}
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm sm:text-lg">{getCategoryIcon(bet.pool.category)}</span>
+                    <span className="text-sm sm:text-lg">{getCategoryIcon(bet.pool.category, bet.pool.homeTeam)}</span>
                     <span className="text-xs sm:text-sm font-medium text-white truncate">
                       {bet.pool.title}
                     </span>
