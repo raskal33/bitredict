@@ -39,6 +39,7 @@ import BetDisplay from "@/components/BetDisplay";
 import { calculatePoolFill } from "@/utils/poolCalculations";
 import useOptimizedPolling from "@/hooks/useOptimizedPolling";
 import SkeletonLoader from "@/components/SkeletonLoader";
+import { usePool } from "@/hooks/usePoolQueries";
 
 export default function BetPage() {
   const { address } = useAccount();
@@ -65,9 +66,13 @@ export default function BetPage() {
   const [commentSentiment, setCommentSentiment] = useState<'bullish' | 'bearish' | 'neutral'>('neutral');
   const [commentConfidence, setCommentConfidence] = useState(75);
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-  const [loading, setLoading] = useState(true);
   const [submittingComment, setSubmittingComment] = useState(false);
-  const [pool, setPool] = useState<Pool | null>(null);
+  
+  // Use React Query for pool data with caching
+  const { 
+    data: pool, 
+    isLoading: loading
+  } = usePool(parseInt(poolId));
   const [comments] = useState<Comment[]>([]);
   const [betType, setBetType] = useState<'yes' | 'no' | null>(null);
   const [poolExplanation, setPoolExplanation] = useState<PoolExplanation | null>(null);
@@ -224,7 +229,7 @@ export default function BetPage() {
     setLastFetchTime(now);
     
     try {
-      setLoading(true);
+      // Loading state handled by React Query
       
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
@@ -368,7 +373,7 @@ export default function BetPage() {
         }
       };
       
-      setPool(transformedPool);
+      // Pool data handled by React Query
       
       // Check pool state for betting eligibility
       const now = Date.now();
@@ -417,9 +422,9 @@ export default function BetPage() {
         console.error('Error fetching pool data:', error);
         console.error('Pool not found or failed to load:', poolId);
       }
-      setPool(null);
+      // Pool data handled by React Query
     } finally {
-      setLoading(false);
+      // Loading state handled by React Query
     }
   }, [poolId, lastFetchTime, FETCH_COOLDOWN]);
 
@@ -730,7 +735,7 @@ export default function BetPage() {
             </div>
               )}
 
-              {comment.author.badges.map((badge, index) => (
+              {comment.author.badges.map((badge: string, index: number) => (
                 <div key={index} className={`px-2 py-1 rounded-full text-xs font-bold text-black ${getBadgeColor(badge)}`}>
                   {badge.replace('_', ' ')}
                 </div>
@@ -852,7 +857,7 @@ export default function BetPage() {
                   <div className="flex flex-wrap items-center gap-2 mb-1">
                     <h3 className="text-lg sm:text-xl font-bold text-white">{pool.creator.username}</h3>
                     <div className="flex gap-1">
-                      {pool.creator.badges.slice(0, 2).map((badge, index) => (
+                      {pool.creator.badges.slice(0, 2).map((badge: string, index: number) => (
                         <div key={index} className={`px-1 sm:px-2 py-1 rounded-full text-xs font-bold text-black ${getBadgeColor(badge)}`}>
                           <span className="hidden sm:inline">{badge.replace('_', ' ').toUpperCase()}</span>
                           <span className="sm:hidden">{(badge || 'B').charAt(0).toUpperCase()}</span>
@@ -917,7 +922,7 @@ export default function BetPage() {
                   {pool.category}
                 </span>
                 <div className="flex gap-1">
-                  {pool.tags?.map((tag, index) => (
+                  {pool.tags?.map((tag: string, index: number) => (
                     <span key={index} className="text-xs px-1 sm:px-2 py-1 bg-gray-700/50 text-gray-400 rounded-full">
                       #{tag}
                     </span>

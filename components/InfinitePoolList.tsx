@@ -1,26 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useInfinitePoolsQuery } from '@/hooks/useMarketsQuery';
+import { useRef, useCallback } from 'react';
+import { useInfinitePools } from '@/hooks/usePoolQueries';
 import LazyPoolCard from './LazyPoolCard';
 import SkeletonLoader from './SkeletonLoader';
-import { EnhancedPool } from './EnhancedPoolCard';
+import { EnhancedPool } from '@/components/EnhancedPoolCard';
 
 interface InfinitePoolListProps {
-  filters?: {
-    category?: string;
-    status?: string;
-    limit?: number;
-  };
+  filters?: Record<string, unknown>;
   onPoolSelect?: (pool: EnhancedPool) => void;
-  className?: string;
 }
 
 export default function InfinitePoolList({ 
   filters = {}, 
-  onPoolSelect,
-  className = ""
+  onPoolSelect 
 }: InfinitePoolListProps) {
   const {
     data,
@@ -29,128 +22,81 @@ export default function InfinitePoolList({
     isFetchingNextPage,
     isLoading,
     error,
-    isError
-  } = useInfinitePoolsQuery(filters);
+  } = useInfinitePools(filters as Record<string, any>);
 
-  const observerRef = useRef<IntersectionObserver | null>(null);
-  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const observer = useRef<IntersectionObserver>();
 
-  // Intersection Observer for infinite scroll
-  const handleObserver = useCallback((entries: IntersectionObserverEntry[]) => {
-    const [target] = entries;
-    if (target.isIntersecting && hasNextPage && !isFetchingNextPage) {
-      console.log('🔄 Loading more pools...');
-      fetchNextPage();
-    }
-  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
-
-  useEffect(() => {
-    const element = loadMoreRef.current;
-    if (!element) return;
-
-    observerRef.current = new IntersectionObserver(handleObserver, {
-      root: null,
-      rootMargin: '100px',
-      threshold: 0.1
-    });
-
-    observerRef.current.observe(element);
-
-    return () => {
-      if (observerRef.current) {
-        observerRef.current.disconnect();
-      }
-    };
-  }, [handleObserver]);
-
-  // Flatten all pages into a single array
-  const allPools = data?.pages.flatMap(page => page.pools) || [];
+  const lastPoolElementRef = useCallback(
+    (node: HTMLDivElement) => {
+      if (isLoading) return;
+      if (observer.current) observer.current.disconnect();
+      
+      observer.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      });
+      
+      if (node) observer.current.observe(node);
+    },
+    [isLoading, hasNextPage, isFetchingNextPage, fetchNextPage]
+  );
 
   if (isLoading) {
-    return (
-      <div className={`space-y-4 ${className}`}>
-        <SkeletonLoader type="markets-list" count={6} />
-      </div>
-    );
+    return <SkeletonLoader type="markets-list" count={6} />;
   }
 
-  if (isError) {
+  if (error) {
     return (
-      <div className={`flex items-center justify-center h-64 ${className}`}>
+      <div className="flex items-center justify-center h-64 text-red-400">
         <div className="text-center">
-          <div className="text-red-400 text-lg mb-2">⚠️ Failed to load pools</div>
-          <div className="text-gray-400 text-sm">
-            {error?.message || 'Something went wrong'}
-          </div>
+          <p className="text-lg font-semibold">Failed to load pools</p>
+          <p className="text-sm text-gray-400 mt-2">Please try refreshing the page</p>
         </div>
       </div>
     );
   }
 
+  const allPools = data?.pages.flatMap(page => page.pools) || [] as EnhancedPool[];
+
   if (allPools.length === 0) {
     return (
-      <div className={`flex items-center justify-center h-64 ${className}`}>
+      <div className="flex items-center justify-center h-64 text-gray-400">
         <div className="text-center">
-          <div className="text-gray-400 text-lg mb-2">No pools found</div>
-          <div className="text-gray-500 text-sm">
-            Try adjusting your filters or check back later
-          </div>
+          <p className="text-lg font-semibold">No pools found</p>
+          <p className="text-sm text-gray-400 mt-2">Check back later for new predictions</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className={`space-y-4 ${className}`}>
-      <AnimatePresence>
-        {allPools.map((pool, index) => (
-          <motion.div
-            key={pool.poolId}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ 
-              duration: 0.3, 
-              delay: Math.min(index * 0.05, 0.5) // Cap delay at 0.5s
-            }}
+    <div className="w-full">
+      <div className="space-y-4">
+        {allPools.map((pool: EnhancedPool, index: number) => (
+          <div
+            key={pool.id}
+            ref={index === allPools.length - 1 ? lastPoolElementRef : undefined}
           >
             <LazyPoolCard
               pool={pool}
               index={index}
               onPoolSelect={onPoolSelect}
             />
-          </motion.div>
+          </div>
         ))}
-      </AnimatePresence>
-
-      {/* Load more trigger */}
-      <div ref={loadMoreRef} className="h-4" />
-
-      {/* Loading indicator */}
+      </div>
+      
       {isFetchingNextPage && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="flex items-center justify-center py-8"
-        >
-          <div className="flex items-center space-x-2">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-500"></div>
-            <span className="text-gray-400">Loading more pools...</span>
-          </div>
-        </motion.div>
+        <div className="mt-8">
+          <SkeletonLoader type="markets-list" count={3} />
+        </div>
       )}
-
-      {/* End of list indicator */}
+      
       {!hasNextPage && allPools.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="flex items-center justify-center py-8"
-        >
-          <div className="text-gray-400 text-sm">
-            You&apos;ve reached the end of the list
-          </div>
-        </motion.div>
+        <div className="flex items-center justify-center mt-8 text-gray-400">
+          <p className="text-sm">You&apos;ve reached the end of the list</p>
+        </div>
       )}
     </div>
   );
