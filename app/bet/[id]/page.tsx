@@ -34,6 +34,7 @@ import { PoolContractService } from "@/services/poolContractService";
 import { PoolExplanationService, PoolExplanation } from "@/services/poolExplanationService";
 import PoolTitleRow from "@/components/PoolTitleRow";
 import CryptoTitleRow from "@/components/CryptoTitleRow";
+import PoolStatusBanner from "@/components/PoolStatusBanner";
 import BetDisplay from "@/components/BetDisplay";
 import { calculatePoolFill } from "@/utils/poolCalculations";
 import useOptimizedPolling from "@/hooks/useOptimizedPolling";
@@ -970,55 +971,33 @@ export default function BetPage() {
                   )
                 )}
                 
-                {/* Pool Status Display */}
+                {/* Pool Status Banner */}
                 {(() => {
-                  // For now, use basic status logic until we have the full pool data structure
-                  const now = Date.now();
-                  const eventStartTime = pool.eventDetails?.startTime ? pool.eventDetails.startTime.getTime() : 0;
-                  const eventEndTime = pool.eventDetails?.endTime ? pool.eventDetails.endTime.getTime() : 0;
-                  
-                  let statusInfo;
-                  
-                  if (now >= eventEndTime) {
-                    statusInfo = {
-                      status: 'event_ended' as const,
-                      label: 'Event Ended',
-                      description: 'Event has ended, awaiting settlement',
-                      color: 'text-orange-400',
-                      bgColor: 'bg-orange-500/10',
-                      borderColor: 'border-orange-500/30'
-                    };
-                  } else if (now >= eventStartTime) {
-                    statusInfo = {
-                      status: 'event_live' as const,
-                      label: 'Event Live',
-                      description: 'Event is currently in progress',
-                      color: 'text-green-400',
-                      bgColor: 'bg-green-500/10',
-                      borderColor: 'border-green-500/30'
-                    };
-                  } else {
-                    statusInfo = {
-                      status: 'active' as const,
-                      label: 'Active',
-                      description: 'Pool is accepting bets',
-                      color: 'text-blue-400',
-                      bgColor: 'bg-blue-500/10',
-                      borderColor: 'border-blue-500/30'
-                    };
-                  }
+                  const extendedPool = pool as Pool & {
+                    settled?: boolean;
+                    creatorSideWon?: boolean;
+                    result?: string;
+                    resultTimestamp?: number;
+                    marketId?: string;
+                  };
                   
                   return (
-                    <div className={`p-2 sm:p-3 rounded-lg border ${statusInfo.bgColor} ${statusInfo.borderColor} mb-4`}>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className={`text-xs sm:text-sm font-medium ${statusInfo.color}`}>
-                            {statusInfo.label}
-                          </div>
-                          <div className="text-xs text-gray-400">{statusInfo.description}</div>
-                        </div>
-                      </div>
-                    </div>
+                    <PoolStatusBanner 
+                      pool={{
+                        id: parseInt(poolId),
+                        settled: extendedPool.settled || false,
+                        creatorSideWon: extendedPool.creatorSideWon,
+                        eventStartTime: pool.eventDetails?.startTime ? Math.floor(pool.eventDetails.startTime.getTime() / 1000) : 0,
+                        eventEndTime: pool.eventDetails?.endTime ? Math.floor(pool.eventDetails.endTime.getTime() / 1000) : 0,
+                        bettingEndTime: pool.eventDetails?.startTime ? Math.floor(pool.eventDetails.startTime.getTime() / 1000) : 0,
+                        arbitrationDeadline: pool.eventDetails?.endTime ? Math.floor(pool.eventDetails.endTime.getTime() / 1000) + (7 * 24 * 60 * 60) : undefined,
+                        result: extendedPool.result || '',
+                        resultTimestamp: extendedPool.resultTimestamp,
+                        oracleType: 'GUIDED',
+                        marketId: extendedPool.marketId || ''
+                      }}
+                      className="mb-6"
+                    />
                   );
                 })()}
                     </div>

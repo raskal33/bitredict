@@ -29,7 +29,7 @@ export default function PoolTitleRow({
   className = "" 
 }: PoolTitleRowProps) {
   return (
-    <div className={`bg-gradient-to-r from-gray-800/50 to-gray-700/50 rounded-xl border border-gray-600/30 backdrop-blur-sm shadow-lg overflow-hidden ${className}`}>
+    <div className={`bg-gradient-to-br from-purple-600/30 via-blue-600/30 to-indigo-600/30 rounded-xl border border-purple-500/30 backdrop-blur-sm shadow-lg overflow-hidden ${className}`}>
       <div className="p-4 sm:p-6">
         {/* Professional Table Row Layout */}
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 sm:gap-6">
