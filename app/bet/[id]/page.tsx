@@ -38,7 +38,6 @@ import BetDisplay from "@/components/BetDisplay";
 import { calculatePoolFill } from "@/utils/poolCalculations";
 import useOptimizedPolling from "@/hooks/useOptimizedPolling";
 import SkeletonLoader from "@/components/SkeletonLoader";
-import { useOptimizedPool } from "@/hooks/useOptimizedPools";
 
 export default function BetPage() {
   const { address } = useAccount();
@@ -46,25 +45,6 @@ export default function BetPage() {
   const poolId = params.id as string;
   const { placeBet } = usePools();
   const { approve, isConfirmed: isApproveConfirmed, getAllowance } = useBITRToken();
-  
-  // Use optimized pool hook with real-time updates
-  const {
-    pool: optimizedPool,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    loading: optimizedLoading,
-    error: optimizedError,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    refetch: refetchOptimized,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    isConnected: isWebSocketConnected,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    lastUpdated
-  } = useOptimizedPool({
-    poolId: parseInt(poolId),
-    enableWebSocket: true,
-    autoRefresh: true,
-    refreshInterval: 30000
-  });
   
   // Helper function to check if BITR approval is needed
   const needsApproval = (amount: string): boolean => {
@@ -107,19 +87,10 @@ export default function BetPage() {
   const [lastFetchTime, setLastFetchTime] = useState<number>(0);
   const FETCH_COOLDOWN = 5000; // 5 seconds between fetches
 
-  // Real-time stats fetching - use optimized data when available, fallback to contract
+  // Real-time stats fetching with contract data ONLY (no backend dependency)
   const fetchRealTimeStats = useCallback(async () => {
     try {
-      // Use optimized pool data if available
-      if (optimizedPool) {
-        return {
-          challengerCount: optimizedPool.participants,
-          totalVolume: parseFloat(optimizedPool.totalBettorStake) / 1e18,
-          fillPercentage: optimizedPool.fillPercentage
-        };
-      }
-      
-      // Fallback to contract data
+      // Fetch directly from contract - same as enhanced pool card
       const contractData = await PoolContractService.getPool(parseInt(poolId));
       
       if (contractData) {
@@ -155,7 +126,7 @@ export default function BetPage() {
         fillPercentage: 0
       };
     }
-  }, [poolId, optimizedPool]);
+  }, [poolId]);
 
   const fetchBetStats = useCallback(async () => {
     if (!poolId) return {
@@ -257,51 +228,9 @@ export default function BetPage() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
       
-      // Use optimized pool data if available, otherwise fetch from contract
-      let poolData;
-      if (optimizedPool && !optimizedError) {
-        console.log('🚀 Using optimized pool data for bet page:', poolId);
-        // Convert optimized pool to contract format
-        poolData = {
-          poolId: optimizedPool.id,
-          creator: optimizedPool.creator.address,
-          odds: Math.round(optimizedPool.odds * 100), // Convert to basis points
-          flags: 0,
-          oracleType: optimizedPool.oracleType || 0,
-          marketType: optimizedPool.marketType || 0,
-          creatorStake: optimizedPool.creatorStake,
-          totalCreatorSideStake: optimizedPool.creatorStake,
-          maxBettorStake: optimizedPool.maxPoolSize,
-          totalBettorStake: optimizedPool.totalBettorStake,
-          predictedOutcome: optimizedPool.predictedOutcome || '',
-          result: '',
-          eventStartTime: optimizedPool.eventStartTime,
-          eventEndTime: optimizedPool.eventEndTime,
-          bettingEndTime: optimizedPool.bettingEndTime,
-          resultTimestamp: 0,
-          arbitrationDeadline: 0,
-          maxBetPerUser: 0,
-          marketId: '',
-          league: optimizedPool.league || '',
-          category: optimizedPool.category,
-          region: '',
-          homeTeam: optimizedPool.homeTeam || '',
-          awayTeam: optimizedPool.awayTeam || '',
-          title: optimizedPool.title,
-          reserved: 0,
-          settled: optimizedPool.status === 'settled',
-          creatorSideWon: false,
-          isPrivate: false,
-          usesBitr: optimizedPool.currency === 'BITR',
-          filledAbove60: optimizedPool.fillPercentage > 60,
-          boostTier: 0,
-          boostExpiry: 0,
-          bettorCount: optimizedPool.participants
-        };
-      } else {
-        console.log('🔗 Fetching pool data directly from contract for bet page:', poolId);
-        poolData = await PoolContractService.getPool(parseInt(poolId));
-      }
+      // Fetch pool data directly from contract (same as pool card)
+      console.log('🔗 Fetching pool data directly from contract for bet page:', poolId);
+      const poolData = await PoolContractService.getPool(parseInt(poolId));
       
       if (!poolData) {
         throw new Error(`Pool ${poolId} not found`);
@@ -491,7 +420,7 @@ export default function BetPage() {
     } finally {
       setLoading(false);
     }
-  }, [poolId, lastFetchTime, FETCH_COOLDOWN, optimizedPool, optimizedError]);
+  }, [poolId, lastFetchTime, FETCH_COOLDOWN]);
 
   const checkUserBetStatus = useCallback(async () => {
     if (!address) return;

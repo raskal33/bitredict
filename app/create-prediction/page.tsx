@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { useRouter, useSearchParams } from "next/navigation";
-import { parseUnits } from "viem";
+import { parseUnits, keccak256, toHex } from "viem";
 import { usePoolCore } from "@/hooks/useContractInteractions";
 import { 
   ArrowLeftIcon, 
@@ -989,6 +989,10 @@ function CreateMarketPageContent() {
         const eventStartTime = new Date(now.getTime() + (60 * 60 * 1000)); // 1 hour from now (default)
         const eventEndTime = new Date(eventStartTime.getTime() + (hours * 60 * 60 * 1000)); // Event Start + Timeframe
         
+        // Generate marketId hash for crypto market
+        const marketIdString = `${data.selectedCrypto.symbol.toLowerCase()}_${data.targetPrice}_${getDateString()}`;
+        const marketIdHash = keccak256(toHex(marketIdString));
+        
         const poolData = {
           predictedOutcome: predictedOutcome,
           odds: BigInt(data.odds),
@@ -1002,7 +1006,7 @@ function CreateMarketPageContent() {
           maxBetPerUser: data.maxBetPerUser ? parseUnits(data.maxBetPerUser.toString(), 18) : BigInt(0),
           useBitr: useBitr,
           oracleType: 0, // GUIDED
-          marketId: `${data.selectedCrypto.symbol.toLowerCase()}_${data.targetPrice}_${getDateString()}`,
+          marketId: marketIdHash, // Use keccak256 hash for crypto markets
           marketType: 0, // MONEYLINE for crypto price direction
           homeTeam: data.selectedCrypto.symbol,
           awayTeam: 'USD',

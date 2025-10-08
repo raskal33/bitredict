@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { websocketClient } from '@/services/websocket-client';
+import websocketClient from '@/services/websocket-client';
 
 interface PollingOptions {
   interval?: number;
@@ -59,6 +59,7 @@ export function useOptimizedPolling<T>(
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const websocketUnsubscribeRef = useRef<(() => void) | null>(null);
   const retryCountRef = useRef(0);
 
   // Request deduplication
@@ -192,7 +193,7 @@ export function useOptimizedPolling<T>(
   // WebSocket subscription
   useEffect(() => {
     if (websocketChannel && enabled) {
-      const handleWSData = (wsData: T) => {
+      const unsubscribe = websocketClient.subscribe(websocketChannel, (wsData) => {
         setData(wsData);
         setLastUpdated(new Date());
         
@@ -201,12 +202,14 @@ export function useOptimizedPolling<T>(
           const ttl = getCacheTTL(cacheKey);
           setCachedData(cacheKey, wsData, ttl);
         }
-      };
-
-      websocketClient.subscribe(websocketChannel, handleWSData);
+      });
+      
+      websocketUnsubscribeRef.current = unsubscribe;
       
       return () => {
-        websocketClient.unsubscribe(websocketChannel, handleWSData);
+        if (websocketUnsubscribeRef.current) {
+          websocketUnsubscribeRef.current();
+        }
       };
     }
   }, [websocketChannel, enabled, cacheKey, getCacheTTL, setCachedData]);
@@ -233,8 +236,8 @@ export function useOptimizedPolling<T>(
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
+      if (websocketUnsubscribeRef.current) {
+        websocketUnsubscribeRef.current();
       }
     };
   }, []);

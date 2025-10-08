@@ -1,62 +1,51 @@
-/**
- * WebSocket Client Service
- * Simplified WebSocket client for real-time updates
- */
+"use client";
 
-export interface WebSocketMessage {
+interface WebSocketMessage {
   type: string;
+  channel: string;
   data: any;
-  timestamp: number;
 }
 
-export type WebSocketEventHandler = (data: any) => void;
+interface Subscription {
+  channel: string;
+  callback: (data: any) => void;
+}
 
 class WebSocketClient {
   private ws: WebSocket | null = null;
-  private url: string;
-  private reconnectAttempts: number = 0;
-  private maxReconnectAttempts: number = 5;
-  private reconnectDelay: number = 1000;
-  private isConnecting: boolean = false;
-  private isConnected: boolean = false;
-  private eventHandlers: Map<string, WebSocketEventHandler[]> = new Map();
-  private subscriptions: Set<string> = new Set();
+  private subscriptions: Map<string, Subscription[]> = new Map();
+  private reconnectAttempts = 0;
+  private maxReconnectAttempts = 5;
+  private reconnectDelay = 1000;
   private heartbeatInterval: NodeJS.Timeout | null = null;
-  private reconnectTimeout: NodeJS.Timeout | null = null;
+  private isConnected = false;
 
-  constructor(url?: string) {
-    const baseUrl = url || process.env.NEXT_PUBLIC_WS_URL || 'wss://bitredict-backend.fly.dev';
-    // Append /ws if not already included
-    this.url = baseUrl.includes('/ws') ? baseUrl : `${baseUrl}/ws`;
+  constructor() {
+    this.connect();
   }
 
-  /**
-   * Connect to WebSocket server
-   */
-  async connect(): Promise<void> {
-    if (this.isConnecting || this.isConnected) {
-      return;
-    }
-
-    this.isConnecting = true;
-
+  private connect() {
     try {
-      console.log('🔌 Connecting to WebSocket:', this.url);
-      this.ws = new WebSocket(this.url);
+      // Get WebSocket URL from environment or fallback to backend URL
+      const baseUrl = process.env.NEXT_PUBLIC_WS_URL || process.env.NEXT_PUBLIC_API_URL || 'https://bitredict-backend.fly.dev';
+      
+      // Convert http/https to ws/wss
+      let wsUrl = baseUrl.replace('http://', 'ws://').replace('https://', 'wss://');
+      
+      // Append /ws if not already present
+      if (!wsUrl.endsWith('/ws')) {
+        wsUrl = `${wsUrl}/ws`;
+      }
+      
+      console.log('🔌 Connecting to WebSocket:', wsUrl);
+      
+      this.ws = new WebSocket(wsUrl);
       
       this.ws.onopen = () => {
-        console.log('✅ WebSocket connected');
+        console.log('WebSocket connected');
         this.isConnected = true;
-        this.isConnecting = false;
         this.reconnectAttempts = 0;
-        
-        // Start heartbeat
         this.startHeartbeat();
-        
-        // Resubscribe to all channels
-        this.resubscribe();
-        
-        this.emit('connected', {});
       };
 
       this.ws.onmessage = (event) => {
@@ -64,303 +53,129 @@ class WebSocketClient {
           const message: WebSocketMessage = JSON.parse(event.data);
           this.handleMessage(message);
         } catch (error) {
-          console.error('Failed to parse WebSocket message:', error);
+          console.error('Error parsing WebSocket message:', error);
         }
       };
 
-      this.ws.onclose = (event) => {
-        console.log('🔌 WebSocket disconnected:', event.code, event.reason);
+      this.ws.onclose = () => {
+        console.log('WebSocket disconnected');
         this.isConnected = false;
-        this.isConnecting = false;
         this.stopHeartbeat();
-        
-        this.emit('disconnected', { code: event.code, reason: event.reason });
-        
-        // Attempt to reconnect if not a manual close
-        if (event.code !== 1000) {
-          this.scheduleReconnect();
-        }
+        this.attemptReconnect();
       };
 
       this.ws.onerror = (error) => {
-        console.error('❌ WebSocket error:', error);
-        this.isConnecting = false;
-        this.emit('error', error);
+        console.error('WebSocket error:', error);
       };
-
     } catch (error) {
-      console.error('Failed to create WebSocket connection:', error);
-      this.isConnecting = false;
-      this.scheduleReconnect();
+      console.error('Error creating WebSocket connection:', error);
+      this.attemptReconnect();
     }
   }
 
-  /**
-   * Disconnect from WebSocket server
-   */
-  disconnect(): void {
-    if (this.reconnectTimeout) {
-      clearTimeout(this.reconnectTimeout);
-      this.reconnectTimeout = null;
-    }
-    
-    this.stopHeartbeat();
-    
-    if (this.ws) {
-      this.ws.close(1000, 'Manual disconnect');
-      this.ws = null;
-    }
-    
-    this.isConnected = false;
-    this.isConnecting = false;
-    this.subscriptions.clear();
-  }
-
-  /**
-   * Subscribe to a channel
-   */
-  subscribe(channel: string, handler: WebSocketEventHandler): void {
-    this.subscriptions.add(channel);
-    
-    // Add handler
-    if (!this.eventHandlers.has(channel)) {
-      this.eventHandlers.set(channel, []);
-    }
-    this.eventHandlers.get(channel)!.push(handler);
-    
-    if (this.isConnected && this.ws) {
-      this.send({
-        type: 'subscribe',
-        channel: channel
-      });
-    }
-  }
-
-  /**
-   * Unsubscribe from a channel
-   */
-  unsubscribe(channel: string, handler?: WebSocketEventHandler): void {
-    if (handler) {
-      // Remove specific handler
-      const handlers = this.eventHandlers.get(channel);
-      if (handlers) {
-        const index = handlers.indexOf(handler);
-        if (index > -1) {
-          handlers.splice(index, 1);
-        }
+  private handleMessage(message: WebSocketMessage) {
+    const subscriptions = this.subscriptions.get(message.channel) || [];
+    subscriptions.forEach(sub => {
+      try {
+        sub.callback(message.data);
+      } catch (error) {
+        console.error('Error in subscription callback:', error);
       }
-    } else {
-      // Remove all handlers for this channel
-      this.eventHandlers.delete(channel);
-    }
-    
-    this.subscriptions.delete(channel);
-    
-    if (this.isConnected && this.ws) {
-      this.send({
-        type: 'unsubscribe',
-        channel: channel
-      });
-    }
+    });
   }
 
-  /**
-   * Subscribe to pool updates
-   */
-  subscribeToPool(poolId: number, handler: WebSocketEventHandler): void {
-    this.subscribe(`pool:${poolId}`, handler);
-  }
-
-  /**
-   * Unsubscribe from pool updates
-   */
-  unsubscribeFromPool(poolId: number, handler?: WebSocketEventHandler): void {
-    this.unsubscribe(`pool:${poolId}`, handler);
-  }
-
-  /**
-   * Subscribe to pool progress updates
-   */
-  subscribeToPoolProgress(poolId: number, handler: WebSocketEventHandler): void {
-    this.subscribe(`pool:${poolId}:progress`, handler);
-  }
-
-  /**
-   * Unsubscribe from pool progress updates
-   */
-  unsubscribeFromPoolProgress(poolId: number, handler?: WebSocketEventHandler): void {
-    this.unsubscribe(`pool:${poolId}:progress`, handler);
-  }
-
-  /**
-   * Subscribe to recent bets
-   */
-  subscribeToRecentBets(handler: WebSocketEventHandler): void {
-    this.subscribe('recent-bets', handler);
-  }
-
-  /**
-   * Unsubscribe from recent bets
-   */
-  unsubscribeFromRecentBets(handler?: WebSocketEventHandler): void {
-    this.unsubscribe('recent-bets', handler);
-  }
-
-  /**
-   * Subscribe to all pools updates
-   */
-  subscribeToPools(handler: WebSocketEventHandler): void {
-    this.subscribe('pools-update', handler);
-  }
-
-  /**
-   * Unsubscribe from all pools updates
-   */
-  unsubscribeFromPools(handler?: WebSocketEventHandler): void {
-    this.unsubscribe('pools-update', handler);
-  }
-
-  /**
-   * Add global event handler
-   */
-  on(event: string, handler: WebSocketEventHandler): void {
-    if (!this.eventHandlers.has(event)) {
-      this.eventHandlers.set(event, []);
-    }
-    this.eventHandlers.get(event)!.push(handler);
-  }
-
-  /**
-   * Remove global event handler
-   */
-  off(event: string, handler: WebSocketEventHandler): void {
-    const handlers = this.eventHandlers.get(event);
-    if (handlers) {
-      const index = handlers.indexOf(handler);
-      if (index > -1) {
-        handlers.splice(index, 1);
-      }
-    }
-  }
-
-  /**
-   * Emit event to handlers
-   */
-  private emit(event: string, data: any): void {
-    const handlers = this.eventHandlers.get(event);
-    if (handlers) {
-      handlers.forEach(handler => {
-        try {
-          handler(data);
-        } catch (error) {
-          console.error('Error in WebSocket event handler:', error);
-        }
-      });
-    }
-  }
-
-  /**
-   * Send message to WebSocket server
-   */
-  private send(message: any): void {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(message));
-    } else {
-      console.warn('WebSocket not connected, cannot send message:', message);
-    }
-  }
-
-  /**
-   * Handle incoming WebSocket messages
-   */
-  private handleMessage(message: WebSocketMessage): void {
-    // Emit to specific channel handlers
-    const channelHandlers = this.eventHandlers.get(message.type);
-    if (channelHandlers) {
-      channelHandlers.forEach(handler => {
-        try {
-          handler(message.data);
-        } catch (error) {
-          console.error('Error in channel handler:', error);
-        }
-      });
-    }
-
-    // Emit to global handlers
-    this.emit(message.type, message.data);
-  }
-
-  /**
-   * Start heartbeat to keep connection alive
-   */
-  private startHeartbeat(): void {
+  private startHeartbeat() {
     this.heartbeatInterval = setInterval(() => {
-      if (this.isConnected && this.ws) {
-        this.send({ type: 'ping' });
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        this.ws.send(JSON.stringify({ type: 'ping' }));
       }
     }, 30000); // Send ping every 30 seconds
   }
 
-  /**
-   * Stop heartbeat
-   */
-  private stopHeartbeat(): void {
+  private stopHeartbeat() {
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval);
       this.heartbeatInterval = null;
     }
   }
 
-  /**
-   * Schedule reconnection attempt
-   */
-  private scheduleReconnect(): void {
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+  private attemptReconnect() {
+    if (this.reconnectAttempts < this.maxReconnectAttempts) {
+      this.reconnectAttempts++;
+      const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
+      
+      console.log(`Attempting to reconnect in ${delay}ms (attempt ${this.reconnectAttempts})`);
+      
+      setTimeout(() => {
+        this.connect();
+      }, delay);
+    } else {
       console.error('Max reconnection attempts reached');
-      this.emit('reconnect_failed', {});
-      return;
     }
-
-    this.reconnectAttempts++;
-    const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
-    
-    console.log(`Scheduling reconnection attempt ${this.reconnectAttempts} in ${delay}ms`);
-    
-    this.reconnectTimeout = setTimeout(() => {
-      this.connect();
-    }, delay);
   }
 
-  /**
-   * Resubscribe to all channels after reconnection
-   */
-  private resubscribe(): void {
-    this.subscriptions.forEach(channel => {
-      this.send({
+  public subscribe(channel: string, callback: (data: any) => void) {
+    if (!this.subscriptions.has(channel)) {
+      this.subscriptions.set(channel, []);
+    }
+    
+    this.subscriptions.get(channel)!.push({ channel, callback });
+    
+    // Send subscription message to server
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({
         type: 'subscribe',
-        channel: channel
-      });
-    });
+        channel
+      }));
+    }
+    
+    return () => this.unsubscribe(channel, callback);
   }
 
-  /**
-   * Get connection status
-   */
-  getConnectionStatus(): { connected: boolean; connecting: boolean } {
+  public unsubscribe(channel: string, callback: (data: any) => void) {
+    const subscriptions = this.subscriptions.get(channel);
+    if (subscriptions) {
+      const index = subscriptions.findIndex(sub => sub.callback === callback);
+      if (index > -1) {
+        subscriptions.splice(index, 1);
+        if (subscriptions.length === 0) {
+          this.subscriptions.delete(channel);
+        }
+      }
+    }
+  }
+
+  public subscribeToPoolProgress(poolId: string, callback: (data: any) => void) {
+    return this.subscribe(`pool:${poolId}:progress`, callback);
+  }
+
+  public subscribeToRecentBets(callback: (data: any) => void) {
+    return this.subscribe('recent_bets', callback);
+  }
+
+  public subscribeToPoolUpdates(poolId: string, callback: (data: any) => void) {
+    return this.subscribe(`pool:${poolId}:updates`, callback);
+  }
+
+  public getStats() {
     return {
       connected: this.isConnected,
-      connecting: this.isConnecting
+      totalSubscriptions: Array.from(this.subscriptions.values()).reduce((total, subs) => total + subs.length, 0),
+      channels: Array.from(this.subscriptions.keys())
     };
   }
 
-  /**
-   * Get subscribed channels
-   */
-  getSubscriptions(): string[] {
-    return Array.from(this.subscriptions);
+  public disconnect() {
+    this.stopHeartbeat();
+    if (this.ws) {
+      this.ws.close();
+      this.ws = null;
+    }
+    this.subscriptions.clear();
   }
 }
 
-// Export singleton instance
-export const websocketClient = new WebSocketClient();
-export default WebSocketClient;
+// Create singleton instance
+const websocketClient = new WebSocketClient();
+
+export default websocketClient;

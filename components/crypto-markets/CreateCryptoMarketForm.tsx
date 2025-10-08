@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { useAccount } from 'wagmi';
+import { keccak256, toHex } from 'viem';
 import { usePoolCore, usePoolFactory, useFaucet } from '@/hooks/useContractInteractions';
 import { toast } from 'react-hot-toast';
 
@@ -280,6 +281,10 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
       // Generate predicted outcome if not provided
       const predictedOutcome = formData.predictedOutcome || generatePredictedOutcome();
 
+      // Generate marketId hash for crypto market
+      const marketIdString = `${formData.cryptoAsset.toLowerCase()}_${formData.targetPrice}_${Date.now()}`;
+      const marketIdHash = keccak256(toHex(marketIdString));
+
       // Prepare pool data with all required contract parameters
       const poolData = {
         predictedOutcome,
@@ -297,7 +302,7 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
         awayTeam: formData.awayTeam,
         title: formData.title,
         oracleType: formData.oracleType, // GUIDED oracle type for crypto
-        marketId: formData.marketId,
+        marketId: marketIdHash, // Use keccak256 hash for crypto markets
         marketType: formData.marketType, // MONEYLINE for crypto price direction
       };
 
