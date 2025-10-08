@@ -60,6 +60,32 @@ export class PoolContractService {
   }
 
   /**
+   * Get pool progress data
+   */
+  static async getPoolProgress(poolId: number): Promise<{
+    totalStaked: string;
+    bettorCount: number;
+    creatorSideStake: string;
+    bettorSideStake: string;
+    currentBettorStake: string;
+  }> {
+    try {
+      const pool = await this.getPool(poolId);
+      
+      return {
+        totalStaked: (BigInt(pool.totalCreatorSideStake || "0") + BigInt(pool.totalBettorStake || "0")).toString(),
+        bettorCount: 0, // This would need to be tracked separately
+        creatorSideStake: pool.totalCreatorSideStake || "0",
+        bettorSideStake: pool.totalBettorStake || "0",
+        currentBettorStake: pool.totalBettorStake || "0"
+      };
+    } catch (error) {
+      console.error('Error fetching pool progress:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get pool data directly from contract
    */
   static async getPool(poolId: number): Promise<any | null> {
