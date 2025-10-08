@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import EnhancedPoolCard from './EnhancedPoolCard';
 import { EnhancedPool } from '@/components/EnhancedPoolCard';
-import { useBetPagePrefetch } from '@/hooks/useBetPagePrefetch';
+// import { useBetPagePrefetch } from '@/hooks/useBetPagePrefetch';
 
 interface LazyPoolCardProps {
   pool: EnhancedPool;
@@ -13,7 +13,7 @@ interface LazyPoolCardProps {
 }
 
 export default function LazyPoolCard({ pool, index, onPoolSelect }: LazyPoolCardProps) {
-  const { prefetchOnHover } = useBetPagePrefetch();
+  // const { prefetchOnHover } = useBetPagePrefetch();
   const [isVisible, setIsVisible] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -46,7 +46,7 @@ export default function LazyPoolCard({ pool, index, onPoolSelect }: LazyPoolCard
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: index * 0.05 }}
-          onMouseEnter={() => prefetchOnHover(pool.id)}
+          // onMouseEnter={() => prefetchOnHover(pool.id)}
           onClick={() => onPoolSelect?.(pool)}
         >
           <EnhancedPoolCard 
