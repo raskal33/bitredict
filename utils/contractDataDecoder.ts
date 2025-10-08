@@ -4,6 +4,7 @@
 import { decodeTeamHash, decodeLeagueHash, decodeMarketId } from './hashDecoder';
 import { decodeBytes32String } from './bytes32Decoder';
 import { PoolMetadataService } from '../services/poolMetadataService';
+import { determineCategoryFromContractData, getPoolStatusFromContract } from '../services/contractDataMapping';
 import { ethers } from 'ethers';
 
 /**
@@ -205,6 +206,9 @@ export function decodePoolFlags(flags: number, isSettled: boolean = false) {
  * Process raw pool data from contract
  */
 export function processRawPoolData(rawPool: any) {
+  // Enhanced pool status detection using contract flags
+  const statusInfo = getPoolStatusFromContract(rawPool);
+  
   // Detect if pool is settled by checking resultTimestamp
   const isSettled = rawPool.resultTimestamp && rawPool.resultTimestamp !== '0';
   const flags = decodePoolFlags(rawPool.flags || 0, isSettled);
@@ -244,6 +248,9 @@ export function processRawPoolData(rawPool: any) {
   const awayTeam = decodedAwayTeam || marketInfo?.awayTeam || 'Team B';
   const league = decodedLeague || marketInfo?.league || 'Unknown League';
   
+  // Enhanced category detection using the new mapping service
+  const category = determineCategoryFromContractData(rawPool);
+  
   // Generate readable titles
   const tokenSymbol = usesBitr ? 'BITR' : 'STT';
   const hasTeamNames = homeTeam !== 'Team A' && awayTeam !== 'Team B';
@@ -251,6 +258,16 @@ export function processRawPoolData(rawPool: any) {
     ? `${homeTeam} vs ${awayTeam} (${tokenSymbol})`
     : `Pool #${rawPool.poolId} (${tokenSymbol})`;
   
+  console.log('🔍 Pool processing result:', {
+    poolId: rawPool.poolId,
+    category,
+    marketType: rawPool.marketType,
+    homeTeam,
+    awayTeam,
+    league,
+    statusInfo
+  });
+
   return {
     ...rawPool,
     // Use decoded or generated readable data
@@ -258,18 +275,23 @@ export function processRawPoolData(rawPool: any) {
     homeTeam: homeTeam,
     awayTeam: awayTeam,
     league: league,
-    category: getCategoryFromHash(rawPool.category, rawPool) || 'Sports',
+    category: category, // Use enhanced category detection
     region: bytes32ToString(rawPool.region),
     predictedOutcome: decodePredictedOutcome(rawPool.predictedOutcome),
     result: bytes32ToString(rawPool.result),
     marketId: bytes32ToString(rawPool.marketId),
     
-    // Decode flags
-    settled: flags.settled,
-    creatorSideWon: flags.creatorSideWon,
+    // Enhanced flags with status info
+    settled: statusInfo.settled,
+    creatorSideWon: statusInfo.creatorSideWon,
     isPrivate: flags.isPrivate,
     usesBitr: usesBitr, // Use corrected value
     filledAbove60: flags.filledAbove60,
+    
+    // Additional status information
+    isActive: statusInfo.isActive,
+    isFilled: statusInfo.isFilled,
+    canBet: statusInfo.canBet,
     
     // Include market type and other contract data
     marketType: rawPool.marketType,

@@ -4,8 +4,10 @@
  * Similar to backend service but optimized for frontend use
  */
 
+import { getMarketTypeString, getMarketTypeLabel } from './contractDataMapping';
+
 export interface MarketData {
-  marketType: string;
+  marketType: string | number; // Accept both string and numeric market types
   homeTeam?: string;
   awayTeam?: string;
   predictedOutcome: string;
@@ -41,8 +43,22 @@ class TitleTemplatesService {
    * Generate title for any market type
    */
   generateTitle(marketData: MarketData, options: TitleOptions = {}): string {
-    const { marketType, homeTeam, awayTeam, predictedOutcome, league, category } = marketData;
+    const { homeTeam, awayTeam, predictedOutcome, league, category } = marketData;
     const { short = false, includeLeague = false, maxLength = 50 } = options;
+
+    // Convert numeric market type to string if needed
+    const marketTypeString = typeof marketData.marketType === 'number' 
+      ? getMarketTypeString(marketData.marketType)
+      : marketData.marketType;
+
+    console.log('🏷️ TITLE GENERATION DEBUG:', {
+      originalMarketType: marketData.marketType,
+      marketTypeString,
+      predictedOutcome,
+      homeTeam,
+      awayTeam,
+      category
+    });
 
     // Check if this is a crypto market
     if (this.isCryptoMarket(marketData)) {
@@ -50,13 +66,13 @@ class TitleTemplatesService {
     }
 
     if (!homeTeam || !awayTeam) {
-      return this.generateFallbackTitle(predictedOutcome, marketType);
+      return this.generateFallbackTitle(predictedOutcome, marketTypeString);
     }
 
     // For team-specific predictions, determine which team is winning
     // Only use team-specific logic for moneyline markets (1X2)
-    const teamSpecificTitle = marketType === '1X2' 
-      ? this.generateTeamSpecificTitle(predictedOutcome, homeTeam, awayTeam, marketType, short)
+    const teamSpecificTitle = marketTypeString === 'MONEYLINE' 
+      ? this.generateTeamSpecificTitle(predictedOutcome, homeTeam, awayTeam, marketTypeString, short)
       : null;
     if (teamSpecificTitle) {
       let title = teamSpecificTitle;
@@ -66,10 +82,10 @@ class TitleTemplatesService {
       return this.truncateTitle(title, maxLength);
     }
 
-    const templates = this.getTemplates(marketType, short);
+    const templates = this.getTemplates(marketTypeString, short);
     
     console.log('🎯 TITLE TEMPLATES SERVICE - Debug:');
-    console.log('🎯 TITLE TEMPLATES SERVICE - Market type:', marketType);
+    console.log('🎯 TITLE TEMPLATES SERVICE - Market type:', marketTypeString);
     console.log('🎯 TITLE TEMPLATES SERVICE - Predicted outcome:', predictedOutcome);
     console.log('🎯 TITLE TEMPLATES SERVICE - Available templates:', Object.keys(templates));
     console.log('🎯 TITLE TEMPLATES SERVICE - Templates for market type:', templates);
@@ -101,7 +117,7 @@ class TitleTemplatesService {
     }
 
     // Try specific Over/Under variations
-    if (marketType.startsWith('OU')) {
+    if (marketTypeString.startsWith('OU')) {
       const ouVariations = this.getOverUnderVariations(predictedOutcome);
       for (const variation of ouVariations) {
         if (templates[variation]) {
@@ -456,8 +472,8 @@ class TitleTemplatesService {
 
   private getFullTemplates(marketType: string): Record<string, string> {
     const templates: Record<string, Record<string, string>> = {
-      // Moneyline markets (1X2) - Professional prediction market style
-      '1X2': {
+      // Moneyline markets (MONEYLINE) - Professional prediction market style
+      'MONEYLINE': {
         'Home wins': '${homeTeam} will beat ${awayTeam} at home!',
         'Away wins': '${awayTeam} will beat ${homeTeam} away!',
         'Draw': '${homeTeam} vs ${awayTeam} will end in a draw!',
@@ -468,8 +484,90 @@ class TitleTemplatesService {
         'Away': '${awayTeam} will beat ${homeTeam} away!'
       },
 
-      // Over/Under markets - Professional prediction market style
-      'OU05': {
+      // Over/Under markets (OVER_UNDER) - Professional prediction market style
+      'OVER_UNDER': {
+        'Over 0.5 goals': '${homeTeam} vs ${awayTeam} will have over 0.5 goals!',
+        'Under 0.5 goals': '${homeTeam} vs ${awayTeam} will have under 0.5 goals!',
+        'Over 1.5 goals': '${homeTeam} vs ${awayTeam} will have over 1.5 goals!',
+        'Under 1.5 goals': '${homeTeam} vs ${awayTeam} will have under 1.5 goals!',
+        'Over 2.5 goals': '${homeTeam} vs ${awayTeam} will have over 2.5 goals!',
+        'Under 2.5 goals': '${homeTeam} vs ${awayTeam} will have under 2.5 goals!',
+        'Over 3.5 goals': '${homeTeam} vs ${awayTeam} will have over 3.5 goals!',
+        'Under 3.5 goals': '${homeTeam} vs ${awayTeam} will have under 3.5 goals!',
+        'Over 4.5 goals': '${homeTeam} vs ${awayTeam} will have over 4.5 goals!',
+        'Under 4.5 goals': '${homeTeam} vs ${awayTeam} will have under 4.5 goals!',
+        'Over': '${homeTeam} vs ${awayTeam} will have over 2.5 goals!',
+        'Under': '${homeTeam} vs ${awayTeam} will have under 2.5 goals!',
+        'Over 0.5': '${homeTeam} vs ${awayTeam} will have over 0.5 goals!',
+        'Under 0.5': '${homeTeam} vs ${awayTeam} will have under 0.5 goals!',
+        'Over 1.5': '${homeTeam} vs ${awayTeam} will have over 1.5 goals!',
+        'Under 1.5': '${homeTeam} vs ${awayTeam} will have under 1.5 goals!',
+        'Over 2.5': '${homeTeam} vs ${awayTeam} will have over 2.5 goals!',
+        'Under 2.5': '${homeTeam} vs ${awayTeam} will have under 2.5 goals!',
+        'Over 3.5': '${homeTeam} vs ${awayTeam} will have over 3.5 goals!',
+        'Under 3.5': '${homeTeam} vs ${awayTeam} will have under 3.5 goals!',
+        'Over 4.5': '${homeTeam} vs ${awayTeam} will have over 4.5 goals!',
+        'Under 4.5': '${homeTeam} vs ${awayTeam} will have under 4.5 goals!'
+      },
+
+      // Both Teams to Score (BOTH_TEAMS_SCORE)
+      'BOTH_TEAMS_SCORE': {
+        'Both teams to score': '${homeTeam} and ${awayTeam} will both score!',
+        'Both teams will not score': '${homeTeam} vs ${awayTeam} will not both score!',
+        'Yes': '${homeTeam} and ${awayTeam} will both score!',
+        'No': '${homeTeam} vs ${awayTeam} will not both score!',
+        'BTTS Yes': '${homeTeam} and ${awayTeam} will both score!',
+        'BTTS No': '${homeTeam} vs ${awayTeam} will not both score!'
+      },
+
+      // Half Time (HALF_TIME)
+      'HALF_TIME': {
+        'Home leads at half-time': '${homeTeam} will lead at half-time vs ${awayTeam}!',
+        'Away leads at half-time': '${awayTeam} will lead at half-time vs ${homeTeam}!',
+        'Draw at half-time': '${homeTeam} vs ${awayTeam} will be tied at half-time!',
+        '1': '${homeTeam} will lead at half-time vs ${awayTeam}!',
+        '2': '${awayTeam} will lead at half-time vs ${homeTeam}!',
+        'X': '${homeTeam} vs ${awayTeam} will be tied at half-time!'
+      },
+
+      // Double Chance (DOUBLE_CHANCE)
+      'DOUBLE_CHANCE': {
+        'Home or Draw': '${homeTeam} will not lose to ${awayTeam}!',
+        'Away or Draw': '${awayTeam} will not lose to ${homeTeam}!',
+        'Home or Away': '${homeTeam} vs ${awayTeam} will not end in a draw!',
+        '1X': '${homeTeam} will not lose to ${awayTeam}!',
+        '2X': '${awayTeam} will not lose to ${homeTeam}!',
+        '12': '${homeTeam} vs ${awayTeam} will not end in a draw!'
+      },
+
+      // Correct Score (CORRECT_SCORE)
+      'CORRECT_SCORE': {
+        '1-0': '${homeTeam} will beat ${awayTeam} 1-0!',
+        '2-0': '${homeTeam} will beat ${awayTeam} 2-0!',
+        '2-1': '${homeTeam} will beat ${awayTeam} 2-1!',
+        '3-0': '${homeTeam} will beat ${awayTeam} 3-0!',
+        '3-1': '${homeTeam} will beat ${awayTeam} 3-1!',
+        '3-2': '${homeTeam} will beat ${awayTeam} 3-2!',
+        '0-1': '${awayTeam} will beat ${homeTeam} 1-0!',
+        '0-2': '${awayTeam} will beat ${homeTeam} 2-0!',
+        '1-2': '${awayTeam} will beat ${homeTeam} 2-1!',
+        '0-3': '${awayTeam} will beat ${homeTeam} 3-0!',
+        '1-3': '${awayTeam} will beat ${homeTeam} 3-1!',
+        '2-3': '${awayTeam} will beat ${homeTeam} 3-2!',
+        '0-0': '${homeTeam} vs ${awayTeam} will end 0-0!',
+        '1-1': '${homeTeam} vs ${awayTeam} will end 1-1!',
+        '2-2': '${homeTeam} vs ${awayTeam} will end 2-2!'
+      },
+
+      // First Goal (FIRST_GOAL)
+      'FIRST_GOAL': {
+        'Home team scores first': '${homeTeam} will score first vs ${awayTeam}!',
+        'Away team scores first': '${awayTeam} will score first vs ${homeTeam}!',
+        'No goals': '${homeTeam} vs ${awayTeam} will have no goals!'
+      },
+
+      // Custom markets (CUSTOM)
+      'CUSTOM': {
         'Over 0.5 goals': '${homeTeam} vs ${awayTeam} will have over 0.5 goals!',
         'Under 0.5 goals': '${homeTeam} vs ${awayTeam} will have under 0.5 goals!',
         'Over': '${homeTeam} vs ${awayTeam} will have over 0.5 goals!',
