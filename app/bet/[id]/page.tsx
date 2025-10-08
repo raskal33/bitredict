@@ -32,13 +32,13 @@ import { parseUnits } from "viem";
 import { toast } from "react-hot-toast";
 import { PoolContractService } from "@/services/poolContractService";
 import { PoolExplanationService, PoolExplanation } from "@/services/poolExplanationService";
-import { optimizedPoolService } from "@/services/optimizedPoolService";
 import PoolTitleRow from "@/components/PoolTitleRow";
 import CryptoTitleRow from "@/components/CryptoTitleRow";
 import BetDisplay from "@/components/BetDisplay";
 import { calculatePoolFill } from "@/utils/poolCalculations";
 import useOptimizedPolling from "@/hooks/useOptimizedPolling";
 import SkeletonLoader from "@/components/SkeletonLoader";
+import { useOptimizedPool } from "@/hooks/useOptimizedPools";
 
 export default function BetPage() {
   const { address } = useAccount();
@@ -46,6 +46,25 @@ export default function BetPage() {
   const poolId = params.id as string;
   const { placeBet } = usePools();
   const { approve, isConfirmed: isApproveConfirmed, getAllowance } = useBITRToken();
+  
+  // Use optimized pool hook with real-time updates
+  const {
+    pool: optimizedPool,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    loading: optimizedLoading,
+    error: optimizedError,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    refetch: refetchOptimized,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    isConnected: isWebSocketConnected,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    lastUpdated
+  } = useOptimizedPool({
+    poolId: parseInt(poolId),
+    enableWebSocket: true,
+    autoRefresh: true,
+    refreshInterval: 30000
+  });
   
   // Helper function to check if BITR approval is needed
   const needsApproval = (amount: string): boolean => {
@@ -88,10 +107,19 @@ export default function BetPage() {
   const [lastFetchTime, setLastFetchTime] = useState<number>(0);
   const FETCH_COOLDOWN = 5000; // 5 seconds between fetches
 
-  // Real-time stats fetching with contract data ONLY (no backend dependency)
+  // Real-time stats fetching - use optimized data when available, fallback to contract
   const fetchRealTimeStats = useCallback(async () => {
     try {
-      // Fetch directly from contract - same as enhanced pool card
+      // Use optimized pool data if available
+      if (optimizedPool) {
+        return {
+          challengerCount: optimizedPool.participants,
+          totalVolume: parseFloat(optimizedPool.totalBettorStake) / 1e18,
+          fillPercentage: optimizedPool.fillPercentage
+        };
+      }
+      
+      // Fallback to contract data
       const contractData = await PoolContractService.getPool(parseInt(poolId));
       
       if (contractData) {
@@ -127,7 +155,7 @@ export default function BetPage() {
         fillPercentage: 0
       };
     }
-  }, [poolId]);
+  }, [poolId, optimizedPool]);
 
   const fetchBetStats = useCallback(async () => {
     if (!poolId) return {
@@ -226,80 +254,68 @@ export default function BetPage() {
     try {
       setLoading(true);
       
-      // Fetch pool data using optimized service (10-25x faster)
-      console.log('🚀 Fetching pool data using optimized service for bet page:', poolId);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
       
-      let optimizedPool;
-      try {
-        optimizedPool = await optimizedPoolService.getPool(parseInt(poolId));
-      } catch (error) {
-        console.warn('Optimized API failed, falling back to contract calls:', error);
-        // Fallback to contract calls
-        const contractData = await PoolContractService.getPool(parseInt(poolId));
-        if (!contractData) {
-          throw new Error(`Pool ${poolId} not found`);
-        }
-        
-        // Convert contract data to OptimizedPool format
-        const stakeAmount = parseFloat(contractData.creatorStake || "0") / 1e18;
-        optimizedPool = {
-          id: parseInt(poolId),
-          title: contractData.title || `Pool ${poolId}`,
-          category: contractData.category || 'sports',
-          creator: {
-            address: contractData.creator,
-            username: `${contractData.creator.slice(0, 6)}...${contractData.creator.slice(-4)}`,
-            successRate: 0,
-            totalPools: 0,
-            totalVolume: 0,
-            badges: []
-          },
-          odds: contractData.odds,
-          creatorStake: (stakeAmount).toString(),
-          totalBettorStake: (parseFloat(contractData.totalBettorStake || "0") / 1e18).toString(),
-          maxPoolSize: ((stakeAmount * 100) / (Math.round(contractData.odds * 100) - 100)).toString(),
-          fillPercentage: 0,
-          participants: 0,
-          eventStartTime: contractData.eventStartTime,
-          eventEndTime: contractData.eventEndTime,
-          bettingEndTime: contractData.bettingEndTime,
-          status: 'active' as const,
-          currency: stakeAmount >= 1000 ? 'BITR' as const : 'STT' as const,
-          boostTier: 'NONE' as const,
-          trending: false,
-          socialStats: { likes: 0, comments: 0, views: 0 },
-          timeLeft: { days: 0, hours: 0, minutes: 0, seconds: 0 }
+      // Use optimized pool data if available, otherwise fetch from contract
+      let poolData;
+      if (optimizedPool && !optimizedError) {
+        console.log('🚀 Using optimized pool data for bet page:', poolId);
+        // Convert optimized pool to contract format
+        poolData = {
+          poolId: optimizedPool.id,
+          creator: optimizedPool.creator.address,
+          odds: Math.round(optimizedPool.odds * 100), // Convert to basis points
+          flags: 0,
+          oracleType: optimizedPool.oracleType || 0,
+          marketType: optimizedPool.marketType || 0,
+          creatorStake: optimizedPool.creatorStake,
+          totalCreatorSideStake: optimizedPool.creatorStake,
+          maxBettorStake: optimizedPool.maxPoolSize,
+          totalBettorStake: optimizedPool.totalBettorStake,
+          predictedOutcome: optimizedPool.predictedOutcome || '',
+          result: '',
+          eventStartTime: optimizedPool.eventStartTime,
+          eventEndTime: optimizedPool.eventEndTime,
+          bettingEndTime: optimizedPool.bettingEndTime,
+          resultTimestamp: 0,
+          arbitrationDeadline: 0,
+          maxBetPerUser: 0,
+          marketId: '',
+          league: optimizedPool.league || '',
+          category: optimizedPool.category,
+          region: '',
+          homeTeam: optimizedPool.homeTeam || '',
+          awayTeam: optimizedPool.awayTeam || '',
+          title: optimizedPool.title,
+          reserved: 0,
+          settled: optimizedPool.status === 'settled',
+          creatorSideWon: false,
+          isPrivate: false,
+          usesBitr: optimizedPool.currency === 'BITR',
+          filledAbove60: optimizedPool.fillPercentage > 60,
+          boostTier: 0,
+          boostExpiry: 0,
+          bettorCount: optimizedPool.participants
         };
+      } else {
+        console.log('🔗 Fetching pool data directly from contract for bet page:', poolId);
+        poolData = await PoolContractService.getPool(parseInt(poolId));
       }
       
-      if (!optimizedPool) {
+      if (!poolData) {
         throw new Error(`Pool ${poolId} not found`);
       }
       
-      console.log('✅ Optimized pool data for bet page:', optimizedPool);
+      console.log('🔍 Contract pool data for bet page:', poolData);
+      console.log('🔍 Market Type (raw):', poolData.marketType);
+      console.log('🔍 Predicted Outcome (raw):', poolData.predictedOutcome);
+      console.log('🔍 Market Type (decoded):', typeof poolData.marketType, poolData.marketType);
+      console.log('🔍 Predicted Outcome (decoded):', typeof poolData.predictedOutcome, poolData.predictedOutcome);
       
-      // Convert OptimizedPool to Pool format for compatibility
-      const poolData = {
-        id: optimizedPool.id,
-        creator: optimizedPool.creator.address,
-        odds: optimizedPool.odds,
-        creatorStake: optimizedPool.creatorStake,
-        totalBettorStake: optimizedPool.totalBettorStake,
-        maxBettorStake: optimizedPool.maxPoolSize,
-        predictedOutcome: optimizedPool.title,
-        eventStartTime: optimizedPool.eventStartTime,
-        eventEndTime: optimizedPool.eventEndTime,
-        bettingEndTime: optimizedPool.bettingEndTime,
-        homeTeam: optimizedPool.title.split(' vs ')[0] || 'Team A',
-        awayTeam: optimizedPool.title.split(' vs ')[1] || 'Team B',
-        league: optimizedPool.category,
-        category: optimizedPool.category,
-        region: 'Global',
-        marketType: 0, // Default to MONEYLINE
-        usesBitr: optimizedPool.currency === 'BITR'
-      };
-      
-      console.log('🔍 Converted pool data for bet page:', poolData);
+      // Determine currency based on stake amount (same logic as pool card)
+      const stakeAmount = parseFloat(poolData.creatorStake || "0") / 1e18;
+      const usesBitr = stakeAmount >= 1000; // If stake >= 1000, likely BITR
       
       // Generate pool explanation using the service
       const explanationData = {
@@ -314,7 +330,7 @@ export default function BetPage() {
         marketType: poolData.marketType,
         eventStartTime: poolData.eventStartTime,
         eventEndTime: poolData.eventEndTime,
-        usesBitr: poolData.usesBitr,
+        usesBitr: usesBitr,
         creatorStake: poolData.creatorStake
       };
       
@@ -322,29 +338,39 @@ export default function BetPage() {
       setPoolExplanation(explanation);
       console.log('🎯 Generated pool explanation:', explanation);
       
-      // Use optimized pool data for progress calculation
-      const participants = optimizedPool.participants;
-      const fillPercentage = optimizedPool.fillPercentage;
+      clearTimeout(timeoutId);
+      
+      // Calculate progress info directly from contract data (no backend API)
+      const poolCalculation = calculatePoolFill({
+        creatorStake: poolData.creatorStake,
+        totalBettorStake: poolData.totalBettorStake,
+        odds: poolData.odds,
+        isWei: true
+      });
+      
+      const currentBettorStake = parseFloat(poolData.totalBettorStake || "0") / 1e18;
+      const estimatedParticipants = currentBettorStake > 0 ? Math.max(1, Math.floor(currentBettorStake / 100)) : 0;
       
       const progressInfo = {
-        fillPercentage: fillPercentage,
-        bettorCount: participants,
+        fillPercentage: poolCalculation.fillPercentage,
+        bettorCount: estimatedParticipants,
         lpCount: 0 // Not tracked on-chain
       };
       
-      // Use optimized pool data (already formatted)
-      const creatorStakeNum = parseFloat(optimizedPool.creatorStake || "0");
-      const totalBettorStakeNum = parseFloat(optimizedPool.totalBettorStake || "0");
+      // Use contract data with proper formatting
+      const creatorStakeNum = parseFloat(poolData.creatorStake || "0") / 1e18; // Convert from wei
+      const totalBettorStakeNum = parseFloat(poolData.totalBettorStake || "0") / 1e18; // Convert from wei
       // Calculate creator potential win: creatorStake / (odds - 1) + creatorStake
-      const potentialWinNum = (creatorStakeNum / (optimizedPool.odds - 1)) + creatorStakeNum;
+      const potentialWinNum = (creatorStakeNum / (poolData.odds - 1)) + creatorStakeNum;
       
       // Set state variables
       setCreatorStakeFormatted(creatorStakeNum);
       setTotalBettorStakeFormatted(totalBettorStakeNum);
       setPotentialWinFormatted(potentialWinNum);
       
-      // Use optimized pool data for max pool size
-      const maxPoolSizeNum = parseFloat(optimizedPool.maxPoolSize || "0");
+      // Calculate max pool size using contract formula: (creatorStake * 100) / (odds - 100)
+      const contractOdds = Math.round(poolData.odds * 100);
+      const maxPoolSizeNum = (creatorStakeNum * 100) / (contractOdds - 100);
       setMaxPoolSizeFormatted(maxPoolSizeNum);
       const getDifficultyTier = (odds: number) => {
         if (odds >= 5.0) return "legendary";
@@ -375,15 +401,15 @@ export default function BetPage() {
           challengeScore: Math.round(poolData.odds * 20),
           totalVolume: creatorStakeNum,
           badges: [],
-          createdAt: new Date().toISOString(),
+          createdAt: poolData.createdAt || new Date().toISOString(),
           bio: ""
         },
-        challengeScore: Math.round(optimizedPool.odds * 20),
+        challengeScore: Math.round(poolData.odds * 20),
         qualityScore: 0, // Will be calculated from blockchain data
-        difficultyTier: getDifficultyTier(optimizedPool.odds),
+        difficultyTier: getDifficultyTier(poolData.odds),
         predictedOutcome: poolData.predictedOutcome,
         creatorPrediction: "no", // Creator thinks it WON'T happen
-        odds: optimizedPool.odds,
+        odds: poolData.odds,
         participants: (progressInfo.bettorCount || 0) + (progressInfo.lpCount || 0),
         volume: totalBettorStakeNum,
         image: poolData.category === "football" ? "⚽" : poolData.category === "basketball" ? "🏀" : "🎯",
@@ -399,7 +425,7 @@ export default function BetPage() {
           shares: 0
         },
         defeated: 0,
-        currency: poolData.usesBitr ? "BITR" : "STT",
+        currency: usesBitr ? "BITR" : "STT",
         endDate: poolData.eventEndTime ? new Date(poolData.eventEndTime * 1000).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         poolType: "single",
         comments: [],
@@ -465,7 +491,7 @@ export default function BetPage() {
     } finally {
       setLoading(false);
     }
-  }, [poolId, lastFetchTime, FETCH_COOLDOWN]);
+  }, [poolId, lastFetchTime, FETCH_COOLDOWN, optimizedPool, optimizedError]);
 
   const checkUserBetStatus = useCallback(async () => {
     if (!address) return;
@@ -839,8 +865,8 @@ export default function BetPage() {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-4">
       <div className="max-w-7xl mx-auto">
         <SkeletonLoader type="bet-page" />
-      </div>
-    </div>
+                      </div>
+                    </div>
   );
 
   if (!pool) return (
@@ -1066,7 +1092,7 @@ export default function BetPage() {
                     </div>
                   );
                 })()}
-              </div>
+                    </div>
               
               {/* Creator Prediction - Core Mechanic */}
               <div className="mb-4 p-3 sm:p-4 bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/20 rounded-lg">
@@ -1109,10 +1135,10 @@ export default function BetPage() {
                     </div>
                     <div className="text-xs text-gray-400">
                       {address === pool.creator.address ? 'If you win' : 'If creator wins'}
-                    </div>
                   </div>
                 </div>
                   </div>
+            </div>
 
             {/* Enhanced Pool Progress Bar */}
             <div className="mb-4 p-4 sm:p-6 bg-gradient-to-br from-gray-800/50 to-gray-700/50 rounded-xl border border-gray-600/30 backdrop-blur-sm shadow-lg">

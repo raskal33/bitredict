@@ -1,6 +1,6 @@
 /**
- * WebSocket Client Service
- * Simplified WebSocket client for real-time updates
+ * WebSocket Service for Real-time Updates
+ * Handles WebSocket connections and real-time data updates
  */
 
 export interface WebSocketMessage {
@@ -9,9 +9,36 @@ export interface WebSocketMessage {
   timestamp: number;
 }
 
+export interface PoolProgressUpdate {
+  poolId: number;
+  fillPercentage: number;
+  totalBettorStake: string;
+  maxPoolSize: string;
+  participants: number;
+  lastUpdated: number;
+}
+
+export interface NewBetUpdate {
+  poolId: number;
+  bettor: string;
+  amount: string;
+  isForOutcome: boolean;
+  timestamp: number;
+  poolTitle: string;
+  category: string;
+}
+
+export interface PoolUpdate {
+  poolId: number;
+  status: 'active' | 'closed' | 'settled';
+  canBet: boolean;
+  isEventStarted: boolean;
+  isPoolFilled: boolean;
+}
+
 export type WebSocketEventHandler = (data: any) => void;
 
-class WebSocketClient {
+class WebSocketService {
   private ws: WebSocket | null = null;
   private url: string;
   private reconnectAttempts: number = 0;
@@ -24,10 +51,9 @@ class WebSocketClient {
   private heartbeatInterval: NodeJS.Timeout | null = null;
   private reconnectTimeout: NodeJS.Timeout | null = null;
 
-  constructor(url?: string) {
-    const baseUrl = url || process.env.NEXT_PUBLIC_WS_URL || 'wss://bitredict-backend.fly.dev';
+  constructor(url: string = process.env.NEXT_PUBLIC_WS_URL || 'wss://bitredict-backend.fly.dev') {
     // Append /ws if not already included
-    this.url = baseUrl.includes('/ws') ? baseUrl : `${baseUrl}/ws`;
+    this.url = url.includes('/ws') ? url : `${url}/ws`;
   }
 
   /**
@@ -41,11 +67,10 @@ class WebSocketClient {
     this.isConnecting = true;
 
     try {
-      console.log('🔌 Connecting to WebSocket:', this.url);
       this.ws = new WebSocket(this.url);
       
       this.ws.onopen = () => {
-        console.log('✅ WebSocket connected');
+        console.log('WebSocket connected');
         this.isConnected = true;
         this.isConnecting = false;
         this.reconnectAttempts = 0;
@@ -69,7 +94,7 @@ class WebSocketClient {
       };
 
       this.ws.onclose = (event) => {
-        console.log('🔌 WebSocket disconnected:', event.code, event.reason);
+        console.log('WebSocket disconnected:', event.code, event.reason);
         this.isConnected = false;
         this.isConnecting = false;
         this.stopHeartbeat();
@@ -83,7 +108,7 @@ class WebSocketClient {
       };
 
       this.ws.onerror = (error) => {
-        console.error('❌ WebSocket error:', error);
+        console.error('WebSocket error:', error);
         this.isConnecting = false;
         this.emit('error', error);
       };
@@ -119,14 +144,8 @@ class WebSocketClient {
   /**
    * Subscribe to a channel
    */
-  subscribe(channel: string, handler: WebSocketEventHandler): void {
+  subscribe(channel: string): void {
     this.subscriptions.add(channel);
-    
-    // Add handler
-    if (!this.eventHandlers.has(channel)) {
-      this.eventHandlers.set(channel, []);
-    }
-    this.eventHandlers.get(channel)!.push(handler);
     
     if (this.isConnected && this.ws) {
       this.send({
@@ -139,21 +158,7 @@ class WebSocketClient {
   /**
    * Unsubscribe from a channel
    */
-  unsubscribe(channel: string, handler?: WebSocketEventHandler): void {
-    if (handler) {
-      // Remove specific handler
-      const handlers = this.eventHandlers.get(channel);
-      if (handlers) {
-        const index = handlers.indexOf(handler);
-        if (index > -1) {
-          handlers.splice(index, 1);
-        }
-      }
-    } else {
-      // Remove all handlers for this channel
-      this.eventHandlers.delete(channel);
-    }
-    
+  unsubscribe(channel: string): void {
     this.subscriptions.delete(channel);
     
     if (this.isConnected && this.ws) {
@@ -165,63 +170,49 @@ class WebSocketClient {
   }
 
   /**
-   * Subscribe to pool updates
-   */
-  subscribeToPool(poolId: number, handler: WebSocketEventHandler): void {
-    this.subscribe(`pool:${poolId}`, handler);
-  }
-
-  /**
-   * Unsubscribe from pool updates
-   */
-  unsubscribeFromPool(poolId: number, handler?: WebSocketEventHandler): void {
-    this.unsubscribe(`pool:${poolId}`, handler);
-  }
-
-  /**
    * Subscribe to pool progress updates
    */
-  subscribeToPoolProgress(poolId: number, handler: WebSocketEventHandler): void {
-    this.subscribe(`pool:${poolId}:progress`, handler);
+  subscribeToPoolProgress(poolId: number): void {
+    this.subscribe(`pool:${poolId}:progress`);
   }
 
   /**
    * Unsubscribe from pool progress updates
    */
-  unsubscribeFromPoolProgress(poolId: number, handler?: WebSocketEventHandler): void {
-    this.unsubscribe(`pool:${poolId}:progress`, handler);
+  unsubscribeFromPoolProgress(poolId: number): void {
+    this.unsubscribe(`pool:${poolId}:progress`);
   }
 
   /**
-   * Subscribe to recent bets
+   * Subscribe to recent bets updates
    */
-  subscribeToRecentBets(handler: WebSocketEventHandler): void {
-    this.subscribe('recent-bets', handler);
+  subscribeToRecentBets(): void {
+    this.subscribe('recent_bets');
   }
 
   /**
-   * Unsubscribe from recent bets
+   * Unsubscribe from recent bets updates
    */
-  unsubscribeFromRecentBets(handler?: WebSocketEventHandler): void {
-    this.unsubscribe('recent-bets', handler);
+  unsubscribeFromRecentBets(): void {
+    this.unsubscribe('recent_bets');
   }
 
   /**
-   * Subscribe to all pools updates
+   * Subscribe to pool updates
    */
-  subscribeToPools(handler: WebSocketEventHandler): void {
-    this.subscribe('pools-update', handler);
+  subscribeToPoolUpdates(poolId: number): void {
+    this.subscribe(`pool:${poolId}:updates`);
   }
 
   /**
-   * Unsubscribe from all pools updates
+   * Unsubscribe from pool updates
    */
-  unsubscribeFromPools(handler?: WebSocketEventHandler): void {
-    this.unsubscribe('pools-update', handler);
+  unsubscribeFromPoolUpdates(poolId: number): void {
+    this.unsubscribe(`pool:${poolId}:updates`);
   }
 
   /**
-   * Add global event handler
+   * Add event handler
    */
   on(event: string, handler: WebSocketEventHandler): void {
     if (!this.eventHandlers.has(event)) {
@@ -231,7 +222,7 @@ class WebSocketClient {
   }
 
   /**
-   * Remove global event handler
+   * Remove event handler
    */
   off(event: string, handler: WebSocketEventHandler): void {
     const handlers = this.eventHandlers.get(event);
@@ -274,20 +265,22 @@ class WebSocketClient {
    * Handle incoming WebSocket messages
    */
   private handleMessage(message: WebSocketMessage): void {
-    // Emit to specific channel handlers
-    const channelHandlers = this.eventHandlers.get(message.type);
-    if (channelHandlers) {
-      channelHandlers.forEach(handler => {
-        try {
-          handler(message.data);
-        } catch (error) {
-          console.error('Error in channel handler:', error);
-        }
-      });
+    switch (message.type) {
+      case 'pool_progress':
+        this.emit('pool_progress', message.data);
+        break;
+      case 'new_bet':
+        this.emit('new_bet', message.data);
+        break;
+      case 'pool_update':
+        this.emit('pool_update', message.data);
+        break;
+      case 'pong':
+        // Heartbeat response
+        break;
+      default:
+        console.log('Unknown WebSocket message type:', message.type);
     }
-
-    // Emit to global handlers
-    this.emit(message.type, message.data);
   }
 
   /**
@@ -361,6 +354,4 @@ class WebSocketClient {
   }
 }
 
-// Export singleton instance
-export const websocketClient = new WebSocketClient();
-export default WebSocketClient;
+export const websocketService = new WebSocketService();
