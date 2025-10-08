@@ -22,9 +22,9 @@ export default function InfinitePoolList({
     isFetchingNextPage,
     isLoading,
     error,
-  } = useInfinitePools(filters as Record<string, any>);
+  } = useInfinitePools(filters as Record<string, unknown>);
 
-  const observer = useRef<IntersectionObserver>();
+  const observer = useRef<IntersectionObserver | null>(null);
 
   const lastPoolElementRef = useCallback(
     (node: HTMLDivElement) => {

@@ -2,13 +2,15 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-hot-toast";
 import AnimatedTitle from "@/components/AnimatedTitle";
 import { PoolService, type PoolStats } from "@/services/poolService";
 import { EnhancedPool } from "@/components/EnhancedPoolCard";
 import RecentBetsLane from "@/components/RecentBetsLane";
-import InfinitePoolList from "@/components/InfinitePoolList";
+import LazyPoolCard from "@/components/LazyPoolCard";
+import SkeletonLoader from "@/components/SkeletonLoader";
+import { useSmartPoolLoading } from "@/hooks/useBatchPoolData";
 import { 
   FaChartLine, 
   FaFilter, 
@@ -148,6 +150,19 @@ export default function MarketsPage() {
     };
   }, []);
 
+  // Use optimized pool loading with batching
+  const { pools: rawPools, loading: poolsLoading, error: poolsError } = useSmartPoolLoading(50, 0);
+  
+  // Convert raw pools to enhanced pools and update state
+  useEffect(() => {
+    if (rawPools.length > 0) {
+      const enhancedPools = rawPools.map(convertToEnhancedPool);
+      setPools(enhancedPools);
+      setFilteredPools(enhancedPools);
+      console.log('✅ Successfully loaded', enhancedPools.length, 'pools');
+    }
+  }, [rawPools, convertToEnhancedPool]);
+
   // Load stats separately
   useEffect(() => {
     const loadStats = async () => {
@@ -162,6 +177,19 @@ export default function MarketsPage() {
 
     loadStats();
   }, []);
+
+  // Update loading state
+  useEffect(() => {
+    setIsLoading(poolsLoading);
+  }, [poolsLoading]);
+
+  // Handle errors
+  useEffect(() => {
+    if (poolsError) {
+      console.error('❌ Error loading pools:', poolsError);
+      toast.error('Failed to load markets. Please try again.');
+    }
+  }, [poolsError]);
 
   const handleCreateMarket = () => {
     router.push("/create-prediction");
@@ -482,17 +510,22 @@ export default function MarketsPage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <InfinitePoolList
-                  filters={{
-                    category: activeCategory,
-                    categoryFilter,
-                    sortBy,
-                    searchTerm
-                  }}
-                  onPoolSelect={(selectedPool) => {
-                    router.push(`/bet/${selectedPool.id}`);
-                  }}
-                />
+                {isLoading ? (
+                  <SkeletonLoader type="markets-list" count={6} />
+                ) : (
+                  <AnimatePresence>
+                    {filteredPools.map((pool, index) => (
+                      <LazyPoolCard
+                        key={pool.id}
+                        pool={pool}
+                        index={index}
+                        onPoolSelect={(selectedPool) => {
+                          router.push(`/bet/${selectedPool.id}`);
+                        }}
+                      />
+                    ))}
+                  </AnimatePresence>
+                )}
               </div>
             )}
           </div>

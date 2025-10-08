@@ -39,7 +39,7 @@ import BetDisplay from "@/components/BetDisplay";
 import { calculatePoolFill } from "@/utils/poolCalculations";
 import useOptimizedPolling from "@/hooks/useOptimizedPolling";
 import SkeletonLoader from "@/components/SkeletonLoader";
-import { usePool } from "@/hooks/usePoolQueries";
+// import { usePool } from "@/hooks/usePoolQueries";
 
 export default function BetPage() {
   const { address } = useAccount();
@@ -68,11 +68,8 @@ export default function BetPage() {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const [submittingComment, setSubmittingComment] = useState(false);
   
-  // Use React Query for pool data with caching
-  const { 
-    data: pool, 
-    isLoading: loading
-  } = usePool(parseInt(poolId));
+  const [loading, setLoading] = useState(true);
+  const [pool, setPool] = useState<Pool | null>(null);
   const [comments] = useState<Comment[]>([]);
   const [betType, setBetType] = useState<'yes' | 'no' | null>(null);
   const [poolExplanation, setPoolExplanation] = useState<PoolExplanation | null>(null);
@@ -229,7 +226,7 @@ export default function BetPage() {
     setLastFetchTime(now);
     
     try {
-      // Loading state handled by React Query
+      setLoading(true);
       
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
@@ -373,7 +370,7 @@ export default function BetPage() {
         }
       };
       
-      // Pool data handled by React Query
+      setPool(transformedPool);
       
       // Check pool state for betting eligibility
       const now = Date.now();
@@ -422,9 +419,8 @@ export default function BetPage() {
         console.error('Error fetching pool data:', error);
         console.error('Pool not found or failed to load:', poolId);
       }
-      // Pool data handled by React Query
     } finally {
-      // Loading state handled by React Query
+      setLoading(false);
     }
   }, [poolId, lastFetchTime, FETCH_COOLDOWN]);
 
