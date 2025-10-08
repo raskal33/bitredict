@@ -255,7 +255,8 @@ class TitleTemplatesService {
       marketData.category === 'cryptocurrency' || 
       marketData.category === 'crypto' ||
       (marketData.league && marketData.league === 'crypto') ||
-      marketData.marketType?.startsWith('CRYPTO_') ||
+      (typeof marketData.marketType === 'string' && marketData.marketType.startsWith('CRYPTO_')) ||
+      (typeof marketData.marketType === 'number' && marketData.marketType === 7) || // CUSTOM market type for crypto
       (marketData.homeTeam && marketData.awayTeam && 
        ['BTC', 'ETH', 'BNB', 'ADA', 'SOL', 'MATIC', 'AVAX', 'DOT', 'LINK', 'UNI'].includes(marketData.homeTeam))
     );
@@ -340,7 +341,7 @@ class TitleTemplatesService {
   generateEventName(marketData: MarketData): string {
     const { marketType, homeTeam, awayTeam, marketId, league } = marketData;
     
-    if (marketType && marketType.startsWith('CRYPTO')) {
+    if (marketType && typeof marketType === 'string' && marketType.startsWith('CRYPTO')) {
       return this.generateCryptoEventName(marketId || '');
     } else if (homeTeam && awayTeam) {
       return `${homeTeam} vs ${awayTeam}`;
@@ -684,7 +685,7 @@ class TitleTemplatesService {
 
   private getShortTemplates(marketType: string): Record<string, string> {
     const shortTemplates: Record<string, Record<string, string>> = {
-      '1X2': {
+      'MONEYLINE': {
         'Home wins': '${homeTeam} will win',
         'Away wins': '${awayTeam} will win',
         'Draw': '${homeTeam} vs ${awayTeam} draw',
@@ -694,13 +695,13 @@ class TitleTemplatesService {
         'Home': '${homeTeam} will win',
         'Away': '${awayTeam} will win'
       },
-      'OU25': {
+      'OVER_UNDER': {
         'Over 2.5 goals': '${homeTeam} vs ${awayTeam} over 2.5',
         'Under 2.5 goals': '${homeTeam} vs ${awayTeam} under 2.5',
         'Over': '${homeTeam} vs ${awayTeam} over 2.5',
         'Under': '${homeTeam} vs ${awayTeam} under 2.5'
       },
-      'BTTS': {
+      'BOTH_TEAMS_SCORE': {
         'Both teams to score': '${homeTeam} vs ${awayTeam} both score',
         'Not both teams to score': '${homeTeam} vs ${awayTeam} not both score',
         'Yes': '${homeTeam} vs ${awayTeam} both score',
