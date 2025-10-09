@@ -280,4 +280,97 @@ export class PoolContractService {
       return null;
     }
   }
+
+  /**
+   * Get user's stake in a pool (both bettor and LP stakes)
+   */
+  static async getUserStakes(poolId: number, userAddress: string): Promise<{
+    bettorStake: string;
+    lpStake: string;
+    hasClaimed: boolean;
+  } | null> {
+    try {
+      const [bettorStake, lpStake, hasClaimed] = await Promise.all([
+        this.publicClient.readContract({
+          address: CONTRACTS.POOL_CORE.address as Address,
+          abi: CONTRACTS.POOL_CORE.abi,
+          functionName: 'bettorStakes',
+          args: [BigInt(poolId), userAddress as Address],
+        }),
+        this.publicClient.readContract({
+          address: CONTRACTS.POOL_CORE.address as Address,
+          abi: CONTRACTS.POOL_CORE.abi,
+          functionName: 'lpStakes',
+          args: [BigInt(poolId), userAddress as Address],
+        }),
+        this.publicClient.readContract({
+          address: CONTRACTS.POOL_CORE.address as Address,
+          abi: CONTRACTS.POOL_CORE.abi,
+          functionName: 'claimed',
+          args: [BigInt(poolId), userAddress as Address],
+        })
+      ]);
+
+      return {
+        bettorStake: (bettorStake as bigint).toString(),
+        lpStake: (lpStake as bigint).toString(),
+        hasClaimed: hasClaimed as boolean,
+      };
+    } catch (error) {
+      console.error('Error fetching user stakes:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Calculate potential payout for a user
+   */
+  static async calculatePayout(
+    poolId: number, 
+    userAddress: string
+  ): Promise<{
+    payout: string;
+    stake: string;
+    profit: string;
+    isWinner: boolean;
+  } | null> {
+    try {
+      const pool = await this.getPool(poolId);
+      const stakes = await this.getUserStakes(poolId, userAddress);
+      
+      if (!pool || !stakes) return null;
+
+      const creatorSideWon = (pool.flags & 2) !== 0;
+      let payout = BigInt(0);
+      let stake = BigInt(0);
+
+      if (creatorSideWon) {
+        // LP wins
+        stake = BigInt(stakes.lpStake);
+        if (stake > 0) {
+          const sharePercentage = (stake * BigInt(10000)) / BigInt(pool.totalCreatorSideStake);
+          payout = stake + ((BigInt(pool.totalBettorStake) * sharePercentage) / BigInt(10000));
+        }
+      } else {
+        // Bettor wins
+        stake = BigInt(stakes.bettorStake);
+        if (stake > 0) {
+          const poolOdds = BigInt(pool.odds);
+          payout = (stake * poolOdds) / BigInt(100);
+        }
+      }
+
+      const profit = payout > stake ? payout - stake : BigInt(0);
+
+      return {
+        payout: payout.toString(),
+        stake: stake.toString(),
+        profit: profit.toString(),
+        isWinner: payout > 0,
+      };
+    } catch (error) {
+      console.error('Error calculating payout:', error);
+      return null;
+    }
+  }
 }

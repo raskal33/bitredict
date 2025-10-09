@@ -269,7 +269,7 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
                       </span>
                       <span className="text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full bg-gray-500/20 text-gray-400">
                         {bet.pool.predictedOutcome}
-                      </span>
+                        </span>
                     </div>
                     
                     <div className="text-right">

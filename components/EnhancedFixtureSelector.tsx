@@ -186,153 +186,153 @@ const EnhancedFixtureSelector: React.FC<FixtureSelectorProps> = ({
     // We'll calculate/estimate odds for missing market types
 
     // Full Time 1X2 - Always show all three options
-    markets.push({
-      type: 'ft_1x2',
-      outcome: 'home',
-      label: `${fixture.homeTeam.name} Win`,
+      markets.push({
+        type: 'ft_1x2',
+        outcome: 'home',
+        label: `${fixture.homeTeam.name} Win`,
       odds: odds?.home || 2.0, // Default odds if not provided
-      color: 'bg-blue-500/10 border-blue-500/30 text-blue-400 hover:bg-blue-500/20',
-      category: 'fulltime',
-      description: 'Match winner after 90 minutes',
-      icon: '🏠'
-    });
+        color: 'bg-blue-500/10 border-blue-500/30 text-blue-400 hover:bg-blue-500/20',
+        category: 'fulltime',
+        description: 'Match winner after 90 minutes',
+        icon: '🏠'
+      });
     
-    markets.push({
-      type: 'ft_1x2',
-      outcome: 'draw',
-      label: 'Draw',
+      markets.push({
+        type: 'ft_1x2',
+        outcome: 'draw',
+        label: 'Draw',
       odds: odds?.draw || 3.2, // Default odds if not provided
-      color: 'bg-purple-500/10 border-purple-500/30 text-purple-400 hover:bg-purple-500/20',
-      category: 'fulltime',
-      description: 'Match ends in a draw',
-      icon: '🤝'
-    });
+        color: 'bg-purple-500/10 border-purple-500/30 text-purple-400 hover:bg-purple-500/20',
+        category: 'fulltime',
+        description: 'Match ends in a draw',
+        icon: '🤝'
+      });
     
-    markets.push({
-      type: 'ft_1x2',
-      outcome: 'away',
-      label: `${fixture.awayTeam.name} Win`,
+      markets.push({
+        type: 'ft_1x2',
+        outcome: 'away',
+        label: `${fixture.awayTeam.name} Win`,
       odds: odds?.away || 2.5, // Default odds if not provided
-      color: 'bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20',
-      category: 'fulltime',
-      description: 'Match winner after 90 minutes',
-      icon: '✈️'
-    });
+        color: 'bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20',
+        category: 'fulltime',
+        description: 'Match winner after 90 minutes',
+        icon: '✈️'
+      });
 
     // Half Time 1X2 - Always show all three options
-    markets.push({
-      type: 'ht_1x2',
-      outcome: 'home',
-      label: `${fixture.homeTeam.name} Leading HT`,
+      markets.push({
+        type: 'ht_1x2',
+        outcome: 'home',
+        label: `${fixture.homeTeam.name} Leading HT`,
       odds: odds?.htHome || 2.2, // Default odds if not provided
-      color: 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20',
-      category: 'halftime',
-      description: 'Leading team at half-time',
-      icon: '⏰'
-    });
+        color: 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/20',
+        category: 'halftime',
+        description: 'Leading team at half-time',
+        icon: '⏰'
+      });
     
-    markets.push({
-      type: 'ht_1x2',
-      outcome: 'draw',
-      label: 'Draw at HT',
+      markets.push({
+        type: 'ht_1x2',
+        outcome: 'draw',
+        label: 'Draw at HT',
       odds: odds?.htDraw || 2.8, // Default odds if not provided
-      color: 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/20',
-      category: 'halftime',
-      description: 'Teams tied at half-time',
-      icon: '⏰'
-    });
+        color: 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/20',
+        category: 'halftime',
+        description: 'Teams tied at half-time',
+        icon: '⏰'
+      });
     
-    markets.push({
-      type: 'ht_1x2',
-      outcome: 'away',
-      label: `${fixture.awayTeam.name} Leading HT`,
+      markets.push({
+        type: 'ht_1x2',
+        outcome: 'away',
+        label: `${fixture.awayTeam.name} Leading HT`,
       odds: odds?.htAway || 2.3, // Default odds if not provided
-      color: 'bg-pink-500/10 border-pink-500/30 text-pink-400 hover:bg-pink-500/20',
-      category: 'halftime',
-      description: 'Leading team at half-time',
-      icon: '⏰'
-    });
+        color: 'bg-pink-500/10 border-pink-500/30 text-pink-400 hover:bg-pink-500/20',
+        category: 'halftime',
+        description: 'Leading team at half-time',
+        icon: '⏰'
+      });
 
     // Over/Under 2.5 Goals - Always show both options
-    markets.push({
-      type: 'ou_25',
-      outcome: 'over',
-      label: 'Over 2.5 Goals',
+      markets.push({
+        type: 'ou_25',
+        outcome: 'over',
+        label: 'Over 2.5 Goals',
       odds: odds?.over25 || 1.8, // Default odds if not provided
-      color: 'bg-green-500/10 border-green-500/30 text-green-400 hover:bg-green-500/20',
-      category: 'goals',
-      description: 'Total goals over 2.5',
-      icon: '⚽'
-    });
+        color: 'bg-green-500/10 border-green-500/30 text-green-400 hover:bg-green-500/20',
+        category: 'goals',
+        description: 'Total goals over 2.5',
+        icon: '⚽'
+      });
     
-    markets.push({
-      type: 'ou_25',
-      outcome: 'under',
-      label: 'Under 2.5 Goals',
+      markets.push({
+        type: 'ou_25',
+        outcome: 'under',
+        label: 'Under 2.5 Goals',
       odds: odds?.under25 || 2.0, // Default odds if not provided
-      color: 'bg-orange-500/10 border-orange-500/30 text-orange-400 hover:bg-orange-500/20',
-      category: 'goals',
-      description: 'Total goals under 2.5',
-      icon: '🔒'
-    });
+        color: 'bg-orange-500/10 border-orange-500/30 text-orange-400 hover:bg-orange-500/20',
+        category: 'goals',
+        description: 'Total goals under 2.5',
+        icon: '🔒'
+      });
 
     // Over/Under 3.5 Goals - Always show both options
-    markets.push({
-      type: 'ou_35',
-      outcome: 'over',
-      label: 'Over 3.5 Goals',
+      markets.push({
+        type: 'ou_35',
+        outcome: 'over',
+        label: 'Over 3.5 Goals',
       odds: odds?.over35 || 2.5, // Default odds if not provided
-      color: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20',
-      category: 'goals',
-      description: 'Total goals over 3.5',
-      icon: '🎯'
-    });
+        color: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20',
+        category: 'goals',
+        description: 'Total goals over 3.5',
+        icon: '🎯'
+      });
     
-    markets.push({
-      type: 'ou_35',
-      outcome: 'under',
-      label: 'Under 3.5 Goals',
+      markets.push({
+        type: 'ou_35',
+        outcome: 'under',
+        label: 'Under 3.5 Goals',
       odds: odds?.under35 || 1.5, // Default odds if not provided
-      color: 'bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20',
-      category: 'goals',
-      description: 'Total goals under 3.5',
-      icon: '🛡️'
-    });
+        color: 'bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20',
+        category: 'goals',
+        description: 'Total goals under 3.5',
+        icon: '🛡️'
+      });
 
     // 1st Half Over/Under 1.5 Goals - Always show both options
-    markets.push({
-      type: 'ht_ou_15',
-      outcome: 'over',
-      label: 'Over 1.5 Goals (1st Half)',
+      markets.push({
+        type: 'ht_ou_15',
+        outcome: 'over',
+        label: 'Over 1.5 Goals (1st Half)',
       odds: odds?.ht_over_15 || 2.2, // Default odds if not provided
-      color: 'bg-teal-500/10 border-teal-500/30 text-teal-400 hover:bg-teal-500/20',
-      category: 'halftime',
-      description: 'First half goals over 1.5',
-      icon: '🥅'
-    });
+        color: 'bg-teal-500/10 border-teal-500/30 text-teal-400 hover:bg-teal-500/20',
+        category: 'halftime',
+        description: 'First half goals over 1.5',
+        icon: '🥅'
+      });
     
-    markets.push({
-      type: 'ht_ou_15',
-      outcome: 'under',
-      label: 'Under 1.5 Goals (1st Half)',
+      markets.push({
+        type: 'ht_ou_15',
+        outcome: 'under',
+        label: 'Under 1.5 Goals (1st Half)',
       odds: odds?.ht_under_15 || 1.7, // Default odds if not provided
-      color: 'bg-slate-500/10 border-slate-500/30 text-slate-400 hover:bg-slate-500/20',
-      category: 'halftime',
-      description: 'First half goals under 1.5',
-      icon: '🚫'
-    });
+        color: 'bg-slate-500/10 border-slate-500/30 text-slate-400 hover:bg-slate-500/20',
+        category: 'halftime',
+        description: 'First half goals under 1.5',
+        icon: '🚫'
+      });
 
     // Both Teams to Score - Always show both options
-    markets.push({
-      type: 'btts',
-      outcome: 'yes',
-      label: 'Both Teams Score',
+      markets.push({
+        type: 'btts',
+        outcome: 'yes',
+        label: 'Both Teams Score',
       odds: odds?.bttsYes || 1.8, // Default odds if not provided
-      color: 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/20',
-      category: 'goals',
-      description: 'Both teams score at least one goal',
-      icon: '⚽'
-    });
+        color: 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/20',
+        category: 'goals',
+        description: 'Both teams score at least one goal',
+        icon: '⚽'
+      });
     
     markets.push({
       type: 'btts',

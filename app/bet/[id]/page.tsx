@@ -36,7 +36,7 @@ import PoolTitleRow from "@/components/PoolTitleRow";
 import CryptoTitleRow from "@/components/CryptoTitleRow";
 import PoolStatusBanner from "@/components/PoolStatusBanner";
 import BetDisplay from "@/components/BetDisplay";
-// import ClaimRewards from "@/components/ClaimRewards";
+import ClaimRewards from "@/components/ClaimRewards";
 import { calculatePoolFill } from "@/utils/poolCalculations";
 import useOptimizedPolling from "@/hooks/useOptimizedPolling";
 import SkeletonLoader from "@/components/SkeletonLoader";
@@ -80,6 +80,18 @@ export default function BetPage() {
   const [isEventStarted, setIsEventStarted] = useState(false);
   const [isPoolFilled, setIsPoolFilled] = useState(false);
   const [canBet, setCanBet] = useState(true);
+  const [poolStatusType, setPoolStatusType] = useState<'creator_won' | 'bettor_won' | 'settled' | 'active' | null>(null);
+  const [contractDataForStatus, setContractDataForStatus] = useState<{
+    flags: number;
+    eventStartTime: number;
+    eventEndTime: number;
+    bettingEndTime: number;
+    arbitrationDeadline: number;
+    result: string;
+    resultTimestamp: number;
+    oracleType: number;
+    marketId: string;
+  } | null>(null);
   
   // Backend formatted data to avoid scientific notation
   const [creatorStakeFormatted, setCreatorStakeFormatted] = useState<number>(0);
@@ -372,6 +384,33 @@ export default function BetPage() {
       };
       
       setPool(transformedPool);
+      
+      // Store contract data for status banner
+      setContractDataForStatus({
+        flags: poolData.flags,
+        eventStartTime: poolData.eventStartTime,
+        eventEndTime: poolData.eventEndTime,
+        bettingEndTime: poolData.bettingEndTime,
+        arbitrationDeadline: poolData.arbitrationDeadline || 0,
+        result: poolData.result,
+        resultTimestamp: poolData.resultTimestamp || 0,
+        oracleType: poolData.oracleType,
+        marketId: poolData.marketId
+      });
+      
+      // Determine pool status type for conditional rendering
+      const isSettled = (poolData.flags & 1) !== 0;
+      const creatorSideWon = (poolData.flags & 2) !== 0;
+      
+      if (isSettled) {
+        if (creatorSideWon) {
+          setPoolStatusType('creator_won');
+        } else {
+          setPoolStatusType('bettor_won');
+        }
+      } else {
+        setPoolStatusType('active');
+      }
       
       // Check pool state for betting eligibility
       const now = Date.now();
@@ -974,27 +1013,24 @@ export default function BetPage() {
                 )}
                 
                 {/* Pool Status Banner */}
-                {(() => {
-
-                  return (
-                    <PoolStatusBanner 
-                      pool={{
-                        id: parseInt(poolId),
-                        settled: false, // Will be updated when contract data is available
-                        creatorSideWon: false, // Will be updated when contract data is available
-                        eventStartTime: pool.eventDetails?.startTime ? Math.floor(pool.eventDetails.startTime.getTime() / 1000) : 0,
-                        eventEndTime: pool.eventDetails?.endTime ? Math.floor(pool.eventDetails.endTime.getTime() / 1000) : 0,
-                        bettingEndTime: pool.eventDetails?.startTime ? Math.floor(pool.eventDetails.startTime.getTime() / 1000) : 0,
-                        arbitrationDeadline: pool.eventDetails?.endTime ? Math.floor(pool.eventDetails.endTime.getTime() / 1000) + (7 * 24 * 60 * 60) : undefined,
-                        result: pool.outcome || '',
-                        resultTimestamp: 0, // Will be updated when contract data is available
-                        oracleType: 'GUIDED',
-                        marketId: pool.market?.currentPrice?.toString() || ''
-                      }}
-                      className="mb-6"
-                    />
-                  );
-                })()}
+                {contractDataForStatus && (
+                  <PoolStatusBanner 
+                    pool={{
+                      id: parseInt(poolId),
+                      settled: (contractDataForStatus.flags & 1) !== 0, // Bit 0: settled
+                      creatorSideWon: (contractDataForStatus.flags & 2) !== 0, // Bit 1: creatorSideWon
+                      eventStartTime: contractDataForStatus.eventStartTime,
+                      eventEndTime: contractDataForStatus.eventEndTime,
+                      bettingEndTime: contractDataForStatus.bettingEndTime,
+                      arbitrationDeadline: contractDataForStatus.arbitrationDeadline,
+                      result: contractDataForStatus.result,
+                      resultTimestamp: contractDataForStatus.resultTimestamp,
+                      oracleType: contractDataForStatus.oracleType === 0 ? 'GUIDED' : 'OPEN',
+                      marketId: contractDataForStatus.marketId
+                    }}
+                    className="mb-6"
+                  />
+                )}
                     </div>
               
               {/* Creator Prediction - Core Mechanic */}
@@ -1160,7 +1196,6 @@ export default function BetPage() {
         <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/30 rounded-2xl p-4 sm:p-8">
           {activeTab === 'bet' && (
             <div className="space-y-6">
-              {/* Betting Interface */}
               {/* Betting Interface */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Left Column - Betting Options */}
@@ -1366,11 +1401,15 @@ export default function BetPage() {
                 )}
               </div>
               
-              {/* Bet Display Component - Moved from Analysis tab */}
+              {/* Bet Display or Claim Rewards - Conditional based on pool status */}
               <div className="mt-8">
-                <BetDisplay poolId={poolId} />
+                {poolStatusType && (poolStatusType === 'creator_won' || poolStatusType === 'bettor_won' || poolStatusType === 'settled') ? (
+                  <ClaimRewards poolId={poolId} poolStatus={poolStatusType} />
+                ) : (
+                  <BetDisplay poolId={poolId} />
+                )}
               </div>
-            </div>
+                          </div>
           )}
 
             {activeTab === 'analysis' && (
@@ -1436,8 +1475,9 @@ export default function BetPage() {
                     </p>
                   </div>
               </div>
-            </div>
-          )}
+
+              </div>
+            )}
 
             {activeTab === 'liquidity' && (
               <div className="space-y-6">
