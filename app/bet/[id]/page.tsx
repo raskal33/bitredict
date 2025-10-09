@@ -36,6 +36,7 @@ import PoolTitleRow from "@/components/PoolTitleRow";
 import CryptoTitleRow from "@/components/CryptoTitleRow";
 import PoolStatusBanner from "@/components/PoolStatusBanner";
 import BetDisplay from "@/components/BetDisplay";
+import ClaimRewards from "@/components/ClaimRewards";
 import { calculatePoolFill } from "@/utils/poolCalculations";
 import useOptimizedPolling from "@/hooks/useOptimizedPolling";
 import SkeletonLoader from "@/components/SkeletonLoader";
@@ -982,20 +983,42 @@ export default function BetPage() {
                     marketId?: string;
                   };
                   
+                  // Get real contract data for accurate status
+                  const getContractData = async () => {
+                    try {
+                      const contractData = await PoolContractService.getPool(parseInt(poolId));
+                      return contractData;
+                    } catch (error) {
+                      console.error('Error fetching contract data for status:', error);
+                      return null;
+                    }
+                  };
+
+                  // Use contract data for accurate status
+                  const [contractData, setContractData] = useState<any>(null);
+                  
+                  useEffect(() => {
+                    getContractData().then(setContractData);
+                  }, [poolId]);
+
+                  if (!contractData) {
+                    return <div className="mb-6">Loading status...</div>;
+                  }
+
                   return (
                     <PoolStatusBanner 
                       pool={{
                         id: parseInt(poolId),
-                        settled: extendedPool.settled || false,
-                        creatorSideWon: extendedPool.creatorSideWon,
-                        eventStartTime: pool.eventDetails?.startTime ? Math.floor(pool.eventDetails.startTime.getTime() / 1000) : 0,
-                        eventEndTime: pool.eventDetails?.endTime ? Math.floor(pool.eventDetails.endTime.getTime() / 1000) : 0,
-                        bettingEndTime: pool.eventDetails?.startTime ? Math.floor(pool.eventDetails.startTime.getTime() / 1000) : 0,
-                        arbitrationDeadline: pool.eventDetails?.endTime ? Math.floor(pool.eventDetails.endTime.getTime() / 1000) + (7 * 24 * 60 * 60) : undefined,
-                        result: extendedPool.result || '',
-                        resultTimestamp: extendedPool.resultTimestamp,
-                        oracleType: 'GUIDED',
-                        marketId: extendedPool.marketId || ''
+                        settled: (contractData.flags & 1) !== 0, // Bit 0: settled
+                        creatorSideWon: (contractData.flags & 2) !== 0, // Bit 1: creatorSideWon
+                        eventStartTime: contractData.eventStartTime,
+                        eventEndTime: contractData.eventEndTime,
+                        bettingEndTime: contractData.bettingEndTime,
+                        arbitrationDeadline: contractData.arbitrationDeadline,
+                        result: contractData.result,
+                        resultTimestamp: contractData.resultTimestamp,
+                        oracleType: contractData.oracleType === 0 ? 'GUIDED' : 'OPEN',
+                        marketId: contractData.marketId
                       }}
                       className="mb-6"
                     />
@@ -1166,7 +1189,19 @@ export default function BetPage() {
         <div className="bg-gray-800/30 backdrop-blur-sm border border-gray-700/30 rounded-2xl p-4 sm:p-8">
           {activeTab === 'bet' && (
             <div className="space-y-6">
-              {/* Betting Interface */}
+              {/* Check if pool is settled and show claim rewards instead of betting */}
+              {contractData && (contractData.flags & 1) !== 0 ? (
+                <ClaimRewards
+                  poolId={parseInt(poolId)}
+                  poolStatus={(contractData.flags & 2) !== 0 ? 'creator_won' : 'bettor_won'}
+                  userStake={userBetAmount || 0}
+                  potentialPayout={userBetAmount > 0 ? userBetAmount * (pool.odds / 100) : 0}
+                  currency={pool.usesBitr ? 'BITR' : 'STT'}
+                  className="mb-6"
+                />
+              ) : (
+                <div>
+                  {/* Betting Interface */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Left Column - Betting Options */}
                 <div className="space-y-4">
@@ -1375,7 +1410,9 @@ export default function BetPage() {
               <div className="mt-8">
                 <BetDisplay poolId={poolId} />
               </div>
-                          </div>
+                </div>
+              )}
+            </div>
           )}
 
             {activeTab === 'analysis' && (
@@ -1441,9 +1478,10 @@ export default function BetPage() {
                     </p>
                   </div>
               </div>
-
-              </div>
-            )}
+                </div>
+              )}
+            </div>
+          )}
 
             {activeTab === 'liquidity' && (
               <div className="space-y-6">
