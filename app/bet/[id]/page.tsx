@@ -402,13 +402,26 @@ export default function BetPage() {
       const isSettled = (poolData.flags & 1) !== 0;
       const creatorSideWon = (poolData.flags & 2) !== 0;
       
+      console.log('🔍 Pool Status Debug:', {
+        poolId,
+        flags: poolData.flags,
+        flagsBinary: poolData.flags.toString(2),
+        isSettled,
+        creatorSideWon,
+        result: poolData.result,
+        resultTimestamp: poolData.resultTimestamp
+      });
+      
       if (isSettled) {
         if (creatorSideWon) {
+          console.log('✅ Setting status to creator_won');
           setPoolStatusType('creator_won');
         } else {
+          console.log('✅ Setting status to bettor_won');
           setPoolStatusType('bettor_won');
         }
       } else {
+        console.log('✅ Setting status to active');
         setPoolStatusType('active');
       }
       
@@ -509,7 +522,7 @@ export default function BetPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [poolId]); // Only run when poolId changes
   
-  // Optimized polling for real-time stats
+  // Optimized polling for real-time stats - DISABLED to prevent reload loops
   const { data: realTimeData } = useOptimizedPolling<{
     challengerCount: number;
     totalVolume: number;
@@ -519,14 +532,14 @@ export default function BetPage() {
     {
       interval: 30000, // 30 seconds
       websocketChannel: `pool:${poolId}:progress`,
-      enabled: true,
+      enabled: false, // DISABLED until stability issues are resolved
       cacheKey: `pool:${poolId}:progress`,
       retryAttempts: 3,
       retryDelay: 1000
     }
   );
 
-  // Optimized polling for bet stats
+  // Optimized polling for bet stats - DISABLED to prevent reload loops
   const { data: betStatsData } = useOptimizedPolling<{
     totalBets: number;
     totalVolume: number;
@@ -537,7 +550,7 @@ export default function BetPage() {
     {
       interval: 30000, // 30 seconds
       websocketChannel: `pool:${poolId}:bets`,
-      enabled: true,
+      enabled: false, // DISABLED until stability issues are resolved
       cacheKey: `pool:${poolId}:bets`,
       retryAttempts: 3,
       retryDelay: 1000
@@ -1406,11 +1419,19 @@ export default function BetPage() {
               
               {/* Bet Display or Claim Rewards - Conditional based on pool status */}
               <div className="mt-8">
-                {poolStatusType && (poolStatusType === 'creator_won' || poolStatusType === 'bettor_won' || poolStatusType === 'settled') ? (
-                  <ClaimRewards poolId={poolId} poolStatus={poolStatusType} />
-                ) : (
-                  <BetDisplay poolId={poolId} />
-                )}
+                {(() => {
+                  console.log('🎯 Render Decision Debug:', {
+                    poolStatusType,
+                    isSettled: poolStatusType && (poolStatusType === 'creator_won' || poolStatusType === 'bettor_won' || poolStatusType === 'settled'),
+                    willShowClaimRewards: poolStatusType && (poolStatusType === 'creator_won' || poolStatusType === 'bettor_won' || poolStatusType === 'settled')
+                  });
+                  
+                  if (poolStatusType && (poolStatusType === 'creator_won' || poolStatusType === 'bettor_won' || poolStatusType === 'settled')) {
+                    return <ClaimRewards poolId={poolId} poolStatus={poolStatusType} />;
+                  } else {
+                    return <BetDisplay poolId={poolId} />;
+                  }
+                })()}
               </div>
                           </div>
           )}
