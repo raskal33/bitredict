@@ -80,8 +80,7 @@ export default function BetPage() {
   const [isEventStarted, setIsEventStarted] = useState(false);
   const [isPoolFilled, setIsPoolFilled] = useState(false);
   const [canBet, setCanBet] = useState(true);
-  const [poolStatusType, setPoolStatusType] = useState<'creator_won' | 'bettor_won' | 'settled' | 'active' | null>(null);
-  const [contractDataForStatus, setContractDataForStatus] = useState<{
+  const [contractData, setContractData] = useState<{
     flags: number;
     eventStartTime: number;
     eventEndTime: number;
@@ -92,6 +91,7 @@ export default function BetPage() {
     oracleType: number;
     marketId: string;
   } | null>(null);
+  const [poolStatusType, setPoolStatusType] = useState<'creator_won' | 'bettor_won' | 'settled' | 'active' | null>(null);
   
   // Backend formatted data to avoid scientific notation
   const [creatorStakeFormatted, setCreatorStakeFormatted] = useState<number>(0);
@@ -385,45 +385,35 @@ export default function BetPage() {
       
       setPool(transformedPool);
       
-      // Store contract data for status banner
-      setContractDataForStatus({
-        flags: poolData.flags,
-        eventStartTime: poolData.eventStartTime,
-        eventEndTime: poolData.eventEndTime,
-        bettingEndTime: poolData.bettingEndTime,
-        arbitrationDeadline: poolData.arbitrationDeadline || 0,
-        result: poolData.result,
-        resultTimestamp: poolData.resultTimestamp || 0,
-        oracleType: poolData.oracleType,
-        marketId: poolData.marketId
-      });
-      
-      // Determine pool status type for conditional rendering
-      const isSettled = (poolData.flags & 1) !== 0;
-      const creatorSideWon = (poolData.flags & 2) !== 0;
-      
-      console.log('🔍 Pool Status Debug:', {
-        poolId,
-        flags: poolData.flags,
-        flagsBinary: poolData.flags.toString(2),
-        isSettled,
-        creatorSideWon,
-        result: poolData.result,
-        resultTimestamp: poolData.resultTimestamp
-      });
-      
-      if (isSettled) {
-        if (creatorSideWon) {
-          console.log('✅ Setting status to creator_won');
-          setPoolStatusType('creator_won');
+        // Store contract data for status banner
+        setContractData(poolData);
+        
+        // Determine pool status type for conditional rendering
+        const isSettled = (poolData.flags & 1) !== 0;
+        const creatorSideWon = (poolData.flags & 2) !== 0;
+        
+        console.log('🔍 Pool Status Debug:', {
+          poolId,
+          flags: poolData.flags,
+          flagsBinary: poolData.flags.toString(2),
+          isSettled,
+          creatorSideWon,
+          result: poolData.result,
+          resultTimestamp: poolData.resultTimestamp
+        });
+        
+        if (isSettled) {
+          if (creatorSideWon) {
+            console.log('✅ Setting status to creator_won');
+            setPoolStatusType('creator_won');
+          } else {
+            console.log('✅ Setting status to bettor_won');
+            setPoolStatusType('bettor_won');
+          }
         } else {
-          console.log('✅ Setting status to bettor_won');
-          setPoolStatusType('bettor_won');
+          console.log('✅ Setting status to active');
+          setPoolStatusType('active');
         }
-      } else {
-        console.log('✅ Setting status to active');
-        setPoolStatusType('active');
-      }
       
       // Check pool state for betting eligibility
       const now = Date.now();
@@ -475,8 +465,8 @@ export default function BetPage() {
     } finally {
       setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [poolId]); // lastFetchTime and FETCH_COOLDOWN are intentionally excluded to prevent loops
+   }, [poolId, lastFetchTime]); // Only depend on poolId to prevent loops
+   // eslint-disable-next-line react-hooks/exhaustive-deps
 
   const checkUserBetStatus = useCallback(async () => {
     if (!address) return;
@@ -520,9 +510,9 @@ export default function BetPage() {
     fetchBetStats();
     fetchBookmakerOdds();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [poolId]); // Only run when poolId changes
+   }, [poolId]); // Only run when poolId changes
   
-  // Optimized polling for real-time stats - DISABLED to prevent reload loops
+  // Optimized polling for real-time stats
   const { data: realTimeData } = useOptimizedPolling<{
     challengerCount: number;
     totalVolume: number;
@@ -532,14 +522,14 @@ export default function BetPage() {
     {
       interval: 30000, // 30 seconds
       websocketChannel: `pool:${poolId}:progress`,
-      enabled: false, // DISABLED until stability issues are resolved
+      enabled: false, // Disabled to prevent reload loops
       cacheKey: `pool:${poolId}:progress`,
       retryAttempts: 3,
       retryDelay: 1000
     }
   );
 
-  // Optimized polling for bet stats - DISABLED to prevent reload loops
+  // Optimized polling for bet stats
   const { data: betStatsData } = useOptimizedPolling<{
     totalBets: number;
     totalVolume: number;
@@ -550,7 +540,7 @@ export default function BetPage() {
     {
       interval: 30000, // 30 seconds
       websocketChannel: `pool:${poolId}:bets`,
-      enabled: false, // DISABLED until stability issues are resolved
+      enabled: false, // Disabled to prevent reload loops
       cacheKey: `pool:${poolId}:bets`,
       retryAttempts: 3,
       retryDelay: 1000
@@ -593,7 +583,7 @@ export default function BetPage() {
       proceedWithBet();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isApproveConfirmed, waitingForApproval, pendingBetData, address, poolId, placeBet, pool?.currency]); // fetchPoolData and checkUserBetStatus excluded to prevent loops
+   }, [isApproveConfirmed, waitingForApproval, pendingBetData, address, poolId, placeBet, pool?.currency]); // Exclude functions to prevent loops
 
   useEffect(() => {
     if (pool && pool.eventDetails) {
@@ -1029,20 +1019,20 @@ export default function BetPage() {
                 )}
                 
                 {/* Pool Status Banner */}
-                {contractDataForStatus && (
+                {contractData && (
                   <PoolStatusBanner 
                     pool={{
                       id: parseInt(poolId),
-                      settled: (contractDataForStatus.flags & 1) !== 0, // Bit 0: settled
-                      creatorSideWon: (contractDataForStatus.flags & 2) !== 0, // Bit 1: creatorSideWon
-                      eventStartTime: contractDataForStatus.eventStartTime,
-                      eventEndTime: contractDataForStatus.eventEndTime,
-                      bettingEndTime: contractDataForStatus.bettingEndTime,
-                      arbitrationDeadline: contractDataForStatus.arbitrationDeadline,
-                      result: contractDataForStatus.result,
-                      resultTimestamp: contractDataForStatus.resultTimestamp,
-                      oracleType: contractDataForStatus.oracleType === 0 ? 'GUIDED' : 'OPEN',
-                      marketId: contractDataForStatus.marketId
+                      settled: (contractData.flags & 1) !== 0, // Bit 0: settled
+                      creatorSideWon: (contractData.flags & 2) !== 0, // Bit 1: creatorSideWon
+                      eventStartTime: contractData.eventStartTime,
+                      eventEndTime: contractData.eventEndTime,
+                      bettingEndTime: contractData.bettingEndTime,
+                      arbitrationDeadline: contractData.arbitrationDeadline,
+                      result: contractData.result,
+                      resultTimestamp: contractData.resultTimestamp,
+                      oracleType: contractData.oracleType === 0 ? 'GUIDED' : 'OPEN',
+                      marketId: contractData.marketId
                     }}
                     className="mb-6"
                   />
@@ -1417,22 +1407,22 @@ export default function BetPage() {
                 )}
               </div>
               
-              {/* Bet Display or Claim Rewards - Conditional based on pool status */}
-              <div className="mt-8">
-                {(() => {
-                  console.log('🎯 Render Decision Debug:', {
-                    poolStatusType,
-                    isSettled: poolStatusType && (poolStatusType === 'creator_won' || poolStatusType === 'bettor_won' || poolStatusType === 'settled'),
-                    willShowClaimRewards: poolStatusType && (poolStatusType === 'creator_won' || poolStatusType === 'bettor_won' || poolStatusType === 'settled')
-                  });
-                  
-                  if (poolStatusType && (poolStatusType === 'creator_won' || poolStatusType === 'bettor_won' || poolStatusType === 'settled')) {
-                    return <ClaimRewards poolId={poolId} poolStatus={poolStatusType} />;
-                  } else {
-                    return <BetDisplay poolId={poolId} />;
-                  }
-                })()}
-              </div>
+               {/* Bet Display or Claim Rewards - Conditional based on pool status */}
+               <div className="mt-8">
+                 {(() => {
+                   console.log('🎯 Render Decision Debug:', {
+                     poolStatusType,
+                     isSettled: poolStatusType && (poolStatusType === 'creator_won' || poolStatusType === 'bettor_won' || poolStatusType === 'settled'),
+                     willShowClaimRewards: poolStatusType && (poolStatusType === 'creator_won' || poolStatusType === 'bettor_won' || poolStatusType === 'settled')
+                   });
+                   
+                   if (poolStatusType && (poolStatusType === 'creator_won' || poolStatusType === 'bettor_won' || poolStatusType === 'settled')) {
+                     return <ClaimRewards poolId={poolId} poolStatus={poolStatusType} />;
+                   } else {
+                     return <BetDisplay poolId={poolId} />;
+                   }
+                 })()}
+               </div>
                           </div>
           )}
 
