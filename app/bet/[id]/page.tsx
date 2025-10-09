@@ -462,7 +462,8 @@ export default function BetPage() {
     } finally {
       setLoading(false);
     }
-  }, [poolId, lastFetchTime, FETCH_COOLDOWN]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [poolId]); // lastFetchTime and FETCH_COOLDOWN are intentionally excluded to prevent loops
 
   const checkUserBetStatus = useCallback(async () => {
     if (!address) return;
@@ -505,7 +506,8 @@ export default function BetPage() {
     fetchRealTimeStats();
     fetchBetStats();
     fetchBookmakerOdds();
-  }, [fetchPoolData, checkUserBetStatus, fetchRealTimeStats, fetchBetStats, fetchBookmakerOdds]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [poolId]); // Only run when poolId changes
   
   // Optimized polling for real-time stats
   const { data: realTimeData } = useOptimizedPolling<{
@@ -577,7 +579,8 @@ export default function BetPage() {
       
       proceedWithBet();
     }
-  }, [isApproveConfirmed, waitingForApproval, pendingBetData, address, poolId, placeBet, fetchPoolData, checkUserBetStatus, pool?.currency]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isApproveConfirmed, waitingForApproval, pendingBetData, address, poolId, placeBet, pool?.currency]); // fetchPoolData and checkUserBetStatus excluded to prevent loops
 
   useEffect(() => {
     if (pool && pool.eventDetails) {
