@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from "wagmi";
 import { toast } from "react-hot-toast";
-import { parseAbi } from "viem";
 import { CONTRACT_ADDRESSES } from "@/config/wagmi";
+import BitredictPoolCoreABI from "@/contracts/abis/BitredictPoolCore.json";
 
 interface ClaimRewardsProps {
   poolId: string;
@@ -20,17 +20,17 @@ interface UserStakeInfo {
   userWon: boolean;
   alreadyClaimed: boolean;
   estimatedPayout: bigint;
+  poolData: {
+    creator: string;
+    odds: number;
+    totalCreatorSideStake: bigint;
+    totalBettorStake: bigint;
+    settled: boolean;
+    creatorSideWon: boolean;
+  };
 }
 
-const POOL_ABI = parseAbi([
-  "function claim(uint256 poolId) external",
-  "function lpStakes(uint256, address) view returns (uint256)",
-  "function bettorStakes(uint256, address) view returns (uint256)",
-  "function claimed(uint256, address) view returns (bool)",
-  "function pools(uint256) view returns (address creator, uint16 odds, uint8 flags, uint8 oracleType, uint8 marketType, uint256 creatorStake, uint256 totalCreatorSideStake, uint256 maxBettorStake, uint256 totalBettorStake, string predictedOutcome, string result, uint256 eventStartTime, uint256 eventEndTime, uint256 bettingEndTime, uint256 resultTimestamp, uint256 arbitrationDeadline, uint256 maxBetPerUser, bytes32 marketId, string league, string category, string region, string homeTeam, string awayTeam, string title, uint256 reserved)"
-]);
-
-export default function ClaimRewards({ poolId, poolStatus }: ClaimRewardsProps) {
+export default function ClaimRewards({ poolId }: ClaimRewardsProps) {
   const { address } = useAccount();
   const [userStakeInfo, setUserStakeInfo] = useState<UserStakeInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -40,42 +40,180 @@ export default function ClaimRewards({ poolId, poolStatus }: ClaimRewardsProps) 
     hash,
   });
 
-  // Fetch user stake information
-  useEffect(() => {
-    const fetchUserStakeInfo = async () => {
-      if (!address) {
-        setLoading(false);
-        return;
-      }
+  // Read user's LP stake
+  const { data: lpStakeData } = useReadContract({
+    address: CONTRACT_ADDRESSES.POOL_CORE,
+    abi: BitredictPoolCoreABI.abi,
+    functionName: 'lpStakes',
+    args: [BigInt(poolId), address || '0x0'],
+    query: { enabled: !!address }
+  });
 
+  // Read user's bettor stake
+  const { data: bettorStakeData } = useReadContract({
+    address: CONTRACT_ADDRESSES.POOL_CORE,
+    abi: BitredictPoolCoreABI.abi,
+    functionName: 'bettorStakes',
+    args: [BigInt(poolId), address || '0x0'],
+    query: { enabled: !!address }
+  });
+
+  // Read if user already claimed
+  const { data: claimedData } = useReadContract({
+    address: CONTRACT_ADDRESSES.POOL_CORE,
+    abi: BitredictPoolCoreABI.abi,
+    functionName: 'claimed',
+    args: [BigInt(poolId), address || '0x0'],
+    query: { enabled: !!address }
+  });
+
+  // Read pool data for calculations
+  const { data: poolData } = useReadContract({
+    address: CONTRACT_ADDRESSES.POOL_CORE,
+    abi: BitredictPoolCoreABI.abi,
+    functionName: 'pools',
+    args: [BigInt(poolId)]
+  });
+
+  // Process contract data when it's available
+  useEffect(() => {
+    if (!address) {
+      setLoading(false);
+      return;
+    }
+
+    if (lpStakeData !== undefined && bettorStakeData !== undefined && claimedData !== undefined && poolData) {
       try {
-        setLoading(true);
+        const lpStake = lpStakeData as bigint;
+        const bettorStake = bettorStakeData as bigint;
+        const alreadyClaimed = claimedData as boolean;
         
-        // This would be replaced with actual contract calls
-        // For now, using mock data based on poolStatus
-        const mockStakeInfo: UserStakeInfo = {
-          isCreator: false,
-          hasLPStake: poolStatus === 'creator_won',
-          hasBettorStake: poolStatus === 'bettor_won',
-          lpStake: poolStatus === 'creator_won' ? BigInt("1000000000000000000") : BigInt("0"), // 1 token
-          bettorStake: poolStatus === 'bettor_won' ? BigInt("500000000000000000") : BigInt("0"), // 0.5 token
-          userWon: poolStatus === 'creator_won' || poolStatus === 'bettor_won',
-          alreadyClaimed: false,
-          estimatedPayout: poolStatus === 'creator_won' ? BigInt("1500000000000000000") : 
-                          poolStatus === 'bettor_won' ? BigInt("800000000000000000") : BigInt("0")
+        // Parse pool data - it's returned as an array
+        const [
+          creator,
+          odds,
+          flags,
+          , // oracleType - unused
+          , // marketType - unused  
+          , // creatorStake - unused
+          totalCreatorSideStake,
+          , // maxBettorStake - unused
+          totalBettorStake,
+          , // predictedOutcome - unused
+          , // result - unused
+          , // eventStartTime - unused
+          , // eventEndTime - unused
+          , // bettingEndTime - unused
+          , // resultTimestamp - unused
+          , // arbitrationDeadline - unused
+          , // maxBetPerUser - unused
+          , // marketId - unused
+          , // league - unused
+          , // category - unused
+          , // region - unused
+          , // homeTeam - unused
+          , // awayTeam - unused
+          , // title - unused
+          , // reserved - unused
+        ] = poolData as [
+          string, // creator
+          number, // odds
+          number, // flags
+          number, // oracleType
+          number, // marketType
+          bigint, // creatorStake
+          bigint, // totalCreatorSideStake
+          bigint, // maxBettorStake
+          bigint, // totalBettorStake
+          string, // predictedOutcome
+          string, // result
+          bigint, // eventStartTime
+          bigint, // eventEndTime
+          bigint, // bettingEndTime
+          bigint, // resultTimestamp
+          bigint, // arbitrationDeadline
+          bigint, // maxBetPerUser
+          string, // marketId
+          string, // league
+          string, // category
+          string, // region
+          string, // homeTeam
+          string, // awayTeam
+          string, // title
+          bigint  // reserved
+        ];
+
+        const isCreator = address.toLowerCase() === creator.toLowerCase();
+        const hasLPStake = lpStake > 0n;
+        const hasBettorStake = bettorStake > 0n;
+        
+        // Determine if user won based on pool status
+        const poolSettled = (Number(flags) & 1) !== 0; // Bit 0: settled
+        const creatorSideWon = (Number(flags) & 2) !== 0; // Bit 1: creatorSideWon
+        
+        let userWon = false;
+        let estimatedPayout = 0n;
+
+        if (poolSettled) {
+          if (creatorSideWon && hasLPStake) {
+            // LP side won
+            userWon = true;
+            // Calculate LP payout: stake + share of bettor stakes
+            const sharePercentage = (lpStake * 10000n) / BigInt(totalCreatorSideStake);
+            estimatedPayout = lpStake + ((BigInt(totalBettorStake) * sharePercentage) / 10000n);
+          } else if (!creatorSideWon && hasBettorStake) {
+            // Bettor side won
+            userWon = true;
+            // Calculate bettor payout: stake * odds (with fees deducted)
+            const poolOdds = BigInt(odds);
+            const grossPayout = (bettorStake * poolOdds) / 100n;
+            // Simplified fee calculation (actual contract has more complex logic)
+            const profit = grossPayout - bettorStake;
+            const fee = (profit * 300n) / 10000n; // Assume 3% fee
+            estimatedPayout = grossPayout - fee;
+          }
+        }
+
+        const stakeInfo: UserStakeInfo = {
+          isCreator,
+          hasLPStake,
+          hasBettorStake,
+          lpStake,
+          bettorStake,
+          userWon,
+          alreadyClaimed,
+          estimatedPayout,
+          poolData: {
+            creator,
+            odds: Number(odds),
+            totalCreatorSideStake: BigInt(totalCreatorSideStake),
+            totalBettorStake: BigInt(totalBettorStake),
+            settled: poolSettled,
+            creatorSideWon
+          }
         };
 
-        setUserStakeInfo(mockStakeInfo);
+        console.log('🔍 Real stake info:', {
+          poolId,
+          address,
+          lpStake: lpStake.toString(),
+          bettorStake: bettorStake.toString(),
+          alreadyClaimed,
+          userWon,
+          estimatedPayout: estimatedPayout.toString(),
+          poolSettled,
+          creatorSideWon
+        });
+
+        setUserStakeInfo(stakeInfo);
       } catch (error) {
-        console.error("Error fetching user stake info:", error);
-        toast.error("Failed to load your stake information");
+        console.error("Error processing stake info:", error);
+        toast.error("Failed to process your stake information");
       } finally {
         setLoading(false);
       }
-    };
-
-    fetchUserStakeInfo();
-  }, [address, poolId, poolStatus]);
+    }
+  }, [address, poolId, lpStakeData, bettorStakeData, claimedData, poolData]);
 
   const handleClaim = async () => {
     if (!address) {
@@ -94,12 +232,16 @@ export default function ClaimRewards({ poolId, poolStatus }: ClaimRewardsProps) 
     }
 
     try {
+      console.log('🎯 Claiming rewards for pool:', poolId, 'address:', address);
+      
       await writeContract({
         address: CONTRACT_ADDRESSES.POOL_CORE,
-        abi: POOL_ABI,
+        abi: BitredictPoolCoreABI.abi,
         functionName: "claim",
         args: [BigInt(poolId)],
       });
+      
+      toast.loading("Transaction submitted, waiting for confirmation...");
     } catch (error) {
       console.error("Error claiming rewards:", error);
       toast.error("Failed to claim rewards");
@@ -109,7 +251,9 @@ export default function ClaimRewards({ poolId, poolStatus }: ClaimRewardsProps) 
   // Handle transaction confirmation
   useEffect(() => {
     if (isConfirmed) {
+      toast.dismiss();
       toast.success("Rewards claimed successfully!");
+      // Refresh the data by setting alreadyClaimed to true
       setUserStakeInfo(prev => prev ? { ...prev, alreadyClaimed: true } : null);
     }
   }, [isConfirmed]);
@@ -117,7 +261,9 @@ export default function ClaimRewards({ poolId, poolStatus }: ClaimRewardsProps) 
   // Handle transaction error
   useEffect(() => {
     if (error) {
+      toast.dismiss();
       toast.error("Transaction failed. Please try again.");
+      console.error("Claim transaction error:", error);
     }
   }, [error]);
 
@@ -220,6 +366,20 @@ export default function ClaimRewards({ poolId, poolStatus }: ClaimRewardsProps) 
             <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
               <div className="text-sm text-green-400 mb-1">Estimated Payout</div>
               <div className="font-mono text-lg text-green-300">{formatAmount(userStakeInfo.estimatedPayout)} BITR</div>
+            </div>
+          )}
+
+          {/* Debug info for development */}
+          {process.env.NODE_ENV === 'development' && userStakeInfo.poolData && (
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4 text-xs">
+              <div className="text-blue-400 mb-1">Debug Info</div>
+              <div className="text-gray-300 space-y-1">
+                <div>Settled: {userStakeInfo.poolData.settled ? 'Yes' : 'No'}</div>
+                <div>Creator Side Won: {userStakeInfo.poolData.creatorSideWon ? 'Yes' : 'No'}</div>
+                <div>Total Creator Side: {formatAmount(userStakeInfo.poolData.totalCreatorSideStake)} BITR</div>
+                <div>Total Bettor Side: {formatAmount(userStakeInfo.poolData.totalBettorStake)} BITR</div>
+                <div>Pool Odds: {userStakeInfo.poolData.odds / 100}x</div>
+              </div>
             </div>
           )}
         </div>
