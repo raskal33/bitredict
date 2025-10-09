@@ -155,11 +155,16 @@ export default function MarketsPage() {
   
   // Convert raw pools to enhanced pools and update state
   useEffect(() => {
-    if (rawPools.length > 0) {
+    if (rawPools && rawPools.length > 0) {
       const enhancedPools = rawPools.map(convertToEnhancedPool);
       setPools(enhancedPools);
       setFilteredPools(enhancedPools);
       console.log('✅ Successfully loaded', enhancedPools.length, 'pools');
+    } else if (rawPools && rawPools.length === 0) {
+      // Empty array is valid - no pools available
+      setPools([]);
+      setFilteredPools([]);
+      console.log('✅ No pools available');
     }
   }, [rawPools, convertToEnhancedPool]);
 
