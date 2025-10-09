@@ -228,7 +228,7 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
       title: `${formData.cryptoAsset} Price Prediction`,
       homeTeam: formData.cryptoAsset,
       awayTeam: 'USD',
-      category: formData.cryptoAsset.toLowerCase()
+      category: 'cryptocurrency'
     }));
   }, [formData.cryptoAsset, formData.targetPrice, formData.timeFrame, generatePredictedOutcome, generateMarketId, calculateEventTimes]);
 
