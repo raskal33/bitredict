@@ -59,29 +59,10 @@ export default function MarketsPage() {
   // Generate proper title based on category and market type
   const generatePoolTitle = (pool: OptimizedPool): string => {
     try {
-      // Map numeric oracle type to string format
-      const getMarketTypeString = (oracleType: number | string | undefined): string => {
-        if (typeof oracleType === 'string') {
-          return oracleType; // Already a string
-        }
-        
-        const marketTypeMap: Record<number, string> = {
-          0: '1X2',           // MONEYLINE
-          1: 'OU25',          // OVER_UNDER (default to 2.5)
-          2: 'BTTS',          // BOTH_TEAMS_SCORE
-          3: 'HT_1X2',        // HALF_TIME
-          4: 'DC',            // DOUBLE_CHANCE
-          5: 'CS',            // CORRECT_SCORE
-          6: 'FG',            // FIRST_GOAL
-          7: 'CUSTOM'         // CUSTOM
-        };
-        
-        return marketTypeMap[oracleType as number] || '1X2';
-      };
 
       // Create market data for title generation
       const marketData = {
-        marketType: getMarketTypeString(pool.oracleType),
+        marketType: '1X2', // Default to 1X2 for football markets
         homeTeam: pool.homeTeam || 'Team A',
         awayTeam: pool.awayTeam || 'Team B',
         predictedOutcome: pool.predictedOutcome || 'Unknown',

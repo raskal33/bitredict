@@ -14,7 +14,6 @@ import { formatEther } from "viem";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
-import { titleTemplatesService } from "../services/title-templates";
 import { calculatePoolFill } from "../utils/poolCalculations";
 import { getPoolStatusDisplay, getStatusBadgeProps } from "../utils/poolStatus";
 import { getPoolIcon } from "../services/crypto-icons";
@@ -194,65 +193,11 @@ export default function EnhancedPoolCard({
                         pool.odds >= 200 ? 'ADVANCED' : 
                         pool.odds >= 150 ? 'INTERMEDIATE' : 'BEGINNER';
   
-  // Map numeric market type to string format expected by title templates
-  const getMarketTypeString = (marketType: number | string | undefined): string => {
-    if (typeof marketType === 'string') {
-      return marketType; // Already a string
-    }
-    
-    const marketTypeMap: Record<number, string> = {
-      0: '1X2',           // MONEYLINE
-      1: 'OU25',          // OVER_UNDER (default to 2.5)
-      2: 'BTTS',          // BOTH_TEAMS_SCORE
-      3: 'HT_1X2',        // HALF_TIME
-      4: 'DC',            // DOUBLE_CHANCE
-      5: 'CS',            // CORRECT_SCORE
-      6: 'FG',            // FIRST_GOAL
-      7: 'CUSTOM'         // CUSTOM
-    };
-    
-    return marketTypeMap[marketType as number] || '1X2';
-  };
   
-  // Generate enhanced title using title service instead of using contract title directly
+  // Use backend-generated title or fallback
   const displayTitle = pool.isComboPool 
     ? `Combo Pool #${pool.id} (${pool.comboConditions?.length || 0} conditions)`
-    : (() => {
-        try {
-          // Ensure we have all required data for title generation
-          const marketData = {
-            marketType: getMarketTypeString(pool.marketType),
-            homeTeam: pool.homeTeam || 'Team A',
-            awayTeam: pool.awayTeam || 'Team B',
-            predictedOutcome: pool.predictedOutcome || 'Unknown',
-            league: pool.league || 'Unknown League',
-            marketId: pool.marketId || '',
-            category: pool.category || 'sports' // Add category for crypto detection
-          };
-          
-          console.log('🎯 ENHANCED POOL CARD - Generating title with data:', marketData);
-          console.log('🎯 ENHANCED POOL CARD - Pool marketType (numeric):', pool.marketType);
-          console.log('🎯 ENHANCED POOL CARD - Mapped marketType (string):', marketData.marketType);
-          console.log('🎯 ENHANCED POOL CARD - Predicted outcome:', marketData.predictedOutcome);
-          console.log('🎯 ENHANCED POOL CARD - Home team:', marketData.homeTeam);
-          console.log('🎯 ENHANCED POOL CARD - Away team:', marketData.awayTeam);
-          console.log('🎯 ENHANCED POOL CARD - Pool ID:', pool.id);
-          console.log('🎯 ENHANCED POOL CARD - Full pool data:', pool);
-          
-          const generatedTitle = titleTemplatesService.generateTitle(marketData, {
-          short: false,
-          includeLeague: false,
-          maxLength: 60
-          });
-          
-          console.log('🎯 Generated title:', generatedTitle);
-          return generatedTitle;
-        } catch (error) {
-          console.error('Error generating title:', error);
-          // Fallback title
-          return pool.title || `${pool.homeTeam || 'Team A'} vs ${pool.awayTeam || 'Team B'}`;
-        }
-      })();
+    : pool.title || `${pool.homeTeam || 'Team A'} vs ${pool.awayTeam || 'Team B'}`;
   
   const formatStake = (stake: string) => {
     try {

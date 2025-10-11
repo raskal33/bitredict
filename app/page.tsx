@@ -21,7 +21,6 @@ import {
 import { optimizedPoolService, type OptimizedPool } from "@/services/optimizedPoolService";
 import { poolStateService } from "@/services/poolStateService";
 import { frontendCache } from "@/services/frontendCache";
-import { titleTemplatesService } from "@/services/title-templates";
 import EnhancedPoolCard, { EnhancedPool } from "@/components/EnhancedPoolCard";
 import RecentBetsLane from "@/components/RecentBetsLane";
 
@@ -60,7 +59,7 @@ export default function HomePage() {
       totalCreatorSideStake: pool.creatorStake,
       maxBettorStake: pool.maxPoolSize,
       totalBettorStake: pool.totalBettorStake,
-      predictedOutcome: pool.predictedOutcome || generateTitle(pool),
+      predictedOutcome: pool.predictedOutcome || 'Unknown',
       result: '',
       marketId: pool.marketId || pool.id.toString(),
       
@@ -73,7 +72,7 @@ export default function HomePage() {
       league: pool.league || 'Unknown',
       category: pool.category,
       region: pool.region || 'Unknown',
-      title: generateTitle(pool),
+      title: pool.title, // Use backend-generated title
       homeTeam: pool.homeTeam,
       awayTeam: pool.awayTeam,
       maxBetPerUser: pool.maxPoolSize,
@@ -101,29 +100,6 @@ export default function HomePage() {
     };
   }, []);
 
-  // Generate proper titles using the title service
-  const generateTitle = (pool: OptimizedPool): string => {
-    try {
-      const marketData = {
-        marketType: 'CUSTOM', // Default for home page
-        homeTeam: pool.homeTeam || 'Unknown',
-        awayTeam: pool.awayTeam || 'Unknown',
-        predictedOutcome: pool.predictedOutcome || 'Unknown outcome',
-        league: pool.league || 'Unknown League',
-        marketId: pool.marketId || pool.id.toString(),
-        category: pool.category || 'other'
-      };
-
-      return titleTemplatesService.generateTitle(marketData, {
-        short: false,
-        includeLeague: false,
-        maxLength: 80
-      });
-    } catch (error) {
-      console.error('Error generating title for pool', pool.id, ':', error);
-      return pool.title || `${pool.homeTeam || 'Event'} - ${pool.predictedOutcome || 'Prediction Market'}`;
-    }
-  };
 
 
   const fetchPlatformStats = useCallback(async () => {

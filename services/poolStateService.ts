@@ -37,17 +37,20 @@ class PoolStateService {
     }
 
     try {
-      // Single optimized contract call to get pool flags
-      const flags = await readContract(config, {
+      // Get pool data and extract flags
+      const poolData = await readContract(config, {
         address: this.CONTRACT_ADDRESS as `0x${string}`,
         abi: BitredictPoolCoreABI.abi,
-        functionName: 'getPoolFlags',
+        functionName: 'getPool',
         args: [BigInt(poolId)]
-      }) as bigint;
+      }) as any;
 
-      // Decode flags (assuming bit 0 = settled, bit 1 = creatorSideWon)
-      const settled = (flags & BigInt(1)) !== BigInt(0);
-      const creatorSideWon = (flags & BigInt(2)) !== BigInt(0);
+      // Extract flags from pool data (flags is at index 2 in the Pool struct)
+      const flags = poolData.flags || poolData[2] || 0;
+      
+      // Decode flags (bit 0 = settled, bit 1 = creatorSideWon)
+      const settled = (flags & 1) !== 0;
+      const creatorSideWon = (flags & 2) !== 0;
 
       // Cache the result
       this.cache[poolId] = {
@@ -98,23 +101,23 @@ class PoolStateService {
           readContract(config, {
             address: this.CONTRACT_ADDRESS as `0x${string}`,
             abi: BitredictPoolCoreABI.abi,
-            functionName: 'getPoolFlags',
+            functionName: 'getPool',
             args: [BigInt(poolId)]
           }).catch(error => {
             console.warn(`Failed to fetch pool state for pool ${poolId}:`, error);
-            return BigInt(0); // Fallback
+            return { flags: 0 }; // Fallback
           })
         );
 
-        const flagsResults = await Promise.all(contractCalls);
+        const poolResults = await Promise.all(contractCalls);
 
         // Process results and update cache
-        flagsResults.forEach((flags, index) => {
+        poolResults.forEach((poolData, index) => {
           const poolId = uncachedIds[index];
-          const flagsBigInt = flags as bigint;
+          const flags = (poolData as any).flags || (poolData as any)[2] || 0;
           
-          const settled = (flagsBigInt & BigInt(1)) !== BigInt(0);
-          const creatorSideWon = (flagsBigInt & BigInt(2)) !== BigInt(0);
+          const settled = (flags & 1) !== 0;
+          const creatorSideWon = (flags & 2) !== 0;
 
           // Cache the result
           this.cache[poolId] = {
