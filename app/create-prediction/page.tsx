@@ -926,15 +926,15 @@ function CreateMarketPageContent() {
           throw new Error(`Minimum stake for STT pools is 5 STT. You provided ${data.creatorStake} STT.`);
         }
         
-        // Validate odds (must be between 1.01 and 100.00)
-        const oddsDecimal = parseFloat(data.odds.toString());
-        if (oddsDecimal < 1.01 || oddsDecimal > 100.00) {
-          throw new Error(`Odds must be between 1.01 and 100.00. You provided ${oddsDecimal}.`);
+        // Validate odds (stored as basis points: 101-10000)
+        const oddsBasisPoints = typeof data.odds === 'number' ? data.odds : parseFloat(String(data.odds));
+        if (oddsBasisPoints < 101 || oddsBasisPoints > 10000) {
+          throw new Error(`Odds must be between 1.01x and 100x (101-10000 basis points). You provided ${oddsBasisPoints}.`);
         }
         
         const poolData = {
           predictedOutcome: predictedOutcome,
-          odds: BigInt(Math.floor(oddsDecimal * 100)), // Convert to basis points (e.g., 2.5 -> 250)
+          odds: BigInt(oddsBasisPoints), // Already in basis points
           creatorStake: creatorStake,
           eventStartTime: BigInt(Math.floor(eventStartTime.getTime() / 1000)),
           eventEndTime: BigInt(Math.floor(eventEndTime.getTime() / 1000)),
@@ -1023,10 +1023,10 @@ function CreateMarketPageContent() {
           throw new Error(`Minimum stake for STT pools is 5 STT. You provided ${data.creatorStake} STT.`);
         }
         
-        // Validate odds (must be between 1.01 and 100.00)
-        const oddsDecimal = parseFloat(data.odds.toString());
-        if (oddsDecimal < 1.01 || oddsDecimal > 100.00) {
-          throw new Error(`Odds must be between 1.01 and 100.00. You provided ${oddsDecimal}.`);
+        // Validate odds (stored as basis points: 101-10000)
+        const oddsBasisPoints = typeof data.odds === 'number' ? data.odds : parseFloat(String(data.odds));
+        if (oddsBasisPoints < 101 || oddsBasisPoints > 10000) {
+          throw new Error(`Odds must be between 1.01x and 100x (101-10000 basis points). You provided ${oddsBasisPoints}.`);
         }
         
         // Generate marketId hash for crypto market
@@ -1035,7 +1035,7 @@ function CreateMarketPageContent() {
         
         const poolData = {
           predictedOutcome: predictedOutcome,
-          odds: BigInt(Math.floor(oddsDecimal * 100)), // Convert to basis points (e.g., 2.5 -> 250)
+          odds: BigInt(oddsBasisPoints), // Already in basis points
           creatorStake: creatorStake,
           eventStartTime: BigInt(Math.floor(eventStartTime.getTime() / 1000)),
           eventEndTime: BigInt(Math.floor(eventEndTime.getTime() / 1000)),
@@ -1876,20 +1876,64 @@ function CreateMarketPageContent() {
               {data.outcome && (
                 <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
                   <span className="text-gray-300">Prediction:</span>
-                  <span className="text-white">
-                    {data.outcome === 'home' && `${data.selectedFixture.homeTeam.name} to win`}
-                    {data.outcome === 'away' && `${data.selectedFixture.awayTeam.name} to win`}
-                    {data.outcome === 'draw' && 'Match to end in draw'}
-                    {data.outcome === 'over25' && 'Over 2.5 goals'}
-                    {data.outcome === 'under25' && 'Under 2.5 goals'}
-                    {data.outcome === 'over35' && 'Over 3.5 goals'}
-                    {data.outcome === 'under35' && 'Under 3.5 goals'}
+                  <span className="text-white font-semibold">
+                    {data.outcome === 'home' && `Full Time 1X2 - ${data.selectedFixture.homeTeam.name} WIN`}
+                    {data.outcome === 'away' && `Full Time 1X2 - ${data.selectedFixture.awayTeam.name} WIN`}
+                    {data.outcome === 'draw' && 'Full Time 1X2 - DRAW'}
+                    {data.outcome === 'over15' && 'Over/Under - OVER 1.5 GOALS'}
+                    {data.outcome === 'under15' && 'Over/Under - UNDER 1.5 GOALS'}
+                    {data.outcome === 'over25' && 'Over/Under - OVER 2.5 GOALS'}
+                    {data.outcome === 'under25' && 'Over/Under - UNDER 2.5 GOALS'}
+                    {data.outcome === 'over35' && 'Over/Under - OVER 3.5 GOALS'}
+                    {data.outcome === 'under35' && 'Over/Under - UNDER 3.5 GOALS'}
+                    {data.outcome === 'bttsYes' && 'Both Teams Score - YES'}
+                    {data.outcome === 'bttsNo' && 'Both Teams Score - NO'}
+                    {data.outcome === 'htHome' && `Half Time - ${data.selectedFixture.homeTeam.name} LEADING`}
+                    {data.outcome === 'htDraw' && 'Half Time - DRAW'}
+                    {data.outcome === 'htAway' && `Half Time - ${data.selectedFixture.awayTeam.name} LEADING`}
+                    {data.outcome === 'ht_over_05' && 'Half Time - OVER 0.5 GOALS'}
+                    {data.outcome === 'ht_under_05' && 'Half Time - UNDER 0.5 GOALS'}
+                    {data.outcome === 'ht_over_15' && 'Half Time - OVER 1.5 GOALS'}
+                    {data.outcome === 'ht_under_15' && 'Half Time - UNDER 1.5 GOALS'}
+                  </span>
+                </div>
+              )}
+              {data.outcome && data.selectedFixture?.odds && (
+                <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
+                  <span className="text-gray-300">Market Odds:</span>
+                  <span className="text-cyan-400 font-semibold">
+                    {(() => {
+                      const odds = data.selectedFixture.odds;
+                      switch (data.outcome) {
+                        case 'home': return odds.home ? `${odds.home.toFixed(2)}x` : 'N/A';
+                        case 'away': return odds.away ? `${odds.away.toFixed(2)}x` : 'N/A';
+                        case 'draw': return odds.draw ? `${odds.draw.toFixed(2)}x` : 'N/A';
+                        case 'over15': return odds.over15 ? `${odds.over15.toFixed(2)}x` : 'N/A';
+                        case 'under15': return odds.under15 ? `${odds.under15.toFixed(2)}x` : 'N/A';
+                        case 'over25': return odds.over25 ? `${odds.over25.toFixed(2)}x` : 'N/A';
+                        case 'under25': return odds.under25 ? `${odds.under25.toFixed(2)}x` : 'N/A';
+                        case 'over35': return odds.over35 ? `${odds.over35.toFixed(2)}x` : 'N/A';
+                        case 'under35': return odds.under35 ? `${odds.under35.toFixed(2)}x` : 'N/A';
+                        case 'bttsYes': return odds.bttsYes ? `${odds.bttsYes.toFixed(2)}x` : 'N/A';
+                        case 'bttsNo': return odds.bttsNo ? `${odds.bttsNo.toFixed(2)}x` : 'N/A';
+                        case 'htHome': return odds.htHome ? `${odds.htHome.toFixed(2)}x` : 'N/A';
+                        case 'htDraw': return odds.htDraw ? `${odds.htDraw.toFixed(2)}x` : 'N/A';
+                        case 'htAway': return odds.htAway ? `${odds.htAway.toFixed(2)}x` : 'N/A';
+                        default: return 'N/A';
+                      }
+                    })()}
                   </span>
                 </div>
               )}
               <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
+                <span className="text-gray-300">Your Position:</span>
+                <span className="text-green-400 font-semibold">
+                  {data.predictionOutcome === 'yes' ? 'YES - Challenge Supporters' : 'NO - Challenge Doubters'}
+                </span>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
                 <span className="text-gray-300">Odds:</span>
-                <span className="text-white">{(data.odds / 100).toFixed(2)}x</span>
+                <span className="text-white font-semibold">{(data.odds / 100).toFixed(2)}x</span>
               </div>
               <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
                 <span className="text-gray-300">Your Stake:</span>
