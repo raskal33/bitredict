@@ -173,7 +173,9 @@ export default function BetPage() {
       const totalBettorStakeNum = parseFloat(poolData.totalBettorStake);
       const maxPoolSizeNum = parseFloat(poolData.maxPoolSize);
       // Calculate creator potential win: creatorStake / (odds - 1) + creatorStake
-      const potentialWinNum = (creatorStakeNum / (poolData.odds - 1)) + creatorStakeNum;
+      // Convert odds from basis points to decimal (140 -> 1.4)
+      const decimalOdds = poolData.odds / 100;
+      const potentialWinNum = (creatorStakeNum / (decimalOdds - 1)) + creatorStakeNum;
       
       // Set state variables
       setCreatorStakeFormatted(creatorStakeNum);
@@ -211,8 +213,8 @@ export default function BetPage() {
           successRate: poolData.creator.successRate,
           challengeScore: Math.round((poolData.odds / 100) * 20), // Convert basis points to decimal first
           totalVolume: typeof poolData.creator.totalVolume === 'string' 
-            ? parseFloat(poolData.creator.totalVolume) 
-            : poolData.creator.totalVolume || 0,
+            ? parseFloat(poolData.creator.totalVolume) / 1e18  // Convert from Wei to ETH/BITR
+            : (poolData.creator.totalVolume || 0) / 1e18,
           badges: poolData.creator.badges,
           createdAt: new Date().toISOString(),
           bio: ""
@@ -750,7 +752,7 @@ export default function BetPage() {
                       <CurrencyDollarIcon className="w-3 h-3 sm:w-4 sm:h-4" />
                       {pool.creator.totalVolume >= 1000 
                         ? `${(pool.creator.totalVolume / 1000).toFixed(1)}k` 
-                        : pool.creator.totalVolume.toFixed(0)} volume
+                        : pool.creator.totalVolume.toFixed(1)} volume
                   </div>
                   </div>
                 </div>
@@ -1290,7 +1292,7 @@ export default function BetPage() {
                         <span className="text-cyan-400">
                           {pool.creator.totalVolume >= 1000 
                             ? `${(pool.creator.totalVolume / 1000).toFixed(1)}k` 
-                            : pool.creator.totalVolume.toFixed(0)} {pool.currency}
+                            : pool.creator.totalVolume.toFixed(1)} {pool.currency}
                         </span>
                         </div>
                       </div>
