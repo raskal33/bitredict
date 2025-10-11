@@ -67,9 +67,9 @@ const initialData: CreateMarketData = {
   predictedOutcome: "",
   title: "",
   description: "",
-  odds: 200, // 2.0x default
-  creatorStake: 20, // Minimum stake
-      usesBitr: false, // Default to STT
+  odds: 200, // 2.0x default (valid range: 1.01-100.00)
+  creatorStake: 1000, // Default to 1000 BITR (meets minimum requirement)
+  usesBitr: true, // Default to BITR (since 1000 BITR is more reasonable than 5 STT)
   category: "",
   league: "",
   region: "",

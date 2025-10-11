@@ -1,4 +1,4 @@
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, usePublicClient } from 'wagmi';
 import { CONTRACTS, CONTRACT_ADDRESSES } from '@/contracts';
 import { executeContractCall, getTransactionOptions } from '@/lib/network-connection';
 import { useCallback, useMemo } from 'react';
@@ -79,6 +79,7 @@ export function usePoolCore() {
   const { address } = useAccount();
   const { writeContractAsync } = useWriteContract();
   const { approve, getAllowance } = useBitrToken();
+  const publicClient = usePublicClient();
 
   const createPool = useCallback(async (poolData: {
     predictedOutcome: string;
@@ -226,10 +227,27 @@ export function usePoolCore() {
       });
       
       console.log('Pool creation transaction submitted:', txHash);
-      toast.success('Pool creation transaction submitted!');
+      toast.loading('Waiting for transaction confirmation...', { id: 'pool-creation' });
+      
+      // Wait for transaction confirmation
+      console.log('⏳ Waiting for transaction confirmation...');
+      if (!publicClient) {
+        throw new Error('Public client not available');
+      }
+      const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
+      
+      if (receipt.status !== 'success') {
+        throw new Error(`Transaction failed with status: ${receipt.status}`);
+      }
+      
+      console.log('✅ Pool creation transaction confirmed:', txHash);
+      toast.success('Pool created successfully!', { id: 'pool-creation' });
       return txHash;
     } catch (error) {
       console.error('Error creating pool:', error);
+      
+      // Dismiss loading toast
+      toast.dismiss('pool-creation');
       
       // Provide more specific error messages
       if (error instanceof Error) {
@@ -239,6 +257,8 @@ export function usePoolCore() {
           toast.error('Insufficient BITR allowance. Please approve more tokens.');
         } else if (error.message.includes('revert')) {
           toast.error('Transaction reverted. Check your parameters and try again.');
+        } else if (error.message.includes('Transaction failed with status')) {
+          toast.error('Transaction failed on-chain. Please check your parameters and try again.');
         } else {
           toast.error(`Failed to create pool: ${error.message}`);
         }
@@ -248,7 +268,7 @@ export function usePoolCore() {
       
       throw error;
     }
-  }, [writeContractAsync, address, getAllowance, approve]);
+  }, [writeContractAsync, address, getAllowance, approve, publicClient]);
 
   const placeBet = useCallback(async (poolId: bigint, betAmount: bigint) => {
     try {
@@ -261,14 +281,34 @@ export function usePoolCore() {
         ...getTransactionOptions(),
       });
       
-      toast.success('Bet placed successfully!');
+      console.log('Bet transaction submitted:', txHash);
+      toast.loading('Waiting for bet confirmation...', { id: 'bet-placement' });
+      
+      // Wait for transaction confirmation
+      if (!publicClient) {
+        throw new Error('Public client not available');
+      }
+      const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
+      
+      if (receipt.status !== 'success') {
+        throw new Error(`Bet transaction failed with status: ${receipt.status}`);
+      }
+      
+      console.log('✅ Bet transaction confirmed:', txHash);
+      toast.success('Bet placed successfully!', { id: 'bet-placement' });
       return txHash;
     } catch (error) {
       console.error('Error placing bet:', error);
-      toast.error('Failed to place bet');
+      toast.dismiss('bet-placement');
+      
+      if (error instanceof Error && error.message.includes('Transaction failed with status')) {
+        toast.error('Bet transaction failed on-chain. Please try again.');
+      } else {
+        toast.error('Failed to place bet');
+      }
       throw error;
     }
-  }, [writeContractAsync]);
+  }, [writeContractAsync, publicClient]);
 
   const settlePool = useCallback(async (poolId: bigint, outcome: string) => {
     try {

@@ -905,14 +905,37 @@ function CreateMarketPageContent() {
       if (data.category === 'football' && data.selectedFixture) {
         console.log('Creating football market via direct contract call');
         
-        // Prepare contract call data
-        const eventStartTime = new Date(data.selectedFixture.matchDate);
+        // Prepare contract call data with proper validation
+        const now = new Date();
+        const matchDate = new Date(data.selectedFixture.matchDate);
+        
+        // Ensure event starts at least 60 seconds from now (bettingGracePeriod)
+        const minStartTime = new Date(now.getTime() + 60 * 1000); // 60 seconds from now
+        const eventStartTime = matchDate > minStartTime ? matchDate : minStartTime;
         const eventEndTime = new Date(eventStartTime.getTime() + 2 * 60 * 60 * 1000); // 2 hours after start
+        
+        // Validate minimum stake requirements
+        const minStakeBITR = parseUnits("1000", 18); // 1000 BITR minimum
+        const minStakeSTT = parseUnits("5", 18); // 5 STT minimum
+        const creatorStake = parseUnits(data.creatorStake.toString(), 18);
+        
+        if (useBitr && creatorStake < minStakeBITR) {
+          throw new Error(`Minimum stake for BITR pools is 1000 BITR. You provided ${data.creatorStake} BITR.`);
+        }
+        if (!useBitr && creatorStake < minStakeSTT) {
+          throw new Error(`Minimum stake for STT pools is 5 STT. You provided ${data.creatorStake} STT.`);
+        }
+        
+        // Validate odds (must be between 1.01 and 100.00)
+        const oddsDecimal = parseFloat(data.odds.toString());
+        if (oddsDecimal < 1.01 || oddsDecimal > 100.00) {
+          throw new Error(`Odds must be between 1.01 and 100.00. You provided ${oddsDecimal}.`);
+        }
         
         const poolData = {
           predictedOutcome: predictedOutcome,
-          odds: BigInt(data.odds),
-          creatorStake: parseUnits(data.creatorStake.toString(), 18),
+          odds: BigInt(Math.floor(oddsDecimal * 100)), // Convert to basis points (e.g., 2.5 -> 250)
+          creatorStake: creatorStake,
           eventStartTime: BigInt(Math.floor(eventStartTime.getTime() / 1000)),
           eventEndTime: BigInt(Math.floor(eventEndTime.getTime() / 1000)),
           league: data.selectedFixture.league.name,
@@ -978,15 +1001,33 @@ function CreateMarketPageContent() {
         // Use direct contract call for crypto markets (same as football)
         console.log('Creating crypto market via direct contract call');
         
-        // Calculate event times based on timeframe
+        // Calculate event times based on timeframe with proper validation
         const now = new Date();
         const hours = getTimeframeHours(data.timeframe || '1d');
-        // CORRECT LOGIC: 
-        // - Event Start: Creator sets when betting closes and price tracking begins
-        // - Event End: Event Start + Timeframe (when final price is fetched)
-        // - Default: Event starts in 1 hour, ends after timeframe duration
-        const eventStartTime = new Date(now.getTime() + (60 * 60 * 1000)); // 1 hour from now (default)
+        
+        // Ensure event starts at least 60 seconds from now (bettingGracePeriod)
+        const minStartTime = new Date(now.getTime() + 60 * 1000); // 60 seconds from now
+        const defaultStartTime = new Date(now.getTime() + (60 * 60 * 1000)); // 1 hour from now (default)
+        const eventStartTime = defaultStartTime > minStartTime ? defaultStartTime : minStartTime;
         const eventEndTime = new Date(eventStartTime.getTime() + (hours * 60 * 60 * 1000)); // Event Start + Timeframe
+        
+        // Validate minimum stake requirements
+        const minStakeBITR = parseUnits("1000", 18); // 1000 BITR minimum
+        const minStakeSTT = parseUnits("5", 18); // 5 STT minimum
+        const creatorStake = parseUnits(data.creatorStake.toString(), 18);
+        
+        if (useBitr && creatorStake < minStakeBITR) {
+          throw new Error(`Minimum stake for BITR pools is 1000 BITR. You provided ${data.creatorStake} BITR.`);
+        }
+        if (!useBitr && creatorStake < minStakeSTT) {
+          throw new Error(`Minimum stake for STT pools is 5 STT. You provided ${data.creatorStake} STT.`);
+        }
+        
+        // Validate odds (must be between 1.01 and 100.00)
+        const oddsDecimal = parseFloat(data.odds.toString());
+        if (oddsDecimal < 1.01 || oddsDecimal > 100.00) {
+          throw new Error(`Odds must be between 1.01 and 100.00. You provided ${oddsDecimal}.`);
+        }
         
         // Generate marketId hash for crypto market
         const marketIdString = `${data.selectedCrypto.symbol.toLowerCase()}_${data.targetPrice}_${getDateString()}`;
@@ -994,8 +1035,8 @@ function CreateMarketPageContent() {
         
         const poolData = {
           predictedOutcome: predictedOutcome,
-          odds: BigInt(data.odds),
-          creatorStake: parseUnits(data.creatorStake.toString(), 18),
+          odds: BigInt(Math.floor(oddsDecimal * 100)), // Convert to basis points (e.g., 2.5 -> 250)
+          creatorStake: creatorStake,
           eventStartTime: BigInt(Math.floor(eventStartTime.getTime() / 1000)),
           eventEndTime: BigInt(Math.floor(eventEndTime.getTime() / 1000)),
           league: 'crypto',
