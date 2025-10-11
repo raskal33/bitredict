@@ -197,14 +197,45 @@ class OptimizedPoolService {
    * Performance: 10-20x faster than aggregating contract data
    */
   async getAnalytics(): Promise<PoolAnalytics> {
-    const response = await fetch(`${this.baseUrl}/analytics`);
-    const data = await response.json();
-    
-    if (!data.success) {
-      throw new Error(data.error || 'Failed to fetch analytics');
+    try {
+      const response = await fetch(`${this.baseUrl}/analytics`, {
+        signal: AbortSignal.timeout(10000) // 10 second timeout
+      });
+      
+      if (!response.ok) {
+        console.warn(`Analytics endpoint returned ${response.status}, using fallback data`);
+        return this.getFallbackAnalytics();
+      }
+      
+      const data = await response.json();
+      
+      if (!data.success) {
+        console.warn('Analytics request unsuccessful, using fallback data');
+        return this.getFallbackAnalytics();
+      }
+      
+      return data.data;
+    } catch (error) {
+      console.warn('Failed to fetch analytics, using fallback data:', error);
+      return this.getFallbackAnalytics();
     }
-    
-    return data.data;
+  }
+
+  /**
+   * Fallback analytics data when backend is unavailable
+   */
+  private getFallbackAnalytics(): PoolAnalytics {
+    return {
+      totalPools: 0,
+      activePools: 0,
+      settledPools: 0,
+      totalVolume: '0',
+      bitrVolume: '0',
+      sttVolume: '0',
+      participants: 0,
+      boostedPools: 0,
+      trendingPools: 0
+    };
   }
 
   /**

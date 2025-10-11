@@ -48,7 +48,7 @@ export default function HomePage() {
     return {
       id: pool.id,
       creator: pool.creator.address,
-      odds: Math.round(pool.odds * 100), // Convert to contract format
+      odds: pool.odds, // Already in basis points format from backend (150 = 1.50x)
       settled: poolState.settled,
       creatorSideWon: poolState.creatorSideWon,
       isPrivate: false, // Not supported in OptimizedPool

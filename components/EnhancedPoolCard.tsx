@@ -617,8 +617,8 @@ export default function EnhancedPoolCard({
               <div className="text-xs text-gray-400">Combined Odds</div>
               <div className={`text-lg font-bold ${theme.accent}`}>
                 {pool.comboOdds ? 
-                  (typeof pool.comboOdds === 'number' ? pool.comboOdds.toFixed(2) : parseFloat(String(pool.comboOdds)).toFixed(2)) :
-                  (typeof pool.odds === 'number' ? pool.odds.toFixed(2) : parseFloat(String(pool.odds)).toFixed(2))
+                  (typeof pool.comboOdds === 'number' ? (pool.comboOdds / 100).toFixed(2) : (parseFloat(String(pool.comboOdds)) / 100).toFixed(2)) :
+                  (typeof pool.odds === 'number' ? (pool.odds / 100).toFixed(2) : (parseFloat(String(pool.odds)) / 100).toFixed(2))
                 }x
               </div>
             </div>
@@ -665,7 +665,7 @@ export default function EnhancedPoolCard({
             <div className="text-center">
               <div className="text-xs text-gray-400">Odds</div>
               <div className={`text-lg font-bold ${theme.accent}`}>
-                {typeof pool.odds === 'number' ? pool.odds.toFixed(2) : parseFloat(String(pool.odds)).toFixed(2)}x
+                {typeof pool.odds === 'number' ? (pool.odds / 100).toFixed(2) : (parseFloat(String(pool.odds)) / 100).toFixed(2)}x
               </div>
             </div>
             
