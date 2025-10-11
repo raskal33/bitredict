@@ -1,5 +1,7 @@
 export const API_CONFIG = {
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://bitredict-backend.fly.dev',
+  // Use relative URLs for frontend API routes that proxy to backend
+  frontendBaseURL: typeof window !== 'undefined' ? '' : 'https://bitredict-backend.fly.dev',
   endpoints: {
     airdrop: '/api/airdrop',
     faucet: '/api/faucet', 
@@ -19,6 +21,11 @@ export const API_CONFIG = {
 } as const;
 
 export function getAPIUrl(endpoint: string): string {
+  // Use frontend proxy routes on client-side to avoid CORS issues
+  if (typeof window !== 'undefined') {
+    return `${API_CONFIG.frontendBaseURL}${endpoint}`;
+  }
+  // Use direct backend URL on server-side
   return `${API_CONFIG.baseURL}${endpoint}`;
 }
 

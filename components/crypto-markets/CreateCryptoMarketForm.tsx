@@ -23,7 +23,6 @@ interface CryptoMarketFormData {
   maxBetPerUser: string;
   isPrivate: boolean;
   creatorStake: string;
-  region?: string;
   marketId: string;
   
   // Crypto-specific data
@@ -95,7 +94,6 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
     maxBetPerUser: '100',
     isPrivate: false,
     creatorStake: '1.0',
-    region: 'global',
     marketId: '',
     cryptoAsset: 'BTC',
     targetPrice: '130000',
@@ -297,7 +295,6 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
         maxBetPerUser: formData.maxBetPerUser ? BigInt(parseFloat(formData.maxBetPerUser) * 1e18) : BigInt(0),
         isPrivate: formData.isPrivate,
         creatorStake: BigInt(parseFloat(formData.creatorStake) * 1e18),
-        region: formData.region || "global",
         homeTeam: formData.homeTeam,
         awayTeam: formData.awayTeam,
         title: formData.title,

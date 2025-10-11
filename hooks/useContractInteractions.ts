@@ -88,7 +88,6 @@ export function usePoolCore() {
     eventEndTime: bigint;
     league: string;
     category: string;
-    region: string;
     isPrivate: boolean;
     maxBetPerUser: bigint;
     useBitr: boolean;
@@ -181,7 +180,6 @@ export function usePoolCore() {
       // Ensure all strings are 32 bytes or less for bytes32 encoding
       const leagueBytes32 = ethers.encodeBytes32String(poolData.league.slice(0, 31));
       const categoryBytes32 = ethers.encodeBytes32String(poolData.category.slice(0, 31));
-      const regionBytes32 = ethers.encodeBytes32String(poolData.region.slice(0, 31));
       const homeTeamBytes32 = ethers.encodeBytes32String(teamNames.homeTeam.slice(0, 31));
       const awayTeamBytes32 = ethers.encodeBytes32String(teamNames.awayTeam.slice(0, 31));
       // Ensure title is 32 bytes or less for bytes32 encoding
@@ -192,7 +190,6 @@ export function usePoolCore() {
         predictedOutcomeBytes32,
         leagueBytes32,
         categoryBytes32,
-        regionBytes32,
         homeTeamBytes32,
         awayTeamBytes32,
         titleBytes32,
@@ -214,7 +211,6 @@ export function usePoolCore() {
           poolData.eventEndTime,
           leagueBytes32, // 🎯 bytes32 encoded league
           categoryBytes32, // 🎯 bytes32 encoded category
-          regionBytes32, // 🎯 bytes32 encoded region
           homeTeamBytes32, // 🎯 bytes32 encoded home team
           awayTeamBytes32, // 🎯 bytes32 encoded away team
           titleBytes32, // 🎯 bytes32 encoded title

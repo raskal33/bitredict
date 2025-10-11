@@ -375,17 +375,17 @@ export default function HomePage() {
     >
       {/* Hero Section - Cleaner and More Focused */}
       <div className="text-center max-w-4xl mx-auto mb-16">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
           className="mb-12"
         >
           <h1 className="text-4xl md:text-6xl font-bold text-white mb-6">
             <span className="bg-gradient-to-r from-somnia-cyan via-somnia-blue to-somnia-violet bg-clip-text text-transparent">
               Challenge The Future
-            </span>
-          </h1>
+              </span>
+            </h1>
           <p className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto leading-relaxed mb-8">
             Where brilliant minds converge to predict tomorrow. Challenge the Creators, earn legendary rewards, and shape the future of prediction markets.
           </p>
@@ -414,7 +414,7 @@ export default function HomePage() {
               </motion.button>
             </Link>
           </div>
-        </motion.div>
+              </motion.div>
       </div>
               
       {/* Recent Bets Lane */}
@@ -428,7 +428,7 @@ export default function HomePage() {
       </motion.div>
 
       {/* Platform Stats - Compact and Focused */}
-      <motion.div
+              <motion.div
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
@@ -443,7 +443,7 @@ export default function HomePage() {
         <p className="text-lg text-gray-300 max-w-2xl mx-auto mb-8">
           Join thousands of predictors in the most advanced prediction ecosystem.
         </p>
-      </motion.div>
+            </motion.div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-16">
         <StatCard icon={CurrencyDollarIcon} label="Total Volume" value={stats.totalVolume} delay={0.1} />
@@ -501,13 +501,13 @@ export default function HomePage() {
         {/* Featured Pools - Simplified */}
         <section className="py-12 px-4 relative">
           <div className="container mx-auto">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
               viewport={{ once: true }}
-              className="text-center mb-12"
-            >
+            className="text-center mb-12"
+          >
               <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
                 <span className="bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
                   Featured Predictions
@@ -515,27 +515,27 @@ export default function HomePage() {
               </h2>
               <p className="text-lg text-gray-400 max-w-2xl mx-auto mb-8">
                 Discover the most exciting prediction markets and challenge the best creators
-              </p>
+            </p>
 
               {/* Simplified Category Filter */}
               <div className="flex flex-wrap justify-center gap-3 mb-12">
-                {categories.map((category) => (
+              {categories.map((category) => (
                   <motion.button
-                    key={category}
+                  key={category}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => handleSetCategory(category)}
+                  onClick={() => handleSetCategory(category)}
                     className={`px-6 py-3 rounded-xl font-medium transition-all ${
                       (activeCategory === "" && category === "All") || activeCategory === category
                         ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/25"
                         : "bg-gray-800/50 text-gray-400 hover:text-white hover:bg-gray-700/50 border border-gray-700/30"
-                    }`}
-                  >
+                  }`}
+                >
                     {category === "All" ? "All Markets" : category.charAt(0).toUpperCase() + category.slice(1)}
                   </motion.button>
-                ))}
-              </div>
-            </motion.div>
+              ))}
+            </div>
+          </motion.div>
 
             {loading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -570,34 +570,34 @@ export default function HomePage() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <AnimatePresence>
-                  {filteredPools.slice(0, 6).map((pool, index) => (
+                                  <AnimatePresence>
+                    {filteredPools.slice(0, 6).map((pool, index) => (
                     <EnhancedPoolCard key={pool.id} pool={pool} index={index} />
-                  ))}
-                </AnimatePresence>
+                    ))}
+                  </AnimatePresence>
               </div>
             )}
             
             {/* View All Markets Button */}
             {filteredPools.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8 }}
-                viewport={{ once: true }}
-                className="text-center mt-12"
-              >
-                <Link href="/markets">
-                  <motion.button
-                    whileHover={{ scale: 1.05, y: -2 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-4 rounded-2xl font-bold text-lg shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all duration-300 flex items-center gap-2 mx-auto"
-                  >
-                    View All Markets
-                    <BoltIcon className="w-5 h-5" />
-                  </motion.button>
-                </Link>
-              </motion.div>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8 }}
+              viewport={{ once: true }}
+              className="text-center mt-12"
+            >
+              <Link href="/markets">
+                <motion.button
+                  whileHover={{ scale: 1.05, y: -2 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-4 rounded-2xl font-bold text-lg shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all duration-300 flex items-center gap-2 mx-auto"
+                >
+                  View All Markets
+                  <BoltIcon className="w-5 h-5" />
+                </motion.button>
+              </Link>
+            </motion.div>
             )}
           </div>
         </section>

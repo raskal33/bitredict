@@ -1314,10 +1314,10 @@ export default function BetPage() {
                       in {pool.creator.successRate.toFixed(1)}% of their predictions. This suggests they have a good track 
                       record of identifying unlikely events.
                     </p>
-                            <p>
+                    <p>
                               The {pool.odds.toFixed(1)}x odds indicate the creator is offering a {((pool.odds - 1) * 100).toFixed(0)}% 
-                              premium to challengers, suggesting they have high confidence in their prediction.
-                            </p>
+                      premium to challengers, suggesting they have high confidence in their prediction.
+                    </p>
                   </div>
               </div>
 
@@ -1401,14 +1401,14 @@ export default function BetPage() {
                 <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
-              </div>
+                </div>
               Recent Activity
             </h3>
             <div className="flex items-center gap-2 text-sm text-gray-400">
               <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
               Live updates
-            </div>
-          </div>
+              </div>
+                  </div>
 
           <div className="space-y-3 max-h-96 overflow-y-auto custom-scrollbar">
             {recentBets.length === 0 ? (
@@ -1417,10 +1417,10 @@ export default function BetPage() {
                   <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
-                </div>
+                    </div>
                 <p className="text-gray-400 font-medium">No bets yet</p>
                 <p className="text-gray-500 text-sm mt-1">Be the first to bet on this pool!</p>
-              </div>
+                  </div>
             ) : (
               recentBets.map((bet, index) => (
                 <div key={bet.id || index} className="group bg-gradient-to-r from-gray-800/50 to-gray-700/30 p-4 rounded-xl border border-gray-600/30 hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/10">
@@ -1450,15 +1450,15 @@ export default function BetPage() {
                               hour: '2-digit', 
                               minute: '2-digit' 
                             })}
-                          </span>
-                        </div>
+                      </span>
+                    </div>
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-2xl font-bold text-white">
                             {parseFloat(bet.amount).toFixed(2)} {pool?.currency || 'STT'}
-                          </span>
+                    </span>
+                  </div>
                         </div>
                       </div>
-                    </div>
 
                     {/* Transaction Link */}
                     <div className="flex items-center gap-2">
@@ -1505,7 +1505,7 @@ export default function BetPage() {
                 </div>
               ))
             )}
-          </div>
+                    </div>
 
           {/* Show More Button */}
           {recentBets.length > 0 && (
@@ -1518,7 +1518,7 @@ export default function BetPage() {
               </button>
             </div>
           )}
-        </div>
+                  </div>
 
         {/* Comments Section */}
         <div className="glass-card space-y-6">
