@@ -78,7 +78,7 @@ export function useBitrToken() {
 export function usePoolCore() {
   const { address } = useAccount();
   const { writeContractAsync } = useWriteContract();
-  const { approve, getAllowance } = useBitrToken();
+  const { approve, getAllowance, getBalance } = useBitrToken();
   const publicClient = usePublicClient();
 
   const createPool = useCallback(async (poolData: {
@@ -118,6 +118,15 @@ export function usePoolCore() {
       // For BITR pools, we need to ensure the contract has sufficient allowance
       // The contract will handle the token transfer internally
       if (poolData.useBitr) {
+        // Check BITR balance first
+        const balance = await getBalance();
+        console.log(`🔍 BITR Balance Check: ${balance}, Required: ${totalRequired}`);
+        
+        if (balance < totalRequired) {
+          const shortfall = totalRequired - balance;
+          throw new Error(`Insufficient BITR balance. You have ${balance / BigInt(10**18)} BITR but need ${totalRequired / BigInt(10**18)} BITR (shortfall: ${shortfall / BigInt(10**18)} BITR)`);
+        }
+        
         // Check if we need to approve more tokens
         const currentAllowance = await getAllowance(address as `0x${string}`, CONTRACT_ADDRESSES.POOL_CORE);
         console.log(`BITR Pool Creation - Current allowance: ${currentAllowance}, Required: ${totalRequired}`);
@@ -200,6 +209,18 @@ export function usePoolCore() {
       // 🚀 GAS OPTIMIZATION: Use createPool for gas efficiency
       console.log(`⛽ Using createPool function`);
 
+      // Log critical validation info before sending transaction
+      console.log('🔍 Pre-transaction validation:', {
+        address: address,
+        useBitr: poolData.useBitr,
+        creatorStake: poolData.creatorStake.toString(),
+        totalRequired: totalRequired.toString(),
+        oracleType: poolData.oracleType,
+        marketType: poolData.marketType,
+        eventStartTime: new Date(Number(poolData.eventStartTime) * 1000).toISOString(),
+        gracePeriodBuffer: Number(poolData.eventStartTime) - Math.floor(Date.now() / 1000),
+      });
+
       const txHash = await writeContractAsync({
         address: CONTRACT_ADDRESSES.POOL_CORE,
         abi: CONTRACTS.POOL_CORE.abi,
@@ -237,7 +258,13 @@ export function usePoolCore() {
       const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
       
       if (receipt.status !== 'success') {
-        throw new Error(`Transaction failed with status: ${receipt.status}`);
+        console.error('❌ Transaction failed. Receipt:', {
+          status: receipt.status,
+          blockNumber: receipt.blockNumber,
+          gasUsed: receipt.gasUsed?.toString(),
+          effectiveGasPrice: receipt.effectiveGasPrice?.toString(),
+        });
+        throw new Error(`Transaction reverted on-chain. Possible causes: insufficient reputation, timing validation failed, or token transfer rejected. Check contract requirements.`);
       }
       
       console.log('✅ Pool creation transaction confirmed:', txHash);

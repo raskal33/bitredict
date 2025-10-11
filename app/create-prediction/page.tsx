@@ -34,6 +34,7 @@ import { GuidedMarketService, Cryptocurrency, FootballMatch } from "@/services/g
 // import { useGuidedMarketCreation } from "@/services/guidedMarketWalletService"; // Not used - using direct contract calls
 import { useWalletConnection } from "@/hooks/useWalletConnection";
 import { useBITRToken } from "@/hooks/useBITRToken";
+import { useReputationCheck } from "@/hooks/useReputationCheck";
 
 
 
@@ -139,6 +140,7 @@ function CreateMarketPageContent() {
   // const { createFootballMarket } = useGuidedMarketCreation(); // Not used - using direct contract calls
   const { createPool } = usePoolCore();
   const { getUserReputation, canCreateMarket, addReputationAction } = useReputationStore();
+  const reputationCheck = useReputationCheck(address as `0x${string}` | undefined);
   const { data: hash, error: writeError, isPending } = useWriteContract(); // writeContract removed as not currently used
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
   
@@ -896,6 +898,14 @@ function CreateMarketPageContent() {
       return;
     }
 
+    // Log reputation for debugging (reputation check is OK for new users with default 40 points)
+    console.log('🔍 User reputation status:', {
+      score: reputationCheck.score,
+      canCreateGuided: reputationCheck.canCreateGuided,
+      canCreateOpen: reputationCheck.canCreateOpen,
+      isVerified: reputationCheck.isVerified,
+    });
+
     setIsLoading(true);
 
     try {
@@ -909,8 +919,8 @@ function CreateMarketPageContent() {
         const now = new Date();
         const matchDate = new Date(data.selectedFixture.matchDate);
         
-        // Ensure event starts at least 60 seconds from now (bettingGracePeriod)
-        const minStartTime = new Date(now.getTime() + 60 * 1000); // 60 seconds from now
+        // Ensure event starts at least 120 seconds from now (bettingGracePeriod + buffer for block time)
+        const minStartTime = new Date(now.getTime() + 120 * 1000); // 120 seconds from now (60s grace + 60s buffer)
         const eventStartTime = matchDate > minStartTime ? matchDate : minStartTime;
         const eventEndTime = new Date(eventStartTime.getTime() + 2 * 60 * 60 * 1000); // 2 hours after start
         
@@ -958,6 +968,19 @@ function CreateMarketPageContent() {
           predictionOutcome: data.predictionOutcome
         });
         console.log('Pool data for direct contract call:', poolData);
+        console.log('🔍 Timing validation:', {
+          eventStartTime: new Date(Number(poolData.eventStartTime) * 1000).toISOString(),
+          eventEndTime: new Date(Number(poolData.eventEndTime) * 1000).toISOString(),
+          now: new Date().toISOString(),
+          timeDiff: Number(poolData.eventStartTime) - Math.floor(Date.now() / 1000),
+          gracePeriod: 60,
+          meetsGracePeriod: Number(poolData.eventStartTime) > Math.floor(Date.now() / 1000) + 60
+        });
+        console.log('🔍 Stake validation:', {
+          creatorStake: poolData.creatorStake.toString(),
+          minRequired: useBitr ? '1000000000000000000000' : '5000000000000000000',
+          meetsMinimum: useBitr ? poolData.creatorStake >= BigInt('1000000000000000000000') : poolData.creatorStake >= BigInt('5000000000000000000')
+        });
         
         showInfo('Creating Market', 'Preparing market creation transaction...');
         
@@ -1005,8 +1028,8 @@ function CreateMarketPageContent() {
         const now = new Date();
         const hours = getTimeframeHours(data.timeframe || '1d');
         
-        // Ensure event starts at least 60 seconds from now (bettingGracePeriod)
-        const minStartTime = new Date(now.getTime() + 60 * 1000); // 60 seconds from now
+        // Ensure event starts at least 120 seconds from now (bettingGracePeriod + buffer for block time)
+        const minStartTime = new Date(now.getTime() + 120 * 1000); // 120 seconds from now (60s grace + 60s buffer)
         const defaultStartTime = new Date(now.getTime() + (60 * 60 * 1000)); // 1 hour from now (default)
         const eventStartTime = defaultStartTime > minStartTime ? defaultStartTime : minStartTime;
         const eventEndTime = new Date(eventStartTime.getTime() + (hours * 60 * 60 * 1000)); // Event Start + Timeframe
