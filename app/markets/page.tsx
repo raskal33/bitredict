@@ -10,8 +10,7 @@ import { poolStateService } from "@/services/poolStateService";
 import { frontendCache } from "@/services/frontendCache";
 import RecentBetsLane from "@/components/RecentBetsLane";
 import SkeletonLoader from "@/components/SkeletonLoader";
-import { titleTemplatesService } from "@/services/title-templates";
-import { getPoolIcon } from "@/services/crypto-icons";
+import EnhancedPoolCard, { type EnhancedPool } from "@/components/EnhancedPoolCard";
 import { 
   FaChartLine, 
   FaFilter, 
@@ -24,8 +23,7 @@ import {
   FaClock,
   FaSort,
   FaShieldAlt,
-  FaGift,
-  FaUsers
+  FaGift
 } from "react-icons/fa";
 
 type MarketCategory = "all" | "boosted" | "trending" | "private" | "combo" | "active" | "closed" | "settled";
@@ -56,34 +54,58 @@ export default function MarketsPage() {
   });
   const [isLoading, setIsLoading] = useState(true);
 
-  // Generate proper title based on category and market type
-  const generatePoolTitle = (pool: OptimizedPool): string => {
-    try {
-
-      // Create market data for title generation
-      const marketData = {
-        marketType: '1X2', // Default to 1X2 for football markets
-        homeTeam: pool.homeTeam || 'Team A',
-        awayTeam: pool.awayTeam || 'Team B',
-        predictedOutcome: pool.predictedOutcome || 'Unknown',
-        league: pool.league || 'Unknown League',
-        marketId: pool.marketId || '',
-        category: pool.category || 'sports'
-      };
-
-      // Generate title using title service
-      const generatedTitle = titleTemplatesService.generateTitle(marketData, {
-        short: false,
-        includeLeague: false,
-        maxLength: 60
-      });
-
-      return generatedTitle;
-    } catch (error) {
-      console.error('Error generating title for pool', pool.id, ':', error);
-      // Fallback title
-      return pool.title || `${pool.homeTeam || 'Team A'} vs ${pool.awayTeam || 'Team B'}`;
-    }
+  // Convert OptimizedPool to EnhancedPool
+  const convertToEnhancedPool = (pool: OptimizedPool & { settled?: boolean; creatorSideWon?: boolean }): EnhancedPool => {
+    return {
+      id: pool.id,
+      creator: pool.creator.address,
+      odds: pool.odds,
+      settled: pool.settled || false,
+      creatorSideWon: pool.creatorSideWon || false,
+      isPrivate: false, // Not supported in OptimizedPool
+      usesBitr: pool.currency === 'BITR',
+      filledAbove60: pool.fillPercentage >= 60,
+      oracleType: (pool.oracleType as 'GUIDED' | 'OPEN') || 'GUIDED',
+      status: pool.status as 'active' | 'closed' | 'settled' | 'cancelled',
+      creatorStake: pool.creatorStake,
+      totalCreatorSideStake: pool.creatorStake,
+      maxBettorStake: pool.maxPoolSize,
+      totalBettorStake: pool.totalBettorStake,
+      predictedOutcome: pool.predictedOutcome || 'Unknown',
+      result: '',
+      marketId: pool.marketId || '',
+      eventStartTime: pool.eventStartTime,
+      eventEndTime: pool.eventEndTime,
+      bettingEndTime: pool.bettingEndTime,
+      resultTimestamp: 0,
+      arbitrationDeadline: 0,
+      league: pool.league || '',
+      category: pool.category,
+      region: pool.region || 'Global',
+      title: pool.title,
+      homeTeam: pool.homeTeam,
+      awayTeam: pool.awayTeam,
+      maxBetPerUser: '0',
+      marketType: undefined,
+      boostTier: pool.boostTier,
+      boostExpiry: 0,
+      trending: pool.trending,
+      socialStats: pool.socialStats,
+      change24h: undefined,
+      isComboPool: false,
+      comboConditions: undefined,
+      indexedData: {
+        participantCount: pool.participants,
+        fillPercentage: pool.fillPercentage,
+        totalVolume: pool.totalBettorStake,
+        betCount: 0,
+        avgBetSize: '0',
+        creatorReputation: 0,
+        categoryRank: 0,
+        isHot: false,
+        lastActivity: new Date()
+      }
+    };
   };
 
   // Format numbers to human-readable format (no scientific notation)
@@ -511,108 +533,13 @@ export default function MarketsPage() {
                   <SkeletonLoader type="markets-list" count={6} />
                 ) : (
                 <AnimatePresence>
-                  {filteredPools.map((pool) => (
-                      <motion.div
+                  {filteredPools.map((pool, index) => (
+                    <EnhancedPoolCard
                       key={pool.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        className="bg-gradient-to-br from-gray-800/60 to-gray-900/40 p-5 rounded-xl border border-gray-600/30 cursor-pointer hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 backdrop-blur-sm"
-                        onClick={() => router.push(`/bet/${pool.id}`)}
-                      >
-                        <div className="flex justify-between items-start mb-3">
-                          <div className="flex items-center gap-3">
-                            {/* Category Icon */}
-                            <div className="text-2xl">
-                              {getPoolIcon(pool.category, pool.homeTeam).icon}
-                            </div>
-                            <div className="flex flex-col">
-                              <span className={`text-xs px-2 py-1 rounded-full font-medium border ${
-                                pool.category === 'football' ? 'text-green-400 bg-green-500/20 border-green-500/30' :
-                                pool.category === 'crypto' || pool.category === 'cryptocurrency' ? 'text-yellow-400 bg-yellow-500/20 border-yellow-500/30' :
-                                pool.category === 'basketball' ? 'text-orange-400 bg-orange-500/20 border-orange-500/30' :
-                                'text-blue-400 bg-blue-500/20 border-blue-500/30'
-                              }`}>
-                                {pool.category.charAt(0).toUpperCase() + pool.category.slice(1)}
-                              </span>
-                            </div>
-                          </div>
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            pool.settled 
-                              ? (pool.creatorSideWon 
-                                  ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' 
-                                  : 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
-                                )
-                              : pool.status === 'active' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
-                                pool.status === 'closed' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' :
-                                'bg-gray-500/20 text-gray-400 border border-gray-500/30'
-                          }`}>
-                            {pool.settled 
-                              ? (pool.creatorSideWon ? 'CREATOR WON' : 'BETTOR WON')
-                              : pool.status.toUpperCase()
-                            }
-                          </span>
-                        </div>
-
-                        {/* Generated Title */}
-                        <h3 className="text-white font-bold text-lg mb-3 line-clamp-2 leading-tight">
-                          {generatePoolTitle(pool)}
-                        </h3>
-
-                        {/* Pool Stats */}
-                        <div className="grid grid-cols-2 gap-4 mb-3">
-                          <div className="text-center">
-                            <div className="text-xs text-gray-400 mb-1">Odds</div>
-                            <div className="text-lg font-bold text-primary">
-                              {pool.odds.toFixed(2)}x
-                            </div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-xs text-gray-400 mb-1">Fill</div>
-                            <div className="text-lg font-bold text-white">
-                              {formatNumber(pool.fillPercentage)}%
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Additional Info */}
-                        <div className="flex justify-between items-center text-sm text-gray-400 pt-3 border-t border-gray-600/20">
-                          <div className="flex items-center gap-2">
-                            <FaUsers className="w-3 h-3" />
-                            <span>{pool.participants} participants</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <FaClock className="w-3 h-3" />
-                            <span>
-                              {new Date(pool.eventStartTime * 1000).toLocaleDateString()}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Trending Badge */}
-                        {pool.trending && (
-                          <div className="mt-3 flex justify-center">
-                            <span className="bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-yellow-400 text-xs px-3 py-1 rounded-full border border-yellow-500/30 flex items-center gap-1">
-                              <FaFire className="w-3 h-3" />
-                              Trending
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Boost Badge */}
-                        {pool.boostTier && pool.boostTier !== 'NONE' && (
-                          <div className="mt-3 flex justify-center">
-                            <span className={`text-xs px-3 py-1 rounded-full border flex items-center gap-1 ${
-                              pool.boostTier === 'GOLD' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' :
-                              pool.boostTier === 'SILVER' ? 'bg-gray-400/20 text-gray-300 border-gray-400/30' :
-                              'bg-orange-500/20 text-orange-400 border-orange-500/30'
-                            }`}>
-                              <FaBolt className="w-3 h-3" />
-                              {pool.boostTier} Boost
-                            </span>
-                          </div>
-                        )}
-                      </motion.div>
+                      pool={convertToEnhancedPool(pool)}
+                      index={index}
+                      className="w-full"
+                    />
                   ))}
                 </AnimatePresence>
                 )}

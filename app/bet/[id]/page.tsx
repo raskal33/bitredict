@@ -182,10 +182,12 @@ export default function BetPage() {
       setMaxPoolSizeFormatted(maxPoolSizeNum);
       
       const getDifficultyTier = (odds: number) => {
-        if (odds >= 5.0) return "legendary";
-        if (odds >= 3.0) return "very_hard";
-        if (odds >= 2.0) return "hard";
-        if (odds >= 1.5) return "medium";
+        // Convert basis points to decimal odds (150 -> 1.50)
+        const decimalOdds = odds / 100;
+        if (decimalOdds >= 5.0) return "legendary";
+        if (decimalOdds >= 3.0) return "very_hard";
+        if (decimalOdds >= 2.0) return "hard";
+        if (decimalOdds >= 1.5) return "medium";
         return "easy";
       };
       
@@ -207,13 +209,15 @@ export default function BetPage() {
           reputation: 0,
           totalPools: poolData.creator.totalPools,
           successRate: poolData.creator.successRate,
-          challengeScore: Math.round(poolData.odds * 20),
-          totalVolume: parseFloat(poolData.creator.totalVolume) || 0,
+          challengeScore: Math.round((poolData.odds / 100) * 20), // Convert basis points to decimal first
+          totalVolume: typeof poolData.creator.totalVolume === 'string' 
+            ? parseFloat(poolData.creator.totalVolume) 
+            : poolData.creator.totalVolume || 0,
           badges: poolData.creator.badges,
           createdAt: new Date().toISOString(),
           bio: ""
         },
-        challengeScore: Math.round(poolData.odds * 20),
+        challengeScore: Math.round((poolData.odds / 100) * 20), // Convert basis points to decimal first
         qualityScore: 0,
         difficultyTier: getDifficultyTier(poolData.odds),
         predictedOutcome: poolData.predictedOutcome || '',
@@ -744,7 +748,9 @@ export default function BetPage() {
                     </div>
                     <div className="flex items-center gap-1">
                       <CurrencyDollarIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                      {(pool.creator.totalVolume / 1000).toFixed(0)}k volume
+                      {pool.creator.totalVolume >= 1000 
+                        ? `${(pool.creator.totalVolume / 1000).toFixed(1)}k` 
+                        : pool.creator.totalVolume.toFixed(0)} volume
                   </div>
                   </div>
                 </div>
@@ -818,7 +824,7 @@ export default function BetPage() {
                         return 'above';
                       })()}
                       timeframe="1d" // Default timeframe, should be extracted from pool data
-                      odds={pool.odds.toFixed(2)}
+                      odds={(pool.odds / 100).toFixed(2)}
                       currency={pool.currency || 'BITR'}
                       className="mb-4"
                     />
@@ -837,7 +843,7 @@ export default function BetPage() {
                         minute: '2-digit', 
                         timeZone: 'UTC' 
                       }) + ' UTC' : 'TBD'}
-                      odds={pool.odds.toFixed(2)}
+                      odds={(pool.odds / 100).toFixed(2)}
                       className="mb-4"
                     />
                   )
@@ -960,7 +966,7 @@ export default function BetPage() {
                 <div className="w-full h-0.5 bg-green-500/20 rounded-full mt-2"></div>
               </div>
               <div className="text-center group hover:scale-105 transition-transform">
-                <div className="text-xl sm:text-3xl font-bold text-yellow-400 mb-1 group-hover:text-yellow-300 transition-colors">{pool.odds.toFixed(2)}x</div>
+                <div className="text-xl sm:text-3xl font-bold text-yellow-400 mb-1 group-hover:text-yellow-300 transition-colors">{(pool.odds / 100).toFixed(2)}x</div>
                 <div className="text-xs text-gray-400 uppercase tracking-wider">Odds</div>
                 <div className="w-full h-0.5 bg-yellow-500/20 rounded-full mt-2"></div>
               </div>
@@ -1074,7 +1080,7 @@ export default function BetPage() {
                           </div>
                         </div>
                         <div className="text-sm sm:text-base font-bold text-white bg-green-500/20 rounded-lg py-2 px-3">
-                          Win {pool.odds.toFixed(2)}x your stake
+                          Win {(pool.odds / 100).toFixed(2)}x your stake
                         </div>
                       </div>
                     </div>
@@ -1175,7 +1181,7 @@ export default function BetPage() {
                             <span className="text-text-secondary">Potential Win:</span>
                             <span className="text-success font-bold">
                               {betType === 'yes' 
-                                ? (betAmount * pool.odds).toLocaleString()
+                                ? (betAmount * (pool.odds / 100)).toLocaleString()
                                 : (betAmount + (betAmount * 0.1)).toLocaleString() // Simplified for liquidity
                               } {pool.currency}
                             </span>
@@ -1184,7 +1190,7 @@ export default function BetPage() {
                             <span className="text-text-secondary">Profit:</span>
                             <span className="text-primary font-bold">
                               +{betType === 'yes' 
-                                ? (betAmount * (pool.odds - 1)).toLocaleString()
+                                ? (betAmount * ((pool.odds / 100) - 1)).toLocaleString()
                                 : (betAmount * 0.1).toLocaleString() // Simplified for liquidity
                               } {pool.currency}
                             </span>
@@ -1281,7 +1287,11 @@ export default function BetPage() {
                           </div>
                       <div className="flex justify-between">
                         <span className="text-gray-400">Total Volume:</span>
-                        <span className="text-cyan-400">{(pool.creator.totalVolume / 1000).toFixed(0)}k {pool.currency}</span>
+                        <span className="text-cyan-400">
+                          {pool.creator.totalVolume >= 1000 
+                            ? `${(pool.creator.totalVolume / 1000).toFixed(1)}k` 
+                            : pool.creator.totalVolume.toFixed(0)} {pool.currency}
+                        </span>
                         </div>
                       </div>
                   </div>
@@ -1299,7 +1309,7 @@ export default function BetPage() {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-400">Odds:</span>
-                        <span className="text-yellow-400">{pool.odds}x</span>
+                        <span className="text-yellow-400">{(pool.odds / 100).toFixed(2)}x</span>
                       </div>
                     </div>
                   </div>
@@ -1315,7 +1325,7 @@ export default function BetPage() {
                       record of identifying unlikely events.
                     </p>
                     <p>
-                              The {pool.odds.toFixed(1)}x odds indicate the creator is offering a {((pool.odds - 1) * 100).toFixed(0)}% 
+                              The {(pool.odds / 100).toFixed(1)}x odds indicate the creator is offering a {(((pool.odds / 100) - 1) * 100).toFixed(0)}% 
                       premium to challengers, suggesting they have high confidence in their prediction.
                     </p>
                   </div>
@@ -1377,8 +1387,8 @@ export default function BetPage() {
                       share of the bettor stakes, based on your stake in the total creator-side pool.
                     </p>
                     <p>
-                      <strong>Example:</strong> If you stake 100 {pool.currency} and the odds are {pool.odds}x, 
-                      you can win up to {(100 * (pool.odds - 1)).toFixed(0)} {pool.currency} in profit 
+                      <strong>Example:</strong> If you stake 100 {pool.currency} and the odds are {(pool.odds / 100).toFixed(2)}x, 
+                      you can win up to {(100 * ((pool.odds / 100) - 1)).toFixed(0)} {pool.currency} in profit 
                       (plus your original 100 {pool.currency} stake back).
                     </p>
                     </div>
