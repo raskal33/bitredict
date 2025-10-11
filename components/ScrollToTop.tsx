@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 
 /**
  * ScrollToTop component - Automatically scrolls to top of page on route change
  * This fixes the issue where Next.js preserves scroll position between pages
  */
-export default function ScrollToTop() {
+function ScrollToTopInner() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -35,5 +35,13 @@ export default function ScrollToTop() {
   }, [pathname, searchParams]);
 
   return null; // This component doesn't render anything
+}
+
+export default function ScrollToTop() {
+  return (
+    <Suspense fallback={null}>
+      <ScrollToTopInner />
+    </Suspense>
+  );
 }
 
