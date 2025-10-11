@@ -1,16 +1,17 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "react-hot-toast";
 import AnimatedTitle from "@/components/AnimatedTitle";
-import { PoolService, type PoolStats } from "@/services/poolService";
-import { EnhancedPool } from "@/components/EnhancedPoolCard";
+import { optimizedPoolService, type OptimizedPool } from "@/services/optimizedPoolService";
+import { poolStateService } from "@/services/poolStateService";
+import { frontendCache } from "@/services/frontendCache";
 import RecentBetsLane from "@/components/RecentBetsLane";
-import LazyPoolCard from "@/components/LazyPoolCard";
 import SkeletonLoader from "@/components/SkeletonLoader";
-import { useSmartPoolLoading } from "@/hooks/useBatchPoolData";
+import { titleTemplatesService } from "@/services/title-templates";
+import { getPoolIcon } from "@/services/crypto-icons";
 import { 
   FaChartLine, 
   FaFilter, 
@@ -23,12 +24,14 @@ import {
   FaClock,
   FaSort,
   FaShieldAlt,
-  FaGift
+  FaGift,
+  FaUsers
 } from "react-icons/fa";
 
 type MarketCategory = "all" | "boosted" | "trending" | "private" | "combo" | "active" | "closed" | "settled";
 type CategoryFilter = "all" | "football" | "crypto" | "basketball" | "other";
 type SortBy = "newest" | "oldest" | "volume" | "ending-soon";
+type PoolStatus = "active" | "closed" | "settled" | "all";
 
 
 
@@ -39,9 +42,9 @@ export default function MarketsPage() {
   const [sortBy, setSortBy] = useState<SortBy>("newest");
   const [searchTerm, setSearchTerm] = useState("");
   const [showFilters, setShowFilters] = useState(false);
-  const [pools, setPools] = useState<EnhancedPool[]>([]);
-  const [filteredPools, setFilteredPools] = useState<EnhancedPool[]>([]);
-  const [stats, setStats] = useState<PoolStats>({
+  const [enhancedPools, setEnhancedPools] = useState<Array<OptimizedPool & { settled?: boolean; creatorSideWon?: boolean }>>([]);
+  const [filteredPools, setFilteredPools] = useState<Array<OptimizedPool & { settled?: boolean; creatorSideWon?: boolean }>>([]);
+  const [stats, setStats] = useState({
     totalVolume: "0",
     bitrVolume: "0",
     sttVolume: "0",
@@ -49,152 +52,163 @@ export default function MarketsPage() {
     participants: 0,
     totalPools: 0,
     boostedPools: 0,
-    comboPools: 0,
-    privatePools: 0
+    trendingPools: 0
   });
   const [isLoading, setIsLoading] = useState(true);
 
-  // Format volume to human-readable format
-  const formatVolume = (volume: string): string => {
-    const num = parseFloat(volume);
-    if (num === 0) return "0";
-    if (num >= 1e21) return `${(num / 1e21).toFixed(1)}K BITR`;
-    if (num >= 1e18) return `${(num / 1e18).toFixed(1)} BITR`;
-    if (num >= 1e15) return `${(num / 1e15).toFixed(1)}M STT`;
-    if (num >= 1e12) return `${(num / 1e12).toFixed(1)}K STT`;
-    return num.toFixed(2);
+  // Generate proper title based on category and market type
+  const generatePoolTitle = (pool: OptimizedPool): string => {
+    try {
+      // Map numeric oracle type to string format
+      const getMarketTypeString = (oracleType: number | string | undefined): string => {
+        if (typeof oracleType === 'string') {
+          return oracleType; // Already a string
+        }
+        
+        const marketTypeMap: Record<number, string> = {
+          0: '1X2',           // MONEYLINE
+          1: 'OU25',          // OVER_UNDER (default to 2.5)
+          2: 'BTTS',          // BOTH_TEAMS_SCORE
+          3: 'HT_1X2',        // HALF_TIME
+          4: 'DC',            // DOUBLE_CHANCE
+          5: 'CS',            // CORRECT_SCORE
+          6: 'FG',            // FIRST_GOAL
+          7: 'CUSTOM'         // CUSTOM
+        };
+        
+        return marketTypeMap[oracleType as number] || '1X2';
+      };
+
+      // Create market data for title generation
+      const marketData = {
+        marketType: getMarketTypeString(pool.oracleType),
+        homeTeam: pool.homeTeam || 'Team A',
+        awayTeam: pool.awayTeam || 'Team B',
+        predictedOutcome: pool.predictedOutcome || 'Unknown',
+        league: pool.league || 'Unknown League',
+        marketId: pool.marketId || '',
+        category: pool.category || 'sports'
+      };
+
+      // Generate title using title service
+      const generatedTitle = titleTemplatesService.generateTitle(marketData, {
+        short: false,
+        includeLeague: false,
+        maxLength: 60
+      });
+
+      return generatedTitle;
+    } catch (error) {
+      console.error('Error generating title for pool', pool.id, ':', error);
+      // Fallback title
+      return pool.title || `${pool.homeTeam || 'Team A'} vs ${pool.awayTeam || 'Team B'}`;
+    }
   };
 
-  // Raw pool type from contract
-  interface RawPool {
-    poolId: number;
-    creator: string;
-    odds: number;
-    flags: number;
-    oracleType: number;
-    marketType: number;
-    creatorStake: string;
-    totalCreatorSideStake: string;
-    maxBettorStake: string;
-    totalBettorStake: string;
-    predictedOutcome: string;
-    result: string;
-    eventStartTime: number;
-    eventEndTime: number;
-    bettingEndTime: number;
-    resultTimestamp: number;
-    arbitrationDeadline: number;
-    maxBetPerUser: number;
-    marketId: string;
-    league: string;
-    category: string;
-    region: string;
-    homeTeam: string;
-    awayTeam: string;
-    title: string;
-    reserved: number;
-    // Additional properties for EnhancedPool
-    settled?: boolean;
-    creatorSideWon?: boolean;
-    isPrivate?: boolean;
-    usesBitr?: boolean;
-    filledAbove60?: boolean;
-    boostTier?: number;
-    boostExpiry?: number;
-  }
-
-  // Convert RawPool to EnhancedPool format
-  const convertToEnhancedPool = useCallback((pool: RawPool): EnhancedPool => {
-    return {
-      id: pool.poolId,
-      creator: pool.creator,
-      odds: pool.odds,
-      settled: pool.settled || false,
-      creatorSideWon: pool.creatorSideWon || false,
-      isPrivate: pool.isPrivate || false,
-      usesBitr: pool.usesBitr || false,
-      filledAbove60: pool.filledAbove60 || false,
-      oracleType: pool.oracleType === 0 ? 'GUIDED' : 'OPEN',
+  // Format numbers to human-readable format (no scientific notation)
+  const formatNumber = (value: string | number): string => {
+    try {
+      const num = typeof value === 'string' ? parseFloat(value) : value;
+      if (isNaN(num)) return '0';
       
-      creatorStake: pool.creatorStake,
-      totalCreatorSideStake: pool.totalCreatorSideStake || pool.creatorStake,
-      maxBettorStake: pool.maxBettorStake || pool.totalBettorStake,
-      totalBettorStake: pool.totalBettorStake,
-      predictedOutcome: pool.predictedOutcome,
-      result: pool.result || '',
-      marketId: pool.marketId,
-      
-      eventStartTime: pool.eventStartTime,
-      eventEndTime: pool.eventEndTime,
-      bettingEndTime: pool.bettingEndTime,
-      resultTimestamp: pool.resultTimestamp,
-      arbitrationDeadline: pool.arbitrationDeadline || (pool.eventEndTime + (24 * 60 * 60)),
-      
-      league: pool.league,
-      category: pool.category,
-      region: pool.region,
-      title: pool.title || '',
-      homeTeam: pool.homeTeam || '',
-      awayTeam: pool.awayTeam || '',
-      maxBetPerUser: pool.maxBetPerUser.toString(),
-      
-      boostTier: (pool.boostTier === 0 ? 'NONE' : pool.boostTier === 1 ? 'BRONZE' : pool.boostTier === 2 ? 'SILVER' : 'GOLD') as 'NONE' | 'BRONZE' | 'SILVER' | 'GOLD',
-      boostExpiry: pool.boostExpiry || 0,
-      trending: false,
-      socialStats: {
-        likes: 0,
-        comments: 0,
-        views: 0
-      },
-      change24h: 0
-    };
-  }, []);
-
-  // Use optimized pool loading with batching
-  const { pools: rawPools, loading: poolsLoading, error: poolsError } = useSmartPoolLoading(50, 0);
-  
-  // Convert raw pools to enhanced pools and update state
-  useEffect(() => {
-    if (rawPools && rawPools.length > 0) {
-      const enhancedPools = rawPools.map(convertToEnhancedPool);
-      setPools(enhancedPools);
-      setFilteredPools(enhancedPools);
-      console.log('✅ Successfully loaded', enhancedPools.length, 'pools');
-    } else if (rawPools && rawPools.length === 0) {
-      // Empty array is valid - no pools available
-      setPools([]);
-      setFilteredPools([]);
-      console.log('✅ No pools available');
+      if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+      if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+      return num.toFixed(1);
+    } catch (error) {
+      console.error('Error formatting number:', error);
+      return '0';
     }
-  }, [rawPools, convertToEnhancedPool]);
+  };
 
-  // Load stats separately
+
+  // Backend integration for optimized data loading
   useEffect(() => {
-    const loadStats = async () => {
+    const loadPools = async () => {
+      setIsLoading(true);
       try {
-        const poolStats = await PoolService.getPoolStats();
-        setStats(poolStats);
-        console.log('📊 Stats:', poolStats);
+        console.log('🚀 Fetching pools from optimized backend API with caching...');
+        
+        // Create cache key based on current filters
+        const cacheKey = frontendCache.getPoolKey('list', undefined, {
+          category: categoryFilter === "all" ? undefined : categoryFilter,
+          status: activeCategory === "all" ? undefined : (activeCategory as PoolStatus),
+          sortBy: sortBy,
+          limit: 50,
+          offset: 0
+        });
+        
+        // Fetch pools and analytics in parallel from cache or API
+        const [poolsData, analyticsData] = await Promise.all([
+          frontendCache.get(
+            cacheKey,
+            () => optimizedPoolService.getPools({ 
+              category: categoryFilter === "all" ? undefined : categoryFilter,
+              status: activeCategory === "all" ? undefined : (activeCategory as PoolStatus),
+              sortBy: sortBy,
+              limit: 50, 
+              offset: 0 
+            })
+          ),
+          frontendCache.get(
+            'analytics',
+            () => optimizedPoolService.getAnalytics()
+          )
+        ]);
+
+        // Set pools data and enhance with contract states
+        console.log('🔗 Enhancing pools with contract settlement status...');
+        const poolIds = poolsData.pools.map(p => p.id);
+        const poolStates = await poolStateService.getBatchPoolStates(poolIds);
+        
+        const enhanced = poolsData.pools.map(pool => ({
+          ...pool,
+          settled: poolStates[pool.id]?.settled || (pool.status === 'settled'),
+          creatorSideWon: poolStates[pool.id]?.creatorSideWon || false
+        }));
+        
+        setEnhancedPools(enhanced);
+        setFilteredPools(enhanced);
+        
+        // Set analytics stats
+        setStats({
+          totalVolume: analyticsData.totalVolume,
+          bitrVolume: analyticsData.bitrVolume,
+          sttVolume: analyticsData.sttVolume,
+          activeMarkets: analyticsData.activePools,
+          participants: analyticsData.participants,
+          totalPools: analyticsData.totalPools,
+          boostedPools: analyticsData.boostedPools,
+          trendingPools: analyticsData.trendingPools
+        });
+        
+        console.log('✅ Markets data loaded with caching:', {
+          pools: poolsData.pools.length,
+          analytics: analyticsData
+        });
       } catch (error) {
-        console.error('❌ Error loading stats:', error);
+        console.error('❌ Error loading pools from backend API:', error);
+        toast.error('Failed to load markets. Please try again.');
+        
+        // Fallback to empty state
+        setEnhancedPools([]);
+        setFilteredPools([]);
+        setStats({
+          totalVolume: "0",
+          bitrVolume: "0", 
+          sttVolume: "0",
+          activeMarkets: 0,
+          participants: 0,
+          totalPools: 0,
+          boostedPools: 0,
+          trendingPools: 0
+        });
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    loadStats();
-  }, []);
-
-  // Update loading state
-  useEffect(() => {
-    setIsLoading(poolsLoading);
-  }, [poolsLoading]);
-
-  // Handle errors
-  useEffect(() => {
-    if (poolsError) {
-      console.error('❌ Error loading pools:', poolsError);
-      toast.error('Failed to load markets. Please try again.');
-    }
-  }, [poolsError]);
+    loadPools();
+  }, [categoryFilter, activeCategory, sortBy]);
 
   const handleCreateMarket = () => {
     router.push("/create-prediction");
@@ -255,22 +269,28 @@ export default function MarketsPage() {
 
   // Filter and sort pools
   useEffect(() => {
-    let filtered = pools;
+    let filtered = enhancedPools;
 
     // Category filter
     if (activeCategory !== "all") {
       filtered = filtered.filter(pool => {
         switch (activeCategory) {
           case "active":
-            return !pool.settled && new Date(pool.eventStartTime).getTime() > Date.now();
+            return pool.status === 'active' && !pool.settled;
           case "closed":
-            return !pool.settled && new Date(pool.eventStartTime).getTime() <= Date.now();
+            return pool.status === 'closed' && !pool.settled;
           case "settled":
-            return pool.settled;
+            return pool.settled || pool.status === 'settled';
           case "boosted":
-            return pool.boostTier !== "NONE";
+            return pool.boostTier && pool.boostTier !== "NONE";
+          case "trending":
+            return pool.trending;
           case "private":
-            return pool.isPrivate;
+            // Private pools not supported in current OptimizedPool interface
+            return false;
+          case "combo":
+            // Combo pools not supported in current OptimizedPool interface
+            return false;
           default:
             return true;
         }
@@ -298,9 +318,12 @@ export default function MarketsPage() {
     // Search filter
     if (searchTerm) {
       filtered = filtered.filter(pool => 
-        pool.predictedOutcome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        pool.league.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        pool.category.toLowerCase().includes(searchTerm.toLowerCase())
+        pool.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (pool.predictedOutcome?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+        (pool.league?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+        pool.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (pool.homeTeam?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
+        (pool.awayTeam?.toLowerCase().includes(searchTerm.toLowerCase()) || false)
       );
     }
 
@@ -321,19 +344,7 @@ export default function MarketsPage() {
     });
 
     setFilteredPools(filtered);
-    }, [pools, activeCategory, categoryFilter, searchTerm, sortBy]);
-
-  // Utility functions for pool display (available for future use)
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const formatStake = PoolService.formatStake;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const formatOdds = PoolService.formatOdds;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const formatTimeLeft = PoolService.formatTimeLeft;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const getBoostBadge = PoolService.getBoostBadge;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const getCategoryIcon = PoolService.getCategoryIcon;
+  }, [enhancedPools, activeCategory, categoryFilter, searchTerm, sortBy]);
 
   return (
     <motion.div
@@ -518,18 +529,111 @@ export default function MarketsPage() {
                 {isLoading ? (
                   <SkeletonLoader type="markets-list" count={6} />
                 ) : (
-                  <AnimatePresence>
-                    {filteredPools.map((pool, index) => (
-                      <LazyPoolCard
-                        key={pool.id}
-                        pool={pool}
-                        index={index}
-                        onPoolSelect={(selectedPool) => {
-                          router.push(`/bet/${selectedPool.id}`);
-                        }}
-                      />
-                    ))}
-                  </AnimatePresence>
+                <AnimatePresence>
+                  {filteredPools.map((pool) => (
+                      <motion.div
+                      key={pool.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        className="bg-gradient-to-br from-gray-800/60 to-gray-900/40 p-5 rounded-xl border border-gray-600/30 cursor-pointer hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 backdrop-blur-sm"
+                        onClick={() => router.push(`/bet/${pool.id}`)}
+                      >
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex items-center gap-3">
+                            {/* Category Icon */}
+                            <div className="text-2xl">
+                              {getPoolIcon(pool.category, pool.homeTeam).icon}
+                            </div>
+                            <div className="flex flex-col">
+                              <span className={`text-xs px-2 py-1 rounded-full font-medium border ${
+                                pool.category === 'football' ? 'text-green-400 bg-green-500/20 border-green-500/30' :
+                                pool.category === 'crypto' || pool.category === 'cryptocurrency' ? 'text-yellow-400 bg-yellow-500/20 border-yellow-500/30' :
+                                pool.category === 'basketball' ? 'text-orange-400 bg-orange-500/20 border-orange-500/30' :
+                                'text-blue-400 bg-blue-500/20 border-blue-500/30'
+                              }`}>
+                                {pool.category.charAt(0).toUpperCase() + pool.category.slice(1)}
+                              </span>
+                            </div>
+                          </div>
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            pool.settled 
+                              ? (pool.creatorSideWon 
+                                  ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30' 
+                                  : 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                                )
+                              : pool.status === 'active' ? 'bg-green-500/20 text-green-400 border border-green-500/30' :
+                                pool.status === 'closed' ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30' :
+                                'bg-gray-500/20 text-gray-400 border border-gray-500/30'
+                          }`}>
+                            {pool.settled 
+                              ? (pool.creatorSideWon ? 'CREATOR WON' : 'BETTOR WON')
+                              : pool.status.toUpperCase()
+                            }
+                          </span>
+                        </div>
+
+                        {/* Generated Title */}
+                        <h3 className="text-white font-bold text-lg mb-3 line-clamp-2 leading-tight">
+                          {generatePoolTitle(pool)}
+                        </h3>
+
+                        {/* Pool Stats */}
+                        <div className="grid grid-cols-2 gap-4 mb-3">
+                          <div className="text-center">
+                            <div className="text-xs text-gray-400 mb-1">Odds</div>
+                            <div className="text-lg font-bold text-primary">
+                              {pool.odds.toFixed(2)}x
+                            </div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-xs text-gray-400 mb-1">Fill</div>
+                            <div className="text-lg font-bold text-white">
+                              {formatNumber(pool.fillPercentage)}%
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Additional Info */}
+                        <div className="flex justify-between items-center text-sm text-gray-400 pt-3 border-t border-gray-600/20">
+                          <div className="flex items-center gap-2">
+                            <FaUsers className="w-3 h-3" />
+                            <span>{pool.participants} participants</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <FaClock className="w-3 h-3" />
+                            <span>
+                              {new Date(pool.eventStartTime * 1000).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Trending Badge */}
+                        {pool.trending && (
+                          <div className="mt-3 flex justify-center">
+                            <span className="bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-yellow-400 text-xs px-3 py-1 rounded-full border border-yellow-500/30 flex items-center gap-1">
+                              <FaFire className="w-3 h-3" />
+                              Trending
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Boost Badge */}
+                        {pool.boostTier && pool.boostTier !== 'NONE' && (
+                          <div className="mt-3 flex justify-center">
+                            <span className={`text-xs px-3 py-1 rounded-full border flex items-center gap-1 ${
+                              pool.boostTier === 'GOLD' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' :
+                              pool.boostTier === 'SILVER' ? 'bg-gray-400/20 text-gray-300 border-gray-400/30' :
+                              'bg-orange-500/20 text-orange-400 border-orange-500/30'
+                            }`}>
+                              <FaBolt className="w-3 h-3" />
+                              {pool.boostTier} Boost
+                            </span>
+                          </div>
+                        )}
+                      </motion.div>
+                  ))}
+                </AnimatePresence>
                 )}
               </div>
             )}
@@ -545,11 +649,11 @@ export default function MarketsPage() {
               <div className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-gray-300">BITR Volume</span>
-                  <span className="text-white font-semibold">{formatVolume(stats.bitrVolume || "0")}</span>
+                  <span className="text-white font-semibold">{formatNumber(stats.bitrVolume || "0")} BITR</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-300">STT Volume</span>
-                  <span className="text-white font-semibold">{formatVolume(stats.sttVolume || "0")}</span>
+                  <span className="text-white font-semibold">{formatNumber(stats.sttVolume || "0")} STT</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-300">Active Markets</span>

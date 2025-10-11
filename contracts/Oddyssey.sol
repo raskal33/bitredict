@@ -4,9 +4,10 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-// Enhanced Reputation System interface
-interface IEnhancedReputationSystem {
+// Reputation System interface
+interface IReputationSystem {
     enum ReputationAction {
+        // BitredictPool actions
         POOL_CREATED,
         BET_PLACED,
         BET_WON,
@@ -18,22 +19,25 @@ interface IEnhancedReputationSystem {
         OUTCOME_PROPOSED_INCORRECTLY,
         CHALLENGE_SUCCESSFUL,
         CHALLENGE_FAILED,
-        ODDYSSEY_ACTION,
-        POOL_BOOSTED,
-        COMBO_POOL_CREATED,
-        COMBO_BET_WON,
-        STREAK_BONUS,
+        LIQUIDITY_PROVIDED,
+        LIQUIDITY_REMOVED,
         SOCIAL_ENGAGEMENT,
-        INFLUENCE_GAINED,
-        VERIFICATION_ACHIEVED,
-        PREMIUM_ACTION
+        COMMUNITY_CONTRIBUTION,
+        SPAM_DETECTED,
+        ABUSE_DETECTED,
+        VERIFICATION_GRANTED,
+        VERIFICATION_REVOKED,
+        // Oddyssey actions
+        ODDYSSEY_PARTICIPATION,
+        ODDYSSEY_QUALIFYING,
+        ODDYSSEY_EXCELLENT,
+        ODDYSSEY_OUTSTANDING,
+        ODDYSSEY_PERFECT,
+        ODDYSSEY_WINNER,
+        ODDYSSEY_CHAMPION
     }
     
-    function processReputationAction(
-        address user,
-        ReputationAction action,
-        string calldata details
-    ) external;
+    function recordReputationAction(address user, ReputationAction action, string memory details) external;
 }
 
 contract Oddyssey is Ownable, ReentrancyGuard {
@@ -149,7 +153,7 @@ contract Oddyssey is Ownable, ReentrancyGuard {
     uint256 public dailyCycleId;
     uint256 public slipCount;
     
-    IEnhancedReputationSystem public enhancedReputationSystem;
+    IReputationSystem public reputationSystem;
 
     mapping(address => UserStats) public userStats;
     
@@ -192,10 +196,11 @@ contract Oddyssey is Ownable, ReentrancyGuard {
     event CycleResolved(uint256 indexed cycleId, uint256 prizePool);
     event LeaderboardUpdated(uint256 indexed cycleId, address indexed player, uint256 indexed slipId, uint8 rank, uint256 finalScore);
     event AnalyticsUpdated(uint256 indexed cycleId, uint256 totalVolume, uint32 totalSlips, uint256 averageScore);
-    event PrizeClaimed(uint256 indexed cycleId, address indexed player, uint256 rank, uint256 amount);
+    event PrizeClaimed(uint256 indexed cycleId, address indexed player, uint256 indexed slipId, uint256 rank, uint256 amount);
     event PrizeRollover(uint256 indexed fromCycleId, uint256 indexed toCycleId, uint256 amount);
     event UserStatsUpdated(address indexed user, uint256 totalSlips, uint256 totalWins, uint256 bestScore, uint256 winRate);
     event OddysseyReputationUpdated(address indexed user, uint256 pointsEarned, uint256 correctPredictions, uint256 totalReputation);
+    event ReputationActionOccurred(address indexed user, IReputationSystem.ReputationAction action, uint256 value, bytes32 indexed cycleId, uint256 timestamp);
     error Unauthorized();
     error InvalidInput();
     error InvalidState();
@@ -266,9 +271,12 @@ contract Oddyssey is Ownable, ReentrancyGuard {
     function setOracle(address _newOracle) external onlyOwner {
         if (_newOracle == address(0)) revert InvalidInput();
         if (_newOracle == oracle) revert InvalidInput();
-        address oldOracle = oracle;
         oracle = _newOracle;
         emit OracleSet(_newOracle);
+    }
+
+    function setReputationSystem(address _reputationSystem) external onlyOwner {
+        reputationSystem = IReputationSystem(_reputationSystem);
     }
 
     function setEntryFee(uint256 _newFee) external onlyOwner {
@@ -316,7 +324,10 @@ contract Oddyssey is Ownable, ReentrancyGuard {
         uint256 bettingDeadline = earliestStartTime - 300;
 
         // Store cycle data
-        dailyMatches[cycle] = _matches;
+        Match[MATCH_COUNT] storage cycleMatches = dailyMatches[cycle];
+        for (uint i = 0; i < MATCH_COUNT; i++) {
+            cycleMatches[i] = _matches[i];
+        }
         dailyCycleEndTimes[cycle] = bettingDeadline;
         claimableStartTimes[cycle] = type(uint256).max; // Default to indefinite
         isCycleResolved[cycle] = false;
@@ -420,10 +431,16 @@ contract Oddyssey is Ownable, ReentrancyGuard {
             if (p.selectedOdd != odd) revert InvalidInput();
         }
 
-        // Enhance predictions with team names from current matches
-        UserPrediction[MATCH_COUNT] memory enhancedPredictions;
+        uint256 slipId = slipCount;
+        Slip storage newSlip = slips[slipId];
+        newSlip.player = msg.sender;
+        newSlip.cycleId = cycle;
+        newSlip.placedAt = block.timestamp;
+        newSlip.finalScore = 0;
+        newSlip.correctCount = 0;
+        newSlip.isEvaluated = false;
         for (uint i = 0; i < MATCH_COUNT; i++) {
-            enhancedPredictions[i] = UserPrediction({
+            newSlip.predictions[i] = UserPrediction({
                 matchId: _predictions[i].matchId,
                 betType: _predictions[i].betType,
                 selection: _predictions[i].selection,
@@ -433,17 +450,6 @@ contract Oddyssey is Ownable, ReentrancyGuard {
                 leagueName: currentMatches[i].leagueName
             });
         }
-
-        uint256 slipId = slipCount;
-        slips[slipId] = Slip({
-            player: msg.sender,
-            cycleId: cycle,
-            placedAt: block.timestamp,
-            predictions: enhancedPredictions,
-            finalScore: 0,
-            correctCount: 0,
-            isEvaluated: false
-        });
         slipCount++;
 
         s_userSlipsPerCycle[cycle][msg.sender].push(slipId);
@@ -474,14 +480,19 @@ contract Oddyssey is Ownable, ReentrancyGuard {
         // Users can set autoEvaluate preference, but actual evaluation happens via backend
         
         emit SlipPlaced(cycle, msg.sender, slipId);
+        
+        // Emit reputation event for participation
+        if (address(reputationSystem) != address(0)) {
+            emit ReputationActionOccurred(msg.sender, IReputationSystem.ReputationAction.ODDYSSEY_PARTICIPATION, 0, bytes32(cycle), block.timestamp);
+        }
     }
 
-    function evaluateSlip(uint256 _slipId) external nonReentrant {
-        if (_slipId >= slipCount) revert DataNotFound();
-        
+    function evaluateSlip(uint256 _slipId) external nonReentrant validSlipId(_slipId) {
         Slip storage slip = slips[_slipId];
         uint256 cycleIdOfSlip = slip.cycleId;
-
+        
+        // Validate cycle exists
+        if (cycleInfo[cycleIdOfSlip].startTime == 0) revert DataNotFound();
         if (cycleInfo[cycleIdOfSlip].state != CycleState.Resolved) revert InvalidState();
         if (slip.isEvaluated) revert InvalidState();
         
@@ -549,21 +560,44 @@ contract Oddyssey is Ownable, ReentrancyGuard {
             dailyWinnersCount[cycleIdOfSlip]++;
         }
         
+        // Emit reputation events based on performance
+        if (address(reputationSystem) != address(0)) {
+            if (correctCount >= 7) {
+                emit ReputationActionOccurred(slip.player, IReputationSystem.ReputationAction.ODDYSSEY_QUALIFYING, correctCount, bytes32(cycleIdOfSlip), block.timestamp);
+            }
+            if (correctCount >= 8) {
+                emit ReputationActionOccurred(slip.player, IReputationSystem.ReputationAction.ODDYSSEY_EXCELLENT, correctCount, bytes32(cycleIdOfSlip), block.timestamp);
+            }
+            if (correctCount >= 9) {
+                emit ReputationActionOccurred(slip.player, IReputationSystem.ReputationAction.ODDYSSEY_OUTSTANDING, correctCount, bytes32(cycleIdOfSlip), block.timestamp);
+            }
+            if (correctCount == 10) {
+                emit ReputationActionOccurred(slip.player, IReputationSystem.ReputationAction.ODDYSSEY_PERFECT, correctCount, bytes32(cycleIdOfSlip), block.timestamp);
+            }
+        }
+        
         if (statsForCycle.evaluatedSlips == statsForCycle.slips) {
             claimableStartTimes[cycleIdOfSlip] = block.timestamp;
         }
     }
 
-    function claimPrize(uint256 _cycleId) external nonReentrant {
+    function claimPrize(uint256 _cycleId, uint256 _slipId) external nonReentrant validSlipId(_slipId) {
         if (cycleInfo[_cycleId].state != CycleState.Resolved) revert InvalidState();
         if (block.timestamp < claimableStartTimes[_cycleId]) revert InvalidTiming();
+        
+        // Validate slip belongs to user and cycle
+        Slip storage slip = slips[_slipId];
+        if (slip.player != msg.sender) revert Unauthorized();
+        if (slip.cycleId != _cycleId) revert InvalidInput();
+        if (!slip.isEvaluated) revert InvalidState();
         
         LeaderboardEntry[DAILY_LEADERBOARD_SIZE] storage leaderboard = dailyLeaderboards[_cycleId];
         uint8 rank = 0;
         bool playerFound = false;
 
+        // Find the user on the leaderboard WITH matching slip ID
         for (uint8 i = 0; i < DAILY_LEADERBOARD_SIZE; i++) {
-            if (leaderboard[i].player == msg.sender) {
+            if (leaderboard[i].player == msg.sender && leaderboard[i].slipId == _slipId) {
                 rank = i;
                 playerFound = true;
                 break;
@@ -592,7 +626,12 @@ contract Oddyssey is Ownable, ReentrancyGuard {
         (bool success2, ) = payable(msg.sender).call{value: userShare}("");
         if (!success2) revert TransferFailed();
 
-        emit PrizeClaimed(_cycleId, msg.sender, rank, userShare);
+        emit PrizeClaimed(_cycleId, msg.sender, _slipId, rank, userShare);
+        
+        // Emit reputation event for winner
+        if (address(reputationSystem) != address(0)) {
+            emit ReputationActionOccurred(msg.sender, IReputationSystem.ReputationAction.ODDYSSEY_WINNER, userShare, bytes32(_cycleId), block.timestamp);
+        }
     }
 
     // --- View Functions ---
@@ -705,9 +744,11 @@ contract Oddyssey is Ownable, ReentrancyGuard {
         }
     }
 
-    function claimMultiplePrizes(uint256[] memory _cycleIds) external {
+    function claimMultiplePrizes(uint256[] memory _cycleIds, uint256[] memory _slipIds) external {
+        if (_cycleIds.length != _slipIds.length) revert InvalidInput();
+        
         for (uint256 i = 0; i < _cycleIds.length; i++) {
-            this.claimPrize(_cycleIds[i]);
+            this.claimPrize(_cycleIds[i], _slipIds[i]);
         }
     }
 
@@ -716,13 +757,60 @@ contract Oddyssey is Ownable, ReentrancyGuard {
 
     function _updateLeaderboard(uint256 _cycleId, address _player, uint256 _slipId, uint256 _finalScore, uint8 _correctCount) private {
         if (_correctCount < MIN_CORRECT_PREDICTIONS) return;
+        
+        // Validate slip exists and belongs to correct cycle
+        if (_slipId >= slipCount) return;
+        Slip storage slip = slips[_slipId];
+        if (slip.cycleId != _cycleId || slip.player != _player) return;
 
         LeaderboardEntry[DAILY_LEADERBOARD_SIZE] storage leaderboard = dailyLeaderboards[_cycleId];
+        
+        // Check if player already has an entry on the leaderboard
+        int256 existingPosition = -1;
+        for (uint256 i = 0; i < DAILY_LEADERBOARD_SIZE; i++) {
+            if (leaderboard[i].player == _player) {
+                existingPosition = int256(i);
+                break;
+            }
+        }
+        
+        // If player already on leaderboard, only update if new score is better
+        if (existingPosition != -1) {
+            LeaderboardEntry storage existingEntry = leaderboard[uint256(existingPosition)];
+            
+            // Only update if new slip is better (higher score, or same score with more correct predictions)
+            if (_finalScore > existingEntry.finalScore || 
+                (_finalScore == existingEntry.finalScore && _correctCount > existingEntry.correctCount)) {
+                
+                // Remove old entry by shifting entries down
+                for (uint256 i = uint256(existingPosition); i < DAILY_LEADERBOARD_SIZE - 1; i++) {
+                    leaderboard[i] = leaderboard[i + 1];
+                }
+                // Clear the last position
+                leaderboard[DAILY_LEADERBOARD_SIZE - 1] = LeaderboardEntry({
+                    player: address(0),
+                    slipId: 0,
+                    finalScore: 0,
+                    correctCount: 0
+                });
+            } else {
+                // New slip is not better, don't update leaderboard
+                return;
+            }
+        }
+        
+        // Find the correct position for this score
         int256 position = -1;
-
         for (uint256 i = DAILY_LEADERBOARD_SIZE; i > 0; i--) {
             uint256 index = i - 1;
             LeaderboardEntry storage entry = leaderboard[index];
+            
+            // Skip empty entries (after removal or initial state)
+            if (entry.player == address(0)) {
+                position = int256(index);
+                continue;
+            }
+            
             if (_finalScore > entry.finalScore || (_finalScore == entry.finalScore && _correctCount > entry.correctCount)) {
                 position = int256(index);
             } else {
@@ -730,11 +818,20 @@ contract Oddyssey is Ownable, ReentrancyGuard {
             }
         }
 
+        // Insert the new entry at the correct position
         if (position != -1) {
+            // Shift entries down to make room
             for (uint256 i = DAILY_LEADERBOARD_SIZE - 1; i > uint256(position); i--) {
                 leaderboard[i] = leaderboard[i-1];
             }
-            leaderboard[uint256(position)] = LeaderboardEntry({player: _player, slipId: _slipId, finalScore: _finalScore, correctCount: _correctCount});
+            
+            // Insert new entry
+            leaderboard[uint256(position)] = LeaderboardEntry({
+                player: _player, 
+                slipId: _slipId, 
+                finalScore: _finalScore, 
+                correctCount: _correctCount
+            });
             
             // Mark cycle as having winners
             cycleInfo[_cycleId].hasWinner = true;
@@ -824,11 +921,26 @@ contract Oddyssey is Ownable, ReentrancyGuard {
                 // Update total reputation
                 userOddysseyReputation[_user] += reputationPoints;
                 
-                // Integration with Enhanced Reputation System
-                if (address(enhancedReputationSystem) != address(0)) {
-                    enhancedReputationSystem.processReputationAction(
+                // Integration with Reputation System
+                if (address(reputationSystem) != address(0)) {
+                    // Record reputation action based on slip performance
+                    IReputationSystem.ReputationAction action;
+                    
+                    if (slip.finalScore >= 9) {
+                        action = IReputationSystem.ReputationAction.ODDYSSEY_PERFECT;
+                    } else if (slip.finalScore >= 8) {
+                        action = IReputationSystem.ReputationAction.ODDYSSEY_OUTSTANDING;
+                    } else if (slip.finalScore >= 7) {
+                        action = IReputationSystem.ReputationAction.ODDYSSEY_EXCELLENT;
+                    } else if (slip.finalScore >= 5) {
+                        action = IReputationSystem.ReputationAction.ODDYSSEY_QUALIFYING;
+                    } else {
+                        action = IReputationSystem.ReputationAction.ODDYSSEY_PARTICIPATION;
+                    }
+                    
+                    reputationSystem.recordReputationAction(
                         _user,
-                        IEnhancedReputationSystem.ReputationAction.ODDYSSEY_ACTION,
+                        action,
                         string(abi.encodePacked("Oddyssey cycle ", _cycleId, " - ", slip.correctCount, " correct"))
                     );
                 }
@@ -886,28 +998,10 @@ contract Oddyssey is Ownable, ReentrancyGuard {
     }
     
     function getCycleMatches(uint256 _cycleId) external view returns (Match[MATCH_COUNT] memory) {
-        require(_cycleId <= dailyCycleId && _cycleId > 0, "Cycle does not exist");
-        
-        // Check if the cycle has any matches data
-        Match[MATCH_COUNT] memory matches = dailyMatches[_cycleId];
-        
-        // If the first match has no ID, the cycle might be uninitialized
-        if (matches[0].id == 0) {
-            // Return empty matches array for uninitialized cycles
-            // This prevents revert and allows the system to handle gracefully
-            Match[MATCH_COUNT] memory emptyMatches;
-            return emptyMatches;
-        }
-        
-        return matches;
+        if (_cycleId > dailyCycleId || _cycleId == 0) revert DataNotFound();
+        return dailyMatches[_cycleId];
     }
     
-    /**
-     * @dev Set the enhanced reputation system contract (only owner)
-     */
-    function setEnhancedReputationSystem(address _enhancedReputationSystem) external onlyOwner {
-        enhancedReputationSystem = IEnhancedReputationSystem(_enhancedReputationSystem);
-    }
 
     // ===== DAILY STATISTICS FUNCTIONS =====
     
@@ -929,132 +1023,8 @@ contract Oddyssey is Ownable, ReentrancyGuard {
         });
     }
     
-    /**
-     * @dev Get daily slip count for a cycle
-     */
-    function getDailySlipCount(uint256 _cycleId) external view returns (uint256) {
-        return dailySlipCount[_cycleId];
-    }
     
-    /**
-     * @dev Get daily user count for a cycle
-     */
-    function getDailyUserCount(uint256 _cycleId) external view returns (uint256) {
-        return dailyUserCount[_cycleId];
-    }
     
-    /**
-     * @dev Get daily volume for a cycle
-     */
-    function getDailyVolume(uint256 _cycleId) external view returns (uint256) {
-        return dailyVolume[_cycleId];
-    }
-    
-    /**
-     * @dev Get daily correct predictions for a cycle
-     */
-    function getDailyCorrectPredictions(uint256 _cycleId) external view returns (uint256) {
-        return dailyCorrectPredictions[_cycleId];
-    }
-    
-    /**
-     * @dev Get daily evaluated slips for a cycle
-     */
-    function getDailyEvaluatedSlips(uint256 _cycleId) external view returns (uint256) {
-        return dailyEvaluatedSlips[_cycleId];
-    }
-    
-    /**
-     * @dev Get daily average score for a cycle
-     */
-    function getDailyAverageScore(uint256 _cycleId) external view returns (uint256) {
-        if (dailyEvaluatedSlips[_cycleId] == 0) return 0;
-        return (dailyCorrectPredictions[_cycleId] * ODDS_SCALING_FACTOR) / dailyEvaluatedSlips[_cycleId];
-    }
-    
-    /**
-     * @dev Get daily max score for a cycle
-     */
-    function getDailyMaxScore(uint256 _cycleId) external view returns (uint256) {
-        return dailyMaxScore[_cycleId];
-    }
-    
-    /**
-     * @dev Get daily min score for a cycle
-     */
-    function getDailyMinScore(uint256 _cycleId) external view returns (uint256) {
-        return dailyMinScore[_cycleId];
-    }
-    
-    /**
-     * @dev Get daily winners count for a cycle
-     */
-    function getDailyWinnersCount(uint256 _cycleId) external view returns (uint256) {
-        return dailyWinnersCount[_cycleId];
-    }
-    
-    /**
-     * @dev Get daily statistics for multiple cycles
-     */
-    function getDailyStatsBatch(uint256[] calldata _cycleIds) external view returns (DailyStats[] memory) {
-        DailyStats[] memory results = new DailyStats[](_cycleIds.length);
-        
-        for (uint256 i = 0; i < _cycleIds.length; i++) {
-            uint256 cycleId = _cycleIds[i];
-            results[i] = DailyStats({
-                slipCount: dailySlipCount[cycleId],
-                userCount: dailyUserCount[cycleId],
-                volume: dailyVolume[cycleId],
-                correctPredictions: dailyCorrectPredictions[cycleId],
-                evaluatedSlips: dailyEvaluatedSlips[cycleId],
-                averageScore: dailyEvaluatedSlips[cycleId] > 0 ? 
-                    (dailyCorrectPredictions[cycleId] * ODDS_SCALING_FACTOR) / dailyEvaluatedSlips[cycleId] : 0,
-                maxScore: dailyMaxScore[cycleId],
-                minScore: dailyMinScore[cycleId],
-                winnersCount: dailyWinnersCount[cycleId]
-            });
-        }
-        
-        return results;
-    }
-    
-    /**
-     * @dev Get platform-wide daily statistics summary
-     */
-    function getPlatformDailyStats() external view returns (
-        uint256 totalCycles,
-        uint256 totalSlips,
-        uint256 totalUsers,
-        uint256 totalVolume,
-        uint256 totalCorrectPredictions,
-        uint256 totalEvaluatedSlips,
-        uint256 totalWinners,
-        uint256 averageScore,
-        uint256 maxScore,
-        uint256 minScore
-    ) {
-        totalCycles = dailyCycleId;
-        totalSlips = stats.totalSlips;
-        totalUsers = stats.totalSlips; // Approximate - could be improved with user tracking
-        totalVolume = stats.totalVolume;
-        
-        // Calculate totals across all cycles
-        for (uint256 i = 1; i <= dailyCycleId; i++) {
-            totalCorrectPredictions += dailyCorrectPredictions[i];
-            totalEvaluatedSlips += dailyEvaluatedSlips[i];
-            totalWinners += dailyWinnersCount[i];
-            
-            if (dailyMaxScore[i] > maxScore) {
-                maxScore = dailyMaxScore[i];
-            }
-            if (dailyMinScore[i] > 0 && (minScore == 0 || dailyMinScore[i] < minScore)) {
-                minScore = dailyMinScore[i];
-            }
-        }
-        
-        averageScore = totalEvaluatedSlips > 0 ? 
-            (totalCorrectPredictions * ODDS_SCALING_FACTOR) / totalEvaluatedSlips : 0;
-    }
     
     // ===== USER SLIP FUNCTIONS ACROSS ALL CYCLES =====
     
@@ -1067,127 +1037,45 @@ contract Oddyssey is Ownable, ReentrancyGuard {
         return s_userSlips[_user];
     }
 
-    /**
-     * @dev Get all user slips with full data across all cycles
-     * @param _user The user address
-     * @return slipIds Array of slip IDs
-     * @return slipsData Array of slip data
-     */
-    function getAllUserSlipsWithData(address _user) external view returns (
-        uint256[] memory slipIds,
-        Slip[] memory slipsData
-    ) {
-        slipIds = s_userSlips[_user];
-        slipsData = new Slip[](slipIds.length);
-        
-        for (uint256 i = 0; i < slipIds.length; i++) {
-            slipsData[i] = slips[slipIds[i]];
-        }
-    }
+
 
     /**
-     * @dev Get all user slips with pagination support
+     * @dev Check if a user can claim a prize for a specific slip in a cycle
      * @param _user The user address
-     * @param _offset Starting index
-     * @param _limit Maximum number of slips to return
-     * @return slipIds Array of slip IDs
-     * @return totalCount Total number of slips for the user
+     * @param _cycleId The cycle ID
+     * @param _slipId The slip ID
+     * @return canClaim Whether the user can claim the prize
+     * @return rank The rank on the leaderboard (if canClaim is true)
      */
-    function getAllUserSlipsPaginated(
-        address _user, 
-        uint256 _offset, 
-        uint256 _limit
-    ) external view returns (
-        uint256[] memory slipIds,
-        uint256 totalCount
+    function canClaimPrize(address _user, uint256 _cycleId, uint256 _slipId) external view returns (
+        bool canClaim,
+        uint8 rank
     ) {
-        uint256[] memory allSlips = s_userSlips[_user];
-        totalCount = allSlips.length;
+        // Check if cycle is resolved
+        if (_cycleId == 0 || _cycleId > dailyCycleId) return (false, 0);
+        if (cycleInfo[_cycleId].state != CycleState.Resolved) return (false, 0);
+        if (block.timestamp < claimableStartTimes[_cycleId]) return (false, 0);
         
-        if (_offset >= totalCount) {
-            return (new uint256[](0), totalCount);
-        }
+        // Check if slip is valid
+        if (_slipId >= slipCount) return (false, 0);
+        Slip storage slip = slips[_slipId];
+        if (slip.player != _user) return (false, 0);
+        if (slip.cycleId != _cycleId) return (false, 0);
+        if (!slip.isEvaluated) return (false, 0);
         
-        uint256 endIndex = _offset + _limit;
-        if (endIndex > totalCount) {
-            endIndex = totalCount;
-        }
-        
-        uint256 resultLength = endIndex - _offset;
-        slipIds = new uint256[](resultLength);
-        
-        for (uint256 i = 0; i < resultLength; i++) {
-            slipIds[i] = allSlips[_offset + i];
-        }
-    }
-
-    /**
-     * @dev Get user slips filtered by evaluation status across all cycles
-     * @param _user The user address
-     * @param _evaluatedOnly If true, only return evaluated slips
-     * @return slipIds Array of slip IDs
-     * @return slipsData Array of slip data
-     */
-    function getUserSlipsByStatus(address _user, bool _evaluatedOnly) external view returns (
-        uint256[] memory slipIds,
-        Slip[] memory slipsData
-    ) {
-        uint256[] memory allSlips = s_userSlips[_user];
-        uint256[] memory tempSlipIds = new uint256[](allSlips.length);
-        uint256 count = 0;
-        
-        for (uint256 i = 0; i < allSlips.length; i++) {
-            Slip memory slip = slips[allSlips[i]];
-            if (slip.isEvaluated == _evaluatedOnly) {
-                tempSlipIds[count] = allSlips[i];
-                count++;
+        // Check if user is on leaderboard with this slip
+        LeaderboardEntry[DAILY_LEADERBOARD_SIZE] storage leaderboard = dailyLeaderboards[_cycleId];
+        for (uint8 i = 0; i < DAILY_LEADERBOARD_SIZE; i++) {
+            if (leaderboard[i].player == _user && leaderboard[i].slipId == _slipId) {
+                // Check if prize already claimed
+                if (prizeClaimed[_cycleId][i]) return (false, 0);
+                return (true, i);
             }
         }
         
-        // Create properly sized arrays
-        slipIds = new uint256[](count);
-        slipsData = new Slip[](count);
-        
-        for (uint256 i = 0; i < count; i++) {
-            slipIds[i] = tempSlipIds[i];
-            slipsData[i] = slips[tempSlipIds[i]];
-        }
+        return (false, 0);
     }
+    
 
-    /**
-     * @dev Get user slips with minimum correct predictions across all cycles
-     * @param _user The user address
-     * @param _minCorrect Minimum number of correct predictions
-     * @return slipIds Array of slip IDs
-     * @return slipsData Array of slip data
-     */
-    function getUserSlipsByPerformance(
-        address _user, 
-        uint8 _minCorrect
-    ) external view returns (
-        uint256[] memory slipIds,
-        Slip[] memory slipsData
-    ) {
-        uint256[] memory allSlips = s_userSlips[_user];
-        uint256[] memory tempSlipIds = new uint256[](allSlips.length);
-        uint256 count = 0;
-        
-        for (uint256 i = 0; i < allSlips.length; i++) {
-            Slip memory slip = slips[allSlips[i]];
-            if (slip.correctCount >= _minCorrect) {
-                tempSlipIds[count] = allSlips[i];
-                count++;
-            }
-        }
-        
-        // Create properly sized arrays
-        slipIds = new uint256[](count);
-        slipsData = new Slip[](count);
-        
-        for (uint256 i = 0; i < count; i++) {
-            slipIds[i] = tempSlipIds[i];
-            slipsData[i] = slips[tempSlipIds[i]];
-        }
-    }
     
 } 

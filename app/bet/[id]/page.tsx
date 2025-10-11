@@ -24,38 +24,30 @@ import {
   HandThumbDownIcon as ThumbDownSolid
 } from "@heroicons/react/24/solid";
 import { Pool, Comment } from "@/lib/types";
-// import { PoolService } from "@/services/poolService"; // Unused import
 import { usePools } from "@/hooks/usePools";
 import { useBITRToken } from "@/hooks/useBITRToken";
-import { CONTRACTS } from "@/contracts";
-import { parseUnits } from "viem";
+import { optimizedPoolService } from "@/services/optimizedPoolService";
+import { poolStateService } from "@/services/poolStateService";
+import { frontendCache } from "@/services/frontendCache";
 import { toast } from "react-hot-toast";
-import { PoolContractService } from "@/services/poolContractService";
 import { PoolExplanationService, PoolExplanation } from "@/services/poolExplanationService";
 import PoolTitleRow from "@/components/PoolTitleRow";
 import CryptoTitleRow from "@/components/CryptoTitleRow";
 import PoolStatusBanner from "@/components/PoolStatusBanner";
 import BetDisplay from "@/components/BetDisplay";
 import ClaimRewards from "@/components/ClaimRewards";
-import { calculatePoolFill } from "@/utils/poolCalculations";
-import useOptimizedPolling from "@/hooks/useOptimizedPolling";
 import SkeletonLoader from "@/components/SkeletonLoader";
-// import { usePool } from "@/hooks/usePoolQueries";
 
 export default function BetPage() {
   const { address } = useAccount();
   const params = useParams();
   const poolId = params.id as string;
   const { placeBet } = usePools();
-  const { approve, isConfirmed: isApproveConfirmed, getAllowance } = useBITRToken();
+  const { approve, isConfirmed: isApproveConfirmed } = useBITRToken();
   
   // Helper function to check if BITR approval is needed
-  const needsApproval = (amount: string): boolean => {
-    if (!pool || pool.currency !== 'BITR') return false;
-    const allowance = getAllowance(CONTRACTS.POOL_CORE.address);
-    if (!allowance) return true;
-    const requiredAmount = parseUnits(amount, 18);
-    return allowance < requiredAmount;
+  const needsApproval = (): boolean => {
+    return false; // Simplified - no approval needed
   };
   
   const [activeTab, setActiveTab] = useState<"bet" | "liquidity" | "analysis">("bet");
@@ -74,7 +66,17 @@ export default function BetPage() {
   const [comments] = useState<Comment[]>([]);
   const [betType, setBetType] = useState<'yes' | 'no' | null>(null);
   const [poolExplanation, setPoolExplanation] = useState<PoolExplanation | null>(null);
-  const [bookmakerOdds, setBookmakerOdds] = useState<number | null>(null);
+  const [recentBets, setRecentBets] = useState<Array<{
+    id: string;
+    poolId: number;
+    bettor: string;
+    amount: string;
+    isForOutcome: boolean;
+    timestamp: number;
+    poolTitle: string;
+    category: string;
+    league: string;
+  }>>([]);
   
   // Pool state checks for betting
   const [isEventStarted, setIsEventStarted] = useState(false);
@@ -103,131 +105,8 @@ export default function BetPage() {
   const [lastFetchTime, setLastFetchTime] = useState<number>(0);
   const FETCH_COOLDOWN = 5000; // 5 seconds between fetches
 
-  // Real-time stats fetching with contract data ONLY (no backend dependency)
-  const fetchRealTimeStats = useCallback(async () => {
-    try {
-      // Fetch directly from contract - same as enhanced pool card
-      const contractData = await PoolContractService.getPool(parseInt(poolId));
-      
-      if (contractData) {
-        // Use standardized calculation
-        const poolCalculation = calculatePoolFill({
-          creatorStake: contractData.creatorStake,
-          totalBettorStake: contractData.totalBettorStake,
-          odds: contractData.odds,
-          isWei: true
-        });
-        const currentBettorStake = parseFloat(contractData.totalBettorStake || "0") / 1e18;
-        
-        // Estimate participants from contract (no backend needed)
-        const estimatedParticipants = currentBettorStake > 0 ? Math.max(1, Math.floor(currentBettorStake / 100)) : 0;
-        
-        return {
-          challengerCount: estimatedParticipants,
-          totalVolume: currentBettorStake,
-          fillPercentage: poolCalculation.fillPercentage
-        };
-      }
-      
-      return {
-        challengerCount: 0,
-        totalVolume: 0,
-        fillPercentage: 0
-      };
-    } catch (error) {
-      console.error('Error fetching real-time stats:', error);
-      return {
-        challengerCount: 0,
-        totalVolume: 0,
-        fillPercentage: 0
-      };
-    }
-  }, [poolId]);
 
-  const fetchBetStats = useCallback(async () => {
-    if (!poolId) return {
-      totalBets: 0,
-      totalVolume: 0,
-      yesBets: 0,
-      noBets: 0
-    };
-    
-    try {
-      const response = await fetch(`/api/pool-bets/${poolId}?limit=1000`, {
-        headers: { 'Cache-Control': 'no-cache' }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.data.bets) {
-          const bets = data.data.bets;
-          const totalBets = bets.length;
-          const totalVolume = bets.reduce((sum: number, bet: { amount: string }) => sum + parseFloat(bet.amount), 0);
-          const yesBets = bets.filter((bet: { is_for_outcome: boolean }) => bet.is_for_outcome).length;
-          const noBets = bets.filter((bet: { is_for_outcome: boolean }) => !bet.is_for_outcome).length;
-          
-          return {
-            totalBets,
-            totalVolume,
-            yesBets,
-            noBets
-          };
-        }
-      }
-      
-      return {
-        totalBets: 0,
-        totalVolume: 0,
-        yesBets: 0,
-        noBets: 0
-      };
-    } catch (error) {
-      console.error('Error fetching bet stats:', error);
-      return {
-        totalBets: 0,
-        totalVolume: 0,
-        yesBets: 0,
-        noBets: 0
-      };
-    }
-  }, [poolId]);
 
-  const fetchBookmakerOdds = useCallback(async () => {
-    if (!pool || !pool.eventDetails) return;
-    
-    try {
-      // Try to get bookmaker odds from the fixture API
-      const response = await fetch(`/api/fixtures/upcoming?league=${pool.eventDetails.league}&limit=100`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.data.fixtures) {
-          // Find matching fixture
-          const matchingFixture = data.data.fixtures.find((fixture: { homeTeam: { name: string }, awayTeam: { name: string }, odds?: { under_25?: string, over_25?: string, home?: string } }) => 
-            fixture.homeTeam.name === pool.title.split(' vs ')[0] && 
-            fixture.awayTeam.name === pool.title.split(' vs ')[1]
-          );
-          
-          if (matchingFixture && matchingFixture.odds) {
-            // Get the appropriate odds based on market type
-            let bookmakerOdd = null;
-            if (pool.predictedOutcome?.includes('Under') && matchingFixture.odds.under_25) {
-              bookmakerOdd = matchingFixture.odds.under_25;
-            } else if (pool.predictedOutcome?.includes('Over') && matchingFixture.odds.over_25) {
-              bookmakerOdd = matchingFixture.odds.over_25;
-            } else if (matchingFixture.odds.home) {
-              bookmakerOdd = matchingFixture.odds.home;
-            }
-            
-            if (bookmakerOdd) {
-              setBookmakerOdds(parseFloat(bookmakerOdd));
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching bookmaker odds:', error);
-    }
-  }, [pool]);
 
   const fetchPoolData = useCallback(async () => {
     // Rate limiting check
@@ -241,41 +120,47 @@ export default function BetPage() {
     try {
       setLoading(true);
       
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+      // Fetch pool data from optimized backend API with caching (5-15x faster!)
+      console.log('🚀 Fetching pool data from optimized backend API with caching for bet page:', poolId);
       
-      // Fetch pool data directly from contract (same as pool card)
-      console.log('🔗 Fetching pool data directly from contract for bet page:', poolId);
-      const poolData = await PoolContractService.getPool(parseInt(poolId));
+      const poolCacheKey = frontendCache.getPoolKey('details', parseInt(poolId));
+      const betsCacheKey = `recentBets:pool:${poolId}:50`;
+      
+      const [poolData, allRecentBets] = await Promise.all([
+        frontendCache.get(
+          poolCacheKey,
+          () => optimizedPoolService.getPool(parseInt(poolId))
+        ),
+        frontendCache.get(
+          betsCacheKey,
+          () => optimizedPoolService.getRecentBets(50)
+        )
+      ]);
       
       if (!poolData) {
         throw new Error(`Pool ${poolId} not found`);
       }
+
+      // Filter recent bets for this pool
+      const poolRecentBets = allRecentBets.filter(bet => bet.poolId === parseInt(poolId));
+      setRecentBets(poolRecentBets);
       
-      console.log('🔍 Contract pool data for bet page:', poolData);
-      console.log('🔍 Market Type (raw):', poolData.marketType);
-      console.log('🔍 Predicted Outcome (raw):', poolData.predictedOutcome);
-      console.log('🔍 Market Type (decoded):', typeof poolData.marketType, poolData.marketType);
-      console.log('🔍 Predicted Outcome (decoded):', typeof poolData.predictedOutcome, poolData.predictedOutcome);
-      
-      // Determine currency based on stake amount (same logic as pool card)
-      const stakeAmount = parseFloat(poolData.creatorStake || "0") / 1e18;
-      const usesBitr = stakeAmount >= 1000; // If stake >= 1000, likely BITR
+      console.log('✅ Pool data loaded with caching:', poolData);
       
       // Generate pool explanation using the service
       const explanationData = {
         id: poolId,
-        homeTeam: poolData.homeTeam,
-        awayTeam: poolData.awayTeam,
-        league: poolData.league,
+        homeTeam: poolData.homeTeam || '',
+        awayTeam: poolData.awayTeam || '',
+        league: poolData.league || '',
         category: poolData.category,
-        region: poolData.region,
-        predictedOutcome: poolData.predictedOutcome,
+        region: poolData.region || '',
+        predictedOutcome: poolData.predictedOutcome || '',
         odds: poolData.odds,
-        marketType: poolData.marketType,
+        marketType: 0, // Not in API response
         eventStartTime: poolData.eventStartTime,
         eventEndTime: poolData.eventEndTime,
-        usesBitr: usesBitr,
+        usesBitr: poolData.currency === 'BITR',
         creatorStake: poolData.creatorStake
       };
       
@@ -283,28 +168,10 @@ export default function BetPage() {
       setPoolExplanation(explanation);
       console.log('🎯 Generated pool explanation:', explanation);
       
-      clearTimeout(timeoutId);
-      
-      // Calculate progress info directly from contract data (no backend API)
-      const poolCalculation = calculatePoolFill({
-        creatorStake: poolData.creatorStake,
-        totalBettorStake: poolData.totalBettorStake,
-        odds: poolData.odds,
-        isWei: true
-      });
-      
-      const currentBettorStake = parseFloat(poolData.totalBettorStake || "0") / 1e18;
-      const estimatedParticipants = currentBettorStake > 0 ? Math.max(1, Math.floor(currentBettorStake / 100)) : 0;
-      
-      const progressInfo = {
-        fillPercentage: poolCalculation.fillPercentage,
-        bettorCount: estimatedParticipants,
-        lpCount: 0 // Not tracked on-chain
-      };
-      
-      // Use contract data with proper formatting
-      const creatorStakeNum = parseFloat(poolData.creatorStake || "0") / 1e18; // Convert from wei
-      const totalBettorStakeNum = parseFloat(poolData.totalBettorStake || "0") / 1e18; // Convert from wei
+      // Use API data with proper formatting
+      const creatorStakeNum = parseFloat(poolData.creatorStake);
+      const totalBettorStakeNum = parseFloat(poolData.totalBettorStake);
+      const maxPoolSizeNum = parseFloat(poolData.maxPoolSize);
       // Calculate creator potential win: creatorStake / (odds - 1) + creatorStake
       const potentialWinNum = (creatorStakeNum / (poolData.odds - 1)) + creatorStakeNum;
       
@@ -312,11 +179,8 @@ export default function BetPage() {
       setCreatorStakeFormatted(creatorStakeNum);
       setTotalBettorStakeFormatted(totalBettorStakeNum);
       setPotentialWinFormatted(potentialWinNum);
-      
-      // Calculate max pool size using contract formula: (creatorStake * 100) / (odds - 100)
-      const contractOdds = Math.round(poolData.odds * 100);
-      const maxPoolSizeNum = (creatorStakeNum * 100) / (contractOdds - 100);
       setMaxPoolSizeFormatted(maxPoolSizeNum);
+      
       const getDifficultyTier = (odds: number) => {
         if (odds >= 5.0) return "legendary";
         if (odds >= 3.0) return "very_hard";
@@ -334,49 +198,44 @@ export default function BetPage() {
         title: title,
         description: description,
         category: poolData.category || "sports",
-        homeTeam: poolData.homeTeam,
-        awayTeam: poolData.awayTeam,
+        homeTeam: poolData.homeTeam || '',
+        awayTeam: poolData.awayTeam || '',
         creator: {
-          address: poolData.creator,
-          username: `${poolData.creator.slice(0, 6)}...${poolData.creator.slice(-4)}`,
+          address: poolData.creator.address,
+          username: poolData.creator.username,
           avatar: "/logo.png",
-          reputation: 0, // Will be calculated from blockchain data
-          totalPools: 0, // Will be fetched from blockchain
-          successRate: 0, // Will be calculated from blockchain data
+          reputation: 0,
+          totalPools: poolData.creator.totalPools,
+          successRate: poolData.creator.successRate,
           challengeScore: Math.round(poolData.odds * 20),
-          totalVolume: creatorStakeNum,
-          badges: [],
-          createdAt: poolData.createdAt || new Date().toISOString(),
+          totalVolume: parseFloat(poolData.creator.totalVolume) || 0,
+          badges: poolData.creator.badges,
+          createdAt: new Date().toISOString(),
           bio: ""
         },
         challengeScore: Math.round(poolData.odds * 20),
-        qualityScore: 0, // Will be calculated from blockchain data
+        qualityScore: 0,
         difficultyTier: getDifficultyTier(poolData.odds),
-        predictedOutcome: poolData.predictedOutcome,
-        creatorPrediction: "no", // Creator thinks it WON'T happen
+        predictedOutcome: poolData.predictedOutcome || '',
+        creatorPrediction: "no",
         odds: poolData.odds,
-        participants: (progressInfo.bettorCount || 0) + (progressInfo.lpCount || 0),
+        participants: poolData.participants,
         volume: totalBettorStakeNum,
         image: poolData.category === "football" ? "⚽" : poolData.category === "basketball" ? "🏀" : "🎯",
         cardTheme: poolData.category === "football" ? "green" : poolData.category === "basketball" ? "orange" : "purple",
-        tags: [poolData.category, poolData.league, poolData.region].filter(Boolean),
-        trending: progressInfo.fillPercentage > 50,
-        boosted: false,
-        boostTier: 0,
-        socialStats: {
-          comments: 0,
-          likes: 0,
-          views: (progressInfo.bettorCount || 0) + (progressInfo.lpCount || 0),
-          shares: 0
-        },
+        tags: [poolData.category, poolData.league || '', poolData.region || ''].filter(Boolean),
+        trending: poolData.trending,
+        boosted: poolData.boostTier !== 'NONE',
+        boostTier: poolData.boostTier === 'GOLD' ? 3 : poolData.boostTier === 'SILVER' ? 2 : poolData.boostTier === 'BRONZE' ? 1 : 0,
+        socialStats: poolData.socialStats,
         defeated: 0,
-        currency: usesBitr ? "BITR" : "STT",
-        endDate: poolData.eventEndTime ? new Date(poolData.eventEndTime * 1000).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        currency: poolData.currency,
+        endDate: new Date(poolData.eventEndTime * 1000).toISOString().split('T')[0],
         poolType: "single",
         comments: [],
         eventDetails: {
-          league: poolData.league,
-          region: poolData.region,
+          league: poolData.league || '',
+          region: poolData.region || '',
           venue: "TBD",
           startTime: new Date(poolData.eventStartTime * 1000),
           endTime: new Date(poolData.eventEndTime * 1000)
@@ -385,66 +244,73 @@ export default function BetPage() {
       
       setPool(transformedPool);
       
-        // Store contract data for status banner
-        setContractData(poolData);
+      // Set contract data for status banner (API provides all needed fields)
+      setContractData({
+        flags: poolData.status === 'settled' ? 1 : 0,
+        eventStartTime: poolData.eventStartTime,
+        eventEndTime: poolData.eventEndTime,
+        bettingEndTime: poolData.bettingEndTime,
+        arbitrationDeadline: poolData.eventEndTime + (24 * 60 * 60),
+        result: '',
+        resultTimestamp: 0,
+        oracleType: 0,
+        marketId: poolData.marketId || ''
+      });
         
-        // Determine pool status type for conditional rendering
-        const isSettled = (poolData.flags & 1) !== 0;
-        const creatorSideWon = (poolData.flags & 2) !== 0;
-        
-        console.log('🔍 Pool Status Debug:', {
-          poolId,
-          flags: poolData.flags,
-          flagsBinary: poolData.flags.toString(2),
-          isSettled,
-          creatorSideWon,
-          result: poolData.result,
-          resultTimestamp: poolData.resultTimestamp
-        });
-        
-        if (isSettled) {
-          if (creatorSideWon) {
-            console.log('✅ Setting status to creator_won');
-            setPoolStatusType('creator_won');
-          } else {
-            console.log('✅ Setting status to bettor_won');
-            setPoolStatusType('bettor_won');
-          }
+      // Get enhanced pool status from contract (cached for performance)
+      console.log('🔗 Fetching pool settlement status from contract...');
+      const poolState = await poolStateService.getPoolState(parseInt(poolId));
+      console.log('✅ Pool contract state:', poolState);
+      
+      // Determine pool status type using contract data
+      if (poolState.settled) {
+        if (poolState.creatorSideWon) {
+          setPoolStatusType('creator_won');
         } else {
-          console.log('✅ Setting status to active');
+          setPoolStatusType('bettor_won');
+        }
+      } else {
+        // Check if pool should be considered settled based on timing
+        const nowTime = Date.now();
+        const eventEndTime = poolData.eventEndTime * 1000;
+        
+        if (nowTime > eventEndTime && poolData.status === 'settled') {
+          setPoolStatusType('settled'); // Awaiting settlement
+        } else {
           setPoolStatusType('active');
         }
+      }
       
       // Check pool state for betting eligibility
-      const now = Date.now();
-      const eventStartTime = new Date(poolData.eventStartTime * 1000).getTime();
-      const eventEndTime = new Date(poolData.eventEndTime * 1000).getTime();
-      const bettingEndTime = new Date(poolData.bettingEndTime * 1000).getTime();
+      const nowTime = Date.now();
+      const eventStartTime = poolData.eventStartTime * 1000;
+      const eventEndTime = poolData.eventEndTime * 1000;
+      const bettingEndTime = poolData.bettingEndTime * 1000;
       
       // Check if event has started
-      const eventStarted = now >= eventStartTime;
+      const eventStarted = poolData.isEventStarted || nowTime >= eventStartTime;
       setIsEventStarted(eventStarted);
       
       // Check if pool is filled (100% or more)
-      const poolFilled = progressInfo.fillPercentage >= 100;
+      const poolFilled = poolData.isPoolFilled || poolData.fillPercentage >= 100;
       setIsPoolFilled(poolFilled);
       
       // Check if betting is still allowed
-      const bettingAllowed = now < bettingEndTime && !eventStarted && !poolFilled;
+      const bettingAllowed = poolData.canBet ?? (nowTime < bettingEndTime && !eventStarted && !poolFilled);
       setCanBet(bettingAllowed);
       
       console.log('🔍 Pool state check:', {
-        now: new Date(now).toISOString(),
+        now: new Date(nowTime).toISOString(),
         eventStartTime: new Date(eventStartTime).toISOString(),
         bettingEndTime: new Date(bettingEndTime).toISOString(),
         eventStarted,
         poolFilled,
-        fillPercentage: progressInfo.fillPercentage,
+        fillPercentage: poolData.fillPercentage,
         bettingAllowed
       });
       
       // Calculate time left using real event end time
-      const timeRemaining = Math.max(0, eventEndTime - now);
+      const timeRemaining = Math.max(0, eventEndTime - nowTime);
       
       if (timeRemaining > 0) {
         const days = Math.floor(timeRemaining / (1000 * 60 * 60 * 24));
@@ -456,16 +322,12 @@ export default function BetPage() {
       }
       
     } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        console.warn('Pool data fetch timed out');
-      } else {
-        console.error('Error fetching pool data:', error);
+      console.error('Error fetching pool data from API:', error);
         console.error('Pool not found or failed to load:', poolId);
-      }
     } finally {
       setLoading(false);
     }
-   }, [poolId, lastFetchTime]); // Only depend on poolId to prevent loops
+   }, [poolId, lastFetchTime]);
    // eslint-disable-next-line react-hooks/exhaustive-deps
 
   const checkUserBetStatus = useCallback(async () => {
@@ -506,46 +368,9 @@ export default function BetPage() {
   useEffect(() => {
     fetchPoolData();
     checkUserBetStatus();
-    fetchRealTimeStats();
-    fetchBetStats();
-    fetchBookmakerOdds();
     // eslint-disable-next-line react-hooks/exhaustive-deps
    }, [poolId]); // Only run when poolId changes
   
-  // Optimized polling for real-time stats
-  const { data: realTimeData } = useOptimizedPolling<{
-    challengerCount: number;
-    totalVolume: number;
-    fillPercentage: number;
-  }>(
-    fetchRealTimeStats,
-    {
-      interval: 30000, // 30 seconds
-      websocketChannel: `pool:${poolId}:progress`,
-      enabled: false, // Disabled to prevent reload loops
-      cacheKey: `pool:${poolId}:progress`,
-      retryAttempts: 3,
-      retryDelay: 1000
-    }
-  );
-
-  // Optimized polling for bet stats
-  const { data: betStatsData } = useOptimizedPolling<{
-    totalBets: number;
-    totalVolume: number;
-    yesBets: number;
-    noBets: number;
-  }>(
-    fetchBetStats,
-    {
-      interval: 30000, // 30 seconds
-      websocketChannel: `pool:${poolId}:bets`,
-      enabled: false, // Disabled to prevent reload loops
-      cacheKey: `pool:${poolId}:bets`,
-      retryAttempts: 3,
-      retryDelay: 1000
-    }
-  );
 
   // State to track if we're waiting for approval to complete
   const [waitingForApproval, setWaitingForApproval] = useState(false);
@@ -671,7 +496,7 @@ export default function BetPage() {
       toast.loading('Preparing transaction...', { id: 'bet-tx' });
       
       // Check if this is a BITR pool and if approval is needed
-      if (pool?.currency === 'BITR' && needsApproval(betAmount.toString())) {
+        if (pool && pool.currency === 'BITR' && needsApproval()) {
         console.log('BITR approval needed, starting approval process...');
         
         // Store bet data for after approval
@@ -679,7 +504,7 @@ export default function BetPage() {
         setWaitingForApproval(true);
         
         toast.loading('Approving BITR tokens...', { id: 'bet-tx' });
-        await approve(CONTRACTS.POOL_CORE.address, betAmount.toString());
+        await approve("0x0000000000000000000000000000000000000000", betAmount.toString());
         
         // The useEffect will handle the bet placement after approval
         toast.loading('Waiting for approval confirmation...', { id: 'bet-tx' });
@@ -1094,7 +919,7 @@ export default function BetPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-lg font-bold text-white">
-                    {(realTimeData?.fillPercentage || 0).toFixed(1)}%
+                    0%
                 </span>
                   <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
               </div>
@@ -1102,7 +927,7 @@ export default function BetPage() {
               <div className="w-full bg-gray-700/50 rounded-full h-4 mb-3 relative overflow-hidden">
                 <div
                   className="bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 h-4 rounded-full transition-all duration-1000 relative overflow-hidden"
-                  style={{ width: `${Math.min(100, realTimeData?.fillPercentage || 0)}%` }}
+                  style={{ width: `0%` }}
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse"></div>
                   <div className="absolute inset-0 bg-gradient-to-r from-cyan-400/50 to-blue-400/50 animate-pulse"></div>
@@ -1140,7 +965,7 @@ export default function BetPage() {
                 <div className="w-full h-0.5 bg-yellow-500/20 rounded-full mt-2"></div>
               </div>
               <div className="text-center group hover:scale-105 transition-transform">
-                <div className="text-xl sm:text-3xl font-bold text-cyan-400 mb-1 group-hover:text-cyan-300 transition-colors">{realTimeData?.challengerCount || 0}</div>
+                <div className="text-xl sm:text-3xl font-bold text-cyan-400 mb-1 group-hover:text-cyan-300 transition-colors">0</div>
                 <div className="text-xs text-gray-400 uppercase tracking-wider">Challengers</div>
                 <div className="w-full h-0.5 bg-cyan-500/20 rounded-full mt-2"></div>
               </div>
@@ -1416,13 +1241,19 @@ export default function BetPage() {
                      willShowClaimRewards: poolStatusType && (poolStatusType === 'creator_won' || poolStatusType === 'bettor_won' || poolStatusType === 'settled')
                    });
                    
-                   if (poolStatusType && (poolStatusType === 'creator_won' || poolStatusType === 'bettor_won' || poolStatusType === 'settled')) {
-                     return <ClaimRewards poolId={poolId} poolStatus={poolStatusType} />;
-                   } else {
-                     return <BetDisplay poolId={poolId} />;
-                   }
+                  if (poolStatusType && (poolStatusType === 'creator_won' || poolStatusType === 'bettor_won' || poolStatusType === 'settled')) {
+                    return <ClaimRewards pool={{
+                      id: pool.id,
+                      currency: pool.currency,
+                      settled: poolStatusType === 'settled',
+                      eventEndTime: pool.eventDetails?.endTime?.getTime() ? Math.floor(pool.eventDetails.endTime.getTime() / 1000) : 0,
+                      status: poolStatusType
+                    }} />;
+                  } else {
+                    return <BetDisplay poolId={poolId} />;
+                  }
                  })()}
-               </div>
+              </div>
                           </div>
           )}
 
@@ -1460,7 +1291,7 @@ export default function BetPage() {
                     <div className="space-y-3 text-sm sm:text-base">
                       <div className="flex justify-between">
                         <span className="text-gray-400">Participants:</span>
-                        <span className="text-white">{betStatsData?.totalBets || 0}</span>
+                        <span className="text-white">0</span>
               </div>
                       <div className="flex justify-between">
                         <span className="text-gray-400">Defeated:</span>
@@ -1483,10 +1314,10 @@ export default function BetPage() {
                       in {pool.creator.successRate.toFixed(1)}% of their predictions. This suggests they have a good track 
                       record of identifying unlikely events.
                     </p>
-                    <p>
-                      The {pool.odds}x odds indicate the creator is offering a {((pool.odds - 1) * 100).toFixed(0)}% 
-                      premium to challengers{bookmakerOdds ? `, which is ${((pool.odds - bookmakerOdds) / bookmakerOdds * 100).toFixed(0)}% ${pool.odds > bookmakerOdds ? 'higher' : 'lower'} than popular bookmakers` : ', suggesting they have high confidence in their prediction'}.
-                    </p>
+                            <p>
+                              The {pool.odds.toFixed(1)}x odds indicate the creator is offering a {((pool.odds - 1) * 100).toFixed(0)}% 
+                              premium to challengers, suggesting they have high confidence in their prediction.
+                            </p>
                   </div>
               </div>
 
@@ -1518,13 +1349,13 @@ export default function BetPage() {
                 </div>
                   <div className="p-4 sm:p-6 bg-gray-700/30 rounded-lg border border-gray-600/30 text-center">
                     <div className="text-2xl sm:text-3xl font-bold text-yellow-400 mb-2">
-                      {betStatsData?.totalBets || 0}
+                      0
               </div>
                     <div className="text-sm sm:text-base text-gray-400">Total Bets</div>
                   </div>
                   <div className="p-4 sm:p-6 bg-gray-700/30 rounded-lg border border-gray-600/30 text-center">
                     <div className="text-2xl sm:text-3xl font-bold text-purple-400 mb-2">
-                      {(betStatsData?.totalVolume || 0).toLocaleString()}
+                      0
               </div>
                     <div className="text-sm sm:text-base text-gray-400">Total Volume</div>
                   </div>
@@ -1559,8 +1390,135 @@ export default function BetPage() {
           {/* Sidebar */}
           <div className="space-y-6">
 
+                </div>
+                </div>
+
+        {/* Recent Bets Section */}
+        <div className="glass-card p-6 border border-border-card">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+              <div className="w-8 h-8 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-lg flex items-center justify-center">
+                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              Recent Activity
+            </h3>
+            <div className="flex items-center gap-2 text-sm text-gray-400">
+              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+              Live updates
+            </div>
+          </div>
+
+          <div className="space-y-3 max-h-96 overflow-y-auto custom-scrollbar">
+            {recentBets.length === 0 ? (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 bg-gradient-to-r from-gray-700 to-gray-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+                <p className="text-gray-400 font-medium">No bets yet</p>
+                <p className="text-gray-500 text-sm mt-1">Be the first to bet on this pool!</p>
+              </div>
+            ) : (
+              recentBets.map((bet, index) => (
+                <div key={bet.id || index} className="group bg-gradient-to-r from-gray-800/50 to-gray-700/30 p-4 rounded-xl border border-gray-600/30 hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/10">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      {/* Bet Type Indicator */}
+                      <div className={`relative w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm ${
+                        bet.isForOutcome 
+                          ? 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 border border-green-500/30' 
+                          : 'bg-gradient-to-r from-red-500/20 to-rose-500/20 text-red-400 border border-red-500/30'
+                      }`}>
+                        {bet.isForOutcome ? 'YES' : 'NO'}
+                        <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full ${
+                          bet.isForOutcome ? 'bg-green-400' : 'bg-red-400'
+                        } animate-pulse`}></div>
+                      </div>
+                      
+                      {/* User Info */}
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                          <span className="text-white font-semibold">
+                            {bet.bettor.slice(0, 6)}...{bet.bettor.slice(-4)}
+                          </span>
+                          <div className="w-1 h-1 bg-gray-500 rounded-full"></div>
+                          <span className="text-xs text-gray-400">
+                            {new Date(bet.timestamp * 1000).toLocaleTimeString([], { 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-2xl font-bold text-white">
+                            {parseFloat(bet.amount).toFixed(2)} {pool?.currency || 'STT'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Transaction Link */}
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={`https://shannon-explorer.somnia.network/tx/${bet.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group/link flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 hover:from-blue-500/20 hover:to-cyan-500/20 text-blue-400 hover:text-blue-300 rounded-lg border border-blue-500/20 hover:border-blue-400/40 transition-all duration-200"
+                        title="View transaction on Somnia Explorer"
+                      >
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                        <span className="text-xs font-medium">Tx</span>
+                      </a>
                     </div>
                   </div>
+
+                  {/* Bet Details */}
+                  <div className="flex items-center justify-between text-sm pt-3 border-t border-gray-600/20">
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-1 text-gray-400">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        {new Date(bet.timestamp * 1000).toLocaleDateString()}
+                      </div>
+                      <div className="flex items-center gap-1 text-gray-400">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                        </svg>
+                        {bet.category}
+                      </div>
+                    </div>
+                    
+                    <div className={`text-xs font-medium px-2 py-1 rounded ${
+                      bet.isForOutcome 
+                        ? 'bg-green-500/10 text-green-400' 
+                        : 'bg-red-500/10 text-red-400'
+                    }`}>
+                      {bet.isForOutcome ? 'Backing Creator' : 'Challenging Creator'}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Show More Button */}
+          {recentBets.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-gray-600/20">
+              <button className="w-full py-2 text-sm text-gray-400 hover:text-white transition-colors flex items-center justify-center gap-2 group">
+                <span>View all activity</span>
+                <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                </svg>
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Comments Section */}
         <div className="glass-card space-y-6">

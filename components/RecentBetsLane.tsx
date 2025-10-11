@@ -8,7 +8,7 @@ import {
   ClockIcon,
   UserIcon,
 } from "@heroicons/react/24/outline";
-import useOptimizedPolling from "@/hooks/useOptimizedPolling";
+import { optimizedPoolService } from "@/services/optimizedPoolService";
 import { getPoolIcon } from "@/services/crypto-icons";
 
 interface RecentBet {
@@ -128,27 +128,54 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
     }
   ], []);
 
-  // Optimized polling with WebSocket support
-  const { data: apiData, loading: isLoading } = useOptimizedPolling(
-    async () => {
-      const response = await fetch('/api/guided-markets/recent-bets');
-      const data = await response.json();
-      
-      if (data.success && data.data.recentBets) {
-        return data.data.recentBets;
-      } else {
-        throw new Error('Failed to fetch recent bets');
+  const [apiData, setApiData] = useState<RecentBet[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch recent bets using optimized API service
+  useEffect(() => {
+    const fetchRecentBets = async () => {
+      try {
+        setIsLoading(true);
+        const bets = await optimizedPoolService.getRecentBets(20);
+        
+        // Transform API data to component format
+        const transformedBets: RecentBet[] = bets.map((bet, index) => ({
+          id: index + 1,
+          poolId: bet.poolId.toString(),
+          bettorAddress: bet.bettor,
+          amount: bet.amount,
+          amountFormatted: parseFloat(bet.amount).toFixed(2),
+          isForOutcome: bet.isForOutcome,
+          createdAt: new Date(bet.timestamp * 1000).toISOString(),
+          timeAgo: `${Math.floor((Date.now() - bet.timestamp * 1000) / 60000)}m ago`,
+          pool: {
+            predictedOutcome: '',
+            league: bet.league || 'Unknown',
+            category: bet.category,
+            homeTeam: '',
+            awayTeam: '',
+            title: bet.poolTitle,
+            useBitr: false,
+            odds: 0,
+            creatorAddress: ''
+          }
+        }));
+        
+        setApiData(transformedBets);
+      } catch (error) {
+        console.error('Failed to fetch recent bets:', error);
+        setApiData([]);
+      } finally {
+        setIsLoading(false);
       }
-    },
-    {
-      interval: 60000, // 1 minute polling
-      websocketChannel: 'recent_bets',
-      enabled: true,
-      cacheKey: 'recent_bets',
-      retryAttempts: 3,
-      retryDelay: 1000
-    }
-  );
+    };
+
+    fetchRecentBets();
+    
+    // Set up polling interval
+    const interval = setInterval(fetchRecentBets, 60000); // 1 minute
+    return () => clearInterval(interval);
+  }, []);
 
   // Use API data or fallback to demo data
   const bets = apiData || demoBets;

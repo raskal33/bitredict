@@ -11,7 +11,7 @@ import {
   SparklesIcon
 } from "@heroicons/react/24/outline";
 import { formatEther } from "viem";
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
 import { titleTemplatesService } from "../services/title-templates";
@@ -109,67 +109,8 @@ export default function EnhancedPoolCard({
 }: EnhancedPoolCardProps) {
   const router = useRouter();
   const { address } = useAccount();
-  const [isLoadingIndexedData, setIsLoadingIndexedData] = useState(false);
-  const [indexedData, setIndexedData] = useState(pool.indexedData);
+  const [indexedData] = useState(pool.indexedData);
   const [showBoostModal, setShowBoostModal] = useState(false);
-
-  const fetchIndexedData = useCallback(async () => {
-    setIsLoadingIndexedData(true);
-    try {
-      console.log(`🔄 Fetching progress data for pool ${pool.id}...`);
-      // Get pool progress data
-      const progressResponse = await fetch(`/api/guided-markets/pools/${pool.id}/progress`);
-      if (progressResponse.ok) {
-        const progressData = await progressResponse.json();
-        console.log(`📊 Progress data for pool ${pool.id}:`, progressData);
-        if (progressData.success && progressData.data) {
-          const newIndexedData = {
-            participantCount: progressData.data.bettorCount + progressData.data.lpCount,
-            fillPercentage: progressData.data.fillPercentage || 0,
-            totalVolume: progressData.data.totalPoolSize || '0',
-            betCount: progressData.data.bettorCount || 0,
-            avgBetSize: progressData.data.currentBettorStake && progressData.data.bettorCount > 0 
-              ? (parseFloat(formatEther(BigInt(progressData.data.currentBettorStake))) / progressData.data.bettorCount).toFixed(2)
-              : '0',
-            creatorReputation: 0, // TODO: Implement reputation system
-            categoryRank: 0, // TODO: Implement ranking
-            isHot: (progressData.data.fillPercentage || 0) > 50,
-            lastActivity: new Date()
-          };
-          console.log(`✅ Updated indexed data for pool ${pool.id}:`, newIndexedData);
-          setIndexedData(newIndexedData);
-        } else {
-          console.log(`⚠️ No progress data available for pool ${pool.id}`);
-        }
-      } else {
-        console.log(`❌ Failed to fetch progress data for pool ${pool.id}:`, progressResponse.status);
-      }
-    } catch (error) {
-      console.error('Failed to fetch indexed data:', error);
-    } finally {
-      setIsLoadingIndexedData(false);
-    }
-  }, [pool.id]);
-
-  // Fetch indexed data immediately and when pool changes
-  useEffect(() => {
-    if (!isLoadingIndexedData) {
-      fetchIndexedData();
-    }
-  }, [pool.id, fetchIndexedData, isLoadingIndexedData]);
-
-  // Set up periodic refresh with longer intervals to reduce API calls
-  useEffect(() => {
-    const interval = setInterval(() => {
-      // Only refresh if the pool is active and not settled
-      if (!pool.settled && pool.bettingEndTime > Date.now() / 1000) {
-        console.log(`🔄 Periodic refresh for pool ${pool.id}`);
-        fetchIndexedData();
-      }
-    }, 30000); // Refresh every 30 seconds instead of continuous polling
-
-    return () => clearInterval(interval);
-  }, [pool.settled, pool.bettingEndTime, fetchIndexedData, pool.id]);
 
   const getDifficultyColor = (odds: number) => {
     if (odds >= 500) return 'text-purple-400'; // Legendary
@@ -434,86 +375,95 @@ export default function EnhancedPoolCard({
         ${className}
       `}
     >
-      {/* Badge Container */}
-      <div className="absolute top-2 left-2 right-2 z-10 flex justify-between items-start pointer-events-none">
-        {/* Trending Badge */}
-        {pool.trending && (
-          <div className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
-            <BoltIcon className="w-3 h-3" />
-            TRENDING
-          </div>
-        )}
+      {/* Badge Container - Organized and Clean */}
+      <div className="absolute top-3 left-3 right-3 z-10 flex justify-between items-start pointer-events-none">
+        {/* Left side badges */}
+        <div className="flex flex-col gap-2">
+          {/* Primary Status Badge */}
+          {(() => {
+            const statusInfo = getPoolStatusDisplay({
+              id: pool.id,
+              settled: pool.settled,
+              creatorSideWon: pool.creatorSideWon,
+              eventStartTime: pool.eventStartTime,
+              eventEndTime: pool.eventEndTime,
+              bettingEndTime: pool.bettingEndTime,
+              oracleType: pool.oracleType,
+              marketId: pool.marketId
+            });
+            
+            const badgeProps = getStatusBadgeProps(statusInfo);
+            
+            return (
+              <div className={`${badgeProps.className} pointer-events-auto`}>
+                <span className="mr-1">{badgeProps.icon}</span>
+                {badgeProps.label}
+              </div>
+            );
+          })()}
 
-        {/* Boost Badge */}
-        {pool.boostTier && pool.boostTier !== 'NONE' && (
-          <div className={`
-            px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1
-            ${pool.boostTier === 'GOLD' ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black' :
-              pool.boostTier === 'SILVER' ? 'bg-gradient-to-r from-gray-400 to-gray-500 text-black' :
-              'bg-gradient-to-r from-orange-600 to-orange-700 text-white'}
-          `}>
-            <BoltIcon className="w-3 h-3" />
-            {pool.boostTier}
-          </div>
-        )}
+          {/* Secondary badges row */}
+          <div className="flex gap-2">
+            {/* Trending Badge */}
+            {pool.trending && (
+              <div className="bg-gradient-to-r from-red-500/90 to-pink-500/90 backdrop-blur-sm text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 pointer-events-auto">
+                <BoltIcon className="w-3 h-3" />
+                TRENDING
+              </div>
+            )}
 
-        {/* Private Badge */}
-        {pool.isPrivate && (
-          <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
-            <UserIcon className="w-3 h-3" />
-            PRIVATE
+            {/* Hot Badge from indexed data */}
+            {indexedData?.isHot && (
+              <div className="bg-gradient-to-r from-orange-500/90 to-red-500/90 backdrop-blur-sm text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 pointer-events-auto">
+                <ChartBarIcon className="w-3 h-3" />
+                HOT
+              </div>
+            )}
           </div>
-        )}
+        </div>
 
-        {/* Combo Pool Badge */}
-        {pool.isComboPool && (
-          <div className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
-            <SparklesIcon className="w-3 h-3" />
-            COMBO
-          </div>
-        )}
+        {/* Right side badges */}
+        <div className="flex flex-col gap-2 items-end">
+          {/* Boost Badge */}
+          {pool.boostTier && pool.boostTier !== 'NONE' && (
+            <div className={`
+              px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 backdrop-blur-sm pointer-events-auto
+              ${pool.boostTier === 'GOLD' ? 'bg-gradient-to-r from-yellow-500/90 to-yellow-600/90 text-black' :
+                pool.boostTier === 'SILVER' ? 'bg-gradient-to-r from-gray-400/90 to-gray-500/90 text-black' :
+                'bg-gradient-to-r from-orange-600/90 to-orange-700/90 text-white'}
+            `}>
+              <BoltIcon className="w-3 h-3" />
+              {pool.boostTier}
+            </div>
+          )}
 
-        {/* Hot Badge from indexed data */}
-        {indexedData?.isHot && (
-          <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1">
-            <ChartBarIcon className="w-3 h-3" />
-            HOT
-          </div>
-        )}
+          {/* Private Badge */}
+          {pool.isPrivate && (
+            <div className="bg-gradient-to-r from-purple-500/90 to-pink-500/90 backdrop-blur-sm text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 pointer-events-auto">
+              <UserIcon className="w-3 h-3" />
+              PRIVATE
+            </div>
+          )}
 
-        {/* Pool Status Badge */}
-        {(() => {
-          const statusInfo = getPoolStatusDisplay({
-            id: pool.id,
-            settled: pool.settled,
-            creatorSideWon: pool.creatorSideWon,
-            eventStartTime: pool.eventStartTime,
-            eventEndTime: pool.eventEndTime,
-            bettingEndTime: pool.bettingEndTime,
-            oracleType: pool.oracleType,
-            marketId: pool.marketId
-          });
-          
-          const badgeProps = getStatusBadgeProps(statusInfo);
-          
-          return (
-            <div className={badgeProps.className}>
-              <span className="mr-1">{badgeProps.icon}</span>
-              {badgeProps.label}
-          </div>
-          );
-        })()}
+          {/* Combo Pool Badge */}
+          {pool.isComboPool && (
+            <div className="bg-gradient-to-r from-purple-500/90 to-indigo-500/90 backdrop-blur-sm text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 pointer-events-auto">
+              <SparklesIcon className="w-3 h-3" />
+              COMBO
+            </div>
+          )}
 
-        {/* Boost Button - Only show for creators */}
-        {showBoostButton && canBoost && (
-          <button
-            onClick={handleBoostClick}
-            className="px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 bg-gradient-to-r from-yellow-500 to-orange-500 text-black hover:from-yellow-400 hover:to-orange-400 transition-all transform hover:scale-105"
-          >
-            <BoltIcon className="w-3 h-3" />
-            BOOST
-          </button>
-        )}
+          {/* Boost Button - Only show for creators */}
+          {showBoostButton && canBoost && (
+            <button
+              onClick={handleBoostClick}
+              className="px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 bg-gradient-to-r from-yellow-500/90 to-orange-500/90 backdrop-blur-sm text-black hover:from-yellow-400 hover:to-orange-400 transition-all transform hover:scale-105 pointer-events-auto"
+            >
+              <BoltIcon className="w-3 h-3" />
+              BOOST
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Header */}
@@ -625,20 +575,24 @@ export default function EnhancedPoolCard({
         <div className="flex justify-between text-xs text-gray-400 mt-1">
           <span>
             {(() => {
-              const totalBettorStake = parseFloat(pool.totalBettorStake || "0") / 1e18;
-              return totalBettorStake > 1000 
-                ? `${(totalBettorStake / 1000).toFixed(1)}K` 
-                : totalBettorStake.toFixed(0);
+              // Use proper human-readable formatting from optimized API data
+              const totalBettorStake = parseFloat(pool.totalBettorStake || "0");
+              
+              // Format for display
+              if (totalBettorStake >= 1000000) return `${(totalBettorStake / 1000000).toFixed(1)}M`;
+              if (totalBettorStake >= 1000) return `${(totalBettorStake / 1000).toFixed(1)}K`;
+              return Math.round(totalBettorStake).toString();
             })()} {pool.usesBitr ? 'BITR' : 'STT'} filled
           </span>
           <span>
             {(() => {
-              const creatorStake = parseFloat(pool.creatorStake || "0") / 1e18;
-              const contractOdds = Math.round(pool.odds * 100);
-              const maxPoolSize = (creatorStake * 100) / (contractOdds - 100);
-              return maxPoolSize > 1000 
-                ? `${(maxPoolSize / 1000).toFixed(1)}K` 
-                : maxPoolSize.toFixed(0);
+              // Use proper human-readable formatting from optimized API data
+              const maxPoolSize = parseFloat(pool.maxBettorStake || "0");
+              
+              // Format for display
+              if (maxPoolSize >= 1000000) return `${(maxPoolSize / 1000000).toFixed(1)}M`;
+              if (maxPoolSize >= 1000) return `${(maxPoolSize / 1000).toFixed(1)}K`;
+              return Math.round(maxPoolSize).toString();
             })()} {pool.usesBitr ? 'BITR' : 'STT'} capacity
           </span>
         </div>
