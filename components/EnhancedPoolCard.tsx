@@ -404,13 +404,13 @@ export default function EnhancedPoolCard({
 
           {/* Secondary badges row */}
           <div className="flex gap-2">
-            {/* Trending Badge */}
-            {pool.trending && (
+        {/* Trending Badge */}
+        {pool.trending && (
               <div className="bg-gradient-to-r from-red-500/90 to-pink-500/90 backdrop-blur-sm text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 pointer-events-auto">
-                <BoltIcon className="w-3 h-3" />
-                TRENDING
-              </div>
-            )}
+            <BoltIcon className="w-3 h-3" />
+            TRENDING
+          </div>
+        )}
 
             {/* Hot Badge from indexed data */}
             {indexedData?.isHot && (
@@ -424,45 +424,45 @@ export default function EnhancedPoolCard({
 
         {/* Right side badges */}
         <div className="flex flex-col gap-2 items-end">
-          {/* Boost Badge */}
-          {pool.boostTier && pool.boostTier !== 'NONE' && (
-            <div className={`
+        {/* Boost Badge */}
+        {pool.boostTier && pool.boostTier !== 'NONE' && (
+          <div className={`
               px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 backdrop-blur-sm pointer-events-auto
               ${pool.boostTier === 'GOLD' ? 'bg-gradient-to-r from-yellow-500/90 to-yellow-600/90 text-black' :
                 pool.boostTier === 'SILVER' ? 'bg-gradient-to-r from-gray-400/90 to-gray-500/90 text-black' :
                 'bg-gradient-to-r from-orange-600/90 to-orange-700/90 text-white'}
-            `}>
-              <BoltIcon className="w-3 h-3" />
-              {pool.boostTier}
-            </div>
-          )}
+          `}>
+            <BoltIcon className="w-3 h-3" />
+            {pool.boostTier}
+          </div>
+        )}
 
-          {/* Private Badge */}
-          {pool.isPrivate && (
+        {/* Private Badge */}
+        {pool.isPrivate && (
             <div className="bg-gradient-to-r from-purple-500/90 to-pink-500/90 backdrop-blur-sm text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 pointer-events-auto">
-              <UserIcon className="w-3 h-3" />
-              PRIVATE
-            </div>
-          )}
+            <UserIcon className="w-3 h-3" />
+            PRIVATE
+          </div>
+        )}
 
-          {/* Combo Pool Badge */}
-          {pool.isComboPool && (
+        {/* Combo Pool Badge */}
+        {pool.isComboPool && (
             <div className="bg-gradient-to-r from-purple-500/90 to-indigo-500/90 backdrop-blur-sm text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 pointer-events-auto">
-              <SparklesIcon className="w-3 h-3" />
-              COMBO
-            </div>
-          )}
+            <SparklesIcon className="w-3 h-3" />
+            COMBO
+          </div>
+        )}
 
-          {/* Boost Button - Only show for creators */}
-          {showBoostButton && canBoost && (
-            <button
-              onClick={handleBoostClick}
+        {/* Boost Button - Only show for creators */}
+        {showBoostButton && canBoost && (
+          <button
+            onClick={handleBoostClick}
               className="px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 bg-gradient-to-r from-yellow-500/90 to-orange-500/90 backdrop-blur-sm text-black hover:from-yellow-400 hover:to-orange-400 transition-all transform hover:scale-105 pointer-events-auto"
-            >
-              <BoltIcon className="w-3 h-3" />
-              BOOST
-            </button>
-          )}
+          >
+            <BoltIcon className="w-3 h-3" />
+            BOOST
+          </button>
+        )}
         </div>
       </div>
 

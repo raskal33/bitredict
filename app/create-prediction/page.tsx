@@ -1090,30 +1090,30 @@ function CreateMarketPageContent() {
         const txHash = await createPool(poolData);
         
         if (txHash) {
-          // Calculate total cost for display
-          const creationFee = useBitr ? '50 BITR' : '1 STT';
-          const boostCost = data.boostTier && data.boostTier !== 'NONE' 
-            ? `${data.boostTier === 'BRONZE' ? '2' : data.boostTier === 'SILVER' ? '5' : '10'} ${useBitr ? 'BITR' : 'STT'}`
-            : '0';
-          const totalCost = data.boostTier && data.boostTier !== 'NONE' 
-            ? `${boostCost} + ${creationFee}`
-            : creationFee;
+        // Calculate total cost for display
+        const creationFee = useBitr ? '50 BITR' : '1 STT';
+        const boostCost = data.boostTier && data.boostTier !== 'NONE' 
+          ? `${data.boostTier === 'BRONZE' ? '2' : data.boostTier === 'SILVER' ? '5' : '10'} ${useBitr ? 'BITR' : 'STT'}`
+          : '0';
+        const totalCost = data.boostTier && data.boostTier !== 'NONE' 
+          ? `${boostCost} + ${creationFee}`
+          : creationFee;
 
-          showSuccess(
-            'Market Created Successfully!', 
-            'Your cryptocurrency prediction market has been created and is now live on the blockchain!', 
+        showSuccess(
+          'Market Created Successfully!', 
+          'Your cryptocurrency prediction market has been created and is now live on the blockchain!', 
             txHash,
-            data.boostTier,
-            totalCost
-          );
-          
-          // Add reputation for market creation
-          if (address) {
-            addReputationAction(address, {
-              type: 'market_created',
-              points: 10,
-              description: 'Created a cryptocurrency prediction market'
-            });
+          data.boostTier,
+          totalCost
+        );
+        
+        // Add reputation for market creation
+        if (address) {
+          addReputationAction(address, {
+            type: 'market_created',
+            points: 10,
+            description: 'Created a cryptocurrency prediction market'
+          });
           }
           
           // Reset form and go to success step

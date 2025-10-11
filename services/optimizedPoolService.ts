@@ -73,6 +73,7 @@ export interface RecentBet {
   poolTitle: string;
   category: string;
   league: string;
+  eventType?: 'bet' | 'pool_created'; // Event type to distinguish between bets and pool creation
 }
 
 export interface PoolAnalytics {
@@ -98,7 +99,9 @@ export interface PoolsResponse {
 }
 
 class OptimizedPoolService {
-  private baseUrl = '/api/optimized-pools';
+  private baseUrl = typeof window !== 'undefined' 
+    ? 'https://bitredict-backend.fly.dev/api/optimized-pools'
+    : process.env.NEXT_PUBLIC_API_URL + '/api/optimized-pools' || 'https://bitredict-backend.fly.dev/api/optimized-pools';
 
   /**
    * Get all pools with comprehensive data for the markets page

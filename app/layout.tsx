@@ -4,6 +4,7 @@ import "@/styles/appkit-custom.css";
 import { Onest } from "next/font/google";
 import WalletProvider from "@/providers/WalletProvider";
 import AppContent from "./AppContent";
+import ScrollToTop from "@/components/ScrollToTop";
 
 const onest = Onest({
   subsets: ["latin"],
@@ -65,6 +66,7 @@ export default function RootLayout({
         className={`${onest.className} ${onest.variable} flex min-h-screen flex-col bg-bg-main text-text-primary antialiased`}
       >
         <WalletProvider>
+          <ScrollToTop />
           <AppContent>{children}</AppContent>
         </WalletProvider>
       </body>

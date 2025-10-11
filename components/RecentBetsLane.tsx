@@ -20,6 +20,7 @@ interface RecentBet {
   isForOutcome: boolean;
   createdAt: string;
   timeAgo: string;
+  eventType?: 'bet' | 'pool_created'; // Event type
   pool: {
     predictedOutcome: string;
     league: string;
@@ -49,6 +50,7 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
       amount: "2500000000000000000000",
       amountFormatted: "2,500.00",
       isForOutcome: true,
+      eventType: 'bet',
       createdAt: new Date(Date.now() - 30000).toISOString(),
       timeAgo: "5m ago",
       pool: {
@@ -70,6 +72,7 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
       amount: "1800000000000000000000",
       amountFormatted: "1,800.00",
       isForOutcome: false,
+      eventType: 'bet',
       createdAt: new Date(Date.now() - 45000).toISOString(),
       timeAgo: "8m ago",
       pool: {
@@ -91,6 +94,7 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
       amount: "5200000000000000000000",
       amountFormatted: "5,200.00",
       isForOutcome: true,
+      eventType: 'pool_created', // Pool creation event
       createdAt: new Date(Date.now() - 60000).toISOString(),
       timeAgo: "12m ago",
       pool: {
@@ -112,6 +116,7 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
       amount: "3500000000000000000000",
       amountFormatted: "3,500.00",
       isForOutcome: true,
+      eventType: 'bet',
       createdAt: new Date(Date.now() - 90000).toISOString(),
       timeAgo: "15m ago",
       pool: {
@@ -146,6 +151,7 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
           amount: bet.amount,
           amountFormatted: parseFloat(bet.amount).toFixed(2),
           isForOutcome: bet.isForOutcome,
+          eventType: bet.eventType || 'bet', // Default to 'bet' if not provided
           createdAt: new Date(bet.timestamp * 1000).toISOString(),
           timeAgo: `${Math.floor((Date.now() - bet.timestamp * 1000) / 60000)}m ago`,
           pool: {
@@ -287,16 +293,22 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
 
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1 sm:gap-2">
-                      <span className={`text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full ${
-                        bet.isForOutcome 
-                          ? 'bg-cyan-500/20 text-cyan-400' 
-                          : 'bg-purple-500/20 text-purple-400'
-                      }`}>
-                        {bet.isForOutcome ? 'YES' : 'NO'}
-                      </span>
+                      {bet.eventType === 'pool_created' ? (
+                        <span className="text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full bg-green-500/20 text-green-400 border border-green-500/30">
+                          Created
+                        </span>
+                      ) : (
+                        <span className={`text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full ${
+                          bet.isForOutcome 
+                            ? 'bg-cyan-500/20 text-cyan-400' 
+                            : 'bg-purple-500/20 text-purple-400'
+                        }`}>
+                          {bet.isForOutcome ? 'YES' : 'LP'}
+                        </span>
+                      )}
                       <span className="text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full bg-gray-500/20 text-gray-400">
                         {bet.pool.predictedOutcome}
-                        </span>
+                      </span>
                     </div>
                     
                     <div className="text-right">

@@ -103,9 +103,20 @@ export default function ProfileCreationModal() {
   }
 
   const handleClose = () => {
-    if (!address || hasProfile(address)) {
-      closeProfileModal()
+    // Allow users to close the modal even without creating a profile
+    closeProfileModal()
+  }
+
+  const handleSkip = () => {
+    // Create a minimal default profile so modal doesn't reappear
+    if (address) {
+      setProfile(address, {
+        username: `user_${address.slice(0, 6)}`,
+        displayName: `User ${address.slice(0, 6)}`,
+        bio: '',
+      })
     }
+    closeProfileModal()
   }
 
   if (!isProfileModalOpen || !address) return null
@@ -118,14 +129,13 @@ export default function ProfileCreationModal() {
             <h2 className="text-2xl font-bold text-text-secondary">Create Your Profile</h2>
             <p className="text-text-muted">Welcome to BitRedict! Let&apos;s set up your profile.</p>
           </div>
-          {hasProfile(address) && (
-            <button
-              onClick={handleClose}
-              className="rounded-full p-2 text-text-muted hover:bg-bg-card hover:text-text-secondary"
-            >
-              <FiX className="h-5 w-5" />
-            </button>
-          )}
+          <button
+            onClick={handleClose}
+            className="rounded-full p-2 text-text-muted hover:bg-bg-card hover:text-text-secondary transition-colors"
+            aria-label="Close modal"
+          >
+            <FiX className="h-5 w-5" />
+          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
@@ -297,21 +307,31 @@ export default function ProfileCreationModal() {
             <p className="text-xs text-text-muted font-mono break-all">{address}</p>
           </div>
 
-          {/* Submit Button */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-border-primary">
-            {hasProfile(address) && (
-              <Button variant="outline" onClick={handleClose}>
-                Cancel
-              </Button>
-            )}
+          {/* Submit Buttons */}
+          <div className="flex justify-between items-center gap-3 pt-4 border-t border-border-primary">
             <Button 
-              type="submit" 
-              variant="primary" 
-              loading={isSubmitting}
+              type="button"
+              variant="outline" 
+              onClick={handleSkip}
               disabled={isSubmitting}
             >
-              Create Profile
+              Skip for now
             </Button>
+            <div className="flex gap-3">
+              {hasProfile(address) && (
+                <Button variant="outline" onClick={handleClose}>
+                  Cancel
+                </Button>
+              )}
+              <Button 
+                type="submit" 
+                variant="primary" 
+                loading={isSubmitting}
+                disabled={isSubmitting}
+              >
+                Create Profile
+              </Button>
+            </div>
           </div>
         </form>
       </div>
