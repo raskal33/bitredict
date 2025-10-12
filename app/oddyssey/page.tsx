@@ -177,13 +177,11 @@ export default function OddysseyPage() {
     resetTransactionState();
   }, [clearStatus, resetTransactionState]);
 
-  // Initialize contract data
-  const initializeContract = useCallback(async () => {
-    if (!isConnected || !address || !walletClient || isInitializing || isInitialized) return;
-    
+  // Initialize public contract data (no wallet required)
+  const initializePublicData = useCallback(async () => {
     try {
-      setIsInitializing(true);
-      console.log('🎯 Initializing Oddyssey contract...');
+      setIsLoading(true);
+      console.log('🎯 Fetching public Oddyssey data...');
       
       // Get current cycle
       const cycleId = await oddysseyService.getCurrentCycle();
@@ -197,11 +195,83 @@ export default function OddysseyPage() {
       const fee = await oddysseyService.getEntryFee();
       setEntryFee(fee);
       
-      // Get current matches
+      // Get current matches (public data)
       const matches = await oddysseyService.getCurrentCycleMatches();
       setCurrentMatches(matches);
+      console.log('✅ Public data loaded successfully');
       
-      // Note: Slips are now fetched in the new initialization method below
+    } catch (error) {
+      console.error('❌ Error fetching public data:', error);
+      setError(error as Error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Initialize user-specific data (wallet required)
+  const initializeUserData = useCallback(async () => {
+    if (!isConnected || !address || !walletClient) return;
+    
+    try {
+      console.log('🎯 Fetching user-specific data...');
+      
+      // Fetch user slips with evaluation data from ALL cycles
+      console.log('🎯 Fetching all user slips with evaluation data from ALL cycles...');
+      const allSlipsData = await oddysseyService.getAllUserSlipsWithDataFromContract(address);
+      console.log('🔍 All slips data from all cycles:', allSlipsData);
+      
+      // Convert to enhanced slip format
+      console.log('🔍 Converting slips to enhanced format...');
+      console.log('🔍 Slip IDs:', allSlipsData.slipIds);
+      console.log('🔍 Slips data:', allSlipsData.slipsData);
+      
+      const enhancedSlips = allSlipsData.slipsData.map((slip, index) => {
+        console.log(`🔍 Processing slip ${index}:`, slip);
+        const enhanced = {
+          id: Number(allSlipsData.slipIds[index]),
+          cycleId: slip.cycleId,
+          placedAt: slip.placedAt,
+          predictions: slip.predictions.map(pred => ({
+            matchId: Number(pred.matchId),
+            betType: pred.betType,
+            selection: pred.selection,
+            selectedOdd: pred.selectedOdd,
+            homeTeam: pred.homeTeam,
+            awayTeam: pred.awayTeam,
+            leagueName: pred.leagueName,
+            isCorrect: slip.isEvaluated ? pred.isCorrect : undefined // Will be determined by evaluation
+          })),
+          finalScore: slip.finalScore,
+          correctCount: slip.correctCount,
+          isEvaluated: slip.isEvaluated,
+          status: slip.isEvaluated ? (slip.correctCount >= 8 ? 'won' : 'lost') : 'pending' as 'pending' | 'evaluated' | 'won' | 'lost'
+        };
+        console.log(`🔍 Enhanced slip ${index}:`, enhanced);
+        return enhanced;
+      });
+      
+      console.log('🔍 All enhanced slips:', enhancedSlips);
+      console.log('🔍 Enhanced slips count:', enhancedSlips.length);
+      setAllSlips(enhancedSlips);
+      console.log('✅ Enhanced slips set:', enhancedSlips);
+      console.log('✅ User data loaded successfully');
+      
+    } catch (error) {
+      console.error('❌ Error fetching user data:', error);
+      setAllSlips([]);
+    }
+  }, [isConnected, address, walletClient]);
+
+  // Initialize contract data (legacy - now only for wallet-specific setup)
+  const initializeContract = useCallback(async () => {
+    if (!isConnected || !address || !walletClient || isInitializing || isInitialized) return;
+    
+    try {
+      setIsInitializing(true);
+      console.log('🎯 Initializing Oddyssey contract...');
+      
+      // Initialize Oddyssey service with wallet client
+      oddysseyService.setWalletClient(walletClient);
       
       setIsInitialized(true);
       console.log('✅ Contract initialized successfully');
@@ -211,9 +281,23 @@ export default function OddysseyPage() {
       setError(error as Error);
     } finally {
       setIsInitializing(false);
-      setIsLoading(false);
     }
   }, [isConnected, address, walletClient, isInitializing, isInitialized]);
+
+  // Initialize public data on component mount (no wallet required)
+  useEffect(() => {
+    initializePublicData();
+  }, [initializePublicData]); // Include the dependency
+
+  // Initialize user data when wallet connects
+  useEffect(() => {
+    if (isConnected && address && walletClient) {
+      initializeUserData();
+    } else {
+      // Clear user data when wallet disconnects
+      setAllSlips([]);
+    }
+  }, [isConnected, address, walletClient, initializeUserData]);
 
   // Enhanced wallet initialization with mobile support
   useEffect(() => {
@@ -268,24 +352,6 @@ export default function OddysseyPage() {
           
           console.log('🎯 Initializing Oddyssey contract...');
           
-          // Get current cycle
-          const cycleId = await oddysseyService.getCurrentCycle();
-          console.log('Current cycle ID:', cycleId);
-          
-          // Get cycle info
-          const cycleInfo = await oddysseyService.getCurrentCycleInfo();
-          console.log('Prize pool:', formatEther(cycleInfo.prizePool));
-          
-          // Get entry fee
-          const fee = await oddysseyService.getEntryFee();
-          setEntryFee(fee);
-          
-          // Get current matches
-          const matches = await oddysseyService.getCurrentCycleMatches();
-          setCurrentMatches(matches);
-          
-          // Note: Slips are now fetched in the new initialization method below
-          
           setIsInitialized(true);
           console.log('✅ Contract initialized successfully');
           
@@ -307,7 +373,6 @@ export default function OddysseyPage() {
           }
         } finally {
           setIsInitializing(false);
-          setIsLoading(false);
         }
       };
       
