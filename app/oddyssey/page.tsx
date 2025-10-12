@@ -16,6 +16,7 @@ import OddysseyLeaderboard from "@/components/OddysseyLeaderboard";
 import EnhancedSlipDisplay from "@/components/EnhancedSlipDisplay";
 import UserStatsCard from "@/components/UserStatsCard";
 import CycleProgress from "@/components/CycleProgress";
+import AnalyticsDashboard from "@/components/AnalyticsDashboard";
 import { 
   FireIcon, 
   TrophyIcon, 
@@ -404,7 +405,7 @@ export default function OddysseyPage() {
 
   const [picks, setPicks] = useState<Pick[]>([]);
   const [allSlips, setAllSlips] = useState<EnhancedSlip[]>([]); // Enhanced slips with evaluation data
-  const [activeTab, setActiveTab] = useState<"today" | "slips" | "stats" | "results" | "leaderboard">("today");
+  const [activeTab, setActiveTab] = useState<"today" | "slips" | "stats" | "results" | "leaderboard" | "analytics">("today");
   const [matches, setMatches] = useState<Match[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [currentPrizePool, setCurrentPrizePool] = useState<CurrentPrizePool | null>(null);
@@ -1572,6 +1573,18 @@ export default function OddysseyPage() {
               <span className="sm:hidden">Leaders</span>
             </button>
             <button
+              onClick={() => setActiveTab("analytics")}
+              className={`px-4 md:px-8 py-2 md:py-3 rounded-button font-semibold transition-all duration-300 flex items-center gap-1 md:gap-2 text-sm md:text-base ${
+                activeTab === "analytics"
+                  ? "bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 shadow-lg shadow-purple-500/25 scale-105 border border-purple-500/30"
+                  : "text-text-secondary hover:text-purple-300 hover:bg-gradient-to-r hover:from-purple-500/10 hover:to-pink-500/10 hover:border hover:border-purple-500/20"
+              }`}
+            >
+              <SparklesIcon className="h-4 w-4 md:h-5 md:w-5" />
+              <span className="hidden sm:inline">Analytics</span>
+              <span className="sm:hidden">Analytics</span>
+            </button>
+            <button
               onClick={() => setActiveTab("stats")}
               className={`px-4 md:px-8 py-2 md:py-3 rounded-button font-semibold transition-all duration-300 flex items-center gap-1 md:gap-2 text-sm md:text-base ${
                 activeTab === "stats"
@@ -2332,6 +2345,18 @@ export default function OddysseyPage() {
                   
                   <OddysseyLeaderboard />
                 </div>
+              </motion.div>
+            ) : activeTab === "analytics" ? (
+              <motion.div
+                key="analytics"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="lg:col-span-3"
+              >
+                <AnalyticsDashboard 
+                  cycleId={cycleInfo ? Number(cycleInfo.cycleId) : 1}
+                />
               </motion.div>
             ) : null}
           </AnimatePresence>

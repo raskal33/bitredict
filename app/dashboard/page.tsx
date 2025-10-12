@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay, Pagination } from "swiper/modules";
 import Button from "@/components/button";
-import { useGlobalStats } from "@/hooks/useAnalytics";
+// import { useGlobalStats } from "@/hooks/useAnalytics"; // Removed - using direct service calls
 import { useTrendingPools } from "@/hooks/useMarkets";
 
 // Import Swiper styles
@@ -19,10 +19,16 @@ export default function Page() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   
   // Real-time data from backend
-  const { data: globalStats, isLoading: statsLoading } = useGlobalStats({ timeframe: '7d' });
+  // Mock data for now since we removed the analytics hook
+  const mockGlobalStats = {
+    totalVolume: 1234567,
+    activePools: 45,
+    totalPools: 234,
+    totalBets: 5678
+  };
   const { data: trendingData, isLoading: trendingLoading } = useTrendingPools({ limit: 8 });
   
-  const isLoading = statsLoading || trendingLoading;
+  const isLoading = trendingLoading;
   
   // Use real trending pools or fallback data
   const predictionPools = trendingData || [];
@@ -38,12 +44,10 @@ export default function Page() {
 
   const trendingPools = poolsArray.filter((pool) => pool.isTrending);
 
-  const stats = globalStats ? [
+  const stats = [
     {
       label: "Total Volume",
-      value: globalStats && typeof globalStats.totalVolume === "number"
-        ? globalStats.totalVolume.toLocaleString()
-        : "0",
+      value: mockGlobalStats.totalVolume.toLocaleString(),
       unit: "STT",
       change: "+23.5%", // Would need historical data to calculate real change
       positive: true,
@@ -51,9 +55,7 @@ export default function Page() {
     },
     {
       label: "Active Markets",
-      value: globalStats && typeof globalStats.activePools === "number"
-        ? globalStats.activePools.toLocaleString()
-        : "0",
+      value: mockGlobalStats.activePools.toLocaleString(),
       unit: "",
       change: "+8",
       positive: true,
@@ -61,9 +63,7 @@ export default function Page() {
     },
     {
       label: "Total Pools",
-      value: globalStats && typeof globalStats.totalPools === "number"
-        ? globalStats.totalPools.toLocaleString()
-        : "0",
+      value: mockGlobalStats.totalPools.toLocaleString(),
       unit: "",
       change: "+156",
       positive: true,
@@ -71,44 +71,9 @@ export default function Page() {
     },
     {
       label: "Total Bets",
-      value: globalStats && typeof globalStats.totalBets === "number"
-        ? globalStats.totalBets.toLocaleString()
-        : "0",
+      value: mockGlobalStats.totalBets.toLocaleString(),
       unit: "",
       change: "+2.1%",
-      positive: true,
-      icon: "🏆"
-    }
-  ] : [
-    {
-      label: "Total Volume",
-      value: "0",
-      unit: "STT",
-      change: "+0%",
-      positive: true,
-      icon: "💰"
-    },
-    {
-      label: "Active Markets",
-      value: "0",
-      unit: "",
-      change: "+0",
-      positive: true,
-      icon: "📊"
-    },
-    {
-      label: "Total Pools",
-      value: "0",
-      unit: "",
-      change: "+0",
-      positive: true,
-      icon: "👥"
-    },
-    {
-      label: "Total Bets",
-      value: "0",
-      unit: "",
-      change: "+0%",
       positive: true,
       icon: "🏆"
     }

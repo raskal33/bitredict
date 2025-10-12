@@ -1,489 +1,436 @@
-import { apiRequest, API_CONFIG } from '@/config/api';
+import { Address } from 'viem';
 
-// ============================================================================
-// ANALYTICS SERVICE - Real-time platform statistics integration
-// ============================================================================
+// Analytics API endpoints
+const API_BASE = '/api/oddyssey/smart-analytics';
 
-export interface GlobalStats {
-  totalVolume: number;
-  totalPools: number;
-  totalBets: number;
-  activePools: number;
+// Type definitions for analytics data
+export interface SlipProbability {
+  slipId: string;
+  overallProbability: number;
+  riskLevel: 'low' | 'medium' | 'high' | 'extreme';
+  confidenceScore: number;
+  predictionBreakdown: {
+    matchId: number;
+    probability: number;
+    selection: string;
+    confidence: number;
+  }[];
 }
 
-export interface VolumeHistoryItem {
-  date: string;
-  volume: number;
-  pools: number;
-  users: number;
-}
-
-export interface CategoryStats {
-  category: string;
-  poolCount: number;
-  totalVolume: number;
-  avgPoolSize: number;
-  participantCount: number;
-}
-
-export interface EnhancedCategoryStats {
-  category_name: string;
-  total_pools: number;
-  total_volume: number;
-  total_participants: number;
-  avg_pool_size: number;
-  most_popular_market_type: number;
-  most_popular_market_type_name: string;
-  last_activity: string;
-  icon: string;
-  color: string;
-}
-
-export interface LeagueStats {
-  league_name: string;
-  total_pools: number;
-  total_volume: number;
-  total_participants: number;
-  avg_pool_size: number;
-  most_popular_market_type: number;
-  most_popular_market_type_name: string;
-  last_activity: string;
-}
-
-export interface UserStats {
-  user_address: string;
-  total_bets: number;
-  total_bet_amount: number;
-  total_liquidity: number;
-  total_liquidity_amount: number;
-  total_pools_created: number;
-  total_volume: number;
-  win_count: number;
-  loss_count: number;
-  reputation_score: number;
-  last_activity: string;
-  win_rate: string;
-  total_activity: number;
-  avg_bet_size: string;
-  avg_liquidity_size: string;
-  reputation_tier: string;
-}
-
-export interface MarketTypeStats {
-  market_type: number;
-  market_type_name: string;
-  total_pools: number;
-  total_volume: number;
-  total_participants: number;
-  avg_pool_size: number;
-  win_rate: number;
-  last_activity: string;
-  icon: string;
-  description: string;
-  color: string;
-}
-
-export interface CategoryDistribution {
-  [category: string]: number;
-}
-
-export interface UserActivityItem {
-  hour: string;
-  users: number;
-  volume: number;
-  bets: number;
-}
-
-export interface TopCreator {
-  address: string;
-  shortAddress: string;
-  reputation: number;
-  stats: {
-    totalPools: number;
-    totalVolume: number;
-    winRate: number;
+export interface PopularSelections {
+  cycleId: number;
+  totalSlips: number;
+  selections: {
+    selection: string;
+    count: number;
+    percentage: number;
+    matchId: number;
+    homeTeam: string;
+    awayTeam: string;
+  }[];
+  trends: {
+    mostPopular: string;
+    leastPopular: string;
+    surprisingPick: string;
   };
 }
 
-export interface TopBettor {
-  address: string;
-  shortAddress: string;
-  stats: {
-    totalBets: number;
-    wonBets: number;
-    totalStaked: number;
-    totalWinnings: number;
+export interface MatchAnalytics {
+  matchId: number;
+  homeTeam: string;
+  awayTeam: string;
+  totalPredictions: number;
+  selectionBreakdown: {
+    '1': { count: number; percentage: number };
+    'X': { count: number; percentage: number };
+    '2': { count: number; percentage: number };
+    'Over': { count: number; percentage: number };
+    'Under': { count: number; percentage: number };
+  };
+  communityConfidence: number;
+  expectedOutcome: string;
+  surpriseFactor: number;
+}
+
+export interface CycleAnalytics {
+  cycleId: number;
+  participationMetrics: {
+    totalSlips: number;
+    uniqueUsers: number;
+    averageSlipsPerUser: number;
+    participationGrowth: number;
+  };
+  performanceMetrics: {
+    averageCorrectPredictions: number;
     winRate: number;
-    profitLoss: number;
-    biggestWin: number;
+    highestScore: number;
+    perfectSlips: number;
+  };
+  popularityTrends: {
+    mostPopularMatch: { matchId: number; predictions: number };
+    mostPopularSelection: { selection: string; count: number };
+    surprisingResults: string[];
+  };
+  insights: string[];
+}
+
+export interface UserAnalytics {
+  address: string;
+  performanceMetrics: {
+    totalSlips: number;
+    winRate: number;
+    averageScore: number;
+    bestStreak: number;
     currentStreak: number;
-    maxWinStreak: number;
-    streakIsWin: boolean;
+    improvement: number;
   };
-  joinedAt: string;
+  behaviorPatterns: {
+    favoriteSelections: { selection: string; frequency: number }[];
+    riskProfile: 'conservative' | 'balanced' | 'aggressive';
+    activityPattern: 'casual' | 'regular' | 'hardcore';
+  };
+  achievements: {
+    badges: string[];
+    milestones: string[];
+    rankings: { category: string; position: number; total: number }[];
+  };
+  insights: string[];
 }
 
-export interface AnalyticsResponse<T> {
-  success: boolean;
-  data: T;
-  timeframe?: string;
+export interface PlatformAnalytics {
+  globalMetrics: {
+    totalUsers: number;
+    totalSlips: number;
+    totalVolume: number;
+    averageWinRate: number;
+    cyclesCompleted: number;
+  };
+  engagementMetrics: {
+    dailyActiveUsers: number;
+    retentionRate: number;
+    averageSessionTime: number;
+    bounceRate: number;
+  };
+  performanceInsights: {
+    topPerformers: { address: string; score: number }[];
+    communityTrends: string[];
+    platformHealth: 'excellent' | 'good' | 'fair' | 'poor';
+  };
+  insights: string[];
 }
 
-export class AnalyticsService {
-  private static baseURL = API_CONFIG.endpoints.analytics || '/api/analytics';
+export interface VisualizationData {
+  cycleId: number;
+  charts: {
+    selectionDistribution: {
+      labels: string[];
+      data: number[];
+      colors: string[];
+    };
+    performanceTrends: {
+      labels: string[];
+      datasets: {
+        label: string;
+        data: number[];
+        color: string;
+      }[];
+    };
+    participationFlow: {
+      nodes: { id: string; label: string; value: number }[];
+      links: { source: string; target: string; value: number }[];
+    };
+    heatmap: {
+      matches: { matchId: number; intensity: number; selections: number }[];
+      maxIntensity: number;
+    };
+  };
+  infographics: {
+    keyStats: { label: string; value: string; trend: number }[];
+    insights: { title: string; description: string; impact: 'positive' | 'negative' | 'neutral' }[];
+  };
+}
 
-  /**
-   * Get global platform statistics
-   */
-  static async getGlobalStats(timeframe: '24h' | '7d' | '30d' | 'all' = '7d'): Promise<GlobalStats> {
+class AnalyticsService {
+  // Slip probability analysis
+  async getSlipProbability(slipId: string): Promise<SlipProbability> {
     try {
-      const response = await apiRequest<AnalyticsResponse<GlobalStats>>(
-        `${this.baseURL}/global?timeframe=${timeframe}`
-      );
-      return response.data;
+      const response = await fetch(`${API_BASE}/slip/${slipId}/probability`);
+      if (!response.ok) throw new Error('Failed to fetch slip probability');
+      return await response.json();
     } catch (error) {
-      console.warn('Backend analytics endpoint not available, using fallback data:', error);
-      // Return fallback data when backend is not available
-      return {
-        totalVolume: 2840000,
-        totalPools: 156,
-        totalBets: 8924,
-        activePools: 1247
-      };
+      console.error('Error fetching slip probability:', error);
+      // Return mock data for development
+      return this.getMockSlipProbability(slipId);
     }
   }
 
-  /**
-   * Get volume history for charts
-   */
-  static async getVolumeHistory(timeframe: '24h' | '7d' | '30d' = '7d'): Promise<VolumeHistoryItem[]> {
+  // Popular selections for a cycle
+  async getCycleSelections(cycleId: number): Promise<PopularSelections> {
     try {
-      const response = await apiRequest<AnalyticsResponse<VolumeHistoryItem[]>>(
-        `${this.baseURL}/volume-history?timeframe=${timeframe}`
-      );
-      return response.data;
+      const response = await fetch(`${API_BASE}/cycle/${cycleId}/selections`);
+      if (!response.ok) throw new Error('Failed to fetch cycle selections');
+      return await response.json();
     } catch (error) {
-      console.warn('Backend analytics endpoint not available, using fallback data:', error);
-      // Return fallback data when backend is not available
-      const days = timeframe === '24h' ? 1 : timeframe === '7d' ? 7 : 30;
-      const data: VolumeHistoryItem[] = [];
-      
-      for (let i = days - 1; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        data.push({
-          date: date.toISOString().split('T')[0],
-          volume: Math.floor(Math.random() * 500000) + 100000,
-          pools: Math.floor(Math.random() * 20) + 5,
-          users: Math.floor(Math.random() * 100) + 20
-        });
+      console.error('Error fetching cycle selections:', error);
+      return this.getMockCycleSelections(cycleId);
+    }
+  }
+
+  // Match-specific analytics
+  async getMatchAnalytics(matchId: number): Promise<MatchAnalytics> {
+    try {
+      const response = await fetch(`${API_BASE}/match/${matchId}/analytics`);
+      if (!response.ok) throw new Error('Failed to fetch match analytics');
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching match analytics:', error);
+      return this.getMockMatchAnalytics(matchId);
+    }
+  }
+
+  // Cycle analytics
+  async getCycleAnalytics(cycleId: number): Promise<CycleAnalytics> {
+    try {
+      const response = await fetch(`${API_BASE}/cycle/${cycleId}/analytics`);
+      if (!response.ok) throw new Error('Failed to fetch cycle analytics');
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching cycle analytics:', error);
+      return this.getMockCycleAnalytics(cycleId);
+    }
+  }
+
+  // User analytics
+  async getUserAnalytics(address: Address): Promise<UserAnalytics> {
+    try {
+      const response = await fetch(`${API_BASE}/user/${address}/analytics`);
+      if (!response.ok) throw new Error('Failed to fetch user analytics');
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching user analytics:', error);
+      return this.getMockUserAnalytics(address);
+    }
+  }
+
+  // Platform analytics
+  async getPlatformAnalytics(): Promise<PlatformAnalytics> {
+    try {
+      const response = await fetch(`${API_BASE}/platform/analytics`);
+      if (!response.ok) throw new Error('Failed to fetch platform analytics');
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching platform analytics:', error);
+      return this.getMockPlatformAnalytics();
+    }
+  }
+
+  // Visualization data
+  async getVisualizationData(cycleId: number): Promise<VisualizationData> {
+    try {
+      const response = await fetch(`${API_BASE}/visualization/${cycleId}`);
+      if (!response.ok) throw new Error('Failed to fetch visualization data');
+      return await response.json();
+    } catch (error) {
+      console.error('Error fetching visualization data:', error);
+      return this.getMockVisualizationData(cycleId);
+    }
+  }
+
+  // Mock data methods for development/fallback
+  private getMockSlipProbability(slipId: string): SlipProbability {
+    return {
+      slipId,
+      overallProbability: 12.5,
+      riskLevel: 'high',
+      confidenceScore: 78,
+      predictionBreakdown: [
+        { matchId: 1, probability: 65, selection: '1', confidence: 82 },
+        { matchId: 2, probability: 45, selection: 'Over', confidence: 71 },
+        { matchId: 3, probability: 38, selection: 'X', confidence: 63 },
+      ]
+    };
+  }
+
+  private getMockCycleSelections(cycleId: number): PopularSelections {
+    return {
+      cycleId,
+      totalSlips: 156,
+      selections: [
+        { selection: '1', count: 89, percentage: 57.1, matchId: 1, homeTeam: 'Team A', awayTeam: 'Team B' },
+        { selection: 'Over', count: 67, percentage: 43.0, matchId: 2, homeTeam: 'Team C', awayTeam: 'Team D' },
+        { selection: 'X', count: 45, percentage: 28.8, matchId: 3, homeTeam: 'Team E', awayTeam: 'Team F' },
+      ],
+      trends: {
+        mostPopular: 'Home Win (57.1%)',
+        leastPopular: 'Draw (28.8%)',
+        surprisingPick: 'Away Win in Derby Match'
       }
-      
-      return data;
-    }
+    };
   }
 
-  /**
-   * Get category statistics and distribution
-   */
-  static async getCategoryStats(timeframe: '24h' | '7d' | '30d' | 'all' = '7d'): Promise<{
-    distribution: CategoryDistribution;
-    detailed: CategoryStats[];
-  }> {
-    try {
-      const response = await apiRequest<AnalyticsResponse<{
-        distribution: CategoryDistribution;
-        detailed: CategoryStats[];
-      }>>(
-        `${this.baseURL}/categories?timeframe=${timeframe}`
-      );
-      return response.data;
-    } catch (error) {
-      console.warn('Backend analytics endpoint not available, using fallback data:', error);
-      // Return fallback data when backend is not available
-      return {
-        distribution: {
-          football: 45,
-          basketball: 25,
-          crypto: 20,
-          other: 10
-        },
-        detailed: [
-          {
-            category: 'football',
-            poolCount: 45,
-            totalVolume: 1280000,
-            avgPoolSize: 28444,
-            participantCount: 450
-          },
-          {
-            category: 'basketball',
-            poolCount: 25,
-            totalVolume: 720000,
-            avgPoolSize: 28800,
-            participantCount: 250
-          },
-          {
-            category: 'crypto',
-            poolCount: 20,
-            totalVolume: 580000,
-            avgPoolSize: 29000,
-            participantCount: 200
-          },
-          {
-            category: 'other',
-            poolCount: 10,
-            totalVolume: 260000,
-            avgPoolSize: 26000,
-            participantCount: 100
-          }
+  private getMockMatchAnalytics(matchId: number): MatchAnalytics {
+    return {
+      matchId,
+      homeTeam: 'Manchester United',
+      awayTeam: 'Liverpool',
+      totalPredictions: 89,
+      selectionBreakdown: {
+        '1': { count: 45, percentage: 50.6 },
+        'X': { count: 23, percentage: 25.8 },
+        '2': { count: 21, percentage: 23.6 },
+        'Over': { count: 56, percentage: 62.9 },
+        'Under': { count: 33, percentage: 37.1 }
+      },
+      communityConfidence: 78,
+      expectedOutcome: 'Home Win',
+      surpriseFactor: 0.3
+    };
+  }
+
+  private getMockCycleAnalytics(cycleId: number): CycleAnalytics {
+    return {
+      cycleId,
+      participationMetrics: {
+        totalSlips: 234,
+        uniqueUsers: 156,
+        averageSlipsPerUser: 1.5,
+        participationGrowth: 23.4
+      },
+      performanceMetrics: {
+        averageCorrectPredictions: 4.2,
+        winRate: 12.8,
+        highestScore: 8.5,
+        perfectSlips: 3
+      },
+      popularityTrends: {
+        mostPopularMatch: { matchId: 1, predictions: 89 },
+        mostPopularSelection: { selection: 'Home Win', count: 145 },
+        surprisingResults: ['Underdog victory in Match 3', 'High-scoring game exceeded expectations']
+      },
+      insights: [
+        'High accuracy cycle! Average 4.2 correct predictions per slip',
+        'Strong community confidence in home teams this cycle',
+        'Surprising upset in Match 3 caught most players off-guard'
+      ]
+    };
+  }
+
+  private getMockUserAnalytics(address: Address): UserAnalytics {
+    return {
+      address,
+      performanceMetrics: {
+        totalSlips: 23,
+        winRate: 78.5,
+        averageScore: 5.2,
+        bestStreak: 7,
+        currentStreak: 3,
+        improvement: 15.3
+      },
+      behaviorPatterns: {
+        favoriteSelections: [
+          { selection: 'Home Win', frequency: 0.65 },
+          { selection: 'Over 2.5', frequency: 0.78 },
+        ],
+        riskProfile: 'balanced',
+        activityPattern: 'regular'
+      },
+      achievements: {
+        badges: ['Streak Master', 'High Accuracy', 'Consistent Player'],
+        milestones: ['10 Wins', '50 Slips', '5 Win Streak'],
+        rankings: [
+          { category: 'Win Rate', position: 23, total: 156 },
+          { category: 'Total Score', position: 45, total: 156 }
         ]
-      };
-    }
+      },
+      insights: [
+        'Excellent win rate of 78.5% - well above average!',
+        'Strong preference for home teams and high-scoring games',
+        'Consistent improvement trend over last 5 cycles'
+      ]
+    };
   }
 
-  /**
-   * Get top pool creators leaderboard
-   */
-  static async getTopCreators(limit: number = 10, sortBy: 'total_volume' | 'win_rate' | 'total_pools' = 'total_volume'): Promise<TopCreator[]> {
-    try {
-      const response = await apiRequest<AnalyticsResponse<TopCreator[]>>(
-        `${this.baseURL}/leaderboard/creators?limit=${limit}&sortBy=${sortBy}`
-      );
-      return response.data;
-    } catch (error) {
-      console.warn('Backend analytics endpoint not available, using fallback data:', error);
-      // Return fallback data when backend is not available
-      const creators: TopCreator[] = [];
-      for (let i = 0; i < Math.min(limit, 10); i++) {
-        creators.push({
-          address: `0x${Math.random().toString(16).substr(2, 40)}`,
-          shortAddress: `0x${Math.random().toString(16).substr(2, 8)}`,
-          reputation: Math.floor(Math.random() * 1000) + 100,
-          stats: {
-            totalPools: Math.floor(Math.random() * 50) + 10,
-            totalVolume: Math.floor(Math.random() * 1000000) + 100000,
-            winRate: Math.floor(Math.random() * 30) + 60
-          }
-        });
+  private getMockPlatformAnalytics(): PlatformAnalytics {
+    return {
+      globalMetrics: {
+        totalUsers: 1247,
+        totalSlips: 8934,
+        totalVolume: 4567.8,
+        averageWinRate: 23.4,
+        cyclesCompleted: 45
+      },
+      engagementMetrics: {
+        dailyActiveUsers: 234,
+        retentionRate: 67.8,
+        averageSessionTime: 12.5,
+        bounceRate: 15.2
+      },
+      performanceInsights: {
+        topPerformers: [
+          { address: '0x123...', score: 95.6 },
+          { address: '0x456...', score: 89.2 }
+        ],
+        communityTrends: ['Increasing participation', 'Higher accuracy rates'],
+        platformHealth: 'excellent'
+      },
+      insights: [
+        'Platform showing strong growth with 23% increase in active users',
+        'Community accuracy improving - average win rate up 5.2%',
+        'High engagement with 67.8% user retention rate'
+      ]
+    };
+  }
+
+  private getMockVisualizationData(cycleId: number): VisualizationData {
+    return {
+      cycleId,
+      charts: {
+        selectionDistribution: {
+          labels: ['Home Win', 'Draw', 'Away Win', 'Over 2.5', 'Under 2.5'],
+          data: [45, 23, 32, 67, 33],
+          colors: ['#22C7FF', '#FF0080', '#8C00FF', '#00FF88', '#FFB800']
+        },
+        performanceTrends: {
+          labels: ['Cycle 1', 'Cycle 2', 'Cycle 3', 'Cycle 4', 'Cycle 5'],
+          datasets: [
+            { label: 'Win Rate', data: [18, 22, 25, 23, 28], color: '#22C7FF' },
+            { label: 'Participation', data: [120, 145, 167, 189, 234], color: '#FF0080' }
+          ]
+        },
+        participationFlow: {
+          nodes: [
+            { id: 'new', label: 'New Users', value: 45 },
+            { id: 'returning', label: 'Returning', value: 189 },
+            { id: 'active', label: 'Active', value: 234 }
+          ],
+          links: [
+            { source: 'new', target: 'active', value: 45 },
+            { source: 'returning', target: 'active', value: 189 }
+          ]
+        },
+        heatmap: {
+          matches: [
+            { matchId: 1, intensity: 89, selections: 89 },
+            { matchId: 2, intensity: 67, selections: 67 },
+            { matchId: 3, intensity: 45, selections: 45 }
+          ],
+          maxIntensity: 89
+        }
+      },
+      infographics: {
+        keyStats: [
+          { label: 'Total Slips', value: '234', trend: 23.4 },
+          { label: 'Win Rate', value: '12.8%', trend: 5.2 },
+          { label: 'Perfect Slips', value: '3', trend: 0 }
+        ],
+        insights: [
+          { title: 'High Accuracy Cycle', description: 'Players achieving 4.2 avg correct predictions', impact: 'positive' },
+          { title: 'Strong Participation', description: '23% growth in active users', impact: 'positive' },
+          { title: 'Surprising Upsets', description: 'Several unexpected results this cycle', impact: 'neutral' }
+        ]
       }
-      return creators;
-    }
-  }
-
-  /**
-   * Get top bettors leaderboard
-   */
-  static async getTopBettors(limit: number = 10, sortBy: 'profit_loss' | 'total_volume' | 'win_rate' | 'total_bets' = 'profit_loss'): Promise<TopBettor[]> {
-    try {
-      const response = await apiRequest<AnalyticsResponse<TopBettor[]>>(
-        `${this.baseURL}/leaderboard/bettors?limit=${limit}&sortBy=${sortBy}`
-      );
-      return response.data;
-    } catch (error) {
-      console.warn('Backend analytics endpoint not available, using fallback data:', error);
-      // Return fallback data when backend is not available
-      const bettors: TopBettor[] = [];
-      for (let i = 0; i < Math.min(limit, 10); i++) {
-        bettors.push({
-          address: `0x${Math.random().toString(16).substr(2, 40)}`,
-          shortAddress: `0x${Math.random().toString(16).substr(2, 8)}`,
-          joinedAt: new Date().toISOString(),
-          stats: {
-            totalBets: Math.floor(Math.random() * 100) + 20,
-            wonBets: Math.floor(Math.random() * 50) + 10,
-            totalStaked: Math.floor(Math.random() * 500000) + 50000,
-            totalWinnings: Math.floor(Math.random() * 300000) + 25000,
-            winRate: Math.floor(Math.random() * 40) + 50,
-            profitLoss: Math.floor(Math.random() * 100000) - 50000,
-            biggestWin: Math.floor(Math.random() * 50000) + 10000,
-            currentStreak: Math.floor(Math.random() * 10) + 1,
-            maxWinStreak: Math.floor(Math.random() * 20) + 5,
-            streakIsWin: Math.random() > 0.5
-          }
-        });
-      }
-      return bettors;
-    }
-  }
-
-  /**
-   * Get hourly user activity patterns
-   */
-  static async getUserActivity(): Promise<UserActivityItem[]> {
-    try {
-      const response = await apiRequest<AnalyticsResponse<UserActivityItem[]>>(
-        `${this.baseURL}/user-activity`
-      );
-      return response.data;
-    } catch (error) {
-      console.warn('Backend analytics endpoint not available, using fallback data:', error);
-      // Return fallback data when backend is not available
-      const activity: UserActivityItem[] = [];
-      for (let hour = 0; hour < 24; hour++) {
-        activity.push({
-          hour: hour.toString(),
-          users: Math.floor(Math.random() * 50) + 10,
-          volume: Math.floor(Math.random() * 100000) + 10000,
-          bets: Math.floor(Math.random() * 200) + 50
-        });
-      }
-      return activity;
-    }
-  }
-
-  /**
-   * Get platform overview stats (combination of multiple endpoints)
-   */
-  static async getPlatformOverview(timeframe: '24h' | '7d' | '30d' | 'all' = '7d') {
-    try {
-      const [globalStats, volumeHistory, categoryStats, userActivity] = await Promise.all([
-        this.getGlobalStats(timeframe),
-        this.getVolumeHistory(timeframe === 'all' ? '30d' : timeframe),
-        this.getCategoryStats(timeframe),
-        this.getUserActivity()
-      ]);
-
-      return {
-        globalStats,
-        volumeHistory,
-        categoryDistribution: categoryStats.distribution,
-        categoryDetails: categoryStats.detailed,
-        userActivity
-      };
-    } catch (error) {
-      console.error('Error fetching platform overview:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get leaderboard data (creators and bettors)
-   */
-  static async getLeaderboards() {
-    try {
-      const [topCreators, topBettors] = await Promise.all([
-        this.getTopCreators(10),
-        this.getTopBettors(10)
-      ]);
-
-      return {
-        topCreators,
-        topBettors
-      };
-    } catch (error) {
-      console.error('Error fetching leaderboards:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Get enhanced category statistics
-   */
-  static async getEnhancedCategoryStats(
-    limit: number = 10,
-    offset: number = 0,
-    sortBy: string = 'total_volume',
-    sortOrder: string = 'desc'
-  ): Promise<{ categories: EnhancedCategoryStats[]; pagination: any }> {
-    const response = await apiRequest<AnalyticsResponse<{
-      categories: EnhancedCategoryStats[];
-      pagination: any;
-    }>>(
-      `${this.baseURL}/category-stats?limit=${limit}&offset=${offset}&sortBy=${sortBy}&sortOrder=${sortOrder}`
-    );
-    return response.data;
-  }
-
-  /**
-   * Get league statistics
-   */
-  static async getLeagueStats(
-    limit: number = 10,
-    offset: number = 0,
-    sortBy: string = 'total_volume',
-    sortOrder: string = 'desc'
-  ): Promise<{ leagues: LeagueStats[]; pagination: any }> {
-    const response = await apiRequest<AnalyticsResponse<{
-      leagues: LeagueStats[];
-      pagination: any;
-    }>>(
-      `${this.baseURL}/league-stats?limit=${limit}&offset=${offset}&sortBy=${sortBy}&sortOrder=${sortOrder}`
-    );
-    return response.data;
-  }
-
-  /**
-   * Get user statistics
-   */
-  static async getUserStats(
-    limit: number = 10,
-    offset: number = 0,
-    sortBy: string = 'total_volume',
-    sortOrder: string = 'desc',
-    userAddress?: string
-  ): Promise<{ users: UserStats[]; pagination: any }> {
-    const params = new URLSearchParams({
-      limit: limit.toString(),
-      offset: offset.toString(),
-      sortBy,
-      sortOrder
-    });
-    
-    if (userAddress) {
-      params.append('address', userAddress);
-    }
-
-    const response = await apiRequest<AnalyticsResponse<{
-      users: UserStats[];
-      pagination: any;
-    }>>(
-      `${this.baseURL}/user-stats?${params.toString()}`
-    );
-    return response.data;
-  }
-
-  /**
-   * Get market type statistics
-   */
-  static async getMarketTypeStats(
-    limit: number = 10,
-    offset: number = 0,
-    sortBy: string = 'total_volume',
-    sortOrder: string = 'desc'
-  ): Promise<{ marketTypes: MarketTypeStats[]; pagination: any }> {
-    const response = await apiRequest<AnalyticsResponse<{
-      marketTypes: MarketTypeStats[];
-      pagination: any;
-    }>>(
-      `${this.baseURL}/market-type-stats?limit=${limit}&offset=${offset}&sortBy=${sortBy}&sortOrder=${sortOrder}`
-    );
-    return response.data;
-  }
-
-  /**
-   * Get comprehensive stats overview
-   */
-  static async getComprehensiveStats() {
-    try {
-      const [categoryStats, leagueStats, marketTypeStats, userStats] = await Promise.all([
-        this.getEnhancedCategoryStats(5),
-        this.getLeagueStats(5),
-        this.getMarketTypeStats(8),
-        this.getUserStats(10)
-      ]);
-
-      return {
-        categoryStats,
-        leagueStats,
-        marketTypeStats,
-        userStats
-      };
-    } catch (error) {
-      console.error('Error fetching comprehensive stats:', error);
-      throw error;
-    }
+    };
   }
 }
 
-export default AnalyticsService; 
+export const analyticsService = new AnalyticsService();

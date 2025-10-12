@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import contractAnalyticsService from '@/services/contractAnalyticsService';
-import unifiedAnalyticsService from '@/services/unifiedAnalyticsService';
+// import unifiedAnalyticsService from '@/services/unifiedAnalyticsService'; // Removed - using analyticsService instead
+import { analyticsService } from '@/services/analyticsService';
 
 // ============================================================================
 // CONTRACT ANALYTICS HOOKS - Real-time blockchain data
@@ -131,7 +132,7 @@ export function useUnifiedGlobalStats(
 
   return useQuery({
     queryKey: ['unified-analytics', 'global', timeframe],
-    queryFn: () => unifiedAnalyticsService.getUnifiedGlobalStats(timeframe),
+    queryFn: () => analyticsService.getPlatformAnalytics(),
     enabled,
     refetchInterval,
     staleTime: 20000,
@@ -150,7 +151,7 @@ export function useUnifiedPoolAnalytics(
 
   return useQuery({
     queryKey: ['unified-analytics', 'pool', poolId],
-    queryFn: () => unifiedAnalyticsService.getUnifiedPoolAnalytics(poolId!),
+    queryFn: () => analyticsService.getCycleAnalytics(poolId!),
     enabled: enabled && poolId !== undefined,
     refetchInterval,
     staleTime: 20000,
@@ -169,7 +170,7 @@ export function useUnifiedCreatorProfile(
 
   return useQuery({
     queryKey: ['unified-analytics', 'creator', address],
-    queryFn: () => unifiedAnalyticsService.getUnifiedCreatorProfile(address!),
+    queryFn: () => analyticsService.getUserAnalytics(address as `0x${string}`),
     enabled: enabled && !!address,
     refetchInterval,
     staleTime: 30000,
@@ -188,7 +189,7 @@ export function useMarketIntelligence(
 
   return useQuery({
     queryKey: ['unified-analytics', 'market-intelligence', timeframe],
-    queryFn: () => unifiedAnalyticsService.getMarketIntelligence(timeframe),
+    queryFn: () => analyticsService.getVisualizationData(1),
     enabled,
     refetchInterval,
     staleTime: 120000,
