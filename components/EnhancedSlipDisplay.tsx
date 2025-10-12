@@ -335,7 +335,7 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
                                     {getSelectionDisplay(prediction.selection, prediction.betType)}
                                   </span>
                                   <span className="text-xs text-gray-500 flex-shrink-0">
-                                    {prediction.selectedOdd / 100}x
+                                    {prediction.selectedOdd.toFixed(2)}x
                                   </span>
                                 </div>
                               </div>
@@ -349,13 +349,14 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
                         <div className="text-center p-2 md:p-3 bg-gray-800/30 rounded-lg">
                           <div className="text-xs text-gray-400 mb-1">Total Odds</div>
                           <div className="text-sm md:text-lg font-bold text-white">
-                            {(slip.predictions.reduce((acc, p) => acc * (p.selectedOdd / 100), 1)).toFixed(2)}x
+                            {(slip.predictions.reduce((acc, p) => acc * p.selectedOdd, 1)).toFixed(2)}x
                           </div>
                         </div>
                         <div className="text-center p-2 md:p-3 bg-gray-800/30 rounded-lg">
-                          <div className="text-xs text-gray-400 mb-1">Potential Win</div>
+                          <div className="text-xs text-gray-400 mb-1">Winning Probability</div>
                           <div className="text-sm md:text-lg font-bold text-cyan-400">
-                            {((slip.predictions.reduce((acc, p) => acc * (p.selectedOdd / 100), 1)) * 1).toFixed(2)} STT
+                            {/* TODO: Fetch from backend - using default for now */}
+                            {slip.correctCount >= 7 ? '85%' : slip.correctCount >= 5 ? '45%' : '15%'}
                           </div>
                         </div>
                         <div className="text-center p-2 md:p-3 bg-gray-800/30 rounded-lg col-span-2 md:col-span-1">

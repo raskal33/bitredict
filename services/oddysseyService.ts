@@ -548,7 +548,7 @@ class OddysseyService {
         matchId: Number(pred.matchId),
         betType: Number(pred.betType),
         selection: pred.selection,
-        selectedOdd: Number(pred.selectedOdd),
+        selectedOdd: Number(pred.selectedOdd) / 1000, // Convert from contract format (stored as odds * 1000)
         homeTeam: pred.homeTeam,
         awayTeam: pred.awayTeam,
         leagueName: pred.leagueName,
@@ -686,24 +686,36 @@ class OddysseyService {
     }
   }
 
-  // Get global stats
+  // Get global stats using getDailyStats from current cycle
   async getGlobalStats(): Promise<{
     totalVolume: bigint;
     totalSlips: number;
-    highestOdd: bigint;
+    totalUsers: number;
+    totalWinners: number;
+    averageScore: number;
+    maxScore: number;
+    minScore: number;
   }> {
     try {
+      // Get current cycle to fetch its stats
+      const currentCycle = await this.getCurrentCycle();
+      
       const result = await this.publicClient.readContract({
         address: CONTRACTS.ODDYSSEY.address,
         abi: CONTRACTS.ODDYSSEY.abi,
-        functionName: 'stats',
+        functionName: 'getDailyStats',
+        args: [currentCycle],
       });
 
-      const stats = result as any[];
+      const stats = result as any;
       return {
-        totalVolume: stats[0],
-        totalSlips: stats[1],
-        highestOdd: stats[2],
+        totalVolume: stats.volume,
+        totalSlips: Number(stats.slipCount),
+        totalUsers: Number(stats.userCount),
+        totalWinners: Number(stats.winnersCount),
+        averageScore: Number(stats.averageScore),
+        maxScore: Number(stats.maxScore),
+        minScore: Number(stats.minScore),
       };
     } catch (error) {
       console.error('Error getting global stats:', error);
@@ -845,15 +857,17 @@ class OddysseyService {
         return {
           success: true,
           data: {
-            totalPlayers: Number(globalStats.totalSlips) || 0, // Use total slips as proxy for players (each slip = 1 player)
-            totalSlips: Number(globalStats.totalSlips) || 0,
-            avgPrizePool: Number(globalStats.totalVolume) / 1e18 / Math.max(currentCycleId, 1) || 0, // Estimate from total volume
+            totalPlayers: globalStats.totalUsers || 0, // Use actual user count from contract
+            totalSlips: globalStats.totalSlips || 0,
+            avgPrizePool: Number(globalStats.totalVolume) / 1e18 || 0, // Current cycle volume
             totalCycles: currentCycleId || 0, // Use current cycle ID as total cycles
             activeCycles: cycleInfo.state === 1 ? 1 : 0, // Active if state is 1 (Active)
-            avgCorrect: 0, // Not available in current contract
-            winRate: 0, // Not available in current contract
+            avgCorrect: globalStats.averageScore / 100 || 0, // Convert from contract format
+            winRate: globalStats.totalSlips > 0 ? (globalStats.totalWinners / globalStats.totalSlips) * 100 : 0,
             totalVolume: Number(globalStats.totalVolume) / 1e18 || 0, // Add total volume in STT
-            highestOdd: Number(globalStats.highestOdd) / 1000 || 0 // Add highest odd achieved
+            maxScore: globalStats.maxScore / 100 || 0, // Convert from contract format
+            minScore: globalStats.minScore / 100 || 0, // Convert from contract format
+            totalWinners: globalStats.totalWinners || 0
           }
         };
       } else if (type === 'user' && userAddress) {

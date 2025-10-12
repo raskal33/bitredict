@@ -7,10 +7,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useAccount, useChainId, useWalletClient } from "wagmi";
 import { toast } from "react-hot-toast";
 import { formatEther } from "viem";
-import { ethers } from "ethers";
 
 import { oddysseyService, type OddysseyMatch } from "@/services/oddysseyService";
-import { DailyStatsService } from "@/services/dailyStatsService";
 import { useTransactionFeedback, TransactionFeedback } from "@/components/TransactionFeedback";
 import { safeStartTimeToISOString, safeStartTimeToDate } from "@/utils/time-helpers";
 import OddysseyMatchResults from "@/components/OddysseyMatchResults";
@@ -569,61 +567,6 @@ export default function OddysseyPage() {
     }
   }, [apiCallInProgress]);
 
-  // Fetch daily stats from contract
-  const fetchDailyStats = useCallback(async () => {
-    try {
-      console.log('📊 Fetching daily stats from contract...');
-      
-      // Initialize the service if not already done
-      if (typeof window !== 'undefined' && window.ethereum) {
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        DailyStatsService.initialize(provider);
-      }
-
-      // Get current cycle info and daily stats
-      const currentCycle = await DailyStatsService.getCurrentCycleInfo();
-      const dailyStatsData = await DailyStatsService.getDailyStats(Number(currentCycle.cycleId));
-
-      // setCycleInfo(currentCycle);
-      // setDailyStats(dailyStatsData);
-
-      // Format stats for display
-      const formattedStats = DailyStatsService.formatDailyStatsForDisplay(dailyStatsData, currentCycle);
-      
-      setStats({
-        totalPlayers: parseInt(formattedStats.totalPlayers.replace(/,/g, '')),
-        prizePool: formattedStats.averagePrizePool,
-        completedSlips: Number(dailyStatsData.slipCount).toLocaleString(),
-        averageOdds: formattedStats.averageOdds,
-        totalCycles: Number(currentCycle.cycleId),
-        activeCycles: Number(currentCycle.cycleId),
-        avgPrizePool: Number(currentCycle.prizePool) / 1e18,
-        winRate: parseFloat(formattedStats.winRate.replace('%', '')),
-        avgCorrect: Number(dailyStatsData.averageScore) / 100,
-        totalVolume: Number(dailyStatsData.volume) / 1e18,
-        highestOdd: Number(dailyStatsData.maxScore) / 100
-      });
-
-      console.log('✅ Daily stats received:', formattedStats);
-    } catch (error) {
-      console.error('❌ Error fetching daily stats:', error);
-      // Set default stats on error
-      setStats({
-        totalPlayers: 0,
-        prizePool: "0 STT",
-        completedSlips: "0",
-        averageOdds: "0x",
-        totalCycles: 0,
-        activeCycles: 0,
-        avgPrizePool: 0,
-        winRate: 0,
-        avgCorrect: 0,
-        totalVolume: 0,
-        highestOdd: 0
-      });
-    }
-  }, []);
-
   // Fetch stats using the service (contract-only)
   const fetchStats = useCallback(async () => {
     if (apiCallInProgress) return; // Prevent multiple simultaneous calls
@@ -748,7 +691,7 @@ export default function OddysseyPage() {
     const fetchPublicData = async () => {
       try {
         await Promise.all([
-          fetchDailyStats(),
+          fetchStats(),
           fetchCurrentData()
         ]);
         setIsLoading(false); // Set loading to false after public data is fetched
@@ -1171,7 +1114,7 @@ export default function OddysseyPage() {
       toast.success('Refreshing data...');
       await Promise.all([
         fetchCurrentCycle(),
-        fetchDailyStats(),
+        fetchStats(),
         // Note: Slips are now fetched in the new initialization method
         fetchCurrentData()
       ]);
