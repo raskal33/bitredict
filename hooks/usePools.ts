@@ -5,6 +5,7 @@ import { formatUnits, parseUnits } from 'viem';
 import { encodeBytes32String } from 'ethers';
 import { toast } from 'react-hot-toast';
 import { convertPoolToReadableEnhanced } from '@/lib/bytes32-utils';
+import { useTransactionFeedback, TransactionStatus } from '@/components/TransactionFeedback';
 
 export interface Pool {
   id: bigint;
@@ -84,6 +85,7 @@ export function usePools() {
   const { writeContract, writeContractAsync, data: hash, isPending } = useWriteContract();
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash });
   const publicClient = usePublicClient();
+  const { showSuccess, showError, showPending, showConfirming, clearStatus } = useTransactionFeedback();
 
   // BITR token approval function
   const approveBITR = async (spender: `0x${string}`, amount: bigint) => {
@@ -93,7 +95,7 @@ export function usePools() {
         abi: CONTRACTS.BITR_TOKEN.abi,
         functionName: 'approve',
         args: [spender, amount],
-        gas: 100000n,
+        gas: 500000n, // Increased gas limit for approval
       });
       return hash;
     } catch (error) {
@@ -309,19 +311,54 @@ export function usePools() {
         
         if (currentAllowance < betAmount) {
           // Need to approve more tokens
-          toast.loading('Approving BITR tokens...', { id: 'bet-tx' });
+          showPending('Approving BITR Tokens', 'Please approve BITR token spending in your wallet...');
           
           try {
-            await approveBITR(CONTRACT_ADDRESSES.POOL_CORE, betAmount);
-            toast.success('BITR tokens approved!', { id: 'bet-tx' });
-          } catch (error) {
-            toast.error('Failed to approve BITR tokens.', { id: 'bet-tx' });
-            throw error;
+            const approvalHash = await approveBITR(CONTRACT_ADDRESSES.POOL_CORE, betAmount);
+            
+            showConfirming('Approving BITR Tokens', 'Waiting for approval confirmation...', approvalHash);
+            
+            // Wait for approval confirmation
+            const approvalReceipt = await publicClient?.waitForTransactionReceipt({
+              hash: approvalHash,
+              timeout: 60000,
+            });
+            
+            if (!approvalReceipt || approvalReceipt.status !== 'success') {
+              showError('Approval Failed', 'BITR token approval transaction failed. Please try again.');
+              throw new Error('BITR approval failed - transaction reverted');
+            }
+            
+            showSuccess('BITR Tokens Approved', 'Your BITR tokens have been approved for betting!');
+          } catch (approvalError) {
+            if (approvalError instanceof Error) {
+              if (approvalError.message.includes('User rejected')) {
+                showError('Approval Rejected', 'BITR token approval was rejected. Please try again.');
+                throw new Error('Approval was rejected by user');
+              } else if (approvalError.message.includes('Gas estimation failed')) {
+                showError('Gas Estimation Failed', 'Approval gas estimation failed. Please try again with higher gas limit.');
+                throw new Error('Approval gas estimation failed - insufficient gas limit');
+              } else if (approvalError.message.includes('Insufficient funds')) {
+                showError('Insufficient Funds', 'You do not have enough funds for the approval transaction.');
+                throw new Error('Insufficient funds for approval');
+              } else {
+                showError('Approval Failed', `BITR token approval failed: ${approvalError.message}`);
+                throw new Error(`Approval failed: ${approvalError.message}`);
+              }
+            }
+            throw approvalError;
           }
         }
 
+        // Verify approval was successful before proceeding
+        const finalAllowance = await getBITRAllowance(address, CONTRACT_ADDRESSES.POOL_CORE);
+        if (finalAllowance < betAmount) {
+          showError('Insufficient Allowance', 'BITR token allowance is insufficient. Please approve more tokens.');
+          throw new Error('Insufficient BITR allowance after approval');
+        }
+
         // Place the bet
-        toast.loading('Placing BITR bet...', { id: 'bet-tx' });
+        showPending('Placing BITR Bet', 'Please confirm the bet transaction in your wallet...');
         
         const hash = await writeContractAsync({
           ...CONTRACTS.POOL_CORE,
@@ -330,11 +367,24 @@ export function usePools() {
           gas: 300000n,
         });
         
-        toast.success('BITR bet placed successfully!', { id: 'bet-tx' });
+        showConfirming('Placing BITR Bet', 'Waiting for bet confirmation...', hash);
+        
+        // Wait for bet confirmation
+        const betReceipt = await publicClient?.waitForTransactionReceipt({
+          hash,
+          timeout: 60000,
+        });
+        
+        if (!betReceipt || betReceipt.status !== 'success') {
+          showError('Bet Failed', 'Your BITR bet transaction failed. Please try again.');
+          throw new Error('BITR bet failed - transaction reverted');
+        }
+        
+        showSuccess('BITR Bet Placed!', `Your bet of ${amount} BITR has been placed successfully!`, hash);
         return hash;
       } else {
         // For STT pools, send native token as value
-        toast.loading('Placing STT bet...', { id: 'bet-tx' });
+        showPending('Placing STT Bet', 'Please confirm the bet transaction in your wallet...');
         
         const hash = await writeContractAsync({
           ...CONTRACTS.POOL_CORE,
@@ -344,40 +394,61 @@ export function usePools() {
           gas: 300000n,
         });
         
-        toast.success('STT bet placed successfully!', { id: 'bet-tx' });
+        showConfirming('Placing STT Bet', 'Waiting for bet confirmation...', hash);
+        
+        // Wait for bet confirmation
+        const betReceipt = await publicClient?.waitForTransactionReceipt({
+          hash,
+          timeout: 60000,
+        });
+        
+        if (!betReceipt || betReceipt.status !== 'success') {
+          showError('Bet Failed', 'Your STT bet transaction failed. Please try again.');
+          throw new Error('STT bet failed - transaction reverted');
+        }
+        
+        showSuccess('STT Bet Placed!', `Your bet of ${amount} STT has been placed successfully!`, hash);
         return hash;
       }
     } catch (error) {
-      toast.dismiss('bet-tx');
-      
       if (error instanceof Error) {
         if (error.message.includes('Bet below minimum')) {
-          toast.error('Bet amount is below the minimum required.');
+          showError('Bet Too Small', 'Your bet amount is below the minimum required for this pool.');
         } else if (error.message.includes('Pool settled')) {
-          toast.error('This pool has already been settled.');
+          showError('Pool Settled', 'This pool has already been settled and no longer accepts bets.');
         } else if (error.message.includes('Betting period ended')) {
-          toast.error('The betting period for this pool has ended.');
+          showError('Betting Closed', 'The betting period for this pool has ended.');
         } else if (error.message.includes('Pool full')) {
-          toast.error('This pool is full.');
+          showError('Pool Full', 'This pool has reached its maximum capacity.');
         } else if (error.message.includes('Too many participants')) {
-          toast.error('This pool has reached the maximum number of participants.');
+          showError('Pool Full', 'This pool has reached the maximum number of participants.');
         } else if (error.message.includes('Exceeds max bet per user')) {
-          toast.error('Your bet exceeds the maximum bet per user for this pool.');
+          showError('Bet Too Large', 'Your bet exceeds the maximum bet per user for this pool.');
         } else if (error.message.includes('Not whitelisted')) {
-          toast.error('You are not whitelisted for this private pool.');
+          showError('Not Whitelisted', 'You are not whitelisted for this private pool.');
         } else if (error.message.includes('user rejected') || error.message.includes('User denied')) {
-          toast.error('Transaction was cancelled by user.');
+          showError('Transaction Cancelled', 'The transaction was cancelled by user.');
         } else if (error.message.includes('insufficient funds')) {
-          toast.error('Insufficient funds. Please ensure you have enough tokens.');
+          showError('Insufficient Funds', 'You do not have enough tokens for this bet.');
         } else if (error.message.includes('BITR transfer failed')) {
-          toast.error('BITR token transfer failed. Please check your balance and try again.');
+          showError('Transfer Failed', 'BITR token transfer failed. Please check your balance and try again.');
         } else if (error.message.includes('gas')) {
-          toast.error('Gas estimation failed. Please try again.');
+          showError('Gas Estimation Failed', 'Gas estimation failed. Please try again.');
         } else if (error.message.includes('Internal JSON-RPC error')) {
-          toast.error('Network error. Please check your connection.');
+          showError('Network Error', 'Network error occurred. Please check your connection.');
+        } else if (error.message.includes('Approval failed')) {
+          showError('Approval Failed', 'BITR token approval failed. Please try again.');
+        } else if (error.message.includes('Insufficient BITR allowance')) {
+          showError('Insufficient Allowance', 'BITR token allowance is insufficient. Please approve more tokens.');
+        } else if (error.message.includes('Approval was rejected')) {
+          showError('Approval Rejected', 'BITR token approval was rejected. Please try again.');
+        } else if (error.message.includes('Approval gas estimation failed')) {
+          showError('Gas Estimation Failed', 'Approval gas estimation failed. Please try again.');
         } else {
-          toast.error('Failed to place bet. Please try again.');
+          showError('Bet Failed', `Failed to place bet: ${error.message}`);
         }
+      } else {
+        showError('Unexpected Error', 'An unexpected error occurred while placing your bet.');
       }
       
       throw error;
