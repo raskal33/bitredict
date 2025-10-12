@@ -252,27 +252,64 @@ export function usePools() {
 
   const placeBet = async (poolId: number, amount: string, useBitr: boolean = false) => {
     try {
+      console.log('🎯 Placing bet:', { poolId, amount, useBitr });
       const betAmount = parseUnits(amount, 18);
+      console.log('💰 Bet amount in wei:', betAmount.toString());
+
+      // Check minimum bet amount
+      if (minBetAmount && typeof minBetAmount === 'bigint' && betAmount < minBetAmount) {
+        throw new Error(`Bet amount ${amount} STT is below minimum bet amount ${formatUnits(minBetAmount, 18)} STT`);
+      }
 
       if (useBitr) {
         // For BITR pools, we need to handle token approval first
         // The contract will handle the transferFrom internally
-        writeContract({
+        console.log('🪙 Placing BITR bet...');
+        const hash = await writeContract({
           ...CONTRACTS.POOL_CORE,
           functionName: 'placeBet',
           args: [BigInt(poolId), betAmount],
         });
+        console.log('✅ BITR bet transaction hash:', hash);
+        return hash;
       } else {
         // For STT pools, send native token as value
-        writeContract({
+        console.log('💎 Placing STT bet...');
+        const hash = await writeContract({
           ...CONTRACTS.POOL_CORE,
           functionName: 'placeBet',
           args: [BigInt(poolId), betAmount],
           value: betAmount,
         });
+        console.log('✅ STT bet transaction hash:', hash);
+        return hash;
       }
     } catch (error) {
-      console.error('Error in placeBet:', error);
+      console.error('❌ Error in placeBet:', error);
+      
+      // Enhanced error handling for common contract errors
+      if (error instanceof Error) {
+        if (error.message.includes('Bet below minimum')) {
+          throw new Error(`Bet amount is below the minimum required. Please increase your bet amount.`);
+        } else if (error.message.includes('Pool settled')) {
+          throw new Error(`This pool has already been settled. You cannot place bets on settled pools.`);
+        } else if (error.message.includes('Betting period ended')) {
+          throw new Error(`The betting period for this pool has ended. You cannot place bets anymore.`);
+        } else if (error.message.includes('Pool full')) {
+          throw new Error(`This pool is full. The maximum bet capacity has been reached.`);
+        } else if (error.message.includes('Too many participants')) {
+          throw new Error(`This pool has reached the maximum number of participants.`);
+        } else if (error.message.includes('Exceeds max bet per user')) {
+          throw new Error(`Your bet exceeds the maximum bet per user for this pool.`);
+        } else if (error.message.includes('Not whitelisted')) {
+          throw new Error(`You are not whitelisted for this private pool.`);
+        } else if (error.message.includes('user rejected') || error.message.includes('User denied')) {
+          throw new Error(`Transaction was cancelled by user. Please try again if you want to place the bet.`);
+        } else if (error.message.includes('insufficient funds')) {
+          throw new Error(`Insufficient funds. Please ensure you have enough tokens to place this bet.`);
+        }
+      }
+      
       throw error;
     }
   };
