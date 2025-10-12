@@ -484,9 +484,44 @@ class OddysseyService {
       
       console.log(`🔍 Total processed slips: ${processedSlips.length}`);
       
+      // Calculate prediction correctness for evaluated slips
+      const slipsWithCorrectness = await Promise.all(processedSlips.map(async (slip) => {
+        if (!slip.isEvaluated) {
+          console.log(`🔍 Slip ${slip.cycleId} not evaluated, skipping correctness calculation`);
+          return slip;
+        }
+
+        try {
+          console.log(`🔍 Getting match results for cycle ${slip.cycleId} to calculate correctness`);
+          const matchResults = await this.getCycleMatchResults(BigInt(slip.cycleId));
+          console.log(`🔍 Match results for cycle ${slip.cycleId}:`, matchResults);
+
+          // Calculate correctness for each prediction
+          const predictionsWithCorrectness = slip.predictions.map((prediction) => {
+            const matchResult = matchResults.find(match => Number(match.id) === Number(prediction.matchId));
+            const isCorrect = this.calculatePredictionCorrectness(prediction, matchResult);
+            console.log(`🔍 Prediction ${prediction.matchId} (${prediction.selection}): ${isCorrect ? 'CORRECT' : 'INCORRECT'}`);
+            return {
+              ...prediction,
+              isCorrect
+            };
+          });
+
+          return {
+            ...slip,
+            predictions: predictionsWithCorrectness
+          };
+        } catch (error) {
+          console.error(`❌ Error calculating correctness for slip ${slip.cycleId}:`, error);
+          return slip; // Return slip without correctness calculation
+        }
+      }));
+      
+      console.log(`🔍 Final slips with correctness:`, slipsWithCorrectness);
+      
       return {
         slipIds: allSlipIds,
-        slipsData: processedSlips
+        slipsData: slipsWithCorrectness
       };
     } catch (error) {
       console.error('Error getting all user slips with data:', error);
@@ -516,7 +551,8 @@ class OddysseyService {
         selectedOdd: Number(pred.selectedOdd),
         homeTeam: pred.homeTeam,
         awayTeam: pred.awayTeam,
-        leagueName: pred.leagueName
+        leagueName: pred.leagueName,
+        isCorrect: undefined // Will be calculated separately
       })),
       finalScore: Number(rawSlip.finalScore),
       correctCount: Number(rawSlip.correctCount),
@@ -525,6 +561,59 @@ class OddysseyService {
     
     console.log('🔍 Processed slip:', processed);
     return processed;
+  }
+
+  // Calculate prediction correctness based on match results
+  private calculatePredictionCorrectness(prediction: any, matchResult: any): boolean {
+    if (!matchResult || !matchResult.result) {
+      return false; // No result available
+    }
+
+    const { betType, selection } = prediction;
+    const { moneyline, overUnder } = matchResult.result;
+
+    if (betType === 0) { // MONEYLINE
+      if (selection === "1" && moneyline === 1) return true; // HomeWin
+      if (selection === "X" && moneyline === 2) return true; // Draw
+      if (selection === "2" && moneyline === 3) return true; // AwayWin
+    } else if (betType === 1) { // OVER_UNDER
+      if (selection === "Over" && overUnder === 1) return true; // Over
+      if (selection === "Under" && overUnder === 2) return true; // Under
+    }
+
+    return false;
+  }
+
+  // Get match results for a specific cycle
+  async getCycleMatchResults(cycleId: bigint): Promise<any[]> {
+    try {
+      const result = await this.publicClient.readContract({
+        address: CONTRACTS.ODDYSSEY.address,
+        abi: CONTRACTS.ODDYSSEY.abi,
+        functionName: 'getDailyMatches',
+        args: [cycleId],
+      });
+
+      return (result as any[]).map((match) => ({
+        id: match.id,
+        startTime: match.startTime,
+        oddsHome: Number(match.oddsHome) / 1000,
+        oddsDraw: Number(match.oddsDraw) / 1000,
+        oddsAway: Number(match.oddsAway) / 1000,
+        oddsOver: Number(match.oddsOver) / 1000,
+        oddsUnder: Number(match.oddsUnder) / 1000,
+        homeTeam: match.homeTeam,
+        awayTeam: match.awayTeam,
+        leagueName: match.leagueName,
+        result: {
+          moneyline: Number(match.result?.moneyline || 0),
+          overUnder: Number(match.result?.overUnder || 0),
+        },
+      }));
+    } catch (error) {
+      console.error('Error getting cycle match results:', error);
+      return [];
+    }
   }
 
   // Get slip by ID

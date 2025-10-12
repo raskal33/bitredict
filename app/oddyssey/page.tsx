@@ -203,15 +203,15 @@ export default function OddysseyPage() {
       
       // Get user slips
       if (address) {
-        const userSlips = await oddysseyService.getUserSlipsForCycleFromContract(address, cycleId);
-        console.log('🔍 Raw slip data from contract:', userSlips);
+        const allSlipsData = await oddysseyService.getAllUserSlipsWithDataFromContract(address);
+        console.log('🔍 All slips data from all cycles:', allSlipsData);
         
         // Get match data for this cycle to combine with slip data
         const cycleMatches = await oddysseyService.getCurrentCycleMatches();
         console.log('🔍 Match data for cycle:', cycleMatches);
         
         // Convert slips to frontend format
-        const convertedSlips = userSlips.map(slip => {
+        const convertedSlips = allSlipsData.slipsData.map((slip, index) => {
           console.log('🔍 Processing slip:', {
             cycleId: slip.cycleId,
             placedAt: slip.placedAt,
@@ -263,7 +263,7 @@ export default function OddysseyPage() {
           // Add slip metadata to each prediction
           return predictions.map(pred => ({
             ...pred,
-            slipId: Number(slip.cycleId),
+            slipId: Number(allSlipsData.slipIds[index]),
             cycleId: Number(slip.cycleId),
             finalScore: Number(slip.finalScore),
             correctCount: Number(slip.correctCount),
@@ -359,15 +359,16 @@ export default function OddysseyPage() {
           
           // Get user slips
           if (address) {
-            const userSlips = await oddysseyService.getUserSlipsForCycleFromContract(address, cycleId);
-            console.log('🔍 Raw slip data from contract:', userSlips);
+            const allSlipsData = await oddysseyService.getAllUserSlipsWithDataFromContract(address);
+            console.log('🔍 All slips data from all cycles:', allSlipsData);
             
-            // Get match data for this cycle to combine with slip data
-            const cycleMatches = await oddysseyService.getCurrentCycleMatches();
-            console.log('🔍 Match data for cycle:', cycleMatches);
-            
-            // Convert slips to frontend format
-            const convertedSlips = userSlips.map(slip => {
+            if (allSlipsData && allSlipsData.slipsData && allSlipsData.slipsData.length > 0) {
+              // Get match data for this cycle to combine with slip data
+              const cycleMatches = await oddysseyService.getCurrentCycleMatches();
+              console.log('🔍 Match data for cycle:', cycleMatches);
+              
+              // Convert slips to frontend format
+              const convertedSlips = allSlipsData.slipsData.map((slip, index) => {
               console.log('🔍 Processing individual slip (init):', slip);
               console.log('🔍 Slip predictions (init):', slip.predictions);
               console.log('🔍 Slip predictions length (init):', slip.predictions?.length);
@@ -414,7 +415,7 @@ export default function OddysseyPage() {
               // Add slip metadata to each prediction
               return predictions.map(pred => ({
                 ...pred,
-                slipId: Number(slip.cycleId),
+                slipId: Number(allSlipsData.slipIds[index]),
                 cycleId: Number(slip.cycleId),
                 finalScore: Number(slip.finalScore),
                 correctCount: Number(slip.correctCount),
@@ -425,6 +426,7 @@ export default function OddysseyPage() {
               }));
             });
             setSlips(convertedSlips);
+            }
           }
           
           setIsInitialized(true);
@@ -813,18 +815,18 @@ export default function OddysseyPage() {
       console.log('📅 Current cycle ID for slips:', cycleId.toString());
       
       // Get user slips for current cycle (same method as contract initialization)
-      const userSlips = await oddysseyService.getUserSlipsForCycleFromContract(address, cycleId);
-      console.log('🔍 Raw slip data from contract:', userSlips);
+      const allSlipsData = await oddysseyService.getAllUserSlipsWithDataFromContract(address);
+      console.log('🔍 All slips data from all cycles:', allSlipsData);
       
-      if (userSlips && userSlips.length > 0) {
-        console.log('✅ User slips received:', userSlips);
+      if (allSlipsData && allSlipsData.slipsData && allSlipsData.slipsData.length > 0) {
+        console.log('✅ User slips received:', allSlipsData.slipsData);
         
         // Get match data for this cycle to combine with slip data
         const cycleMatches = await oddysseyService.getCurrentCycleMatches();
         console.log('🔍 Match data for cycle:', cycleMatches);
         
         // Convert slips to frontend format
-        const convertedSlips = userSlips.map(slip => {
+        const convertedSlips = allSlipsData.slipsData.map((slip, index) => {
           console.log('🔍 Processing individual slip:', slip);
           console.log('🔍 Slip predictions:', slip.predictions);
           console.log('🔍 Slip predictions length:', slip.predictions?.length);
@@ -871,7 +873,7 @@ export default function OddysseyPage() {
           // Add slip metadata to each prediction
           return predictions.map(pred => ({
             ...pred,
-              slipId: Number(slip.cycleId),
+              slipId: Number(allSlipsData.slipIds[index]),
               cycleId: Number(slip.cycleId),
               finalScore: Number(slip.finalScore),
               correctCount: Number(slip.correctCount),
