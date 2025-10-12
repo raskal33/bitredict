@@ -8,12 +8,14 @@ import { useAccount, useChainId, useWalletClient } from "wagmi";
 import { toast } from "react-hot-toast";
 import { formatEther } from "viem";
 
-import { oddysseyService, type OddysseyMatch } from "@/services/oddysseyService";
+import { oddysseyService, type OddysseyMatch, type CycleInfo, type UserStats } from "@/services/oddysseyService";
 import { useTransactionFeedback, TransactionFeedback } from "@/components/TransactionFeedback";
 import { safeStartTimeToISOString, safeStartTimeToDate } from "@/utils/time-helpers";
 import OddysseyMatchResults from "@/components/OddysseyMatchResults";
 import OddysseyLeaderboard from "@/components/OddysseyLeaderboard";
 import EnhancedSlipDisplay from "@/components/EnhancedSlipDisplay";
+import UserStatsCard from "@/components/UserStatsCard";
+import CycleProgress from "@/components/CycleProgress";
 import { 
   FireIcon, 
   TrophyIcon, 
@@ -113,6 +115,10 @@ interface Stats {
   avgCorrect: number;
   totalVolume: number; // Total volume in STT
   highestOdd: number; // Highest odd achieved
+  totalSlips: number; // Added missing field
+  correctPredictions: number; // Added missing field
+  evaluationProgress: number; // Added missing field
+  totalWinners: number; // Added missing field
 }
 
 interface CurrentPrizePool {
@@ -185,9 +191,10 @@ export default function OddysseyPage() {
       const cycleId = await oddysseyService.getCurrentCycle();
       console.log('Current cycle ID:', cycleId);
       
-      // Get cycle info
-      const cycleInfo = await oddysseyService.getCurrentCycleInfo();
-      console.log('Prize pool:', formatEther(cycleInfo.prizePool));
+      // Get enhanced cycle info with full data structure
+      const cycleInfoData = await oddysseyService.getCurrentCycleInfo();
+      setCycleInfo(cycleInfoData); // Store enhanced cycle info
+      console.log('Prize pool:', formatEther(cycleInfoData.prizePool));
       
       // Get entry fee
       const fee = await oddysseyService.getEntryFee();
@@ -212,6 +219,13 @@ export default function OddysseyPage() {
     
     try {
       console.log('🎯 Fetching user-specific data...');
+      
+      // Fetch user stats from contract
+      const userStatsResult = await oddysseyService.getStats('user', address);
+      if (userStatsResult.success) {
+        setUserStats(userStatsResult.data);
+        console.log('✅ User stats loaded:', userStatsResult.data);
+      }
       
       // Fetch user slips with evaluation data from ALL cycles
       console.log('🎯 Fetching all user slips with evaluation data from ALL cycles...');
@@ -394,8 +408,8 @@ export default function OddysseyPage() {
   const [matches, setMatches] = useState<Match[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [currentPrizePool, setCurrentPrizePool] = useState<CurrentPrizePool | null>(null);
-  // const [dailyStats, setDailyStats] = useState<DailyStats | null>(null);
-  // const [cycleInfo, setCycleInfo] = useState<CycleInfo | null>(null);
+  const [cycleInfo, setCycleInfo] = useState<CycleInfo | null>(null); // Enhanced cycle info
+  const [userStats, setUserStats] = useState<UserStats | null>(null); // User stats from contract
   // const [dailyStats, setDailyStats] = useState<DailyStats>({
   //   date: new Date().toISOString().split('T')[0],
   //   dailyPlayers: 0,
@@ -593,7 +607,11 @@ export default function OddysseyPage() {
           winRate: globalStatsResult.data.winRate || 0,
           avgCorrect: globalStatsResult.data.avgCorrect || 0,
           totalVolume: globalStatsResult.data.totalVolume || 0,
-          highestOdd: globalStatsResult.data.highestOdd || 0
+          highestOdd: globalStatsResult.data.highestOdd || 0,
+          totalSlips: globalStatsResult.data.totalSlips || 0, // Added
+          correctPredictions: globalStatsResult.data.correctPredictions || 0, // Added
+          evaluationProgress: globalStatsResult.data.evaluationProgress || 0, // Added
+          totalWinners: globalStatsResult.data.totalWinners || 0 // Added
         });
       } else {
         console.warn('⚠️ No global stats received, using defaults');
@@ -608,7 +626,11 @@ export default function OddysseyPage() {
           winRate: 0,
           avgCorrect: 0,
           totalVolume: 0,
-          highestOdd: 0
+          highestOdd: 0,
+          totalSlips: 0, // Added
+          correctPredictions: 0, // Added
+          evaluationProgress: 0, // Added
+          totalWinners: 0 // Added
         });
       }
 
@@ -633,7 +655,11 @@ export default function OddysseyPage() {
         winRate: 0,
         avgCorrect: 0,
         totalVolume: 0,
-        highestOdd: 0
+        highestOdd: 0,
+        totalSlips: 0, // Added
+        correctPredictions: 0, // Added
+        evaluationProgress: 0, // Added
+        totalWinners: 0 // Added
       });
       // User stats no longer stored separately - integrated into main stats
     } finally {
@@ -2216,7 +2242,20 @@ export default function OddysseyPage() {
                 className="lg:col-span-3"
               >
                 <div className="space-y-6">
-                  {/* Global Stats */}
+                  {/* Cycle Progress - Enhanced with full data */}
+                  {cycleInfo && (
+                    <CycleProgress cycleInfo={cycleInfo} />
+                  )}
+
+                  {/* User Stats Card - New Component */}
+                  {userStats && (
+                    <UserStatsCard 
+                      userStats={userStats} 
+                      currentCycle={cycleInfo ? Number(cycleInfo.cycleId) : undefined}
+                    />
+                  )}
+
+                  {/* Enhanced Global Stats */}
                   {stats && (
                     <div className="glass-card p-6">
                       <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
@@ -2228,49 +2267,49 @@ export default function OddysseyPage() {
                         <div className="text-center">
                           <div className="text-3xl font-bold text-primary mb-2">{(stats.totalPlayers || 0).toLocaleString()}</div>
                           <div className="text-lg text-text-secondary">Total Players</div>
-                          <div className="text-sm text-text-muted">All-time registered</div>
+                          <div className="text-sm text-text-muted">Current cycle</div>
                         </div>
                         
                         <div className="text-center">
-                          <div className="text-3xl font-bold text-secondary mb-2">{stats.totalCycles || 0}</div>
-                          <div className="text-lg text-text-secondary">Total Cycles</div>
-                          <div className="text-sm text-text-muted">Completed competitions</div>
+                          <div className="text-3xl font-bold text-secondary mb-2">{stats.totalSlips || 0}</div>
+                          <div className="text-lg text-text-secondary">Total Slips</div>
+                          <div className="text-sm text-text-muted">Current cycle</div>
                         </div>
                         
                         <div className="text-center">
-                          <div className="text-3xl font-bold text-accent mb-2">{stats.activeCycles || 0}</div>
-                          <div className="text-lg text-text-secondary">Active Cycles</div>
-                          <div className="text-sm text-text-muted">Currently running</div>
+                          <div className="text-3xl font-bold text-accent mb-2">{stats.correctPredictions || 0}</div>
+                          <div className="text-lg text-text-secondary">Correct Predictions</div>
+                          <div className="text-sm text-text-muted">Current cycle</div>
                         </div>
                         
                         <div className="text-center">
                           <div className="text-3xl font-bold text-green-400 mb-2">{(stats.avgPrizePool || 0).toFixed(2)} STT</div>
-                          <div className="text-lg text-text-secondary">Avg Prize Pool</div>
-                          <div className="text-sm text-text-muted">Per cycle</div>
+                          <div className="text-lg text-text-secondary">Prize Pool</div>
+                          <div className="text-sm text-text-muted">Current cycle</div>
                         </div>
                         
                         <div className="text-center">
                           <div className="text-3xl font-bold text-yellow-400 mb-2">{(stats.winRate || 0).toFixed(1)}%</div>
-                          <div className="text-lg text-text-secondary">Global Win Rate</div>
-                          <div className="text-sm text-text-muted">Average success</div>
+                          <div className="text-lg text-text-secondary">Win Rate</div>
+                          <div className="text-sm text-text-muted">Current cycle</div>
                         </div>
                         
                         <div className="text-center">
-                          <div className="text-3xl font-bold text-blue-400 mb-2">{stats.avgCorrect || 0}x</div>
-                          <div className="text-lg text-text-secondary">Avg Odds</div>
-                          <div className="text-sm text-text-muted">Winning slips</div>
+                          <div className="text-3xl font-bold text-blue-400 mb-2">{(stats.evaluationProgress || 0).toFixed(1)}%</div>
+                          <div className="text-lg text-text-secondary">Evaluation Progress</div>
+                          <div className="text-sm text-text-muted">Slips evaluated</div>
                         </div>
                         
                         <div className="text-center">
-                          <div className="text-3xl font-bold text-purple-400 mb-2">{(stats.totalVolume || 0).toFixed(2)} STT</div>
-                          <div className="text-lg text-text-secondary">Total Volume</div>
-                          <div className="text-sm text-text-muted">All-time traded</div>
+                          <div className="text-3xl font-bold text-purple-400 mb-2">{stats.totalWinners || 0}</div>
+                          <div className="text-lg text-text-secondary">Winners</div>
+                          <div className="text-sm text-text-muted">Current cycle</div>
                         </div>
                         
                         <div className="text-center">
-                          <div className="text-3xl font-bold text-orange-400 mb-2">{(stats.highestOdd || 0).toFixed(2)}x</div>
-                          <div className="text-lg text-text-secondary">Highest Odd</div>
-                          <div className="text-sm text-text-muted">Record achieved</div>
+                          <div className="text-3xl font-bold text-cyan-400 mb-2">{(stats.avgCorrect || 0).toFixed(1)}</div>
+                          <div className="text-lg text-text-secondary">Average Score</div>
+                          <div className="text-sm text-text-muted">Current cycle</div>
                         </div>
                       </div>
                     </div>

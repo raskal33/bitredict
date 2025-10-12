@@ -75,9 +75,23 @@ export interface OddysseySlip {
 export interface CycleInfo {
   cycleId: bigint;
   state: number; // 0=NotStarted, 1=Active, 2=Ended, 3=Resolved
+  startTime: bigint; // Added missing field
   endTime: bigint;
   prizePool: bigint;
   slipCount: bigint;
+  evaluatedSlips: bigint; // Added missing field
+  hasWinner: boolean; // Added missing field
+}
+
+export interface UserStats {
+  totalSlips: number;
+  totalWins: number;
+  bestScore: number;
+  averageScore: number;
+  winRate: number;
+  currentStreak: number;
+  bestStreak: number;
+  lastActiveCycle: number;
 }
 
 export interface LeaderboardEntry {
@@ -158,27 +172,71 @@ class OddysseyService {
     }
   }
 
-  // Get current cycle info
+  // Get current cycle info with full data structure
   async getCurrentCycleInfo(): Promise<CycleInfo> {
     try {
+      const currentCycle = await this.getCurrentCycle();
+      
+      // Use getCycleStatus to get the full CycleInfo structure
       const result = await this.publicClient.readContract({
         address: CONTRACTS.ODDYSSEY.address,
         abi: CONTRACTS.ODDYSSEY.abi,
-        functionName: 'getCurrentCycleInfo',
+        functionName: 'getCycleStatus',
+        args: [currentCycle],
       });
       
-      const [cycleId, state, endTime, prizePool, slipCount] = result as [bigint, number, bigint, bigint, bigint];
+      const [exists, state, endTime, prizePool, cycleSlipCount, hasWinner] = result as [boolean, number, bigint, bigint, bigint, boolean];
+      
+      if (!exists) {
+        throw new Error(`Cycle ${currentCycle} does not exist`);
+      }
+      
+      // Get additional cycle info from cycleInfo mapping
+      const cycleInfoResult = await this.publicClient.readContract({
+        address: CONTRACTS.ODDYSSEY.address,
+        abi: CONTRACTS.ODDYSSEY.abi,
+        functionName: 'cycleInfo',
+        args: [currentCycle],
+      });
+      
+      const cycleInfoData = cycleInfoResult as any;
       
       return {
-        cycleId,
+        cycleId: currentCycle,
         state,
+        startTime: cycleInfoData.startTime || BigInt(0),
         endTime,
         prizePool,
-        slipCount
+        slipCount: cycleSlipCount,
+        evaluatedSlips: cycleInfoData.evaluatedSlips || BigInt(0),
+        hasWinner
       };
     } catch (error) {
       console.error('Error getting current cycle info:', error);
-      throw error;
+      // Fallback to basic getCurrentCycleInfo if getCycleStatus fails
+      try {
+        const result = await this.publicClient.readContract({
+          address: CONTRACTS.ODDYSSEY.address,
+          abi: CONTRACTS.ODDYSSEY.abi,
+          functionName: 'getCurrentCycleInfo',
+        });
+        
+        const [cycleId, state, endTime, prizePool, slipCount] = result as [bigint, number, bigint, bigint, bigint];
+        
+        return {
+          cycleId,
+          state,
+          startTime: BigInt(0), // Not available in basic function
+          endTime,
+          prizePool,
+          slipCount,
+          evaluatedSlips: BigInt(0), // Not available in basic function
+          hasWinner: false // Not available in basic function
+        };
+      } catch (fallbackError) {
+        console.error('Error with fallback getCurrentCycleInfo:', fallbackError);
+        throw error;
+      }
     }
   }
 
@@ -695,6 +753,8 @@ class OddysseyService {
     averageScore: number;
     maxScore: number;
     minScore: number;
+    correctPredictions: number; // Added missing field
+    evaluatedSlips: number; // Added missing field
   }> {
     try {
       // Get current cycle to fetch its stats
@@ -716,6 +776,8 @@ class OddysseyService {
         averageScore: Number(stats.averageScore),
         maxScore: Number(stats.maxScore),
         minScore: Number(stats.minScore),
+        correctPredictions: Number(stats.correctPredictions), // Added
+        evaluatedSlips: Number(stats.evaluatedSlips), // Added
       };
     } catch (error) {
       console.error('Error getting global stats:', error);
@@ -867,7 +929,10 @@ class OddysseyService {
             totalVolume: Number(globalStats.totalVolume) / 1e18 || 0, // Add total volume in STT
             maxScore: globalStats.maxScore / 100 || 0, // Convert from contract format
             minScore: globalStats.minScore / 100 || 0, // Convert from contract format
-            totalWinners: globalStats.totalWinners || 0
+            totalWinners: globalStats.totalWinners || 0,
+            correctPredictions: globalStats.correctPredictions || 0, // Added
+            evaluatedSlips: globalStats.evaluatedSlips || 0, // Added
+            evaluationProgress: globalStats.totalSlips > 0 ? (globalStats.evaluatedSlips / globalStats.totalSlips) * 100 : 0 // Added calculated field
           }
         };
       } else if (type === 'user' && userAddress) {
