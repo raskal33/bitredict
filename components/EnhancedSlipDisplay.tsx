@@ -55,7 +55,11 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
   };
 
   const getSlipStatus = (slip: EnhancedSlip): 'pending' | 'evaluated' | 'won' | 'lost' => {
-    if (!slip.isEvaluated) return 'pending';
+    if (!slip.isEvaluated) {
+      // Check if we have real-time results available
+      const hasResults = slip.predictions.some(pred => pred.isCorrect !== undefined);
+      return hasResults ? 'evaluated' : 'pending';
+    }
     if (slip.correctCount >= 8) return 'won'; // Assuming 8+ correct predictions is a win
     return 'lost';
   };
@@ -110,14 +114,57 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
       <XCircleIcon className="w-4 h-4 text-red-400" />;
   };
 
+  const getSlipStatusInfo = (slip: EnhancedSlip) => {
+    const status = getSlipStatus(slip);
+    const hasRealTimeResults = slip.predictions.some(pred => pred.isCorrect !== undefined);
+    
+    if (status === 'pending' && !hasRealTimeResults) {
+      return { 
+        text: 'Pending', 
+        color: 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20',
+        icon: ClockIcon 
+      };
+    }
+    
+    if (status === 'evaluated' && !slip.isEvaluated) {
+      return { 
+        text: 'Real-time Results', 
+        color: 'bg-blue-500/10 text-blue-400 border border-blue-500/20',
+        icon: CheckCircleIcon 
+      };
+    }
+    
+    if (status === 'won') {
+      return { 
+        text: 'Won', 
+        color: 'bg-green-500/10 text-green-400 border border-green-500/20',
+        icon: TrophyIcon 
+      };
+    }
+    
+    if (status === 'lost') {
+      return { 
+        text: 'Lost', 
+        color: 'bg-red-500/10 text-red-400 border border-red-500/20',
+        icon: XCircleIcon 
+      };
+    }
+    
+    return { 
+      text: 'Evaluated', 
+      color: 'bg-gray-500/10 text-gray-400 border border-gray-500/20',
+      icon: CheckCircleIcon 
+    };
+  };
+
   return (
     <div className="space-y-4">
       {/* Filter Tabs */}
       <div className="flex flex-wrap gap-2 mb-6">
         {[
           { key: 'all', label: 'All Slips', count: slips.length },
-          { key: 'pending', label: 'Pending', count: slips.filter(s => getSlipStatus(s) === 'pending').length },
-          { key: 'evaluated', label: 'Evaluated', count: slips.filter(s => getSlipStatus(s) === 'evaluated').length },
+          { key: 'pending', label: 'Pending', count: slips.filter(s => getSlipStatus(s) === 'pending' && !s.predictions.some(p => p.isCorrect !== undefined)).length },
+          { key: 'evaluated', label: 'Real-time', count: slips.filter(s => getSlipStatus(s) === 'evaluated' && !s.isEvaluated).length },
           { key: 'won', label: 'Won', count: slips.filter(s => getSlipStatus(s) === 'won').length },
           { key: 'lost', label: 'Lost', count: slips.filter(s => getSlipStatus(s) === 'lost').length },
         ].map(({ key, label, count }) => (
@@ -168,6 +215,11 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
                         <span>{new Date(slip.placedAt * 1000).toLocaleDateString()}</span>
                         <span>•</span>
                         <span>{slip.predictions.length} predictions</span>
+                        {slip.predictions.some(p => p.isCorrect !== undefined) && !slip.isEvaluated && (
+                          <span className="px-2 py-1 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-full text-xs">
+                            Live Results
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -182,14 +234,8 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
                       </div>
                     </div>
                     
-                    <div className={`px-4 py-2 rounded-full text-xs font-bold ${
-                      status === 'won' 
-                        ? 'bg-green-500/20 text-green-400 border border-green-500/30 shadow-lg shadow-green-500/10'
-                        : status === 'lost'
-                        ? 'bg-red-500/20 text-red-400 border border-red-500/30 shadow-lg shadow-red-500/10'
-                        : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 shadow-lg shadow-yellow-500/10'
-                    }`}>
-                      {status.toUpperCase()}
+                    <div className={`px-4 py-2 rounded-full text-xs font-bold ${getSlipStatusInfo(slip).color}`}>
+                      {getSlipStatusInfo(slip).text}
                     </div>
                     
                     {isExpanded ? (
