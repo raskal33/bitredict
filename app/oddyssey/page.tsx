@@ -894,26 +894,37 @@ export default function OddysseyPage() {
           console.log('🔍 All slips data from all cycles:', allSlipsData);
           
           // Convert to enhanced slip format
-          const enhancedSlips = allSlipsData.slipsData.map((slip, index) => ({
-            id: Number(allSlipsData.slipIds[index]),
-            cycleId: slip.cycleId,
-            placedAt: slip.placedAt,
-            predictions: slip.predictions.map(pred => ({
-              matchId: Number(pred.matchId),
-              betType: pred.betType,
-              selection: pred.selection,
-              selectedOdd: pred.selectedOdd,
-              homeTeam: pred.homeTeam,
-              awayTeam: pred.awayTeam,
-              leagueName: pred.leagueName,
-              isCorrect: slip.isEvaluated ? pred.isCorrect : undefined // Will be determined by evaluation
-            })),
-            finalScore: slip.finalScore,
-            correctCount: slip.correctCount,
-            isEvaluated: slip.isEvaluated,
-            status: slip.isEvaluated ? (slip.correctCount >= 8 ? 'won' : 'lost') : 'pending' as 'pending' | 'evaluated' | 'won' | 'lost'
-          }));
+          console.log('🔍 Converting slips to enhanced format...');
+          console.log('🔍 Slip IDs:', allSlipsData.slipIds);
+          console.log('🔍 Slips data:', allSlipsData.slipsData);
           
+          const enhancedSlips = allSlipsData.slipsData.map((slip, index) => {
+            console.log(`🔍 Processing slip ${index}:`, slip);
+            const enhanced = {
+              id: Number(allSlipsData.slipIds[index]),
+              cycleId: slip.cycleId,
+              placedAt: slip.placedAt,
+              predictions: slip.predictions.map(pred => ({
+                matchId: Number(pred.matchId),
+                betType: pred.betType,
+                selection: pred.selection,
+                selectedOdd: pred.selectedOdd,
+                homeTeam: pred.homeTeam,
+                awayTeam: pred.awayTeam,
+                leagueName: pred.leagueName,
+                isCorrect: slip.isEvaluated ? pred.isCorrect : undefined // Will be determined by evaluation
+              })),
+              finalScore: slip.finalScore,
+              correctCount: slip.correctCount,
+              isEvaluated: slip.isEvaluated,
+              status: slip.isEvaluated ? (slip.correctCount >= 8 ? 'won' : 'lost') : 'pending' as 'pending' | 'evaluated' | 'won' | 'lost'
+            };
+            console.log(`🔍 Enhanced slip ${index}:`, enhanced);
+            return enhanced;
+          });
+          
+          console.log('🔍 All enhanced slips:', enhancedSlips);
+          console.log('🔍 Enhanced slips count:', enhancedSlips.length);
           setAllSlips(enhancedSlips);
           console.log('✅ Enhanced slips set:', enhancedSlips);
         } catch (error) {

@@ -39,6 +39,11 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
   const [expandedSlips, setExpandedSlips] = useState<Set<number>>(new Set());
   const [filter, setFilter] = useState<'all' | 'pending' | 'evaluated' | 'won' | 'lost'>('all');
 
+  console.log('🔍 EnhancedSlipDisplay received slips:', slips);
+  console.log('🔍 Slips count:', slips?.length);
+  console.log('🔍 Slips type:', typeof slips);
+  console.log('🔍 Slips is array:', Array.isArray(slips));
+
   const toggleSlipExpansion = (slipId: number) => {
     const newExpanded = new Set(expandedSlips);
     if (newExpanded.has(slipId)) {

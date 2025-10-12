@@ -396,7 +396,7 @@ class OddysseyService {
     slipsData: OddysseySlip[];
   }> {
     try {
-      console.log('🔍 Getting user slips with data for cycle:', cycleId.toString());
+      console.log('🔍 Getting user slips with data for cycle:', cycleId.toString(), 'user:', userAddress);
       
       const result = await this.publicClient.readContract({
         address: CONTRACTS.ODDYSSEY.address,
@@ -406,15 +406,31 @@ class OddysseyService {
       });
 
       console.log('🔍 Raw getUserSlipsWithData result:', result);
+      console.log('🔍 Result type:', typeof result);
+      console.log('🔍 Result is array:', Array.isArray(result));
       
       const [slipIds, slipsData] = result as [bigint[], any[]];
       
       console.log('🔍 Processed slip IDs:', slipIds);
       console.log('🔍 Processed slips data:', slipsData);
+      console.log('🔍 Slip IDs length:', slipIds?.length);
+      console.log('🔍 Slips data length:', slipsData?.length);
+      
+      if (!slipIds || slipIds.length === 0) {
+        console.log('⚠️ No slip IDs found for user in cycle', cycleId.toString());
+        return { slipIds: [], slipsData: [] };
+      }
+      
+      const processedSlips = slipsData.map((slip, index) => {
+        console.log(`🔍 Processing slip ${index}:`, slip);
+        const processed = this.processSlipData(slip);
+        console.log(`🔍 Processed slip ${index}:`, processed);
+        return processed;
+      });
       
       return {
         slipIds,
-        slipsData: slipsData.map(slip => this.processSlipData(slip))
+        slipsData: processedSlips
       };
     } catch (error) {
       console.error('Error getting user slips with data:', error);
@@ -430,36 +446,47 @@ class OddysseyService {
     try {
       console.log('🔍 Getting ALL user slips with data across all cycles for:', userAddress);
       
-      // Get current cycle to know how many cycles to check
-      const currentCycle = await this.getCurrentCycle();
-      console.log('🔍 Current cycle:', currentCycle.toString());
+      // Use the getAllUserSlips function to get all slip IDs for the user
+      const allSlipIdsResult = await this.publicClient.readContract({
+        address: CONTRACTS.ODDYSSEY.address,
+        abi: CONTRACTS.ODDYSSEY.abi,
+        functionName: 'getAllUserSlips',
+        args: [userAddress],
+      });
+
+      const allSlipIds = allSlipIdsResult as bigint[];
+      console.log('🔍 All slip IDs for user:', allSlipIds);
+      console.log('🔍 Total slips found:', allSlipIds.length);
       
-      const allSlipIds: bigint[] = [];
-      const allSlipsData: OddysseySlip[] = [];
-      
-      // Check cycles from 0 to current cycle (inclusive)
-      for (let cycleId = 0; cycleId <= Number(currentCycle); cycleId++) {
-        try {
-          console.log(`🔍 Checking cycle ${cycleId} for user slips...`);
-          const cycleSlipsData = await this.getUserSlipsWithDataFromContract(userAddress, BigInt(cycleId));
-          
-          if (cycleSlipsData.slipIds.length > 0) {
-            console.log(`✅ Found ${cycleSlipsData.slipIds.length} slips in cycle ${cycleId}`);
-            allSlipIds.push(...cycleSlipsData.slipIds);
-            allSlipsData.push(...cycleSlipsData.slipsData);
-          }
-        } catch (error) {
-          console.log(`⚠️ No slips found in cycle ${cycleId} or error:`, error);
-          // Continue to next cycle
-          continue;
-        }
+      if (allSlipIds.length === 0) {
+        console.log('⚠️ No slips found for user');
+        return { slipIds: [], slipsData: [] };
       }
+
+      // Use getBatchSlips to get all slip data at once
+      const allSlipsDataResult = await this.publicClient.readContract({
+        address: CONTRACTS.ODDYSSEY.address,
+        abi: CONTRACTS.ODDYSSEY.abi,
+        functionName: 'getBatchSlips',
+        args: [allSlipIds],
+      });
+
+      const allSlipsData = allSlipsDataResult as any[];
+      console.log('🔍 Raw batch slips data:', allSlipsData);
       
-      console.log(`🔍 Total slips found across all cycles: ${allSlipIds.length}`);
+      // Process the slip data
+      const processedSlips = allSlipsData.map((slip, index) => {
+        console.log(`🔍 Processing slip ${index} (ID: ${allSlipIds[index]}):`, slip);
+        const processed = this.processSlipData(slip);
+        console.log(`🔍 Processed slip ${index}:`, processed);
+        return processed;
+      });
+      
+      console.log(`🔍 Total processed slips: ${processedSlips.length}`);
       
       return {
         slipIds: allSlipIds,
-        slipsData: allSlipsData
+        slipsData: processedSlips
       };
     } catch (error) {
       console.error('Error getting all user slips with data:', error);
@@ -469,7 +496,16 @@ class OddysseyService {
 
   // Process slip data from contract response
   private processSlipData(rawSlip: any): OddysseySlip {
-    return {
+    console.log('🔍 Processing raw slip data:', rawSlip);
+    console.log('🔍 Raw slip player:', rawSlip.player);
+    console.log('🔍 Raw slip cycleId:', rawSlip.cycleId);
+    console.log('🔍 Raw slip placedAt:', rawSlip.placedAt);
+    console.log('🔍 Raw slip predictions:', rawSlip.predictions);
+    console.log('🔍 Raw slip finalScore:', rawSlip.finalScore);
+    console.log('🔍 Raw slip correctCount:', rawSlip.correctCount);
+    console.log('🔍 Raw slip isEvaluated:', rawSlip.isEvaluated);
+    
+    const processed = {
       player: rawSlip.player,
       cycleId: Number(rawSlip.cycleId),
       placedAt: Number(rawSlip.placedAt),
@@ -486,6 +522,9 @@ class OddysseyService {
       correctCount: Number(rawSlip.correctCount),
       isEvaluated: rawSlip.isEvaluated
     };
+    
+    console.log('🔍 Processed slip:', processed);
+    return processed;
   }
 
   // Get slip by ID
