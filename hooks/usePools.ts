@@ -6,6 +6,7 @@ import { encodeBytes32String } from 'ethers';
 import { toast } from 'react-hot-toast';
 import { convertPoolToReadableEnhanced } from '@/lib/bytes32-utils';
 import { useTransactionFeedback, TransactionStatus } from '@/components/TransactionFeedback';
+import { getTransactionOptions } from '@/lib/network-connection';
 
 export interface Pool {
   id: bigint;
@@ -82,26 +83,57 @@ export enum BoostTier {
 
 export function usePools() {
   const { address } = useAccount();
-  const { writeContract, writeContractAsync, data: hash, isPending } = useWriteContract();
+  const { writeContract, data: hash, isPending } = useWriteContract();
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash });
   const publicClient = usePublicClient();
   const { showSuccess, showError, showPending, showConfirming, clearStatus } = useTransactionFeedback();
 
-  // BITR token approval function
-  const approveBITR = async (spender: `0x${string}`, amount: bigint) => {
-    try {
-      const hash = await writeContractAsync({
-        address: CONTRACT_ADDRESSES.BITR_TOKEN,
-        abi: CONTRACTS.BITR_TOKEN.abi,
-        functionName: 'approve',
-        args: [spender, amount],
-        gas: 500000n, // Increased gas limit for approval
-      });
-      return hash;
-    } catch (error) {
-      console.error('❌ Error approving BITR:', error);
-      throw error;
+  // State for tracking approval and bet transactions
+  const [approvalConfirmed, setApprovalConfirmed] = useState(false);
+  const [pendingBetData, setPendingBetData] = useState<{
+    poolId: number;
+    amount: string;
+    useBitr: boolean;
+  } | null>(null);
+
+  // Track approval transaction confirmation
+  const { isSuccess: isApprovalSuccess } = useWaitForTransactionReceipt({ 
+    hash: hash 
+  });
+
+  // Track approval transaction states for transaction feedback
+  useEffect(() => {
+    if (isPending) {
+      console.log('🔄 Token approval pending - showing feedback');
+      showPending('Approval Pending', 'Please confirm the BITR token approval in your wallet...');
     }
+  }, [isPending, showPending]);
+
+  useEffect(() => {
+    if (isConfirming) {
+      console.log('⏳ Token approval confirming - showing feedback');
+      showConfirming('Approval Confirming', 'Your BITR token approval is being processed on the blockchain...', hash);
+    }
+  }, [isConfirming, showConfirming, hash]);
+
+  // Track approval confirmation
+  useEffect(() => {
+    if (isApprovalSuccess && !approvalConfirmed) {
+      console.log('✅ Token approval successful - showing feedback with hash:', hash);
+      setApprovalConfirmed(true);
+      showSuccess('Approval Confirmed!', 'BITR token approval confirmed! You can now place your bet.', hash);
+    }
+  }, [isApprovalSuccess, approvalConfirmed, showSuccess, hash]);
+
+  // BITR token approval function
+  const approveBITR = (spender: `0x${string}`, amount: bigint) => {
+    writeContract({
+      address: CONTRACT_ADDRESSES.BITR_TOKEN,
+      abi: CONTRACTS.BITR_TOKEN.abi,
+      functionName: 'approve',
+      args: [spender, amount],
+      ...getTransactionOptions(), // Use same gas settings as create pool
+    });
   };
 
   // Check BITR allowance
@@ -123,6 +155,98 @@ export function usePools() {
       return 0n;
     }
   };
+
+  // Direct bet placement function
+  const placeBetDirect = async (poolId: number, betAmount: bigint, useBitr: boolean) => {
+    showPending('Placing Bet', 'Please confirm the bet transaction in your wallet...');
+    
+    writeContract({
+      ...CONTRACTS.POOL_CORE,
+      functionName: 'placeBet',
+      args: [BigInt(poolId), betAmount],
+      value: useBitr ? 0n : betAmount,
+      ...getTransactionOptions(), // Use same gas settings as create pool
+    });
+  };
+
+  // Track approval errors
+  useEffect(() => {
+    if (hash && !isPending && !isConfirming && !isApprovalSuccess) {
+      console.log('❌ Token approval failed - showing error feedback');
+      showError('Approval Failed', 'BITR token approval failed. Please try again.');
+    }
+  }, [hash, isPending, isConfirming, isApprovalSuccess, showError]);
+
+  // Handle approval confirmation and proceed with bet
+  useEffect(() => {
+    if (isApprovalSuccess && approvalConfirmed && pendingBetData && address) {
+      const proceedWithBet = async () => {
+        try {
+          console.log('✅ Approval confirmed, proceeding with bet:', pendingBetData);
+          
+          // Verify allowance before proceeding
+          const finalAllowance = await getBITRAllowance(address, CONTRACT_ADDRESSES.POOL_CORE);
+          const betAmount = parseUnits(pendingBetData.amount, 18);
+          
+          if (finalAllowance < betAmount) {
+            showError('Insufficient Allowance', 'BITR token allowance is still insufficient after approval.');
+            return;
+          }
+
+          // Place the bet
+          await placeBetDirect(pendingBetData.poolId, betAmount, pendingBetData.useBitr);
+          
+          // Clear pending state
+          setPendingBetData(null);
+          setApprovalConfirmed(false);
+          
+        } catch (error) {
+          console.error('Error proceeding with bet after approval:', error);
+          showError('Bet Failed', 'Failed to place bet after approval confirmation.');
+          setPendingBetData(null);
+          setApprovalConfirmed(false);
+        }
+      };
+      
+      proceedWithBet();
+    }
+  }, [isApprovalSuccess, approvalConfirmed, pendingBetData, address, getBITRAllowance, placeBetDirect, showError]);
+
+  // Track bet transaction confirmation
+  const { isSuccess: isBetSuccess } = useWaitForTransactionReceipt({ 
+    hash: hash 
+  });
+
+  // Track bet transaction states for transaction feedback
+  useEffect(() => {
+    if (isPending && !approvalConfirmed) {
+      console.log('🔄 Bet transaction pending - showing feedback');
+      showPending('Bet Pending', 'Please confirm the bet transaction in your wallet...');
+    }
+  }, [isPending, approvalConfirmed, showPending]);
+
+  useEffect(() => {
+    if (isConfirming && !approvalConfirmed) {
+      console.log('⏳ Bet transaction confirming - showing feedback');
+      showConfirming('Bet Confirming', 'Your bet is being processed on the blockchain...', hash);
+    }
+  }, [isConfirming, approvalConfirmed, showConfirming, hash]);
+
+  // Track bet confirmation
+  useEffect(() => {
+    if (isBetSuccess && !approvalConfirmed) {
+      console.log('✅ Bet transaction successful - showing feedback with hash:', hash);
+      showSuccess('Bet Placed!', 'Your bet has been placed successfully!', hash);
+    }
+  }, [isBetSuccess, approvalConfirmed, showSuccess, hash]);
+
+  // Track bet errors
+  useEffect(() => {
+    if (hash && !isPending && !isConfirming && !isBetSuccess && !approvalConfirmed) {
+      console.log('❌ Bet transaction failed - showing error feedback');
+      showError('Bet Failed', 'Your bet transaction failed. Please try again.');
+    }
+  }, [hash, isPending, isConfirming, isBetSuccess, approvalConfirmed, showError]);
 
   // Read contract functions
   const { data: poolCount, refetch: refetchPoolCount } = useReadContract({
@@ -278,6 +402,7 @@ export function usePools() {
         functionName: 'createPool',
         args,
         value: 0n, // No ETH/STT value for BITR pools
+        ...getTransactionOptions(), // Use same gas settings as other functions
       });
     } else {
       // Calculate total required (creation fee + stake) for STT pools
@@ -287,6 +412,7 @@ export function usePools() {
         functionName: 'createPool',
         args,
         value: totalRequired,
+        ...getTransactionOptions(), // Use same gas settings as other functions
       });
     }
   };
@@ -310,107 +436,25 @@ export function usePools() {
         const currentAllowance = await getBITRAllowance(address, CONTRACT_ADDRESSES.POOL_CORE);
         
         if (currentAllowance < betAmount) {
-          // Need to approve more tokens
-          showPending('Approving BITR Tokens', 'Please approve BITR token spending in your wallet...');
+          // Need to approve more tokens - store pending bet data and trigger approval
+          setPendingBetData({ poolId, amount, useBitr });
+          setApprovalConfirmed(false);
           
-          try {
-            const approvalHash = await approveBITR(CONTRACT_ADDRESSES.POOL_CORE, betAmount);
-            
-            showConfirming('Approving BITR Tokens', 'Waiting for approval confirmation...', approvalHash);
-            
-            // Wait for approval confirmation
-            const approvalReceipt = await publicClient?.waitForTransactionReceipt({
-              hash: approvalHash,
-              timeout: 60000,
-            });
-            
-            if (!approvalReceipt || approvalReceipt.status !== 'success') {
-              showError('Approval Failed', 'BITR token approval transaction failed. Please try again.');
-              throw new Error('BITR approval failed - transaction reverted');
-            }
-            
-            showSuccess('BITR Tokens Approved', 'Your BITR tokens have been approved for betting!');
-          } catch (approvalError) {
-            if (approvalError instanceof Error) {
-              if (approvalError.message.includes('User rejected')) {
-                showError('Approval Rejected', 'BITR token approval was rejected. Please try again.');
-                throw new Error('Approval was rejected by user');
-              } else if (approvalError.message.includes('Gas estimation failed')) {
-                showError('Gas Estimation Failed', 'Approval gas estimation failed. Please try again with higher gas limit.');
-                throw new Error('Approval gas estimation failed - insufficient gas limit');
-              } else if (approvalError.message.includes('Insufficient funds')) {
-                showError('Insufficient Funds', 'You do not have enough funds for the approval transaction.');
-                throw new Error('Insufficient funds for approval');
-              } else {
-                showError('Approval Failed', `BITR token approval failed: ${approvalError.message}`);
-                throw new Error(`Approval failed: ${approvalError.message}`);
-              }
-            }
-            throw approvalError;
-          }
+          // Trigger approval transaction
+          approveBITR(CONTRACT_ADDRESSES.POOL_CORE, betAmount);
+          
+          // Return early - the approval confirmation will trigger the bet
+          return;
         }
 
-        // Verify approval was successful before proceeding
-        const finalAllowance = await getBITRAllowance(address, CONTRACT_ADDRESSES.POOL_CORE);
-        if (finalAllowance < betAmount) {
-          showError('Insufficient Allowance', 'BITR token allowance is insufficient. Please approve more tokens.');
-          throw new Error('Insufficient BITR allowance after approval');
-        }
-
-        // Place the bet
-        showPending('Placing BITR Bet', 'Please confirm the bet transaction in your wallet...');
-        
-        const hash = await writeContractAsync({
-          ...CONTRACTS.POOL_CORE,
-          functionName: 'placeBet',
-          args: [BigInt(poolId), betAmount],
-          gas: 300000n,
-        });
-        
-        showConfirming('Placing BITR Bet', 'Waiting for bet confirmation...', hash);
-        
-        // Wait for bet confirmation
-        const betReceipt = await publicClient?.waitForTransactionReceipt({
-          hash,
-          timeout: 60000,
-        });
-        
-        if (!betReceipt || betReceipt.status !== 'success') {
-          showError('Bet Failed', 'Your BITR bet transaction failed. Please try again.');
-          throw new Error('BITR bet failed - transaction reverted');
-        }
-        
-        showSuccess('BITR Bet Placed!', `Your bet of ${amount} BITR has been placed successfully!`, hash);
-        return hash;
+        // Sufficient allowance - place bet directly
+        await placeBetDirect(poolId, betAmount, useBitr);
       } else {
         // For STT pools, send native token as value
-        showPending('Placing STT Bet', 'Please confirm the bet transaction in your wallet...');
-        
-        const hash = await writeContractAsync({
-          ...CONTRACTS.POOL_CORE,
-          functionName: 'placeBet',
-          args: [BigInt(poolId), betAmount],
-          value: betAmount,
-          gas: 300000n,
-        });
-        
-        showConfirming('Placing STT Bet', 'Waiting for bet confirmation...', hash);
-        
-        // Wait for bet confirmation
-        const betReceipt = await publicClient?.waitForTransactionReceipt({
-          hash,
-          timeout: 60000,
-        });
-        
-        if (!betReceipt || betReceipt.status !== 'success') {
-          showError('Bet Failed', 'Your STT bet transaction failed. Please try again.');
-          throw new Error('STT bet failed - transaction reverted');
-        }
-        
-        showSuccess('STT Bet Placed!', `Your bet of ${amount} STT has been placed successfully!`, hash);
-        return hash;
+        await placeBetDirect(poolId, betAmount, useBitr);
       }
     } catch (error) {
+      console.error('Error in placeBet:', error);
       if (error instanceof Error) {
         if (error.message.includes('Bet below minimum')) {
           showError('Bet Too Small', 'Your bet amount is below the minimum required for this pool.');
@@ -436,14 +480,6 @@ export function usePools() {
           showError('Gas Estimation Failed', 'Gas estimation failed. Please try again.');
         } else if (error.message.includes('Internal JSON-RPC error')) {
           showError('Network Error', 'Network error occurred. Please check your connection.');
-        } else if (error.message.includes('Approval failed')) {
-          showError('Approval Failed', 'BITR token approval failed. Please try again.');
-        } else if (error.message.includes('Insufficient BITR allowance')) {
-          showError('Insufficient Allowance', 'BITR token allowance is insufficient. Please approve more tokens.');
-        } else if (error.message.includes('Approval was rejected')) {
-          showError('Approval Rejected', 'BITR token approval was rejected. Please try again.');
-        } else if (error.message.includes('Approval gas estimation failed')) {
-          showError('Gas Estimation Failed', 'Approval gas estimation failed. Please try again.');
         } else {
           showError('Bet Failed', `Failed to place bet: ${error.message}`);
         }
@@ -461,6 +497,7 @@ export function usePools() {
       ...CONTRACTS.POOL_CORE,
       functionName: 'addToWhitelist',
       args: [BigInt(poolId), userAddress as `0x${string}`],
+      ...getTransactionOptions(),
     });
   };
 
@@ -469,6 +506,7 @@ export function usePools() {
       ...CONTRACTS.POOL_CORE,
       functionName: 'removeFromWhitelist',
       args: [BigInt(poolId), userAddress as `0x${string}`],
+      ...getTransactionOptions(),
     });
   };
 
@@ -486,6 +524,7 @@ export function usePools() {
       functionName: 'boostPool',
       args: [BigInt(poolId), BigInt(tier)],
       value: boostFees[tier] || BigInt(0),
+      ...getTransactionOptions(),
     });
   };
 
@@ -526,6 +565,7 @@ export function usePools() {
         ...CONTRACTS.POOL_CORE,
         functionName: 'createComboPool',
         args,
+        ...getTransactionOptions(),
       });
     } else {
       const totalRequired = (creationFeeSTT as bigint) + stakeWei;
@@ -534,6 +574,7 @@ export function usePools() {
         functionName: 'createComboPool',
         args,
         value: totalRequired,
+        ...getTransactionOptions(),
       });
     }
   };
@@ -550,6 +591,7 @@ export function usePools() {
         ...CONTRACTS.POOL_CORE,
         functionName: 'placeComboBet',
         args: [BigInt(comboPoolId), betAmount],
+        ...getTransactionOptions(),
       });
     } else {
       writeContract({
@@ -557,6 +599,7 @@ export function usePools() {
         functionName: 'placeComboBet',
         args: [BigInt(comboPoolId), betAmount],
         value: betAmount,
+        ...getTransactionOptions(),
       });
     }
   };
@@ -566,6 +609,7 @@ export function usePools() {
       ...CONTRACTS.POOL_CORE,
       functionName: 'claim',
       args: [BigInt(poolId)],
+      ...getTransactionOptions(),
     });
   };
 
@@ -574,6 +618,7 @@ export function usePools() {
       ...CONTRACTS.POOL_CORE,
       functionName: 'claimCombo',
       args: [BigInt(comboPoolId)],
+      ...getTransactionOptions(),
     });
   };
 
