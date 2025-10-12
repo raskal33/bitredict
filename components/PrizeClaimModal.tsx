@@ -14,6 +14,7 @@ import { formatEther } from 'viem';
 import { toast } from 'react-hot-toast';
 import Button from './button';
 import { usePrizeClaiming, type ClaimablePosition } from '@/services/prizeClaimService';
+import { useNewClaimService, type OdysseyClaimablePosition } from '@/services/newClaimService';
 import { useWalletConnection } from '@/hooks/useWalletConnection';
 
 interface PrizeClaimModalProps {
@@ -24,11 +25,14 @@ interface PrizeClaimModalProps {
 
 export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeClaimModalProps) {
   const [positions, setPositions] = useState<ClaimablePosition[]>([]);
+  const [odysseyPositions, setOdysseyPositions] = useState<OdysseyClaimablePosition[]>([]);
   const [selectedPositions, setSelectedPositions] = useState<Set<number>>(new Set());
+  const [selectedOdysseyPositions, setSelectedOdysseyPositions] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
   const [isClaiming, setIsClaiming] = useState(false);
   const [claimProgress, setClaimProgress] = useState({ completed: 0, total: 0 });
   const [filter, setFilter] = useState<'all' | 'unclaimed' | 'claimed'>('unclaimed');
+  const [activeTab, setActiveTab] = useState<'pools' | 'odyssey'>('pools');
   
   const { 
     claimSingle, 
@@ -38,6 +42,13 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
     isConnected 
   } = usePrizeClaiming();
   
+  const {
+    claimOdysseyPrize,
+    batchClaimOdysseyPrizes,
+    getAllClaimableOdysseyPrizes,
+    isConnected: isNewConnected
+  } = useNewClaimService();
+  
   const { connectWallet } = useWalletConnection();
 
   const loadPositions = useCallback(async () => {
@@ -45,6 +56,7 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
     
     setIsLoading(true);
     try {
+      // Load old positions for backward compatibility
       const fetchedPositions = await getClaimablePositions();
       setPositions(fetchedPositions);
       
@@ -53,6 +65,16 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
         .filter(p => !p.claimed && p.isWinner)
         .map(p => p.poolId);
       setSelectedPositions(new Set(unclaimedWinning));
+
+      // Load new Odyssey positions
+      const odysseyPrizes = await getAllClaimableOdysseyPrizes();
+      setOdysseyPositions(odysseyPrizes);
+      
+      // Auto-select unclaimed winning Odyssey positions
+      const unclaimedOdysseyWinning = odysseyPrizes
+        .filter(p => !p.claimed && p.claimStatus === 'eligible')
+        .map(p => `${p.cycleId}-${p.slipId}`);
+      setSelectedOdysseyPositions(new Set(unclaimedOdysseyWinning));
       
     } catch (error) {
       console.error('Error loading positions:', error);
@@ -60,7 +82,7 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
     } finally {
       setIsLoading(false);
     }
-  }, [userAddress, getClaimablePositions]);
+  }, [userAddress, getClaimablePositions, getAllClaimableOdysseyPrizes]);
 
   // Load claimable positions
   useEffect(() => {
@@ -112,6 +134,44 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
     }
   };
 
+  const handleClaimOdysseySingle = async (position: OdysseyClaimablePosition) => {
+    if (!isNewConnected) {
+      toast.error('Please connect your wallet');
+      return;
+    }
+
+    setIsClaiming(true);
+    try {
+      const result = await claimOdysseyPrize(position.cycleId, position.slipId);
+
+      if (result.success) {
+        toast.success(`Odyssey prize claimed successfully! 🎉`);
+        
+        // Update the position as claimed
+        setOdysseyPositions(prev => prev.map(p => 
+          p.cycleId === position.cycleId && p.slipId === position.slipId
+            ? { ...p, claimed: true }
+            : p
+        ));
+        
+        // Remove from selected positions
+        setSelectedOdysseyPositions(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(`${position.cycleId}-${position.slipId}`);
+          return newSet;
+        });
+        
+      } else {
+        toast.error(result.error || 'Failed to claim Odyssey prize');
+      }
+    } catch (error) {
+      console.error('Odyssey claim error:', error);
+      toast.error('Failed to claim Odyssey prize');
+    } finally {
+      setIsClaiming(false);
+    }
+  };
+
   const handleBatchClaim = async () => {
     if (!isConnected) {
       toast.error('Please connect your wallet');
@@ -150,6 +210,46 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
     }
   };
 
+  const handleBatchClaimOdyssey = async () => {
+    if (!isNewConnected) {
+      toast.error('Please connect your wallet');
+      return;
+    }
+
+    const selectedOdysseyPositionsList = odysseyPositions.filter(p => 
+      selectedOdysseyPositions.has(`${p.cycleId}-${p.slipId}`) && !p.claimed && p.claimStatus === 'eligible'
+    );
+    
+    if (selectedOdysseyPositionsList.length === 0) {
+      toast.error('No Odyssey positions selected');
+      return;
+    }
+
+    setIsClaiming(true);
+    setClaimProgress({ completed: 0, total: selectedOdysseyPositionsList.length });
+    
+    try {
+      const result = await batchClaimOdysseyPrizes(
+        selectedOdysseyPositionsList,
+        (completed, total) => {
+          setClaimProgress({ completed, total });
+        }
+      );
+
+      toast.success(`Odyssey batch claim completed! ${result.successful} successful, ${result.failed} failed`);
+      
+      // Reload positions to get updated state
+      await loadPositions();
+      
+    } catch (error) {
+      console.error('Odyssey batch claim error:', error);
+      toast.error('Odyssey batch claim failed');
+    } finally {
+      setIsClaiming(false);
+      setClaimProgress({ completed: 0, total: 0 });
+    }
+  };
+
   const togglePositionSelection = (poolId: number) => {
     setSelectedPositions(prev => {
       const newSet = new Set(prev);
@@ -162,13 +262,35 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
     });
   };
 
+  const toggleOdysseyPositionSelection = (cycleId: number, slipId: number) => {
+    const key = `${cycleId}-${slipId}`;
+    setSelectedOdysseyPositions(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(key)) {
+        newSet.delete(key);
+      } else {
+        newSet.add(key);
+      }
+      return newSet;
+    });
+  };
+
   const selectAll = () => {
-    const claimablePositions = filteredPositions.filter(p => !p.claimed && p.isWinner);
-    setSelectedPositions(new Set(claimablePositions.map(p => p.poolId)));
+    if (activeTab === 'pools') {
+      const claimablePositions = filteredPositions.filter(p => !p.claimed && p.isWinner);
+      setSelectedPositions(new Set(claimablePositions.map(p => p.poolId)));
+    } else {
+      const claimableOdysseyPositions = odysseyPositions.filter(p => !p.claimed && p.claimStatus === 'eligible');
+      setSelectedOdysseyPositions(new Set(claimableOdysseyPositions.map(p => `${p.cycleId}-${p.slipId}`)));
+    }
   };
 
   const deselectAll = () => {
-    setSelectedPositions(new Set());
+    if (activeTab === 'pools') {
+      setSelectedPositions(new Set());
+    } else {
+      setSelectedOdysseyPositions(new Set());
+    }
   };
 
   const filteredPositions = positions.filter(position => {
@@ -215,28 +337,81 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
             </button>
           </div>
 
+          {/* Tabs */}
+          <div className="flex border-b border-gray-600">
+            <button
+              onClick={() => setActiveTab('pools')}
+              className={`flex-1 px-6 py-3 text-sm font-medium transition-colors ${
+                activeTab === 'pools'
+                  ? 'text-white border-b-2 border-blue-400 bg-gray-700/50'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Pool Prizes ({positions.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('odyssey')}
+              className={`flex-1 px-6 py-3 text-sm font-medium transition-colors ${
+                activeTab === 'odyssey'
+                  ? 'text-white border-b-2 border-purple-400 bg-gray-700/50'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Odyssey Prizes ({odysseyPositions.length})
+            </button>
+          </div>
+
           {/* Summary */}
           <div className="p-6 border-b border-gray-600 bg-gray-700/30">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-400">
-                  {totalClaimableAmount.toFixed(2)}
+            {activeTab === 'pools' ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-400">
+                    {totalClaimableAmount.toFixed(2)}
+                  </div>
+                  <div className="text-sm text-gray-400">Total Claimable</div>
                 </div>
-                <div className="text-sm text-gray-400">Total Claimable</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-cyan-400">
-                  {positions.filter(p => !p.claimed && p.isWinner).length}
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-cyan-400">
+                    {positions.filter(p => !p.claimed && p.isWinner).length}
+                  </div>
+                  <div className="text-sm text-gray-400">Unclaimed Positions</div>
                 </div>
-                <div className="text-sm text-gray-400">Unclaimed Positions</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-yellow-400">
-                  {selectedAmount.toFixed(2)}
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-yellow-400">
+                    {selectedAmount.toFixed(2)}
+                  </div>
+                  <div className="text-sm text-gray-400">Selected Amount</div>
                 </div>
-                <div className="text-sm text-gray-400">Selected Amount</div>
               </div>
-            </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-400">
+                    {odysseyPositions
+                      .filter(p => !p.claimed && p.claimStatus === 'eligible')
+                      .reduce((sum, p) => sum + parseFloat(p.prizeAmount), 0)
+                      .toFixed(2)}
+                  </div>
+                  <div className="text-sm text-gray-400">Total Claimable</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-cyan-400">
+                    {odysseyPositions.filter(p => !p.claimed && p.claimStatus === 'eligible').length}
+                  </div>
+                  <div className="text-sm text-gray-400">Unclaimed Positions</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-yellow-400">
+                    {odysseyPositions
+                      .filter(p => selectedOdysseyPositions.has(`${p.cycleId}-${p.slipId}`))
+                      .reduce((sum, p) => sum + parseFloat(p.prizeAmount), 0)
+                      .toFixed(2)}
+                  </div>
+                  <div className="text-sm text-gray-400">Selected Amount</div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Controls */}
@@ -288,83 +463,166 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
                 <ArrowPathIcon className="h-8 w-8 text-cyan-400 animate-spin" />
                 <span className="ml-2 text-gray-400">Loading positions...</span>
               </div>
-            ) : filteredPositions.length === 0 ? (
-              <div className="text-center py-12">
-                <TrophyIcon className="h-12 w-12 text-gray-500 mx-auto mb-4" />
-                <p className="text-gray-400">No positions found</p>
-              </div>
-            ) : (
-              <div className="space-y-2 p-6">
-                {filteredPositions.map((position) => (
-                  <div
-                    key={`${position.poolType}-${position.poolId}`}
-                    className={`p-4 rounded-lg border transition-all ${
-                      position.claimed
-                        ? 'bg-gray-700/30 border-gray-600'
-                        : position.isWinner
-                        ? 'bg-green-900/20 border-green-600/30'
-                        : 'bg-red-900/20 border-red-600/30'
-                    } ${
-                      selectedPositions.has(position.poolId) && !position.claimed
-                        ? 'ring-2 ring-cyan-400'
-                        : ''
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        {!position.claimed && position.isWinner && (
-                          <input
-                            type="checkbox"
-                            checked={selectedPositions.has(position.poolId)}
-                            onChange={() => togglePositionSelection(position.poolId)}
-                            className="w-4 h-4 text-cyan-400 bg-gray-700 border-gray-600 rounded focus:ring-cyan-400"
-                          />
-                        )}
-                        
-                        <div>
-                          <h4 className="font-medium text-white">
-                            {position.marketTitle}
-                          </h4>
-                          <div className="flex items-center gap-4 text-sm text-gray-400">
-                            <span>{position.poolType === 'combo' ? 'Combo' : 'Single'} Pool</span>
-                            <span>Stake: {parseFloat(formatEther(BigInt(position.userStake))).toFixed(2)} {position.usesBitr ? 'BITR' : 'STT'}</span>
-                            <span>Settled: {position.settledAt.toLocaleDateString()}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <div className={`font-bold ${
-                            position.isWinner ? 'text-green-400' : 'text-red-400'
-                          }`}>
-                            {position.isWinner ? '+' : ''}{parseFloat(formatEther(BigInt(position.potentialPayout))).toFixed(2)} {position.usesBitr ? 'BITR' : 'STT'}
-                          </div>
-                          <div className="text-xs text-gray-400">
-                            {position.isWinner ? 'Winnings' : 'Lost'}
+            ) : activeTab === 'pools' ? (
+              filteredPositions.length === 0 ? (
+                <div className="text-center py-12">
+                  <TrophyIcon className="h-12 w-12 text-gray-500 mx-auto mb-4" />
+                  <p className="text-gray-400">No pool positions found</p>
+                </div>
+              ) : (
+                <div className="space-y-2 p-6">
+                  {filteredPositions.map((position) => (
+                    <div
+                      key={`${position.poolType}-${position.poolId}`}
+                      className={`p-4 rounded-lg border transition-all ${
+                        position.claimed
+                          ? 'bg-gray-700/30 border-gray-600'
+                          : position.isWinner
+                          ? 'bg-green-900/20 border-green-600/30'
+                          : 'bg-red-900/20 border-red-600/30'
+                      } ${
+                        selectedPositions.has(position.poolId) && !position.claimed
+                          ? 'ring-2 ring-cyan-400'
+                          : ''
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          {!position.claimed && position.isWinner && (
+                            <input
+                              type="checkbox"
+                              checked={selectedPositions.has(position.poolId)}
+                              onChange={() => togglePositionSelection(position.poolId)}
+                              className="w-4 h-4 text-cyan-400 bg-gray-700 border-gray-600 rounded focus:ring-cyan-400"
+                            />
+                          )}
+                          
+                          <div>
+                            <h4 className="font-medium text-white">
+                              {position.marketTitle}
+                            </h4>
+                            <div className="flex items-center gap-4 text-sm text-gray-400">
+                              <span>{position.poolType === 'combo' ? 'Combo' : 'Single'} Pool</span>
+                              <span>Stake: {parseFloat(formatEther(BigInt(position.userStake))).toFixed(2)} {position.usesBitr ? 'BITR' : 'STT'}</span>
+                              <span>Settled: {position.settledAt.toLocaleDateString()}</span>
+                            </div>
                           </div>
                         </div>
 
-                        {position.claimed ? (
-                          <CheckCircleIcon className="h-6 w-6 text-green-400" />
-                        ) : position.isWinner ? (
-                          <Button
-                            onClick={() => handleClaimSingle(position)}
-                            variant="primary"
-                            size="sm"
-                            disabled={isClaiming}
-                            loading={isClaiming}
-                          >
-                            Claim
-                          </Button>
-                        ) : (
-                          <ExclamationTriangleIcon className="h-6 w-6 text-red-400" />
-                        )}
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <div className={`font-bold ${
+                              position.isWinner ? 'text-green-400' : 'text-red-400'
+                            }`}>
+                              {position.isWinner ? '+' : ''}{parseFloat(formatEther(BigInt(position.potentialPayout))).toFixed(2)} {position.usesBitr ? 'BITR' : 'STT'}
+                            </div>
+                            <div className="text-xs text-gray-400">
+                              {position.isWinner ? 'Winnings' : 'Lost'}
+                            </div>
+                          </div>
+
+                          {position.claimed ? (
+                            <CheckCircleIcon className="h-6 w-6 text-green-400" />
+                          ) : position.isWinner ? (
+                            <Button
+                              onClick={() => handleClaimSingle(position)}
+                              variant="primary"
+                              size="sm"
+                              disabled={isClaiming}
+                              loading={isClaiming}
+                            >
+                              Claim
+                            </Button>
+                          ) : (
+                            <ExclamationTriangleIcon className="h-6 w-6 text-red-400" />
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )
+            ) : (
+              odysseyPositions.length === 0 ? (
+                <div className="text-center py-12">
+                  <TrophyIcon className="h-12 w-12 text-gray-500 mx-auto mb-4" />
+                  <p className="text-gray-400">No Odyssey positions found</p>
+                </div>
+              ) : (
+                <div className="space-y-2 p-6">
+                  {odysseyPositions.map((position) => (
+                    <div
+                      key={`${position.cycleId}-${position.slipId}`}
+                      className={`p-4 rounded-lg border transition-all ${
+                        position.claimed
+                          ? 'bg-gray-700/30 border-gray-600'
+                          : position.claimStatus === 'eligible'
+                          ? 'bg-green-900/20 border-green-600/30'
+                          : 'bg-red-900/20 border-red-600/30'
+                      } ${
+                        selectedOdysseyPositions.has(`${position.cycleId}-${position.slipId}`) && !position.claimed
+                          ? 'ring-2 ring-purple-400'
+                          : ''
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          {!position.claimed && position.claimStatus === 'eligible' && (
+                            <input
+                              type="checkbox"
+                              checked={selectedOdysseyPositions.has(`${position.cycleId}-${position.slipId}`)}
+                              onChange={() => toggleOdysseyPositionSelection(position.cycleId, position.slipId)}
+                              className="w-4 h-4 text-purple-400 bg-gray-700 border-gray-600 rounded focus:ring-purple-400"
+                            />
+                          )}
+                          
+                          <div>
+                            <h4 className="font-medium text-white">
+                              Cycle {position.cycleId} - Slip {position.slipId}
+                            </h4>
+                            <div className="flex items-center gap-4 text-sm text-gray-400">
+                              <span>Correct: {position.correctCount}/10</span>
+                              <span>Placed: {position.placedAt.toLocaleDateString()}</span>
+                              {position.evaluatedAt && (
+                                <span>Evaluated: {position.evaluatedAt.toLocaleDateString()}</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-4">
+                          <div className="text-right">
+                            <div className={`font-bold ${
+                              position.claimStatus === 'eligible' ? 'text-green-400' : 'text-red-400'
+                            }`}>
+                              {position.claimStatus === 'eligible' ? '+' : ''}{parseFloat(position.prizeAmount).toFixed(2)} STT
+                            </div>
+                            <div className="text-xs text-gray-400">
+                              {position.claimStatus === 'eligible' ? 'Prize' : position.reason || 'Not Eligible'}
+                            </div>
+                          </div>
+
+                          {position.claimed ? (
+                            <CheckCircleIcon className="h-6 w-6 text-green-400" />
+                          ) : position.claimStatus === 'eligible' ? (
+                            <Button
+                              onClick={() => handleClaimOdysseySingle(position)}
+                              variant="primary"
+                              size="sm"
+                              disabled={isClaiming}
+                              loading={isClaiming}
+                            >
+                              Claim
+                            </Button>
+                          ) : (
+                            <ExclamationTriangleIcon className="h-6 w-6 text-red-400" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )
             )}
           </div>
 
@@ -388,22 +646,42 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
                   Refresh
                 </Button>
                 
-                {!isConnected ? (
-                  <Button
-                    onClick={connectWallet}
-                    variant="primary"
-                  >
-                    Connect Wallet
-                  </Button>
+                {activeTab === 'pools' ? (
+                  !isConnected ? (
+                    <Button
+                      onClick={connectWallet}
+                      variant="primary"
+                    >
+                      Connect Wallet
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={handleBatchClaim}
+                      variant="primary"
+                      disabled={selectedPositions.size === 0 || isClaiming}
+                      loading={isClaiming}
+                    >
+                      Claim Selected ({selectedPositions.size})
+                    </Button>
+                  )
                 ) : (
-                  <Button
-                    onClick={handleBatchClaim}
-                    variant="primary"
-                    disabled={selectedPositions.size === 0 || isClaiming}
-                    loading={isClaiming}
-                  >
-                    Claim Selected ({selectedPositions.size})
-                  </Button>
+                  !isNewConnected ? (
+                    <Button
+                      onClick={connectWallet}
+                      variant="primary"
+                    >
+                      Connect Wallet
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={handleBatchClaimOdyssey}
+                      variant="primary"
+                      disabled={selectedOdysseyPositions.size === 0 || isClaiming}
+                      loading={isClaiming}
+                    >
+                      Claim Selected ({selectedOdysseyPositions.size})
+                    </Button>
+                  )
                 )}
               </div>
             </div>

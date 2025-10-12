@@ -17,6 +17,7 @@ import EnhancedSlipDisplay from "@/components/EnhancedSlipDisplay";
 import UserStatsCard from "@/components/UserStatsCard";
 import CycleProgress from "@/components/CycleProgress";
 import AnalyticsDashboard from "@/components/AnalyticsDashboard";
+import PrizeClaimModal from "@/components/PrizeClaimModal";
 import { 
   FireIcon, 
   TrophyIcon, 
@@ -182,6 +183,18 @@ export default function OddysseyPage() {
     resetTransactionState();
   }, [clearStatus, resetTransactionState]);
 
+  // Event listener for opening prize claim modal
+  useEffect(() => {
+    const handleOpenPrizeModal = () => {
+      setShowPrizeModal(true);
+    };
+
+    window.addEventListener('openPrizeClaimModal', handleOpenPrizeModal);
+    return () => {
+      window.removeEventListener('openPrizeClaimModal', handleOpenPrizeModal);
+    };
+  }, []);
+
   // Initialize public contract data (no wallet required)
   const initializePublicData = useCallback(async () => {
     try {
@@ -256,7 +269,7 @@ export default function OddysseyPage() {
           })),
           finalScore: slip.finalScore,
           correctCount: slip.correctCount,
-          isEvaluated: slip.isEvaluated,
+            isEvaluated: slip.isEvaluated,
           status: slip.isEvaluated ? (slip.correctCount >= 8 ? 'won' : 'lost') : 'pending' as 'pending' | 'evaluated' | 'won' | 'lost'
         };
         console.log(`🔍 Enhanced slip ${index}:`, enhanced);
@@ -361,7 +374,7 @@ export default function OddysseyPage() {
           await validateWalletClient();
           
           console.log('✅ Wallet client validated, setting up service...');
-          oddysseyService.setWalletClient(walletClient);
+      oddysseyService.setWalletClient(walletClient);
           
           console.log('🎯 Initializing Oddyssey contract...');
           
@@ -405,12 +418,13 @@ export default function OddysseyPage() {
 
   const [picks, setPicks] = useState<Pick[]>([]);
   const [allSlips, setAllSlips] = useState<EnhancedSlip[]>([]); // Enhanced slips with evaluation data
-  const [activeTab, setActiveTab] = useState<"today" | "slips" | "stats" | "results" | "leaderboard" | "analytics">("today");
+  const [activeTab, setActiveTab] = useState<"today" | "slips" | "stats" | "results" | "leaderboard" | "analytics" | "claim">("today");
   const [matches, setMatches] = useState<Match[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [currentPrizePool, setCurrentPrizePool] = useState<CurrentPrizePool | null>(null);
   const [cycleInfo, setCycleInfo] = useState<CycleInfo | null>(null); // Enhanced cycle info
   const [userStats, setUserStats] = useState<UserStats | null>(null); // User stats from contract
+  const [showPrizeModal, setShowPrizeModal] = useState(false);
   // const [dailyStats, setDailyStats] = useState<DailyStats>({
   //   date: new Date().toISOString().split('T')[0],
   //   dailyPlayers: 0,
@@ -1073,22 +1087,22 @@ export default function OddysseyPage() {
       
       try {
         console.log('🎯 Submitting slip to contract...');
-        const txHash = await oddysseyService.placeSlip(predictions);
+      const txHash = await oddysseyService.placeSlip(predictions);
         console.log('✅ Transaction hash received:', txHash);
         
-        setHash(txHash);
-        setIsPending(false);
-        setIsConfirming(true);
-        
-        // Wait for confirmation (simplified - in real app you'd wait for transaction receipt)
-        setTimeout(() => {
-          setIsConfirming(false);
-          setIsSuccess(true);
+      setHash(txHash);
+      setIsPending(false);
+      setIsConfirming(true);
+      
+      // Wait for confirmation (simplified - in real app you'd wait for transaction receipt)
+      setTimeout(() => {
+        setIsConfirming(false);
+        setIsSuccess(true);
           showSuccess("Slip Placed Successfully!", "Your predictions have been submitted to the blockchain and are now active in the competition", txHash);
-          setPicks([]);
-          // Refresh data
-          initializeContract();
-        }, 3000);
+        setPicks([]);
+        // Refresh data
+        initializeContract();
+      }, 3000);
         
       } catch (transactionError) {
         console.error('❌ Transaction submission failed:', transactionError);
@@ -1261,6 +1275,13 @@ export default function OddysseyPage() {
         autoClose={true}
         autoCloseDelay={5000}
         showProgress={true}
+      />
+      
+      {/* Prize Claim Modal */}
+      <PrizeClaimModal
+        isOpen={showPrizeModal}
+        onClose={() => setShowPrizeModal(false)}
+        userAddress={address}
       />
       
       <div className="container mx-auto px-4 py-8">
@@ -1583,6 +1604,18 @@ export default function OddysseyPage() {
               <SparklesIcon className="h-4 w-4 md:h-5 md:w-5" />
               <span className="hidden sm:inline">Analytics</span>
               <span className="sm:hidden">Analytics</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("claim")}
+              className={`px-4 md:px-8 py-2 md:py-3 rounded-button font-semibold transition-all duration-300 flex items-center gap-1 md:gap-2 text-sm md:text-base ${
+                activeTab === "claim"
+                  ? "bg-gradient-to-r from-yellow-500/20 to-orange-500/20 text-yellow-300 shadow-lg shadow-yellow-500/25 scale-105 border border-yellow-500/30"
+                  : "text-text-secondary hover:text-yellow-300 hover:bg-gradient-to-r hover:from-yellow-500/10 hover:to-orange-500/10 hover:border hover:border-yellow-500/20"
+              }`}
+            >
+              <GiftIcon className="h-4 w-4 md:h-5 md:w-5" />
+              <span className="hidden sm:inline">Claim Prizes</span>
+              <span className="sm:hidden">Claim</span>
             </button>
             <button
               onClick={() => setActiveTab("stats")}
@@ -2357,6 +2390,42 @@ export default function OddysseyPage() {
                 <AnalyticsDashboard 
                   cycleId={cycleInfo ? Number(cycleInfo.cycleId) : 1}
                 />
+              </motion.div>
+            ) : activeTab === "claim" ? (
+              <motion.div
+                key="claim"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="lg:col-span-3"
+              >
+                <div className="bg-gray-800/50 rounded-2xl border border-gray-600 p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <GiftIcon className="h-6 w-6 text-yellow-400" />
+                    <h2 className="text-xl font-bold text-white">Claim Odyssey Prizes</h2>
+                  </div>
+                  
+                  <div className="text-center py-12">
+                    <GiftIcon className="h-16 w-16 text-yellow-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-white mb-2">Claim Your Winnings</h3>
+                    <p className="text-gray-400 mb-6">
+                      Use the Prize Claiming modal to view and claim your Odyssey prizes from winning slips.
+                    </p>
+                    
+                    <Button
+                      onClick={() => {
+                        // Open the prize claim modal
+                        const event = new CustomEvent('openPrizeClaimModal');
+                        window.dispatchEvent(event);
+                      }}
+                      variant="primary"
+                      className="flex items-center gap-2 mx-auto"
+                    >
+                      <GiftIcon className="h-5 w-5" />
+                      Open Prize Claiming
+                    </Button>
+                  </div>
+                </div>
               </motion.div>
             ) : null}
           </AnimatePresence>
