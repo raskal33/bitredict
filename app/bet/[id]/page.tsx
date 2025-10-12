@@ -522,9 +522,7 @@ export default function BetPage() {
       const useBitr = pool?.currency === 'BITR';
       await placeBet(parseInt(poolId), betAmount.toString(), useBitr);
       
-      // Success will be handled by the wagmi transaction hooks
-      toast.success('Transaction submitted! Please wait for confirmation.', { id: 'bet-tx' });
-      
+      // Success toast is handled by placeBet function
       // Refresh pool data after a delay to allow for blockchain confirmation
       setTimeout(() => {
         setLastFetchTime(0); // Reset rate limit for manual refresh
