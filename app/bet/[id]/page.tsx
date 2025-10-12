@@ -112,7 +112,6 @@ export default function BetPage() {
     // Rate limiting check
     const now = Date.now();
     if (now - lastFetchTime < FETCH_COOLDOWN) {
-      console.log('Fetch cooldown active, skipping request');
       return;
     }
     setLastFetchTime(now);
@@ -120,8 +119,7 @@ export default function BetPage() {
     try {
       setLoading(true);
       
-      // Fetch pool data from optimized backend API with caching (5-15x faster!)
-      console.log('🚀 Fetching pool data from optimized backend API with caching for bet page:', poolId);
+      // Fetch pool data from optimized backend API with caching
       
       const poolCacheKey = frontendCache.getPoolKey('details', parseInt(poolId));
       const betsCacheKey = `recentBets:pool:${poolId}:50`;
@@ -145,7 +143,6 @@ export default function BetPage() {
       const poolRecentBets = allRecentBets.filter(bet => bet.poolId === parseInt(poolId));
       setRecentBets(poolRecentBets);
       
-      console.log('✅ Pool data loaded with caching:', poolData);
       
       // Generate pool explanation using the service
       const explanationData = {
@@ -166,7 +163,6 @@ export default function BetPage() {
       
       const explanation = PoolExplanationService.generateExplanation(explanationData);
       setPoolExplanation(explanation);
-      console.log('🎯 Generated pool explanation:', explanation);
       
       // Use API data with proper formatting
       const creatorStakeNum = parseFloat(poolData.creatorStake);
@@ -264,9 +260,7 @@ export default function BetPage() {
       });
         
       // Get enhanced pool status from contract (cached for performance)
-      console.log('🔗 Fetching pool settlement status from contract...');
       const poolState = await poolStateService.getPoolState(parseInt(poolId));
-      console.log('✅ Pool contract state:', poolState);
       
       // Determine pool status type using contract data
       if (poolState.settled) {
@@ -305,15 +299,6 @@ export default function BetPage() {
       const bettingAllowed = poolData.canBet ?? (nowTime < bettingEndTime && !eventStarted && !poolFilled);
       setCanBet(bettingAllowed);
       
-      console.log('🔍 Pool state check:', {
-        now: new Date(nowTime).toISOString(),
-        eventStartTime: new Date(eventStartTime).toISOString(),
-        bettingEndTime: new Date(bettingEndTime).toISOString(),
-        eventStarted,
-        poolFilled,
-        fillPercentage: poolData.fillPercentage,
-        bettingAllowed
-      });
       
       // Calculate time left using real event end time
       const timeRemaining = Math.max(0, eventEndTime - nowTime);
@@ -387,7 +372,6 @@ export default function BetPage() {
     if (isApproveConfirmed && waitingForApproval && pendingBetData && address) {
       const proceedWithBet = async () => {
         try {
-          console.log('Approval confirmed, placing bet with data:', pendingBetData);
           toast.loading('Placing bet...', { id: 'bet-tx' });
           const useBitr = pool?.currency === 'BITR';
           await placeBet(parseInt(poolId), pendingBetData.amount.toString(), useBitr);
@@ -496,14 +480,12 @@ export default function BetPage() {
     if(!betType || betAmount <= 0 || !address) return;
     
     try {
-      console.log('Placing bet:', { address, poolId, betType, betAmount });
       
       // Show loading toast
       toast.loading('Preparing transaction...', { id: 'bet-tx' });
       
       // Check if this is a BITR pool and if approval is needed
         if (pool && pool.currency === 'BITR' && needsApproval()) {
-        console.log('BITR approval needed, starting approval process...');
         
         // Store bet data for after approval
         setPendingBetData({ amount: betAmount, type: betType });
@@ -518,7 +500,6 @@ export default function BetPage() {
       }
       
       // For STT pools or if no approval needed, place bet directly
-      console.log('No approval needed, placing bet directly...');
       const useBitr = pool?.currency === 'BITR';
       await placeBet(parseInt(poolId), betAmount.toString(), useBitr);
       
@@ -1241,11 +1222,6 @@ export default function BetPage() {
                {/* Bet Display or Claim Rewards - Conditional based on pool status */}
                <div className="mt-8">
                  {(() => {
-                   console.log('🎯 Render Decision Debug:', {
-                     poolStatusType,
-                     isSettled: poolStatusType && (poolStatusType === 'creator_won' || poolStatusType === 'bettor_won' || poolStatusType === 'settled'),
-                     willShowClaimRewards: poolStatusType && (poolStatusType === 'creator_won' || poolStatusType === 'bettor_won' || poolStatusType === 'settled')
-                   });
                    
                   if (poolStatusType && (poolStatusType === 'creator_won' || poolStatusType === 'bettor_won' || poolStatusType === 'settled')) {
                     return <ClaimRewards pool={{

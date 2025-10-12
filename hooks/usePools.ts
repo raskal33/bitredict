@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { CONTRACTS } from '@/contracts';
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, usePublicClient } from 'wagmi';
+import { CONTRACTS, CONTRACT_ADDRESSES } from '@/contracts';
 import { formatUnits, parseUnits } from 'viem';
 import { encodeBytes32String } from 'ethers';
 import { toast } from 'react-hot-toast';
@@ -83,6 +83,44 @@ export function usePools() {
   const { address } = useAccount();
   const { writeContract, writeContractAsync, data: hash, isPending } = useWriteContract();
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash });
+  const publicClient = usePublicClient();
+
+  // BITR token approval function
+  const approveBITR = async (spender: `0x${string}`, amount: bigint) => {
+    try {
+      const hash = await writeContractAsync({
+        address: CONTRACT_ADDRESSES.BITR_TOKEN,
+        abi: CONTRACTS.BITR_TOKEN.abi,
+        functionName: 'approve',
+        args: [spender, amount],
+        gas: 100000n,
+      });
+      return hash;
+    } catch (error) {
+      console.error('❌ Error approving BITR:', error);
+      throw error;
+    }
+  };
+
+  // Check BITR allowance
+  const getBITRAllowance = async (owner: `0x${string}`, spender: `0x${string}`) => {
+    try {
+      if (!publicClient) {
+        console.error('❌ Public client not available');
+        return 0n;
+      }
+      const result = await publicClient.readContract({
+        address: CONTRACT_ADDRESSES.BITR_TOKEN,
+        abi: CONTRACTS.BITR_TOKEN.abi,
+        functionName: 'allowance',
+        args: [owner, spender],
+      });
+      return result as bigint;
+    } catch (error) {
+      console.error('❌ Error getting BITR allowance:', error);
+      return 0n;
+    }
+  };
 
   // Read contract functions
   const { data: poolCount, refetch: refetchPoolCount } = useReadContract({
@@ -253,92 +291,90 @@ export function usePools() {
 
   const placeBet = async (poolId: number, amount: string, useBitr: boolean = false) => {
     try {
-      console.log('🎯 Placing bet:', { poolId, amount, useBitr });
       const betAmount = parseUnits(amount, 18);
-      console.log('💰 Bet amount in wei:', betAmount.toString());
 
       // Check minimum bet amount
       if (minBetAmount && typeof minBetAmount === 'bigint' && betAmount < minBetAmount) {
         throw new Error(`Bet amount ${amount} STT is below minimum bet amount ${formatUnits(minBetAmount, 18)} STT`);
       }
 
-      // Show loading toast
-      toast.loading('Preparing transaction...', { id: 'bet-tx' });
-
       if (useBitr) {
-        // For BITR pools, we need to handle token approval first
-        // The contract will handle the transferFrom internally
-        console.log('🪙 Placing BITR bet...');
+        // For BITR pools, check and handle approval first
+        if (!address) {
+          throw new Error('Wallet not connected');
+        }
+
+        // Check current allowance
+        const currentAllowance = await getBITRAllowance(address, CONTRACT_ADDRESSES.POOL_CORE);
         
-        // Use writeContractAsync for proper wallet interaction
+        if (currentAllowance < betAmount) {
+          // Need to approve more tokens
+          toast.loading('Approving BITR tokens...', { id: 'bet-tx' });
+          
+          try {
+            await approveBITR(CONTRACT_ADDRESSES.POOL_CORE, betAmount);
+            toast.success('BITR tokens approved!', { id: 'bet-tx' });
+          } catch (error) {
+            toast.error('Failed to approve BITR tokens.', { id: 'bet-tx' });
+            throw error;
+          }
+        }
+
+        // Place the bet
+        toast.loading('Placing BITR bet...', { id: 'bet-tx' });
+        
         const hash = await writeContractAsync({
           ...CONTRACTS.POOL_CORE,
           functionName: 'placeBet',
           args: [BigInt(poolId), betAmount],
-          gas: 300000n, // Set explicit gas limit
+          gas: 300000n,
         });
         
-        console.log('✅ BITR bet transaction hash:', hash);
-        toast.success('BITR bet transaction submitted! Please confirm in your wallet.', { id: 'bet-tx' });
+        toast.success('BITR bet placed successfully!', { id: 'bet-tx' });
         return hash;
       } else {
         // For STT pools, send native token as value
-        console.log('💎 Placing STT bet...');
+        toast.loading('Placing STT bet...', { id: 'bet-tx' });
         
-        // Use writeContractAsync for proper wallet interaction
         const hash = await writeContractAsync({
           ...CONTRACTS.POOL_CORE,
           functionName: 'placeBet',
           args: [BigInt(poolId), betAmount],
           value: betAmount,
-          gas: 300000n, // Set explicit gas limit
+          gas: 300000n,
         });
         
-        console.log('✅ STT bet transaction hash:', hash);
-        toast.success('STT bet transaction submitted! Please confirm in your wallet.', { id: 'bet-tx' });
+        toast.success('STT bet placed successfully!', { id: 'bet-tx' });
         return hash;
       }
     } catch (error) {
-      console.error('❌ Error in placeBet:', error);
-      
-      // Dismiss loading toast
       toast.dismiss('bet-tx');
       
-      // Enhanced error handling for common contract errors
       if (error instanceof Error) {
         if (error.message.includes('Bet below minimum')) {
-          toast.error('Bet amount is below the minimum required. Please increase your bet amount.');
-          throw new Error(`Bet amount is below the minimum required. Please increase your bet amount.`);
+          toast.error('Bet amount is below the minimum required.');
         } else if (error.message.includes('Pool settled')) {
-          toast.error('This pool has already been settled. You cannot place bets on settled pools.');
-          throw new Error(`This pool has already been settled. You cannot place bets on settled pools.`);
+          toast.error('This pool has already been settled.');
         } else if (error.message.includes('Betting period ended')) {
-          toast.error('The betting period for this pool has ended. You cannot place bets anymore.');
-          throw new Error(`The betting period for this pool has ended. You cannot place bets anymore.`);
+          toast.error('The betting period for this pool has ended.');
         } else if (error.message.includes('Pool full')) {
-          toast.error('This pool is full. The maximum bet capacity has been reached.');
-          throw new Error(`This pool is full. The maximum bet capacity has been reached.`);
+          toast.error('This pool is full.');
         } else if (error.message.includes('Too many participants')) {
           toast.error('This pool has reached the maximum number of participants.');
-          throw new Error(`This pool has reached the maximum number of participants.`);
         } else if (error.message.includes('Exceeds max bet per user')) {
           toast.error('Your bet exceeds the maximum bet per user for this pool.');
-          throw new Error(`Your bet exceeds the maximum bet per user for this pool.`);
         } else if (error.message.includes('Not whitelisted')) {
           toast.error('You are not whitelisted for this private pool.');
-          throw new Error(`You are not whitelisted for this private pool.`);
         } else if (error.message.includes('user rejected') || error.message.includes('User denied')) {
-          toast.error('Transaction was cancelled by user. Please try again if you want to place the bet.');
-          throw new Error(`Transaction was cancelled by user. Please try again if you want to place the bet.`);
+          toast.error('Transaction was cancelled by user.');
         } else if (error.message.includes('insufficient funds')) {
-          toast.error('Insufficient funds. Please ensure you have enough tokens to place this bet.');
-          throw new Error(`Insufficient funds. Please ensure you have enough tokens to place this bet.`);
+          toast.error('Insufficient funds. Please ensure you have enough tokens.');
+        } else if (error.message.includes('BITR transfer failed')) {
+          toast.error('BITR token transfer failed. Please check your balance and try again.');
         } else if (error.message.includes('gas')) {
-          toast.error('Gas estimation failed. Please try again or check your network connection.');
-          throw new Error(`Gas estimation failed. Please try again or check your network connection.`);
+          toast.error('Gas estimation failed. Please try again.');
         } else if (error.message.includes('Internal JSON-RPC error')) {
-          toast.error('Network error. Please check your connection and try again.');
-          throw new Error(`Network error. Please check your connection and try again.`);
+          toast.error('Network error. Please check your connection.');
         } else {
           toast.error('Failed to place bet. Please try again.');
         }
