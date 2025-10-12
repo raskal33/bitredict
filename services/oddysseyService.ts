@@ -81,6 +81,7 @@ export interface CycleInfo {
   slipCount: bigint;
   evaluatedSlips: bigint; // Added missing field
   hasWinner: boolean; // Added missing field
+  rolloverAmount?: bigint; // Added rollover amount for display
 }
 
 export interface UserStats {
@@ -185,11 +186,19 @@ class OddysseyService {
         args: [currentCycle],
       });
       
-      const [exists, state, endTime, prizePool, cycleSlipCount, hasWinner] = result as [boolean, number, bigint, bigint, bigint, boolean];
+      const [exists, state, endTime, _, cycleSlipCount, hasWinner] = result as [boolean, number, bigint, bigint, bigint, boolean];
       
       if (!exists) {
         throw new Error(`Cycle ${currentCycle} does not exist`);
       }
+      
+      // Get actual prize pool (includes rollover) using dailyPrizePools
+      const actualPrizePool = await this.publicClient.readContract({
+        address: CONTRACTS.ODDYSSEY.address,
+        abi: CONTRACTS.ODDYSSEY.abi,
+        functionName: 'dailyPrizePools',
+        args: [currentCycle],
+      });
       
       // Get additional cycle info from cycleInfo mapping
       const cycleInfoResult = await this.publicClient.readContract({
@@ -201,15 +210,19 @@ class OddysseyService {
       
       const cycleInfoData = cycleInfoResult as any;
       
+      // Calculate rollover amount
+      const rolloverAmount = await this.calculateRolloverAmount(currentCycle);
+      
       return {
         cycleId: currentCycle,
         state,
         startTime: cycleInfoData.startTime || BigInt(0),
         endTime,
-        prizePool,
+        prizePool: actualPrizePool as bigint, // Use correct prize pool with rollover
         slipCount: cycleSlipCount,
         evaluatedSlips: cycleInfoData.evaluatedSlips || BigInt(0),
-        hasWinner
+        hasWinner,
+        rolloverAmount // Add rollover amount for display
       };
     } catch (error) {
       console.error('Error getting current cycle info:', error);
@@ -231,12 +244,58 @@ class OddysseyService {
           prizePool,
           slipCount,
           evaluatedSlips: BigInt(0), // Not available in basic function
-          hasWinner: false // Not available in basic function
+          hasWinner: false, // Not available in basic function
+          rolloverAmount: BigInt(0) // Not available in basic function
         };
       } catch (fallbackError) {
         console.error('Error with fallback getCurrentCycleInfo:', fallbackError);
         throw error;
       }
+    }
+  }
+
+  // Calculate rollover amount from previous cycle
+  async calculateRolloverAmount(cycleId: bigint): Promise<bigint> {
+    try {
+      if (cycleId <= 1n) return BigInt(0);
+      
+      const previousCycle = cycleId - 1n;
+      
+      // Get previous cycle's leaderboard
+      const leaderboard = await this.publicClient.readContract({
+        address: CONTRACTS.ODDYSSEY.address,
+        abi: CONTRACTS.ODDYSSEY.abi,
+        functionName: 'getDailyLeaderboard',
+        args: [previousCycle],
+      });
+      
+      // Check if previous cycle had a winner (top player with 7+ correct predictions)
+      const topPlayer = (leaderboard as any[])[0];
+      const hasWinner = topPlayer && 
+                      topPlayer.player !== '0x0000000000000000000000000000000000000000' && 
+                      Number(topPlayer.correctCount) >= 7;
+      
+      if (!hasWinner) {
+        // Get previous cycle's prize pool
+        const previousPrizePool = await this.publicClient.readContract({
+          address: CONTRACTS.ODDYSSEY.address,
+          abi: CONTRACTS.ODDYSSEY.abi,
+          functionName: 'dailyPrizePools',
+          args: [previousCycle],
+        });
+        
+        // Calculate rollover: 95% of previous prize pool (5% fee deducted)
+        const PRIZE_ROLLOVER_FEE_PERCENTAGE = 500; // 5% = 500 basis points
+        const fee = (previousPrizePool as bigint * BigInt(PRIZE_ROLLOVER_FEE_PERCENTAGE)) / BigInt(10000);
+        const rolloverAmount = (previousPrizePool as bigint) - fee;
+        
+        return rolloverAmount;
+      }
+      
+      return BigInt(0);
+    } catch (error) {
+      console.error('Error calculating rollover amount:', error);
+      return BigInt(0);
     }
   }
 

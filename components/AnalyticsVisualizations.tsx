@@ -33,49 +33,77 @@ interface AnalyticsChartProps {
 }
 
 export function AnalyticsChart({ title, type, data, height = 200, showLegend = true, className = "" }: AnalyticsChartProps) {
-  const maxValue = Math.max(...data.data);
+  // Remove unused maxValue since we calculate it per chart type
   
-  const renderBarChart = () => (
-    <div className="flex items-end justify-between gap-2 h-full">
-      {data.data.map((value, index) => (
-        <motion.div
-          key={index}
-          initial={{ height: 0 }}
-          animate={{ height: `${(value / maxValue) * 100}%` }}
-          transition={{ delay: index * 0.1, duration: 0.6 }}
-          className="flex-1 min-w-0 flex flex-col items-center gap-2"
-        >
-          <div 
-            className="w-full rounded-t-lg relative overflow-hidden"
-            style={{ backgroundColor: data.colors[index] || '#22C7FF' }}
-          >
+  const renderBarChart = () => {
+    // Ensure we have valid data
+    const validData = data.data.filter(value => !isNaN(value) && isFinite(value));
+    const validMaxValue = validData.length > 0 ? Math.max(...validData) : 1;
+    
+    if (validData.length === 0) {
+      return (
+        <div className="flex items-center justify-center h-full">
+          <p className="text-gray-400 text-sm">No data available</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex items-end justify-between gap-2 h-full">
+        {data.data.map((value, index) => {
+          const validValue = isNaN(value) || !isFinite(value) ? 0 : value;
+          const heightPercent = validMaxValue > 0 ? (validValue / validMaxValue) * 100 : 0;
+          
+          return (
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.3 }}
-              transition={{ delay: index * 0.1 + 0.3 }}
-              className="absolute inset-0 bg-gradient-to-t from-transparent to-white"
-            />
-          </div>
-          <div className="text-xs text-gray-400 text-center truncate w-full">
-            {data.labels[index]}
-          </div>
-          <div className="text-xs font-medium text-white">
-            {value}
-          </div>
-        </motion.div>
-      ))}
-    </div>
-  );
+              key={index}
+              initial={{ height: 0 }}
+              animate={{ height: `${heightPercent}%` }}
+              transition={{ delay: index * 0.1, duration: 0.6 }}
+              className="flex-1 min-w-0 flex flex-col items-center gap-2"
+            >
+              <div 
+                className="w-full rounded-t-lg relative overflow-hidden"
+                style={{ backgroundColor: data.colors[index] || '#22C7FF' }}
+              >
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 0.3 }}
+                  transition={{ delay: index * 0.1 + 0.3 }}
+                  className="absolute inset-0 bg-gradient-to-t from-transparent to-white"
+                />
+              </div>
+              <div className="text-xs text-gray-400 text-center truncate w-full">
+                {data.labels[index]}
+              </div>
+              <div className="text-xs font-medium text-white">
+                {validValue}
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
+    );
+  };
 
   const renderDoughnutChart = () => {
-    const total = data.data.reduce((sum, val) => sum + val, 0);
+    const validData = data.data.filter(value => !isNaN(value) && isFinite(value));
+    const total = validData.reduce((sum, val) => sum + val, 0);
     let cumulativePercentage = 0;
+    
+    if (total === 0) {
+      return (
+        <div className="flex items-center justify-center h-full">
+          <p className="text-gray-400 text-sm">No data available</p>
+        </div>
+      );
+    }
     
     return (
       <div className="flex items-center justify-center">
         <div className="relative w-32 h-32">
           <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-            {data.data.map((value, index) => {
+            {validData.map((value, index) => {
               const percentage = (value / total) * 100;
               const strokeDasharray = `${percentage} ${100 - percentage}`;
               const strokeDashoffset = -cumulativePercentage;
@@ -110,93 +138,134 @@ export function AnalyticsChart({ title, type, data, height = 200, showLegend = t
     );
   };
 
-  const renderLineChart = () => (
-    <div className="relative h-full">
-      <svg className="w-full h-full" viewBox="0 0 400 200">
-        <defs>
-          <linearGradient id={`gradient-${title}`} x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#22C7FF" stopOpacity="0.3"/>
-            <stop offset="100%" stopColor="#22C7FF" stopOpacity="0"/>
-          </linearGradient>
-        </defs>
-        
-        {/* Grid lines */}
-        {[0, 25, 50, 75, 100].map((y) => (
-          <line
-            key={y}
-            x1="0"
-            y1={y * 2}
-            x2="400"
-            y2={y * 2}
-            stroke="#374151"
-            strokeWidth="0.5"
-            opacity="0.3"
-          />
-        ))}
-        
-        {/* Data line */}
-        <motion.path
-          initial={{ pathLength: 0 }}
-          animate={{ pathLength: 1 }}
-          transition={{ duration: 1.5, ease: "easeInOut" }}
-          d={`M ${data.data.map((value, index) => 
-            `${(index / (data.data.length - 1)) * 400},${200 - (value / maxValue) * 180}`
-          ).join(' L ')}`}
-          fill="none"
-          stroke="#22C7FF"
-          strokeWidth="3"
-          strokeLinecap="round"
-        />
-        
-        {/* Area fill */}
-        <motion.path
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5, duration: 1 }}
-          d={`M ${data.data.map((value, index) => 
-            `${(index / (data.data.length - 1)) * 400},${200 - (value / maxValue) * 180}`
-          ).join(' L ')} L 400,200 L 0,200 Z`}
-          fill={`url(#gradient-${title})`}
-        />
-        
-        {/* Data points */}
-        {data.data.map((value, index) => (
-          <motion.circle
-            key={index}
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: index * 0.1 + 0.8 }}
-            cx={(index / (data.data.length - 1)) * 400}
-            cy={200 - (value / maxValue) * 180}
-            r="4"
-            fill="#22C7FF"
-            stroke="#1F2937"
-            strokeWidth="2"
-          />
-        ))}
-      </svg>
-    </div>
-  );
+  const renderLineChart = () => {
+    // Ensure we have valid data
+    const validData = data.data.filter(value => !isNaN(value) && isFinite(value));
+    const validMaxValue = validData.length > 0 ? Math.max(...validData) : 1;
+    
+    if (validData.length === 0) {
+      return (
+        <div className="flex items-center justify-center h-full">
+          <p className="text-gray-400 text-sm">No data available</p>
+        </div>
+      );
+    }
 
-  const renderHeatmap = () => (
-    <div className="grid grid-cols-5 gap-1 h-full">
-      {data.data.map((value, index) => (
-        <motion.div
-          key={index}
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: index * 0.05 }}
-          className="rounded-lg flex items-center justify-center text-xs font-medium text-white"
-          style={{ 
-            backgroundColor: data.colors[index] || '#22C7FF',
-            opacity: value / maxValue 
-          }}
-        >
-          {value}
-        </motion.div>
-      ))}
-    </div>
-  );
+    return (
+      <div className="relative h-full">
+        <svg className="w-full h-full" viewBox="0 0 400 200">
+          <defs>
+            <linearGradient id={`gradient-${title}`} x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#22C7FF" stopOpacity="0.3"/>
+              <stop offset="100%" stopColor="#22C7FF" stopOpacity="0"/>
+            </linearGradient>
+          </defs>
+          
+          {/* Grid lines */}
+          {[0, 25, 50, 75, 100].map((y) => (
+            <line
+              key={y}
+              x1="0"
+              y1={y * 2}
+              x2="400"
+              y2={y * 2}
+              stroke="#374151"
+              strokeWidth="0.5"
+              opacity="0.3"
+            />
+          ))}
+          
+          {/* Data line */}
+          <motion.path
+            initial={{ pathLength: 0 }}
+            animate={{ pathLength: 1 }}
+            transition={{ duration: 1.5, ease: "easeInOut" }}
+            d={`M ${validData.map((value, index) => {
+              const x = (index / Math.max(validData.length - 1, 1)) * 400;
+              const y = 200 - (value / validMaxValue) * 180;
+              return `${x},${y}`;
+            }).join(' L ')}`}
+            fill="none"
+            stroke="#22C7FF"
+            strokeWidth="3"
+            strokeLinecap="round"
+          />
+          
+          {/* Area fill */}
+          <motion.path
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5, duration: 1 }}
+            d={`M ${validData.map((value, index) => {
+              const x = (index / Math.max(validData.length - 1, 1)) * 400;
+              const y = 200 - (value / validMaxValue) * 180;
+              return `${x},${y}`;
+            }).join(' L ')} L 400,200 L 0,200 Z`}
+            fill={`url(#gradient-${title})`}
+          />
+          
+          {/* Data points */}
+          {validData.map((value, index) => {
+            const x = (index / Math.max(validData.length - 1, 1)) * 400;
+            const y = 200 - (value / validMaxValue) * 180;
+            return (
+              <motion.circle
+                key={index}
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: index * 0.1 + 0.8 }}
+                cx={x}
+                cy={y}
+                r="4"
+                fill="#22C7FF"
+                stroke="#1F2937"
+                strokeWidth="2"
+              />
+            );
+          })}
+        </svg>
+      </div>
+    );
+  };
+
+  const renderHeatmap = () => {
+    // Ensure we have valid data
+    const validData = data.data.filter(value => !isNaN(value) && isFinite(value));
+    const validMaxValue = validData.length > 0 ? Math.max(...validData) : 1;
+    
+    if (validData.length === 0) {
+      return (
+        <div className="flex items-center justify-center h-full">
+          <p className="text-gray-400 text-sm">No data available</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="grid grid-cols-5 gap-1 h-full">
+        {data.data.map((value, index) => {
+          const validValue = isNaN(value) || !isFinite(value) ? 0 : value;
+          const opacity = validMaxValue > 0 ? validValue / validMaxValue : 0;
+          
+          return (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: index * 0.05 }}
+              className="rounded-lg flex items-center justify-center text-xs font-medium text-white"
+              style={{ 
+                backgroundColor: data.colors[index] || '#22C7FF',
+                opacity: Math.max(opacity, 0.1) // Minimum opacity for visibility
+              }}
+            >
+              {validValue}
+            </motion.div>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <motion.div

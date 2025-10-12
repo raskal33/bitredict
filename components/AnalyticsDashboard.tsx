@@ -229,32 +229,32 @@ export default function AnalyticsDashboard({ cycleId = 1, className = "" }: Anal
 
   const renderCycleAnalysis = () => (
     <div className="space-y-6">
-      {cycleAnalytics && (
+      {cycleAnalytics ? (
         <>
           {/* Participation Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <InfographicCard
               title="Total Slips"
-              value={cycleAnalytics.participationMetrics.totalSlips.toString()}
-              trend={cycleAnalytics.participationMetrics.participationGrowth}
+              value={cycleAnalytics.participationMetrics?.totalSlips?.toString() || '0'}
+              trend={cycleAnalytics.participationMetrics?.participationGrowth}
               icon={FireIcon}
               color="primary"
             />
             <InfographicCard
               title="Unique Users"
-              value={cycleAnalytics.participationMetrics.uniqueUsers.toString()}
+              value={cycleAnalytics.participationMetrics?.uniqueUsers?.toString() || '0'}
               icon={UsersIcon}
               color="secondary"
             />
             <InfographicCard
               title="Average Score"
-              value={cycleAnalytics.performanceMetrics.averageCorrectPredictions.toFixed(1)}
+              value={cycleAnalytics.performanceMetrics?.averageCorrectPredictions?.toFixed(1) || '0.0'}
               icon={ArrowTrendingUpIcon}
               color="success"
             />
             <InfographicCard
               title="Win Rate"
-              value={`${cycleAnalytics.performanceMetrics.winRate.toFixed(1)}%`}
+              value={`${cycleAnalytics.performanceMetrics?.winRate?.toFixed(1) || '0.0'}%`}
               icon={SparklesIcon}
               color="warning"
             />
@@ -271,35 +271,41 @@ export default function AnalyticsDashboard({ cycleId = 1, className = "" }: Anal
                 <div className="flex justify-between items-center">
                   <span className="text-gray-300">Perfect Slips</span>
                   <span className="text-green-400 font-bold">
-                    {cycleAnalytics.performanceMetrics.perfectSlips}
+                    {cycleAnalytics.performanceMetrics?.perfectSlips || 0}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-300">Highest Score</span>
                   <span className="text-cyan-400 font-bold">
-                    {cycleAnalytics.performanceMetrics.highestScore}
+                    {cycleAnalytics.performanceMetrics?.highestScore || 0}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-300">Avg Slips/User</span>
                   <span className="text-purple-400 font-bold">
-                    {cycleAnalytics.participationMetrics.averageSlipsPerUser.toFixed(1)}
+                    {cycleAnalytics.participationMetrics?.averageSlipsPerUser?.toFixed(1) || '0.0'}
                   </span>
                 </div>
               </div>
             </div>
 
             <SmartInsights
-              insights={cycleAnalytics.insights.map(insight => ({
+              insights={cycleAnalytics.insights?.map(insight => ({
                 title: 'Cycle Analysis',
                 description: insight,
-                impact: 'positive',
-                category: 'trend'
-              }))}
+                impact: 'positive' as const,
+                category: 'trend' as const
+              })) || []}
               title="Cycle Insights"
             />
           </div>
         </>
+      ) : (
+        <div className="text-center py-12">
+          <ChartBarIcon className="w-16 h-16 text-gray-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-300 mb-2">Loading Cycle Data</h3>
+          <p className="text-gray-400">Fetching cycle analytics...</p>
+        </div>
       )}
     </div>
   );
@@ -308,11 +314,11 @@ export default function AnalyticsDashboard({ cycleId = 1, className = "" }: Anal
     if (!isConnected || !userAnalytics) {
       return (
         <div className="text-center py-12">
-          <UsersIcon className="w-16 h-16 text-gray-500 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-300 mb-2">Connect Wallet</h3>
-          <p className="text-gray-400">Connect your wallet to view personal analytics</p>
-        </div>
-      );
+        <UsersIcon className="w-16 h-16 text-gray-500 mx-auto mb-4" />
+        <h3 className="text-lg font-semibold text-gray-300 mb-2">Connect Wallet</h3>
+        <p className="text-gray-400">Connect your wallet to view personal analytics</p>
+      </div>
+    );
     }
 
     return (
@@ -321,26 +327,26 @@ export default function AnalyticsDashboard({ cycleId = 1, className = "" }: Anal
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <InfographicCard
             title="Total Slips"
-            value={userAnalytics.performanceMetrics.totalSlips.toString()}
+            value={userAnalytics.performanceMetrics?.totalSlips?.toString() || '0'}
             icon={FireIcon}
             color="primary"
           />
           <InfographicCard
             title="Win Rate"
-            value={`${userAnalytics.performanceMetrics.winRate.toFixed(1)}%`}
-              trend={userAnalytics.performanceMetrics.improvement}
-              icon={ArrowTrendingUpIcon}
+            value={`${userAnalytics.performanceMetrics?.winRate?.toFixed(1) || '0.0'}%`}
+            trend={userAnalytics.performanceMetrics?.improvement}
+            icon={ArrowTrendingUpIcon}
             color="success"
           />
           <InfographicCard
             title="Best Streak"
-            value={userAnalytics.performanceMetrics.bestStreak.toString()}
+            value={userAnalytics.performanceMetrics?.bestStreak?.toString() || '0'}
             icon={SparklesIcon}
             color="warning"
           />
           <InfographicCard
             title="Current Streak"
-            value={userAnalytics.performanceMetrics.currentStreak.toString()}
+            value={userAnalytics.performanceMetrics?.currentStreak?.toString() || '0'}
             icon={BoltIcon}
             color="secondary"
           />
@@ -357,33 +363,33 @@ export default function AnalyticsDashboard({ cycleId = 1, className = "" }: Anal
               <div className="flex justify-between items-center">
                 <span className="text-gray-300">Risk Profile</span>
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  userAnalytics.behaviorPatterns.riskProfile === 'aggressive' ? 'bg-red-500/20 text-red-400' :
-                  userAnalytics.behaviorPatterns.riskProfile === 'balanced' ? 'bg-yellow-500/20 text-yellow-400' :
+                  userAnalytics.behaviorPatterns?.riskProfile === 'aggressive' ? 'bg-red-500/20 text-red-400' :
+                  userAnalytics.behaviorPatterns?.riskProfile === 'balanced' ? 'bg-yellow-500/20 text-yellow-400' :
                   'bg-green-500/20 text-green-400'
                 }`}>
-                  {userAnalytics.behaviorPatterns.riskProfile}
+                  {userAnalytics.behaviorPatterns?.riskProfile || 'balanced'}
                 </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-gray-300">Activity Level</span>
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  userAnalytics.behaviorPatterns.activityPattern === 'hardcore' ? 'bg-purple-500/20 text-purple-400' :
-                  userAnalytics.behaviorPatterns.activityPattern === 'regular' ? 'bg-blue-500/20 text-blue-400' :
+                  userAnalytics.behaviorPatterns?.activityPattern === 'hardcore' ? 'bg-purple-500/20 text-purple-400' :
+                  userAnalytics.behaviorPatterns?.activityPattern === 'regular' ? 'bg-blue-500/20 text-blue-400' :
                   'bg-gray-500/20 text-gray-400'
                 }`}>
-                  {userAnalytics.behaviorPatterns.activityPattern}
+                  {userAnalytics.behaviorPatterns?.activityPattern || 'casual'}
                 </span>
               </div>
             </div>
           </div>
 
           <SmartInsights
-            insights={userAnalytics.insights.map(insight => ({
+            insights={userAnalytics.insights?.map(insight => ({
               title: 'Personal Insight',
               description: insight,
-              impact: 'positive',
-              category: 'performance'
-            }))}
+              impact: 'positive' as const,
+              category: 'performance' as const
+            })) || []}
             title="Your Insights"
           />
         </div>
@@ -398,24 +404,28 @@ export default function AnalyticsDashboard({ cycleId = 1, className = "" }: Anal
             <div>
               <h4 className="text-sm font-medium text-gray-300 mb-3">Badges</h4>
               <div className="flex flex-wrap gap-2">
-                {userAnalytics.achievements.badges.map((badge, index) => (
+                {userAnalytics.achievements?.badges?.map((badge, index) => (
                   <span key={index} className="px-3 py-1 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-400 border border-cyan-500/30 rounded-full text-xs font-medium">
                     {badge}
                   </span>
-                ))}
+                )) || (
+                  <span className="text-gray-400 text-sm">No badges yet</span>
+                )}
               </div>
             </div>
             <div>
               <h4 className="text-sm font-medium text-gray-300 mb-3">Rankings</h4>
               <div className="space-y-2">
-                {userAnalytics.achievements.rankings.map((ranking, index) => (
+                {userAnalytics.achievements?.rankings?.map((ranking, index) => (
                   <div key={index} className="flex justify-between items-center text-sm">
                     <span className="text-gray-300">{ranking.category}</span>
                     <span className="text-cyan-400 font-medium">
                       #{ranking.position} of {ranking.total}
                     </span>
                   </div>
-                ))}
+                )) || (
+                  <span className="text-gray-400 text-sm">No rankings available</span>
+                )}
               </div>
             </div>
           </div>
@@ -426,37 +436,37 @@ export default function AnalyticsDashboard({ cycleId = 1, className = "" }: Anal
 
   const renderPlatformHealth = () => (
     <div className="space-y-6">
-      {platformAnalytics && (
+      {platformAnalytics ? (
         <>
           {/* Global Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <InfographicCard
               title="Total Users"
-              value={platformAnalytics.globalMetrics.totalUsers.toLocaleString()}
+              value={platformAnalytics.globalMetrics?.totalUsers?.toLocaleString() || '0'}
               icon={UsersIcon}
               color="primary"
             />
             <InfographicCard
               title="Total Volume"
-              value={`${platformAnalytics.globalMetrics.totalVolume.toFixed(1)}K STT`}
+              value={`${platformAnalytics.globalMetrics?.totalVolume?.toFixed(1) || '0.0'}K STT`}
               icon={ArrowTrendingUpIcon}
               color="success"
             />
             <InfographicCard
               title="Daily Active"
-              value={platformAnalytics.engagementMetrics.dailyActiveUsers.toString()}
+              value={platformAnalytics.engagementMetrics?.dailyActiveUsers?.toString() || '0'}
               icon={FireIcon}
               color="warning"
             />
             <InfographicCard
               title="Retention Rate"
-              value={`${platformAnalytics.engagementMetrics.retentionRate.toFixed(1)}%`}
+              value={`${platformAnalytics.engagementMetrics?.retentionRate?.toFixed(1) || '0.0'}%`}
               icon={SparklesIcon}
               color="secondary"
             />
             <InfographicCard
               title="Platform Health"
-              value={platformAnalytics.performanceInsights.platformHealth}
+              value={platformAnalytics.performanceInsights?.platformHealth || 'unknown'}
               icon={BoltIcon}
               color="accent"
             />
@@ -464,15 +474,21 @@ export default function AnalyticsDashboard({ cycleId = 1, className = "" }: Anal
 
           {/* Platform Insights */}
           <SmartInsights
-            insights={platformAnalytics.insights.map(insight => ({
+            insights={platformAnalytics.insights?.map(insight => ({
               title: 'Platform Analysis',
               description: insight,
-              impact: 'positive',
-              category: 'trend'
-            }))}
+              impact: 'positive' as const,
+              category: 'trend' as const
+            })) || []}
             title="Platform Insights"
           />
         </>
+      ) : (
+        <div className="text-center py-12">
+          <BoltIcon className="w-16 h-16 text-gray-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-300 mb-2">Loading Platform Data</h3>
+          <p className="text-gray-400">Fetching platform analytics...</p>
+        </div>
       )}
     </div>
   );

@@ -21,6 +21,7 @@ interface CycleInfo {
   slipCount: bigint;
   evaluatedSlips: bigint;
   hasWinner: boolean;
+  rolloverAmount?: bigint; // Added rollover amount for display
 }
 
 interface CycleProgressProps {
@@ -154,12 +155,17 @@ export default function CycleProgress({ cycleInfo, className = "" }: CycleProgre
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="text-center p-3 bg-gray-800/30 rounded-lg">
           <div className="text-xl font-bold text-primary mb-1">
             {formatEther(cycleInfo.prizePool)}
           </div>
-          <div className="text-xs text-gray-400">Prize Pool (STT)</div>
+          <div className="text-xs text-gray-400">Total Prize Pool (STT)</div>
+          {cycleInfo.rolloverAmount && cycleInfo.rolloverAmount > 0n && (
+            <div className="text-xs text-green-400 mt-1">
+              +{formatEther(cycleInfo.rolloverAmount)} rollover
+            </div>
+          )}
         </div>
         
         <div className="text-center p-3 bg-gray-800/30 rounded-lg">
@@ -169,11 +175,18 @@ export default function CycleProgress({ cycleInfo, className = "" }: CycleProgre
           <div className="text-xs text-gray-400">Total Slips</div>
         </div>
         
-        <div className="text-center p-3 bg-gray-800/30 rounded-lg col-span-2 md:col-span-1">
+        <div className="text-center p-3 bg-gray-800/30 rounded-lg">
           <div className="text-xl font-bold text-accent mb-1">
             {Number(cycleInfo.evaluatedSlips)}
           </div>
           <div className="text-xs text-gray-400">Evaluated</div>
+        </div>
+        
+        <div className="text-center p-3 bg-gray-800/30 rounded-lg">
+          <div className="text-xl font-bold text-warning mb-1">
+            {cycleInfo.rolloverAmount && cycleInfo.rolloverAmount > 0n ? 'Yes' : 'No'}
+          </div>
+          <div className="text-xs text-gray-400">Rollover</div>
         </div>
       </div>
 
