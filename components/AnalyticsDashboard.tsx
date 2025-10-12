@@ -80,7 +80,7 @@ export default function AnalyticsDashboard({ cycleId = 1, className = "" }: Anal
     <div className="space-y-6">
       {/* Key Metrics Row */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {visualizationData?.infographics.keyStats.map((stat, index) => (
+        {visualizationData?.infographics?.keyStats?.map((stat, index) => (
           <InfographicCard
             key={index}
             title={stat.label}
@@ -88,12 +88,36 @@ export default function AnalyticsDashboard({ cycleId = 1, className = "" }: Anal
             trend={stat.trend}
             color={index % 2 === 0 ? 'primary' : 'secondary'}
           />
-        ))}
+        )) || (
+          // Fallback when no data is available
+          <>
+            <InfographicCard
+              title="Total Slips"
+              value="0"
+              color="primary"
+            />
+            <InfographicCard
+              title="Win Rate"
+              value="0%"
+              color="secondary"
+            />
+            <InfographicCard
+              title="Perfect Slips"
+              value="0"
+              color="accent"
+            />
+            <InfographicCard
+              title="Active Users"
+              value="0"
+              color="success"
+            />
+          </>
+        )}
       </div>
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {visualizationData && (
+        {visualizationData?.charts ? (
           <>
             <AnalyticsChart
               title="Selection Distribution"
@@ -112,12 +136,36 @@ export default function AnalyticsDashboard({ cycleId = 1, className = "" }: Anal
               height={250}
             />
           </>
+        ) : (
+          // Fallback charts when no data is available
+          <>
+            <AnalyticsChart
+              title="Selection Distribution"
+              type="doughnut"
+              data={{
+                labels: ['Home Win', 'Draw', 'Away Win', 'Over 2.5', 'Under 2.5'],
+                data: [0, 0, 0, 0, 0],
+                colors: ['#22C7FF', '#FF0080', '#8C00FF', '#00FF88', '#FFB800']
+              }}
+              height={250}
+            />
+            <AnalyticsChart
+              title="Performance Trends"
+              type="line"
+              data={{
+                labels: ['Cycle 1', 'Cycle 2', 'Cycle 3'],
+                data: [0, 0, 0],
+                colors: ['#22C7FF']
+              }}
+              height={250}
+            />
+          </>
         )}
       </div>
 
       {/* Insights and Popular Selections */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {visualizationData?.infographics.insights && (
+        {visualizationData?.infographics?.insights ? (
           <SmartInsights
             insights={visualizationData.infographics.insights.map(insight => ({
               title: insight.title,
@@ -127,9 +175,21 @@ export default function AnalyticsDashboard({ cycleId = 1, className = "" }: Anal
             }))}
             title="Cycle Insights"
           />
+        ) : (
+          <SmartInsights
+            insights={[
+              {
+                title: "Loading Insights",
+                description: "Analytics data is being processed...",
+                impact: 'neutral' as const,
+                category: 'performance' as const
+              }
+            ]}
+            title="Cycle Insights"
+          />
         )}
         
-        {cycleAnalytics && (
+        {cycleAnalytics ? (
           <PopularSelections
             selections={[
               {
@@ -155,6 +215,13 @@ export default function AnalyticsDashboard({ cycleId = 1, className = "" }: Anal
               }
             ]}
           />
+        ) : (
+          <div className="glass-card p-6 border border-gray-600/30">
+            <div className="text-center py-8">
+              <FireIcon className="w-12 h-12 text-gray-500 mx-auto mb-3" />
+              <p className="text-gray-400 text-sm">Loading popular selections...</p>
+            </div>
+          </div>
         )}
       </div>
     </div>

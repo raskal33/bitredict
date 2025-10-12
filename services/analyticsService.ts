@@ -238,7 +238,7 @@ class AnalyticsService {
 
   // Mock data methods for development/fallback
   private getMockSlipProbability(slipId: string): SlipProbability {
-    return {
+      return {
       slipId,
       overallProbability: 12.5,
       riskLevel: 'high',
@@ -382,7 +382,7 @@ class AnalyticsService {
   }
 
   private getMockVisualizationData(cycleId: number): VisualizationData {
-    return {
+      return {
       cycleId,
       charts: {
         selectionDistribution: {
