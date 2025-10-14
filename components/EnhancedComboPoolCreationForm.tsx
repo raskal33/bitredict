@@ -50,6 +50,7 @@ interface ComboPoolFormData {
   title: string;
   description: string;
   creatorStake: number;
+  combinedOdds: number;
   betType: 'fixed' | 'max';
   fixedBetAmount?: number;
   maxBetPerUser?: number;
@@ -75,6 +76,7 @@ export default function EnhancedComboPoolCreationForm({ onSuccess, onClose }: {
     title: '',
     description: '',
     creatorStake: 100,
+    combinedOdds: 2.0,
     betType: 'fixed',
     fixedBetAmount: 1000,
     maxBetPerUser: 1000,
@@ -96,13 +98,8 @@ export default function EnhancedComboPoolCreationForm({ onSuccess, onClose }: {
   const userReputation = address ? getUserReputation(address) : null;
   const canCreate = address ? canCreateMarket(address) : false;
 
-  // Calculate combined odds
-  const combinedOdds = formData.conditions.length > 0 
-    ? formData.conditions.reduce((acc, condition) => acc * condition.odds, 1)
-    : 0;
-
   // Calculate potential winnings
-  const potentialWinnings = formData.creatorStake * (combinedOdds - 1);
+  const potentialWinnings = formData.creatorStake * (formData.combinedOdds - 1);
 
   // Calculate max bettors
   const maxBettors = formData.betType === 'fixed' && formData.fixedBetAmount 
@@ -110,6 +107,11 @@ export default function EnhancedComboPoolCreationForm({ onSuccess, onClose }: {
     : 0;
 
   const addCondition = useCallback(() => {
+    if (formData.conditions.length >= 5) {
+      toast.error('Maximum 5 conditions allowed for combo pools');
+      return;
+    }
+    
     const newCondition: ComboCondition = {
       id: Date.now().toString(),
       type: 'football',
@@ -125,7 +127,7 @@ export default function EnhancedComboPoolCreationForm({ onSuccess, onClose }: {
       ...prev,
       conditions: [...prev.conditions, newCondition]
     }));
-  }, []);
+  }, [formData.conditions.length]);
 
   const removeCondition = useCallback((conditionId: string) => {
     setFormData(prev => ({
@@ -264,26 +266,19 @@ export default function EnhancedComboPoolCreationForm({ onSuccess, onClose }: {
 
     try {
       const comboPoolData = {
-        title: formData.title,
-        description: formData.description,
-        creatorStake: BigInt(Math.floor(formData.creatorStake * 1e18)),
-        maxBetPerUser: BigInt(Math.floor((formData.betType === 'fixed' ? formData.fixedBetAmount! : formData.maxBetPerUser!) * 1e18)),
-        useBitr: formData.useBitr,
-        isPrivate: formData.isPrivate,
         conditions: formData.conditions.map(condition => ({
           marketId: condition.matchId || condition.cryptoId || '',
           expectedOutcome: `${condition.market} ${condition.selection}`,
-          odds: BigInt(Math.floor(condition.odds * 100)),
-          eventStartTime: BigInt(Math.floor(condition.eventStartTime.getTime() / 1000)),
-          eventEndTime: BigInt(Math.floor(condition.eventEndTime.getTime() / 1000))
+          description: `${condition.market} ${condition.selection}`,
+          odds: 1.0 // Not used in contract, but required by interface
         })),
-        eventStartTime: BigInt(Math.floor(formData.eventStartTime.getTime() / 1000)),
-        eventEndTime: BigInt(Math.floor(formData.eventEndTime.getTime() / 1000)),
-        bettingEndTime: BigInt(Math.floor(formData.bettingEndTime.getTime() / 1000)),
-        combinedOdds: Math.floor(combinedOdds * 100), // Convert to basis points
+        combinedOdds: formData.combinedOdds, // Use form input
+        creatorStake: BigInt(Math.floor(formData.creatorStake * 1e18)),
         earliestEventStart: BigInt(Math.floor(formData.eventStartTime.getTime() / 1000)),
         latestEventEnd: BigInt(Math.floor(formData.eventEndTime.getTime() / 1000)),
-        category: formData.category || "football"
+        category: formData.category || "football",
+        maxBetPerUser: BigInt(Math.floor((formData.betType === 'fixed' ? formData.fixedBetAmount! : formData.maxBetPerUser!) * 1e18)),
+        useBitr: formData.useBitr
       };
 
       const txHash = await createComboPool(comboPoolData);
@@ -304,7 +299,7 @@ export default function EnhancedComboPoolCreationForm({ onSuccess, onClose }: {
     } finally {
       setIsLoading(false);
     }
-  }, [isConnected, address, canCreate, validateForm, createComboPool, formData, onSuccess, onClose, connectWallet, combinedOdds]);
+  }, [isConnected, address, canCreate, validateForm, createComboPool, formData, onSuccess, onClose, connectWallet]);
 
   const renderTypeSelection = () => (
     <div className="space-y-6">
@@ -838,7 +833,7 @@ export default function EnhancedComboPoolCreationForm({ onSuccess, onClose }: {
             </div>
             <div>
               <label className="text-text-muted text-sm">Combined Odds</label>
-              <p className="text-primary font-bold text-xl">{combinedOdds.toFixed(2)}x</p>
+              <p className="text-primary font-bold text-xl">{formData.combinedOdds.toFixed(2)}x</p>
             </div>
             <div>
               <label className="text-text-muted text-sm">Potential Win</label>
@@ -903,7 +898,7 @@ export default function EnhancedComboPoolCreationForm({ onSuccess, onClose }: {
             </div>
             <div>
               <label className="text-text-muted text-sm">Combined Odds</label>
-              <p className="text-primary font-bold text-xl">{combinedOdds.toFixed(2)}x</p>
+              <p className="text-primary font-bold text-xl">{formData.combinedOdds.toFixed(2)}x</p>
             </div>
             <div>
               <label className="text-text-muted text-sm">Creator Stake</label>

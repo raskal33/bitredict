@@ -35,6 +35,7 @@ interface ComboPoolFormData {
   title: string;
   description: string;
   creatorStake: number;
+  combinedOdds: number;
   maxBetPerUser: number;
   useBitr: boolean;
   isPrivate: boolean;
@@ -69,6 +70,7 @@ export default function ComboPoolCreationForm({ onSuccess, onClose }: {
     title: '',
     description: '',
     creatorStake: 100,
+    combinedOdds: 2.0,
     maxBetPerUser: 1000,
     useBitr: false,
     isPrivate: false,
@@ -85,15 +87,15 @@ export default function ComboPoolCreationForm({ onSuccess, onClose }: {
   const userReputation = address ? getUserReputation(address) : null;
   const canCreate = address ? canCreateMarket(address) : false;
 
-  // Calculate combined odds
-  const combinedOdds = formData.conditions.length > 0 
-    ? formData.conditions.reduce((acc, condition) => acc * condition.odds, 1)
-    : 0;
-
   // Calculate potential winnings
-  const potentialWinnings = formData.creatorStake * (combinedOdds - 1);
+  const potentialWinnings = formData.creatorStake * (formData.combinedOdds - 1);
 
   const addCondition = useCallback(() => {
+    if (formData.conditions.length >= 5) {
+      toast.error('Maximum 5 conditions allowed for combo pools');
+      return;
+    }
+    
     const newCondition: ComboCondition = {
       ...INITIAL_CONDITION,
       id: Date.now().toString(),
@@ -105,7 +107,7 @@ export default function ComboPoolCreationForm({ onSuccess, onClose }: {
       ...prev,
       conditions: [...prev.conditions, newCondition]
     }));
-  }, []);
+  }, [formData.conditions.length]);
 
   const removeCondition = useCallback((conditionId: string) => {
     setFormData(prev => ({
@@ -138,8 +140,8 @@ export default function ComboPoolCreationForm({ onSuccess, onClose }: {
       newErrors.conditions = 'At least 2 conditions are required for combo pools';
     }
 
-    if (formData.conditions.length > 10) {
-      newErrors.conditions = 'Maximum 10 conditions allowed for combo pools';
+    if (formData.conditions.length > 5) {
+      newErrors.conditions = 'Maximum 5 conditions allowed for combo pools';
     }
 
     formData.conditions.forEach((condition, index) => {
@@ -149,13 +151,14 @@ export default function ComboPoolCreationForm({ onSuccess, onClose }: {
       if (!condition.description.trim()) {
         newErrors[`condition_${index}_description`] = 'Description is required';
       }
-      if (condition.odds < 1.01 || condition.odds > 100) {
-        newErrors[`condition_${index}_odds`] = 'Odds must be between 1.01 and 100';
-      }
     });
 
     if (formData.creatorStake < 50) {
       newErrors.creatorStake = 'Minimum creator stake is 50 tokens';
+    }
+
+    if (formData.combinedOdds < 1.01 || formData.combinedOdds > 500) {
+      newErrors.combinedOdds = 'Combined odds must be between 1.01 and 500';
     }
 
     if (formData.maxBetPerUser < 1) {
@@ -195,11 +198,10 @@ export default function ComboPoolCreationForm({ onSuccess, onClose }: {
         conditions: formData.conditions.map(condition => ({
           marketId: condition.marketId,
           expectedOutcome: condition.expectedOutcome,
-          odds: BigInt(Math.floor(condition.odds * 100)), // Convert to basis points
-          eventStartTime: BigInt(Math.floor(condition.eventStartTime.getTime() / 1000)),
-          eventEndTime: BigInt(Math.floor(condition.eventEndTime.getTime() / 1000))
+          description: condition.description || `${condition.marketId} prediction`,
+          odds: 1.0 // Not used in contract, but required by interface
         })),
-        combinedOdds: Math.floor(combinedOdds * 100), // Convert to basis points
+        combinedOdds: formData.combinedOdds, // Use form input
         creatorStake: BigInt(Math.floor(formData.creatorStake * 1e18)),
         earliestEventStart: BigInt(Math.floor(formData.eventStartTime.getTime() / 1000)),
         latestEventEnd: BigInt(Math.floor(formData.eventEndTime.getTime() / 1000)),
@@ -226,7 +228,7 @@ export default function ComboPoolCreationForm({ onSuccess, onClose }: {
     } finally {
       setIsLoading(false);
     }
-  }, [isConnected, address, canCreate, validateForm, createComboPool, formData, onSuccess, onClose, connectWallet, combinedOdds]);
+  }, [isConnected, address, canCreate, validateForm, createComboPool, formData, onSuccess, onClose, connectWallet]);
 
   const renderConditionForm = (condition: ComboCondition, index: number) => (
     <motion.div
@@ -299,23 +301,6 @@ export default function ComboPoolCreationForm({ onSuccess, onClose }: {
           </select>
         </div>
 
-        {/* Odds */}
-        <div>
-          <label className="block text-sm font-medium text-text-secondary mb-2">
-            Odds (Decimal)
-          </label>
-          <AmountInput
-            value={condition.odds.toString()}
-            onChange={(value) => updateCondition(condition.id, 'odds', parseFloat(value || '0'))}
-            placeholder="2.00"
-            min={1.01}
-            max={100}
-            step={0.01}
-            allowDecimals={true}
-            currency="x"
-            error={errors[`condition_${index}_odds`]}
-          />
-        </div>
 
         {/* Event Times */}
         <div>
@@ -396,6 +381,23 @@ export default function ComboPoolCreationForm({ onSuccess, onClose }: {
             currency={formData.useBitr ? 'BITR' : 'STT'}
             help="Your stake that acts as liquidity for the pool"
             error={errors.creatorStake}
+          />
+        </div>
+
+        {/* Combined Odds */}
+        <div>
+          <AmountInput
+            label="Combined Odds *"
+            value={formData.combinedOdds.toString()}
+            onChange={(value) => setFormData(prev => ({ ...prev, combinedOdds: parseFloat(value || '0') }))}
+            placeholder="2.00"
+            min={1.01}
+            max={500}
+            step={0.01}
+            allowDecimals={true}
+            currency="x"
+            help="Total odds for all conditions combined (1.01x - 500x)"
+            error={errors.combinedOdds}
           />
         </div>
 
@@ -502,7 +504,7 @@ export default function ComboPoolCreationForm({ onSuccess, onClose }: {
             </div>
             <div>
               <label className="text-text-muted text-sm">Combined Odds</label>
-              <p className="text-primary font-bold text-xl">{combinedOdds.toFixed(2)}x</p>
+              <p className="text-primary font-bold text-xl">{formData.combinedOdds.toFixed(2)}x</p>
             </div>
             <div>
               <label className="text-text-muted text-sm">Creator Stake</label>
@@ -610,9 +612,10 @@ export default function ComboPoolCreationForm({ onSuccess, onClose }: {
                 onClick={addCondition}
                 variant="outline"
                 className="flex items-center gap-2"
+                disabled={formData.conditions.length >= 5}
               >
                 <PlusIcon className="h-4 w-4" />
-                Add Condition
+                Add Condition {formData.conditions.length >= 5 ? '(Max 5)' : ''}
               </Button>
             </div>
 
