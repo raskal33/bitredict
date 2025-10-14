@@ -571,9 +571,30 @@ class OddysseyService {
       const data = await response.json();
       console.log('🔍 Backend slips data:', data);
       
-      // Transform backend data to match expected format
-      const slipsData = data.slips || [];
-      const slipIds = slipsData.map((_: any, index: number) => BigInt(index));
+      // Transform backend data to match expected OddysseySlip format
+      const backendSlips = data.slips || [];
+      const slipsData: OddysseySlip[] = backendSlips.map((slip: any, index: number) => ({
+        player: (slip.playerAddress || userAddress) as Address,
+        cycleId: Number(slip.cycleId),
+        placedAt: Number(slip.placedAt),
+        predictions: slip.predictions?.map((pred: any) => ({
+          matchId: BigInt(pred.matchId),
+          betType: Number(pred.betType),
+          selection: pred.selection,
+          selectedOdd: Number(pred.selectedOdd) / 1000, // Convert from contract format
+          homeTeam: pred.homeTeam || 'Team A',
+          awayTeam: pred.awayTeam || 'Team B',
+          leagueName: pred.leagueName || 'Unknown League',
+          isCorrect: pred.isCorrect !== undefined ? Boolean(pred.isCorrect) : undefined
+        })) || [],
+        finalScore: Number(slip.finalScore || 0),
+        correctCount: Number(slip.correctCount || 0),
+        isEvaluated: Boolean(slip.isEvaluated || false)
+      }));
+      
+      const slipIds = slipsData.map((_, index) => BigInt(index));
+      
+      console.log('🔍 Transformed slips data:', slipsData);
       
       return {
         slipIds,
@@ -732,49 +753,41 @@ class OddysseyService {
     }
   }
 
-  // Get slip by ID
+  // Get slip by ID from backend
   async getSlip(slipId: bigint): Promise<OddysseySlip> {
     try {
-      const result = await this.publicClient.readContract({
-        address: CONTRACTS.ODDYSSEY.address,
-        abi: CONTRACTS.ODDYSSEY.abi,
-        functionName: 'getSlip',
-        args: [slipId],
-      });
-
-      console.log('🔍 Raw slip result from getSlip:', result);
-      console.log('🔍 Result type:', typeof result);
-      console.log('🔍 Result is array:', Array.isArray(result));
+      console.log('🔍 Getting slip from backend for ID:', slipId.toString());
       
-      // Contract returns a Slip struct, not an array
-      const slip = result as any;
-      console.log('🔍 Slip.player:', slip.player);
-      console.log('🔍 Slip.cycleId:', slip.cycleId);
-      console.log('🔍 Slip.placedAt:', slip.placedAt);
-      console.log('🔍 Slip.predictions:', slip.predictions);
-      console.log('🔍 Slip.finalScore:', slip.finalScore);
-      console.log('🔍 Slip.correctCount:', slip.correctCount);
-      console.log('🔍 Slip.isEvaluated:', slip.isEvaluated);
+      const response = await fetch(`/api/oddyssey/slip/${slipId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch slip from backend');
+      }
       
+      const data = await response.json();
+      console.log('🔍 Backend slip data:', data);
+      
+      // Transform backend data to OddysseySlip format
+      const slip = data.slip;
       return {
-        player: slip.player,
-        cycleId: slip.cycleId,
-        placedAt: slip.placedAt,
-        predictions: Array.isArray(slip.predictions) ? slip.predictions.map((pred: any) => ({
-          matchId: pred.matchId,
-          betType: pred.betType,
+        player: slip.playerAddress as Address,
+        cycleId: Number(slip.cycleId),
+        placedAt: Number(slip.placedAt),
+        predictions: slip.predictions?.map((pred: any) => ({
+          matchId: BigInt(pred.matchId),
+          betType: Number(pred.betType),
           selection: pred.selection,
-          selectedOdd: Number(pred.selectedOdd) / 1000, // Convert from contract format
-          homeTeam: pred.homeTeam,
-          awayTeam: pred.awayTeam,
-          leagueName: pred.leagueName,
-        })) : [],
-        finalScore: slip.finalScore,
-        correctCount: slip.correctCount,
-        isEvaluated: slip.isEvaluated,
+          selectedOdd: Number(pred.selectedOdd) / 1000,
+          homeTeam: pred.homeTeam || 'Team A',
+          awayTeam: pred.awayTeam || 'Team B',
+          leagueName: pred.leagueName || 'Unknown League',
+          isCorrect: pred.isCorrect !== undefined ? Boolean(pred.isCorrect) : undefined
+        })) || [],
+        finalScore: Number(slip.finalScore || 0),
+        correctCount: Number(slip.correctCount || 0),
+        isEvaluated: Boolean(slip.isEvaluated || false)
       };
     } catch (error) {
-      console.error('Error getting slip:', error);
+      console.error('Error getting slip from backend:', error);
       throw error;
     }
   }

@@ -265,12 +265,12 @@ export default function OddysseyPage() {
             homeTeam: pred.homeTeam,
             awayTeam: pred.awayTeam,
             leagueName: pred.leagueName,
-            isCorrect: slip.isEvaluated ? pred.isCorrect : undefined // Will be determined by evaluation
+            isCorrect: pred.isCorrect // Use the isCorrect from backend data
           })),
           finalScore: slip.finalScore,
           correctCount: slip.correctCount,
             isEvaluated: slip.isEvaluated,
-          status: slip.isEvaluated ? (slip.correctCount >= 8 ? 'won' : 'lost') : 'pending' as 'pending' | 'evaluated' | 'won' | 'lost'
+          status: slip.isEvaluated ? (slip.correctCount >= 7 ? 'won' : 'lost') : 'pending' as 'pending' | 'evaluated' | 'won' | 'lost'
         };
         console.log(`🔍 Enhanced slip ${index}:`, enhanced);
         return enhanced;

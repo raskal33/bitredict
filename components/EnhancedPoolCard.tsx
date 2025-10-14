@@ -340,23 +340,25 @@ export default function EnhancedPoolCard({
             const badgeProps = getStatusBadgeProps(statusInfo);
             
             return (
-              <div className={`${badgeProps.className} pointer-events-auto`}>
-                <span className="mr-1">{badgeProps.icon}</span>
-                {badgeProps.label}
+              <div className="flex gap-2 items-center">
+                <div className={`${badgeProps.className} pointer-events-auto`}>
+                  <span className="mr-1">{badgeProps.icon}</span>
+                  {badgeProps.label}
+                </div>
+                
+                {/* Trending Badge - next to status */}
+                {pool.trending && (
+                  <div className="bg-gradient-to-r from-red-500/90 to-pink-500/90 backdrop-blur-sm text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 pointer-events-auto">
+                    <BoltIcon className="w-3 h-3" />
+                    TRENDING
+                  </div>
+                )}
               </div>
             );
           })()}
 
           {/* Secondary badges row */}
           <div className="flex gap-2">
-        {/* Trending Badge */}
-        {pool.trending && (
-              <div className="bg-gradient-to-r from-red-500/90 to-pink-500/90 backdrop-blur-sm text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 pointer-events-auto">
-            <BoltIcon className="w-3 h-3" />
-            TRENDING
-          </div>
-        )}
-
             {/* Hot Badge from indexed data */}
             {indexedData?.isHot && (
               <div className="bg-gradient-to-r from-orange-500/90 to-red-500/90 backdrop-blur-sm text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 pointer-events-auto">

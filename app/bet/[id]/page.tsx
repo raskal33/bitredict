@@ -66,17 +66,6 @@ export default function BetPage() {
   const [comments] = useState<Comment[]>([]);
   const [betType, setBetType] = useState<'yes' | 'no' | null>(null);
   const [poolExplanation, setPoolExplanation] = useState<PoolExplanation | null>(null);
-  const [recentBets, setRecentBets] = useState<Array<{
-    id: string;
-    poolId: number;
-    bettor: string;
-    amount: string;
-    isForOutcome: boolean;
-    timestamp: number;
-    poolTitle: string;
-    category: string;
-    league: string;
-  }>>([]);
   
   // Pool state checks for betting
   const [isEventStarted, setIsEventStarted] = useState(false);
@@ -100,6 +89,7 @@ export default function BetPage() {
   const [totalBettorStakeFormatted, setTotalBettorStakeFormatted] = useState<number>(0);
   const [potentialWinFormatted, setPotentialWinFormatted] = useState<number>(0);
   const [maxPoolSizeFormatted, setMaxPoolSizeFormatted] = useState<number>(0);
+  const [fillPercentage, setFillPercentage] = useState<number>(0);
   
   // Rate limiting for API calls
   const [lastFetchTime, setLastFetchTime] = useState<number>(0);
@@ -122,26 +112,15 @@ export default function BetPage() {
       // Fetch pool data from optimized backend API with caching
       
       const poolCacheKey = frontendCache.getPoolKey('details', parseInt(poolId));
-      const betsCacheKey = `recentBets:pool:${poolId}:50`;
-      
-      const [poolData, allRecentBets] = await Promise.all([
-        frontendCache.get(
-          poolCacheKey,
-          () => optimizedPoolService.getPool(parseInt(poolId))
-        ),
-        frontendCache.get(
-          betsCacheKey,
-          () => optimizedPoolService.getRecentBets(50)
-        )
-      ]);
+      const poolData = await frontendCache.get(
+        poolCacheKey,
+        () => optimizedPoolService.getPool(parseInt(poolId))
+      );
       
       if (!poolData) {
         throw new Error(`Pool ${poolId} not found`);
       }
 
-      // Filter recent bets for this pool
-      const poolRecentBets = allRecentBets.filter(bet => bet.poolId === parseInt(poolId));
-      setRecentBets(poolRecentBets);
       
       
       // Generate pool explanation using the service
@@ -168,6 +147,7 @@ export default function BetPage() {
       const creatorStakeNum = parseFloat(poolData.creatorStake);
       const totalBettorStakeNum = parseFloat(poolData.totalBettorStake);
       const maxPoolSizeNum = parseFloat(poolData.maxPoolSize);
+      const fillPercentageNum = poolData.fillPercentage || 0;
       // Calculate creator potential win: creatorStake / (odds - 1) + creatorStake
       // Convert odds from basis points to decimal (140 -> 1.4)
       const decimalOdds = poolData.odds / 100;
@@ -177,6 +157,7 @@ export default function BetPage() {
       setCreatorStakeFormatted(creatorStakeNum);
       setTotalBettorStakeFormatted(totalBettorStakeNum);
       setPotentialWinFormatted(potentialWinNum);
+      setFillPercentage(fillPercentageNum);
       setMaxPoolSizeFormatted(maxPoolSizeNum);
       
       const getDifficultyTier = (odds: number) => {
@@ -906,7 +887,7 @@ export default function BetPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-lg font-bold text-white">
-                    0%
+                    {fillPercentage.toFixed(1)}%
                 </span>
                   <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
               </div>
@@ -914,7 +895,7 @@ export default function BetPage() {
               <div className="w-full bg-gray-700/50 rounded-full h-4 mb-3 relative overflow-hidden">
                 <div
                   className="bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 h-4 rounded-full transition-all duration-1000 relative overflow-hidden"
-                  style={{ width: `0%` }}
+                  style={{ width: `${Math.min(fillPercentage, 100)}%` }}
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse"></div>
                   <div className="absolute inset-0 bg-gradient-to-r from-cyan-400/50 to-blue-400/50 animate-pulse"></div>
@@ -1379,132 +1360,7 @@ export default function BetPage() {
                 </div>
                 </div>
 
-        {/* Recent Bets Section */}
-        <div className="glass-card p-6 border border-border-card">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-bold text-white flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-lg flex items-center justify-center">
-                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                </div>
-              Recent Activity
-            </h3>
-            <div className="flex items-center gap-2 text-sm text-gray-400">
-              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-              Live updates
-              </div>
-                  </div>
 
-          <div className="space-y-3 max-h-96 overflow-y-auto custom-scrollbar">
-            {recentBets.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="w-16 h-16 bg-gradient-to-r from-gray-700 to-gray-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                    </div>
-                <p className="text-gray-400 font-medium">No bets yet</p>
-                <p className="text-gray-500 text-sm mt-1">Be the first to bet on this pool!</p>
-                  </div>
-            ) : (
-              recentBets.map((bet, index) => (
-                <div key={bet.id || index} className="group bg-gradient-to-r from-gray-800/50 to-gray-700/30 p-4 rounded-xl border border-gray-600/30 hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/10">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      {/* Bet Type Indicator */}
-                      <div className={`relative w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm ${
-                        bet.isForOutcome 
-                          ? 'bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 border border-green-500/30' 
-                          : 'bg-gradient-to-r from-red-500/20 to-rose-500/20 text-red-400 border border-red-500/30'
-                      }`}>
-                        {bet.isForOutcome ? 'YES' : 'NO'}
-                        <div className={`absolute -top-1 -right-1 w-3 h-3 rounded-full ${
-                          bet.isForOutcome ? 'bg-green-400' : 'bg-red-400'
-                        } animate-pulse`}></div>
-                      </div>
-                      
-                      {/* User Info */}
-                      <div className="flex flex-col">
-                        <div className="flex items-center gap-2">
-                          <span className="text-white font-semibold">
-                            {bet.bettor.slice(0, 6)}...{bet.bettor.slice(-4)}
-                          </span>
-                          <div className="w-1 h-1 bg-gray-500 rounded-full"></div>
-                          <span className="text-xs text-gray-400">
-                            {new Date(bet.timestamp * 1000).toLocaleTimeString([], { 
-                              hour: '2-digit', 
-                              minute: '2-digit' 
-                            })}
-                      </span>
-                    </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-2xl font-bold text-white">
-                            {parseFloat(bet.amount).toFixed(2)} {pool?.currency || 'STT'}
-                    </span>
-                  </div>
-                        </div>
-                      </div>
-
-                    {/* Transaction Link */}
-                    <div className="flex items-center gap-2">
-                      <a
-                        href={`https://shannon-explorer.somnia.network/tx/${bet.id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="group/link flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-blue-500/10 to-cyan-500/10 hover:from-blue-500/20 hover:to-cyan-500/20 text-blue-400 hover:text-blue-300 rounded-lg border border-blue-500/20 hover:border-blue-400/40 transition-all duration-200"
-                        title="View transaction on Somnia Explorer"
-                      >
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                        </svg>
-                        <span className="text-xs font-medium">Tx</span>
-                      </a>
-                    </div>
-                  </div>
-
-                  {/* Bet Details */}
-                  <div className="flex items-center justify-between text-sm pt-3 border-t border-gray-600/20">
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-1 text-gray-400">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        {new Date(bet.timestamp * 1000).toLocaleDateString()}
-                      </div>
-                      <div className="flex items-center gap-1 text-gray-400">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                        </svg>
-                        {bet.category}
-                      </div>
-                    </div>
-                    
-                    <div className={`text-xs font-medium px-2 py-1 rounded ${
-                      bet.isForOutcome 
-                        ? 'bg-green-500/10 text-green-400' 
-                        : 'bg-red-500/10 text-red-400'
-                    }`}>
-                      {bet.isForOutcome ? 'Backing Creator' : 'Challenging Creator'}
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-                    </div>
-
-          {/* Show More Button */}
-          {recentBets.length > 0 && (
-            <div className="mt-4 pt-4 border-t border-gray-600/20">
-              <button className="w-full py-2 text-sm text-gray-400 hover:text-white transition-colors flex items-center justify-center gap-2 group">
-                <span>View all activity</span>
-                <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                </svg>
-              </button>
-            </div>
-          )}
-                  </div>
 
         {/* Comments Section */}
         <div className="glass-card space-y-6">

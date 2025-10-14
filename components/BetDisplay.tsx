@@ -133,7 +133,7 @@ export default function BetDisplay({ poolId, className = "" }: BetDisplayProps) 
 
   const getExplorerUrl = (txHash: string) => {
     // Assuming Somnia network - adjust as needed
-    return `https://explorer.somnia.network/tx/${txHash}`;
+    return `https://shannon-explorer.somnia.network/tx/${txHash}`;
   };
 
   if (loading) {

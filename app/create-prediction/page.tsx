@@ -1991,7 +1991,7 @@ function CreateMarketPageContent() {
           <p className="text-sm text-gray-300 mb-2">Transaction Hash:</p>
           <p className="text-xs text-cyan-400 font-mono break-all mb-3">{deploymentHash}</p>
           <a 
-            href={`https://explorer.somnia.network/tx/${deploymentHash}`}
+            href={`https://shannon-explorer.somnia.network/tx/${deploymentHash}`}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 text-sm text-cyan-400 hover:text-cyan-300 transition-colors"

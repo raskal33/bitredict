@@ -130,7 +130,7 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
       const hasResults = slip.predictions.some(pred => pred.isCorrect !== undefined);
       return hasResults ? 'evaluated' : 'pending';
     }
-    if (slip.correctCount >= 8) return 'won'; // Assuming 8+ correct predictions is a win
+    if (slip.correctCount >= 7) return 'won'; // 7+ correct predictions is a win
     return 'lost';
   };
 
@@ -231,7 +231,7 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
   const getPredictionResult = (prediction: EnhancedSlip['predictions'][0], slipId: number, isCorrect?: boolean) => {
     // Check for live evaluation data first
     const liveEval = liveEvaluations.get(slipId);
-    if (liveEval && liveEval.predictions) {
+    if (liveEval && typeof liveEval === 'object' && 'predictions' in liveEval) {
       const livePred = (liveEval as { predictions: Array<{ matchId: number; status: string; isCorrect: boolean }> }).predictions.find((p) => p.matchId === prediction.matchId);
       if (livePred) {
         if (livePred.status === 'LIVE' || livePred.status === 'FINISHED') {
