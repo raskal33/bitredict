@@ -20,7 +20,11 @@ interface RecentBet {
   isForOutcome: boolean;
   createdAt: string;
   timeAgo: string;
-  eventType?: 'bet' | 'pool_created'; // Event type
+  eventType?: 'bet' | 'pool_created' | 'liquidity_added'; // Enhanced event types
+  action?: string; // Human-readable action
+  icon?: string; // Icon for event type
+  odds?: number; // Odds that user took
+  currency?: string; // Currency used
   pool: {
     predictedOutcome: string;
     league: string;
@@ -51,6 +55,10 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
       amountFormatted: "2,500.00",
       isForOutcome: true,
       eventType: 'bet',
+      action: 'Placed bet',
+      icon: '🎯',
+      odds: 175,
+      currency: 'STT',
       createdAt: new Date(Date.now() - 30000).toISOString(),
       timeAgo: "5m ago",
       pool: {
@@ -95,6 +103,10 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
       amountFormatted: "5,200.00",
       isForOutcome: true,
       eventType: 'pool_created', // Pool creation event
+      action: 'Created pool',
+      icon: '🏗️',
+      odds: 125,
+      currency: 'STT',
       createdAt: new Date(Date.now() - 60000).toISOString(),
       timeAgo: "12m ago",
       pool: {
@@ -111,6 +123,32 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
     },
     {
       id: 4,
+      poolId: "3",
+      bettorAddress: "0x4567890123456789012345678901234567890123",
+      amount: "2000000000000000000000",
+      amountFormatted: "2,000.00",
+      isForOutcome: false,
+      eventType: 'liquidity_added', // Liquidity provider event
+      action: 'Added liquidity',
+      icon: '💧',
+      odds: 125,
+      currency: 'STT',
+      createdAt: new Date(Date.now() - 75000).toISOString(),
+      timeAgo: "10m ago",
+      pool: {
+        predictedOutcome: "Home wins",
+        league: "Serie A",
+        category: "football",
+        homeTeam: "Juventus",
+        awayTeam: "AC Milan",
+        title: "Juventus vs AC Milan",
+        useBitr: true,
+        odds: 125,
+        creatorAddress: "0x7654321098765432109876543210987654321098"
+      }
+    },
+    {
+      id: 5,
       poolId: "4",
       bettorAddress: "0x4567890123456789012345678901234567890123",
       amount: "3500000000000000000000",
@@ -152,6 +190,10 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
           amountFormatted: parseFloat(bet.amount).toFixed(2),
           isForOutcome: bet.isForOutcome,
           eventType: bet.eventType || 'bet', // Default to 'bet' if not provided
+          action: bet.action || (bet.eventType === 'liquidity_added' ? 'Added liquidity' : 'Placed bet'),
+          icon: bet.icon || (bet.eventType === 'liquidity_added' ? '💧' : '🎯'),
+          odds: bet.odds,
+          currency: bet.currency || 'STT',
           createdAt: new Date(bet.timestamp * 1000).toISOString(),
           timeAgo: `${Math.floor((Date.now() - bet.timestamp * 1000) / 60000)}m ago`,
           pool: {
@@ -162,7 +204,7 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
             awayTeam: '',
             title: bet.poolTitle,
             useBitr: false,
-            odds: 0,
+            odds: bet.odds || 0,
             creatorAddress: ''
           }
         }));
@@ -293,31 +335,41 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
 
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1 sm:gap-2">
-                      {bet.eventType === 'pool_created' ? (
-                        <span className="text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full bg-green-500/20 text-green-400 border border-green-500/30">
-                          Created
-                        </span>
-                      ) : (
+                      {/* Event Type Badge */}
+                      <div className="flex items-center gap-1">
+                        <span className="text-sm">{bet.icon}</span>
                         <span className={`text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full ${
-                          bet.isForOutcome 
-                            ? 'bg-cyan-500/20 text-cyan-400' 
-                            : 'bg-purple-500/20 text-purple-400'
+                          bet.eventType === 'pool_created' 
+                            ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                            : bet.eventType === 'liquidity_added'
+                            ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                            : bet.isForOutcome 
+                            ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' 
+                            : 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
                         }`}>
-                          {bet.isForOutcome ? 'YES' : 'LP'}
+                          {bet.eventType === 'pool_created' ? 'Created' : 
+                           bet.eventType === 'liquidity_added' ? 'LP Added' :
+                           bet.isForOutcome ? 'YES' : 'NO'}
+                        </span>
+                      </div>
+                      
+                      {/* Action Badge */}
+                      {bet.action && (
+                        <span className="text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full bg-gray-500/20 text-gray-400">
+                          {bet.action}
                         </span>
                       )}
-                      <span className="text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full bg-gray-500/20 text-gray-400">
-                        {bet.pool.predictedOutcome}
-                      </span>
                     </div>
                     
                     <div className="text-right">
                       <p className="text-xs sm:text-sm font-bold text-white">
-                        {bet.amountFormatted} {bet.pool.useBitr ? 'BITR' : 'STT'}
+                        {bet.amountFormatted} {bet.currency || (bet.pool.useBitr ? 'BITR' : 'STT')}
                       </p>
-                      <p className="text-xs text-gray-400">
-                        {(bet.pool.odds / 100).toFixed(2)}x odds
-                      </p>
+                      {bet.odds && (
+                        <p className="text-xs text-gray-400">
+                          @{(bet.odds / 100).toFixed(2)}x odds
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -48,6 +48,11 @@ export interface OptimizedPool {
   homeTeam?: string;
   awayTeam?: string;
   league?: string;
+  liquidityProviders?: Array<{
+    address: string;
+    stake: string;
+    timestamp: number;
+  }>;
   region?: string;
   predictedOutcome?: string;
   marketId?: string;
@@ -73,7 +78,11 @@ export interface RecentBet {
   poolTitle: string;
   category: string;
   league: string;
-  eventType?: 'bet' | 'pool_created'; // Event type to distinguish between bets and pool creation
+  eventType?: 'bet' | 'pool_created' | 'liquidity_added'; // Enhanced event types
+  action?: string; // Human-readable action
+  icon?: string; // Icon for event type
+  odds?: number; // Odds that user took
+  currency?: string; // Currency used
 }
 
 export interface PoolAnalytics {

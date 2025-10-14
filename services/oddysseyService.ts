@@ -582,25 +582,29 @@ class OddysseyService {
       
       // Transform backend data to match expected OddysseySlip format
       const backendSlips = data.data || [];
+      console.log('🔍 Backend slips raw:', JSON.stringify(backendSlips[0], null, 2));
+      
       const slipsData: OddysseySlip[] = backendSlips.map((slip: any, index: number) => ({
-        id: slip.id || index,
-        player: (slip.playerAddress || userAddress) as Address,
-        cycleId: Number(slip.cycleId),
-        placedAt: Number(slip.placedAt),
+        id: slip.slip_id || slip.id || index,
+        player: (slip.player_address || slip.playerAddress || userAddress) as Address,
+        cycleId: Number(slip.cycle_id || slip.cycleId || 0),
+        placedAt: Number(slip.placed_at || slip.placedAt || 0),
         predictions: slip.predictions?.map((pred: any) => ({
-          matchId: BigInt(pred.matchId || 0), // Handle undefined matchId
-          betType: Number(pred.betType || 0),
+          matchId: BigInt(pred.match_id || pred.matchId || 0),
+          betType: Number(pred.bet_type || pred.betType || 0),
           selection: pred.selection || '',
-          selectedOdd: Number(pred.selectedOdd || 0) / 1000, // Convert from contract format
-          homeTeam: pred.homeTeam || 'Team A',
-          awayTeam: pred.awayTeam || 'Team B',
-          leagueName: pred.leagueName || 'Unknown League',
-          isCorrect: pred.isCorrect !== undefined ? Boolean(pred.isCorrect) : undefined
+          selectedOdd: Number(pred.selected_odd || pred.selectedOdd || 0) / 100, // Backend might send in different format
+          homeTeam: pred.home_team || pred.homeTeam || 'Team A',
+          awayTeam: pred.away_team || pred.awayTeam || 'Team B',
+          leagueName: pred.league_name || pred.leagueName || 'Unknown League',
+          isCorrect: pred.is_correct !== undefined ? Boolean(pred.is_correct) : (pred.isCorrect !== undefined ? Boolean(pred.isCorrect) : undefined)
         })) || [],
-        finalScore: Number(slip.finalScore || 0),
-        correctCount: Number(slip.correctCount || 0),
-        isEvaluated: Boolean(slip.isEvaluated || false)
+        finalScore: Number(slip.final_score || slip.finalScore || 0),
+        correctCount: Number(slip.correct_count || slip.correctCount || 0),
+        isEvaluated: Boolean(slip.is_evaluated || slip.isEvaluated || false)
       }));
+      
+      console.log('🔍 Transformed first slip:', JSON.stringify(slipsData[0], null, 2));
       
       const slipIds = slipsData.map((slip, index) => BigInt(slip.id || index));
       

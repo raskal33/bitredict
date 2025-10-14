@@ -1368,6 +1368,38 @@ export default function BetPage() {
                     </p>
                     </div>
                     </div>
+
+                {/* Liquidity Providers Section */}
+                {pool.liquidityProviders && pool.liquidityProviders.length > 0 && (
+                  <div className="p-4 sm:p-6 bg-gray-700/30 rounded-lg border border-gray-600/30">
+                    <h4 className="text-lg sm:text-xl font-bold text-white mb-4">Liquidity Providers</h4>
+                    <div className="space-y-3">
+                      {pool.liquidityProviders.map((lp, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 bg-gray-800/30 rounded-lg border border-gray-600/20">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-full flex items-center justify-center">
+                              <span className="text-sm font-bold text-purple-400">LP</span>
+                            </div>
+                            <div>
+                              <div className="text-sm font-medium text-white">
+                                {lp.address.slice(0, 6)}...{lp.address.slice(-4)}
+                              </div>
+                              <div className="text-xs text-gray-400">
+                                {new Date(lp.timestamp * 1000).toLocaleString()}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm font-bold text-purple-400">
+                              {parseFloat(lp.stake).toFixed(2)} {pool.currency}
+                            </div>
+                            <div className="text-xs text-gray-400">Stake</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
                   </div>

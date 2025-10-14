@@ -73,6 +73,11 @@ export interface Pool {
   confidence?: number;
   successRate?: number;
   totalValue?: number;
+  liquidityProviders?: Array<{
+    address: string;
+    stake: string;
+    timestamp: number;
+  }>;
 }
 
 export interface CommentAuthor {
