@@ -477,7 +477,10 @@ export default function EnhancedPoolCard({
                 isWei: true
               });
               console.log(`📊 Pool ${pool.id} progress calculation:`, poolCalculation);
-              return `${poolCalculation.fillPercentage.toFixed(1)}%`;
+              // Round to nearest whole number if decimal >= 0.5, otherwise show 1 decimal place
+              const percentage = poolCalculation.fillPercentage;
+              const roundedPercentage = percentage >= 99.5 ? 100 : Math.round(percentage * 10) / 10;
+              return `${roundedPercentage}%`;
             })()}
           </span>
           </div>

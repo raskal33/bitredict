@@ -94,6 +94,7 @@ export function usePools() {
     poolId: number;
     amount: string;
     useBitr: boolean;
+    betType?: 'yes' | 'no';
   } | null>(null);
 
   // Track approval transaction confirmation
@@ -193,8 +194,12 @@ export function usePools() {
             return;
           }
 
-          // Place the bet
-          await placeBetDirect(pendingBetData.poolId, betAmount, pendingBetData.useBitr);
+          // Place the bet or add liquidity based on bet type
+          if (pendingBetData.betType === 'no') {
+            await addLiquidityDirect(pendingBetData.poolId, betAmount, pendingBetData.useBitr);
+          } else {
+            await placeBetDirect(pendingBetData.poolId, betAmount, pendingBetData.useBitr);
+          }
           
           // Clear pending state
           setPendingBetData(null);
@@ -417,6 +422,89 @@ export function usePools() {
     }
   };
 
+  // Add liquidity function (for NO bets - supporting creator)
+  const addLiquidity = async (poolId: number, amount: string, useBitr: boolean = false) => {
+    try {
+      const liquidityAmount = parseUnits(amount, 18);
+
+      // Check minimum liquidity amount
+      if (minBetAmount && typeof minBetAmount === 'bigint' && liquidityAmount < minBetAmount) {
+        throw new Error(`Liquidity amount ${amount} STT is below minimum amount ${formatUnits(minBetAmount, 18)} STT`);
+      }
+
+      if (useBitr) {
+        // For BITR pools, check and handle approval first
+        if (!address) {
+          throw new Error('Wallet not connected');
+        }
+
+        // Check current allowance
+        const currentAllowance = await getBITRAllowance(address, CONTRACT_ADDRESSES.POOL_CORE);
+        
+        if (currentAllowance < liquidityAmount) {
+          // Need to approve more tokens - store pending liquidity data and trigger approval
+          setPendingBetData({ poolId, amount, useBitr, betType: 'no' });
+          setApprovalConfirmed(false);
+          
+          // Trigger approval transaction
+          approveBITR(CONTRACT_ADDRESSES.POOL_CORE, liquidityAmount);
+          
+          // Return early - the approval confirmation will trigger the liquidity addition
+          return;
+        }
+
+        // Sufficient allowance - add liquidity directly
+        await addLiquidityDirect(poolId, liquidityAmount, useBitr);
+      } else {
+        // For STT pools, send native token as value
+        await addLiquidityDirect(poolId, liquidityAmount, useBitr);
+      }
+    } catch (error) {
+      console.error('Error in addLiquidity:', error);
+      if (error instanceof Error) {
+        if (error.message.includes('Liquidity below minimum')) {
+          showError('Liquidity Too Small', 'Your liquidity amount is below the minimum required for this pool.');
+        } else if (error.message.includes('Pool settled')) {
+          showError('Pool Settled', 'This pool has already been settled and no longer accepts liquidity.');
+        } else if (error.message.includes('Betting period ended')) {
+          showError('Betting Closed', 'The betting period for this pool has ended.');
+        } else if (error.message.includes('Liquidity too large')) {
+          showError('Liquidity Too Large', 'Your liquidity amount exceeds the maximum allowed.');
+        } else if (error.message.includes('Too many LP providers')) {
+          showError('Pool Full', 'This pool has reached the maximum number of liquidity providers.');
+        } else if (error.message.includes('Not whitelisted')) {
+          showError('Not Whitelisted', 'You are not whitelisted for this private pool.');
+        } else if (error.message.includes('user rejected') || error.message.includes('User denied')) {
+          showError('Transaction Cancelled', 'The transaction was cancelled by user.');
+        } else if (error.message.includes('insufficient funds')) {
+          showError('Insufficient Funds', 'You do not have enough tokens for this liquidity addition.');
+        } else if (error.message.includes('BITR transfer failed')) {
+          showError('Transfer Failed', 'BITR token transfer failed. Please check your balance and try again.');
+        } else if (error.message.includes('gas')) {
+          showError('Gas Error', 'Transaction failed due to gas issues. Please try again.');
+        } else {
+          showError('Liquidity Addition Failed', error.message);
+        }
+      } else {
+        showError('Liquidity Addition Failed', 'An unexpected error occurred while adding liquidity.');
+      }
+      throw error;
+    }
+  };
+
+  // Direct liquidity addition function
+  const addLiquidityDirect = async (poolId: number, liquidityAmount: bigint, useBitr: boolean) => {
+    showPending('Adding Liquidity', 'Please confirm the liquidity transaction in your wallet...');
+    
+    writeContract({
+      ...CONTRACTS.POOL_CORE,
+      functionName: 'addLiquidity',
+      args: [BigInt(poolId), liquidityAmount],
+      value: useBitr ? 0n : liquidityAmount,
+      ...getTransactionOptions(), // Use same gas settings as placeBet
+    });
+  };
+
   const placeBet = async (poolId: number, amount: string, useBitr: boolean = false) => {
     try {
       const betAmount = parseUnits(amount, 18);
@@ -437,7 +525,7 @@ export function usePools() {
         
         if (currentAllowance < betAmount) {
           // Need to approve more tokens - store pending bet data and trigger approval
-          setPendingBetData({ poolId, amount, useBitr });
+          setPendingBetData({ poolId, amount, useBitr, betType: 'yes' });
           setApprovalConfirmed(false);
           
           // Trigger approval transaction
@@ -695,6 +783,7 @@ export function usePools() {
     // Actions - Regular pools
     createPool,
     placeBet,
+    addLiquidity,
     claimWinnings,
     
     // Actions - Private pools

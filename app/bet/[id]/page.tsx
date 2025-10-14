@@ -42,7 +42,7 @@ export default function BetPage() {
   const { address } = useAccount();
   const params = useParams();
   const poolId = params.id as string;
-  const { placeBet } = usePools();
+  const { placeBet, addLiquidity } = usePools();
   const { approve, isConfirmed: isApproveConfirmed } = useBITRToken();
   
   // Helper function to check if BITR approval is needed
@@ -355,7 +355,14 @@ export default function BetPage() {
         try {
           toast.loading('Placing bet...', { id: 'bet-tx' });
           const useBitr = pool?.currency === 'BITR';
-          await placeBet(parseInt(poolId), pendingBetData.amount.toString(), useBitr);
+          
+          if (pendingBetData.type === 'yes') {
+            // Challenge creator - use placeBet
+            await placeBet(parseInt(poolId), pendingBetData.amount.toString(), useBitr);
+          } else if (pendingBetData.type === 'no') {
+            // Support creator - use addLiquidity
+            await addLiquidity(parseInt(poolId), pendingBetData.amount.toString(), useBitr);
+          }
           toast.success('Bet placed successfully!', { id: 'bet-tx' });
           
           // Clear pending state
@@ -480,9 +487,16 @@ export default function BetPage() {
         return;
       }
       
-      // For STT pools or if no approval needed, place bet directly
+      // For STT pools or if no approval needed, place bet or add liquidity based on bet type
       const useBitr = pool?.currency === 'BITR';
-      await placeBet(parseInt(poolId), betAmount.toString(), useBitr);
+      
+      if (betType === 'yes') {
+        // Challenge creator - use placeBet
+        await placeBet(parseInt(poolId), betAmount.toString(), useBitr);
+      } else if (betType === 'no') {
+        // Support creator - use addLiquidity
+        await addLiquidity(parseInt(poolId), betAmount.toString(), useBitr);
+      }
       
       // Success toast is handled by placeBet function
       // Refresh pool data after a delay to allow for blockchain confirmation
@@ -1144,7 +1158,7 @@ export default function BetPage() {
                             <span className="text-success font-bold">
                               {betType === 'yes' 
                                 ? (betAmount * (pool.odds / 100)).toLocaleString()
-                                : (betAmount + (betAmount * 0.1)).toLocaleString() // Simplified for liquidity
+                                : (betAmount / ((pool.odds / 100) - 1)).toLocaleString() // Correct NO bet calculation: stake / (odds - 1)
                               } {pool.currency}
                             </span>
                           </div>
@@ -1153,7 +1167,7 @@ export default function BetPage() {
                             <span className="text-primary font-bold">
                               +{betType === 'yes' 
                                 ? (betAmount * ((pool.odds / 100) - 1)).toLocaleString()
-                                : (betAmount * 0.1).toLocaleString() // Simplified for liquidity
+                                : ((betAmount / ((pool.odds / 100) - 1)) - betAmount).toLocaleString() // Correct NO bet profit: potential win - stake
                               } {pool.currency}
                             </span>
                           </div>
@@ -1465,6 +1479,7 @@ export default function BetPage() {
           </div>
         </div>
       </div>
+      
     </div>
   );
 }
