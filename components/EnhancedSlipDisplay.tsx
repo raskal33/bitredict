@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   CheckCircleIcon, 
@@ -8,7 +8,9 @@ import {
   ClockIcon,
   ChevronDownIcon,
   ChevronUpIcon,
-  TrophyIcon
+  TrophyIcon,
+  CalendarIcon,
+  FunnelIcon
 } from '@heroicons/react/24/outline';
 
 interface EnhancedSlip {
@@ -38,11 +40,40 @@ interface EnhancedSlipDisplayProps {
 const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
   const [expandedSlips, setExpandedSlips] = useState<Set<number>>(new Set());
   const [filter, setFilter] = useState<'all' | 'pending' | 'evaluated' | 'won' | 'lost'>('all');
+  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
+  const [liveEvaluations, setLiveEvaluations] = useState<Map<number, unknown>>(new Map());
 
   console.log('🔍 EnhancedSlipDisplay received slips:', slips);
   console.log('🔍 Slips count:', slips?.length);
   console.log('🔍 Slips type:', typeof slips);
   console.log('🔍 Slips is array:', Array.isArray(slips));
+
+  // Fetch live evaluation data for slips
+  useEffect(() => {
+    const fetchLiveEvaluations = async () => {
+      if (!slips || slips.length === 0) return;
+      
+      const evaluations = new Map();
+      for (const slip of slips) {
+        try {
+          const response = await fetch(`/api/live-slip-evaluation/${slip.id}`);
+          if (response.ok) {
+            const data = await response.json();
+            evaluations.set(slip.id, data.data);
+          }
+        } catch (error) {
+          console.error(`Error fetching live evaluation for slip ${slip.id}:`, error);
+        }
+      }
+      setLiveEvaluations(evaluations);
+    };
+
+    fetchLiveEvaluations();
+    
+    // Poll for updates every 30 seconds
+    const interval = setInterval(fetchLiveEvaluations, 30000);
+    return () => clearInterval(interval);
+  }, [slips]);
 
   const toggleSlipExpansion = (slipId: number) => {
     const newExpanded = new Set(expandedSlips);
@@ -53,6 +84,45 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
     }
     setExpandedSlips(newExpanded);
   };
+
+  // Filter slips based on status and date
+  const filteredSlips = React.useMemo(() => {
+    return slips?.filter(slip => {
+      // Status filter
+      let statusMatch = true;
+      if (filter !== 'all') {
+        if (filter === 'won') {
+          statusMatch = slip.correctCount >= 7;
+        } else if (filter === 'lost') {
+          statusMatch = slip.correctCount < 7 && slip.isEvaluated;
+        } else if (filter === 'evaluated') {
+          statusMatch = slip.isEvaluated;
+        } else if (filter === 'pending') {
+          statusMatch = !slip.isEvaluated;
+        }
+      }
+
+      // Date filter
+      let dateMatch = true;
+      if (dateFilter !== 'all') {
+        const slipDate = new Date(slip.placedAt * 1000);
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        
+        if (dateFilter === 'today') {
+          dateMatch = slipDate >= today;
+        } else if (dateFilter === 'week') {
+          const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+          dateMatch = slipDate >= weekAgo;
+        } else if (dateFilter === 'month') {
+          const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+          dateMatch = slipDate >= monthAgo;
+        }
+      }
+
+      return statusMatch && dateMatch;
+    }) || [];
+  }, [slips, filter, dateFilter]);
 
   const getSlipStatus = (slip: EnhancedSlip): 'pending' | 'evaluated' | 'won' | 'lost' => {
     if (!slip.isEvaluated) {
@@ -65,11 +135,6 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
   };
 
 
-  const filteredSlips = slips.filter(slip => {
-    if (filter === 'all') return true;
-    const status = getSlipStatus(slip);
-    return status === filter;
-  });
 
   const getBetTypeDisplay = (betType: number) => {
     switch (betType) {
@@ -163,7 +228,24 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
     return baseColor;
   };
 
-  const getPredictionResult = (prediction: EnhancedSlip['predictions'][0], isCorrect?: boolean) => {
+  const getPredictionResult = (prediction: EnhancedSlip['predictions'][0], slipId: number, isCorrect?: boolean) => {
+    // Check for live evaluation data first
+    const liveEval = liveEvaluations.get(slipId);
+    if (liveEval && liveEval.predictions) {
+      const livePred = (liveEval as { predictions: Array<{ matchId: number; status: string; isCorrect: boolean }> }).predictions.find((p) => p.matchId === prediction.matchId);
+      if (livePred) {
+        if (livePred.status === 'LIVE' || livePred.status === 'FINISHED') {
+          return livePred.isCorrect ? 
+            <CheckCircleIcon className="w-4 h-4 text-green-400" /> : 
+            <XCircleIcon className="w-4 h-4 text-red-400" />;
+        }
+        if (livePred.status === 'NOT_STARTED') {
+          return <ClockIcon className="w-4 h-4 text-yellow-400" />;
+        }
+      }
+    }
+    
+    // Fallback to prediction.isCorrect
     if (isCorrect === undefined) {
       return <ClockIcon className="w-4 h-4 text-yellow-400" />;
     }
@@ -218,31 +300,70 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
   return (
     <div className="space-y-4">
       {/* Filter Tabs */}
-      <div className="flex flex-wrap gap-2 mb-4 md:mb-6">
-        {[
-          { key: 'all', label: 'All Slips', count: slips.length },
-          { key: 'pending', label: 'Pending', count: slips.filter(s => getSlipStatus(s) === 'pending' && !s.predictions.some(p => p.isCorrect !== undefined)).length },
-          { key: 'evaluated', label: 'Real-time', count: slips.filter(s => getSlipStatus(s) === 'evaluated' && !s.isEvaluated).length },
-          { key: 'won', label: 'Won', count: slips.filter(s => getSlipStatus(s) === 'won').length },
-          { key: 'lost', label: 'Lost', count: slips.filter(s => getSlipStatus(s) === 'lost').length },
-        ].map(({ key, label, count }) => (
-          <button
-            key={key}
-            onClick={() => setFilter(key as 'all' | 'pending' | 'evaluated' | 'won' | 'lost')}
-            className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition-all ${
-              filter === key
-                ? 'bg-primary text-black'
-                : 'bg-gray-800/50 text-gray-300 hover:bg-gray-700/50'
-            }`}
-          >
-            {label} ({count})
-          </button>
-        ))}
+      <div className="space-y-4 mb-4 md:mb-6">
+        {/* Status Filter */}
+        <div className="flex flex-wrap gap-2">
+          <div className="flex items-center gap-2 text-sm text-gray-400 mb-2 w-full">
+            <FunnelIcon className="h-4 w-4" />
+            <span>Status Filter:</span>
+          </div>
+          {[
+            { key: 'all', label: 'All Slips', count: slips.length },
+            { key: 'pending', label: 'Pending', count: slips.filter(s => getSlipStatus(s) === 'pending' && !s.predictions.some(p => p.isCorrect !== undefined)).length },
+            { key: 'evaluated', label: 'Real-time', count: slips.filter(s => getSlipStatus(s) === 'evaluated' && !s.isEvaluated).length },
+            { key: 'won', label: 'Won', count: slips.filter(s => getSlipStatus(s) === 'won').length },
+            { key: 'lost', label: 'Lost', count: slips.filter(s => getSlipStatus(s) === 'lost').length },
+          ].map(({ key, label, count }) => (
+            <button
+              key={key}
+              onClick={() => setFilter(key as 'all' | 'pending' | 'evaluated' | 'won' | 'lost')}
+              className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition-all ${
+                filter === key
+                  ? 'bg-primary text-black'
+                  : 'bg-gray-800/50 text-gray-300 hover:bg-gray-700/50'
+              }`}
+            >
+              {label} ({count})
+            </button>
+          ))}
+        </div>
+
+        {/* Date Filter */}
+        <div className="flex flex-wrap gap-2">
+          <div className="flex items-center gap-2 text-sm text-gray-400 mb-2 w-full">
+            <CalendarIcon className="h-4 w-4" />
+            <span>Date Filter:</span>
+          </div>
+          {[
+            { key: 'all', label: 'All Time' },
+            { key: 'today', label: 'Today' },
+            { key: 'week', label: 'This Week' },
+            { key: 'month', label: 'This Month' },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setDateFilter(key as 'all' | 'today' | 'week' | 'month')}
+              className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition-all ${
+                dateFilter === key
+                  ? 'bg-secondary text-black'
+                  : 'bg-gray-800/50 text-gray-300 hover:bg-gray-700/50'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Slips List */}
       <div className="space-y-3">
-        {filteredSlips.map((slip) => {
+        {filteredSlips.length === 0 ? (
+          <div className="text-center py-8 text-gray-400">
+            <TrophyIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p>No slips found matching your filters</p>
+          </div>
+        ) : (
+          filteredSlips.map((slip) => {
           const status = getSlipStatus(slip);
           const isExpanded = expandedSlips.has(slip.id);
           
@@ -322,7 +443,7 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
                         {slip.predictions.map((prediction: EnhancedSlip['predictions'][0], index: number) => (
                           <div key={index} className="flex items-center justify-between p-3 md:p-4 bg-gray-800/40 rounded-xl border border-gray-700/50 hover:border-gray-600/50 transition-all duration-200">
                             <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
-                              {getPredictionResult(prediction, prediction.isCorrect)}
+                              {getPredictionResult(prediction, slip.id)}
                               <div className="flex-1 min-w-0">
                                 <div className="font-semibold text-white text-sm mb-1 truncate">
                                   {prediction.homeTeam} vs {prediction.awayTeam}
@@ -376,21 +497,9 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
               </AnimatePresence>
             </motion.div>
           );
-        })}
+        })
+        )}
       </div>
-
-      {filteredSlips.length === 0 && (
-        <div className="text-center py-12">
-          <ClockIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-white mb-2">No Slips Found</h3>
-          <p className="text-gray-400">
-            {filter === 'all' 
-              ? "You haven't placed any slips yet." 
-              : `No ${filter} slips found.`
-            }
-          </p>
-        </div>
-      )}
     </div>
   );
 };

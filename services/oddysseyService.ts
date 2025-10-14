@@ -555,94 +555,93 @@ class OddysseyService {
     }
   }
 
-  // Get all user slips with evaluation data across ALL cycles
+  // Get all user slips with evaluation data from backend API
   async getAllUserSlipsWithDataFromContract(userAddress: Address): Promise<{
     slipIds: bigint[];
     slipsData: OddysseySlip[];
   }> {
     try {
-      console.log('🔍 Getting ALL user slips with data across all cycles for:', userAddress);
+      console.log('🔍 Getting ALL user slips with data from backend for:', userAddress);
       
-      // Use the getAllUserSlips function to get all slip IDs for the user
-      const allSlipIdsResult = await this.publicClient.readContract({
-        address: CONTRACTS.ODDYSSEY.address,
-        abi: CONTRACTS.ODDYSSEY.abi,
-        functionName: 'getAllUserSlips',
-        args: [userAddress],
-      });
-
-      const allSlipIds = allSlipIdsResult as bigint[];
-      console.log('🔍 All slip IDs for user:', allSlipIds);
-      console.log('🔍 Total slips found:', allSlipIds.length);
-      
-      if (allSlipIds.length === 0) {
-        console.log('⚠️ No slips found for user');
-        return { slipIds: [], slipsData: [] };
+      const response = await fetch(`/api/oddyssey/user-slips/${userAddress}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch user slips from backend');
       }
-
-      // Use getBatchSlips to get all slip data at once
-      const allSlipsDataResult = await this.publicClient.readContract({
-        address: CONTRACTS.ODDYSSEY.address,
-        abi: CONTRACTS.ODDYSSEY.abi,
-        functionName: 'getBatchSlips',
-        args: [allSlipIds],
-      });
-
-      const allSlipsData = allSlipsDataResult as any[];
-      console.log('🔍 Raw batch slips data:', allSlipsData);
       
-      // Process the slip data
-      const processedSlips = allSlipsData.map((slip, index) => {
-        console.log(`🔍 Processing slip ${index} (ID: ${allSlipIds[index]}):`, slip);
-        const processed = this.processSlipData(slip);
-        console.log(`🔍 Processed slip ${index}:`, processed);
-        return processed;
-      });
+      const data = await response.json();
+      console.log('🔍 Backend slips data:', data);
       
-      console.log(`🔍 Total processed slips: ${processedSlips.length}`);
-      
-      // Calculate prediction correctness for evaluated slips
-      const slipsWithCorrectness = await Promise.all(processedSlips.map(async (slip) => {
-        if (!slip.isEvaluated) {
-          console.log(`🔍 Slip ${slip.cycleId} not evaluated, skipping correctness calculation`);
-          return slip;
-        }
-
-        try {
-          console.log(`🔍 Getting match results for cycle ${slip.cycleId} to calculate correctness`);
-          const matchResults = await this.getCycleMatchResults(BigInt(slip.cycleId));
-          console.log(`🔍 Match results for cycle ${slip.cycleId}:`, matchResults);
-
-          // Calculate correctness for each prediction
-          const predictionsWithCorrectness = slip.predictions.map((prediction) => {
-            const matchResult = matchResults.find(match => Number(match.id) === Number(prediction.matchId));
-            const isCorrect = this.calculatePredictionCorrectness(prediction, matchResult);
-            console.log(`🔍 Prediction ${prediction.matchId} (${prediction.selection}): ${isCorrect ? 'CORRECT' : 'INCORRECT'}`);
-            return {
-              ...prediction,
-              isCorrect
-            };
-          });
-
-          return {
-            ...slip,
-            predictions: predictionsWithCorrectness
-          };
-        } catch (error) {
-          console.error(`❌ Error calculating correctness for slip ${slip.cycleId}:`, error);
-          return slip; // Return slip without correctness calculation
-        }
-      }));
-      
-      console.log(`🔍 Final slips with correctness:`, slipsWithCorrectness);
+      // Transform backend data to match expected format
+      const slipsData = data.slips || [];
+      const slipIds = slipsData.map((_: any, index: number) => BigInt(index));
       
       return {
-        slipIds: allSlipIds,
-        slipsData: slipsWithCorrectness
+        slipIds,
+        slipsData
       };
     } catch (error) {
-      console.error('Error getting all user slips with data:', error);
-      throw error;
+      console.error('❌ Error getting user slips from backend:', error);
+      return { slipIds: [], slipsData: [] };
+    }
+  }
+
+  // Get evaluated slip data from backend
+  async getEvaluatedSlipData(slipId: number): Promise<OddysseySlip | null> {
+    try {
+      console.log('🔍 Getting evaluated slip data for slip ID:', slipId);
+      
+      const response = await fetch(`/api/oddyssey/evaluated-slip/${slipId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch evaluated slip data');
+      }
+      
+      const data = await response.json();
+      console.log('🔍 Evaluated slip data:', data);
+      
+      return data.slip || null;
+    } catch (error) {
+      console.error('❌ Error getting evaluated slip data:', error);
+      return null;
+    }
+  }
+
+  // Get live slip evaluation status
+  async getLiveSlipEvaluation(slipId: number): Promise<any> {
+    try {
+      console.log('🔍 Getting live slip evaluation for slip ID:', slipId);
+      
+      const response = await fetch(`/api/live-slip-evaluation/${slipId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch live slip evaluation');
+      }
+      
+      const data = await response.json();
+      console.log('🔍 Live slip evaluation data:', data);
+      
+      return data.data || null;
+    } catch (error) {
+      console.error('❌ Error getting live slip evaluation:', error);
+      return null;
+    }
+  }
+
+  // Get user slips for a specific cycle with live evaluation
+  async getUserSlipsForCycleWithLiveEvaluation(userAddress: Address, cycleId: number): Promise<any[]> {
+    try {
+      console.log('🔍 Getting user slips for cycle with live evaluation:', userAddress, cycleId);
+      
+      const response = await fetch(`/api/live-slip-evaluation/user/${userAddress}/cycle/${cycleId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch user slips with live evaluation');
+      }
+      
+      const data = await response.json();
+      console.log('🔍 User slips with live evaluation:', data);
+      
+      return data.slips || [];
+    } catch (error) {
+      console.error('❌ Error getting user slips with live evaluation:', error);
+      return [];
     }
   }
 
