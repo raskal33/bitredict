@@ -254,11 +254,11 @@ export default function OddysseyPage() {
       const enhancedSlips = allSlipsData.slipsData.map((slip, index) => {
         console.log(`🔍 Processing slip ${index}:`, slip);
         const enhanced = {
-          id: Number(allSlipsData.slipIds[index]),
+          id: Number(allSlipsData.slipIds[index].toString()),
           cycleId: slip.cycleId,
           placedAt: slip.placedAt,
           predictions: slip.predictions.map(pred => ({
-            matchId: Number(pred.matchId),
+            matchId: Number(pred.matchId.toString()),
             betType: pred.betType,
             selection: pred.selection,
             selectedOdd: pred.selectedOdd,

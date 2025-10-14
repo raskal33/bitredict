@@ -63,6 +63,7 @@ export interface UserPrediction {
 }
 
 export interface OddysseySlip {
+  id?: number;
   player: Address;
   cycleId: number;
   placedAt: number;
@@ -582,14 +583,15 @@ class OddysseyService {
       // Transform backend data to match expected OddysseySlip format
       const backendSlips = data.data || [];
       const slipsData: OddysseySlip[] = backendSlips.map((slip: any, index: number) => ({
+        id: slip.id || index,
         player: (slip.playerAddress || userAddress) as Address,
         cycleId: Number(slip.cycleId),
         placedAt: Number(slip.placedAt),
         predictions: slip.predictions?.map((pred: any) => ({
-          matchId: BigInt(pred.matchId),
-          betType: Number(pred.betType),
-          selection: pred.selection,
-          selectedOdd: Number(pred.selectedOdd) / 1000, // Convert from contract format
+          matchId: BigInt(pred.matchId || 0), // Handle undefined matchId
+          betType: Number(pred.betType || 0),
+          selection: pred.selection || '',
+          selectedOdd: Number(pred.selectedOdd || 0) / 1000, // Convert from contract format
           homeTeam: pred.homeTeam || 'Team A',
           awayTeam: pred.awayTeam || 'Team B',
           leagueName: pred.leagueName || 'Unknown League',
@@ -600,7 +602,7 @@ class OddysseyService {
         isEvaluated: Boolean(slip.isEvaluated || false)
       }));
       
-      const slipIds = slipsData.map((_, index) => BigInt(index));
+      const slipIds = slipsData.map((slip, index) => BigInt(slip.id || index));
       
       console.log('🔍 Transformed slips data:', slipsData);
       
