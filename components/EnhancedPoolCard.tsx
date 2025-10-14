@@ -353,20 +353,18 @@ export default function EnhancedPoolCard({
                     TRENDING
                   </div>
                 )}
+                
+                {/* Hot Badge - next to status and trending */}
+                {indexedData?.isHot && (
+                  <div className="bg-gradient-to-r from-orange-500/90 to-red-500/90 backdrop-blur-sm text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 pointer-events-auto">
+                    <ChartBarIcon className="w-3 h-3" />
+                    HOT
+                  </div>
+                )}
               </div>
             );
           })()}
 
-          {/* Secondary badges row */}
-          <div className="flex gap-2">
-            {/* Hot Badge from indexed data */}
-            {indexedData?.isHot && (
-              <div className="bg-gradient-to-r from-orange-500/90 to-red-500/90 backdrop-blur-sm text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 pointer-events-auto">
-                <ChartBarIcon className="w-3 h-3" />
-                HOT
-              </div>
-            )}
-          </div>
         </div>
 
         {/* Right side badges */}

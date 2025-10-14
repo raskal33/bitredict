@@ -178,6 +178,19 @@ export function usePools() {
     }
   }, [hash, isPending, isConfirming, isApprovalSuccess, showError]);
 
+  // Direct liquidity addition function
+  const addLiquidityDirect = async (poolId: number, liquidityAmount: bigint, useBitr: boolean) => {
+    showPending('Adding Liquidity', 'Please confirm the liquidity transaction in your wallet...');
+    
+    writeContract({
+      ...CONTRACTS.POOL_CORE,
+      functionName: 'addLiquidity',
+      args: [BigInt(poolId), liquidityAmount],
+      value: useBitr ? 0n : liquidityAmount,
+      ...getTransactionOptions(), // Use same gas settings as placeBet
+    });
+  };
+
   // Handle approval confirmation and proceed with bet
   useEffect(() => {
     if (isApprovalSuccess && approvalConfirmed && pendingBetData && address) {
@@ -201,7 +214,7 @@ export function usePools() {
             await placeBetDirect(pendingBetData.poolId, betAmount, pendingBetData.useBitr);
           }
           
-          // Clear pending state
+          // Clear pending state immediately to prevent double execution
           setPendingBetData(null);
           setApprovalConfirmed(false);
           
@@ -215,7 +228,7 @@ export function usePools() {
       
       proceedWithBet();
     }
-  }, [isApprovalSuccess, approvalConfirmed, pendingBetData, address, getBITRAllowance, placeBetDirect, showError]);
+  }, [isApprovalSuccess, approvalConfirmed, pendingBetData, address, getBITRAllowance, addLiquidityDirect, placeBetDirect, showError]);
 
   // Track bet transaction confirmation
   const { isSuccess: isBetSuccess } = useWaitForTransactionReceipt({ 
@@ -492,18 +505,6 @@ export function usePools() {
     }
   };
 
-  // Direct liquidity addition function
-  const addLiquidityDirect = async (poolId: number, liquidityAmount: bigint, useBitr: boolean) => {
-    showPending('Adding Liquidity', 'Please confirm the liquidity transaction in your wallet...');
-    
-    writeContract({
-      ...CONTRACTS.POOL_CORE,
-      functionName: 'addLiquidity',
-      args: [BigInt(poolId), liquidityAmount],
-      value: useBitr ? 0n : liquidityAmount,
-      ...getTransactionOptions(), // Use same gas settings as placeBet
-    });
-  };
 
   const placeBet = async (poolId: number, amount: string, useBitr: boolean = false) => {
     try {

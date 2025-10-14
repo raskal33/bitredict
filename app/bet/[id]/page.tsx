@@ -26,6 +26,7 @@ import {
 import { Pool, Comment } from "@/lib/types";
 import { usePools } from "@/hooks/usePools";
 import { useBITRToken } from "@/hooks/useBITRToken";
+import { TransactionFeedback } from "@/components/TransactionFeedback";
 import { optimizedPoolService } from "@/services/optimizedPoolService";
 import { poolStateService } from "@/services/poolStateService";
 import { frontendCache } from "@/services/frontendCache";
@@ -662,6 +663,9 @@ export default function BetPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+      {/* Transaction Feedback Modal */}
+      <TransactionFeedback status={null} onClose={() => {}} />
+      
       <div className="container mx-auto px-4 py-4 sm:py-8 space-y-4 sm:space-y-8">
         {/* Header Section */}
         <div className="relative">

@@ -490,9 +490,11 @@ class OddysseyService {
       const slips: OddysseySlip[] = [];
       for (const slipId of slipIds) {
         try {
-          const slip = await this.getSlip(slipId);
-          console.log('🔍 Retrieved slip data for ID', slipId.toString(), ':', slip);
-          slips.push(slip);
+          const slipResult = await this.getSlip(slipId);
+          if (slipResult.success && slipResult.data) {
+            console.log('🔍 Retrieved slip data for ID', slipId.toString(), ':', slipResult.data);
+            slips.push(slipResult.data);
+          }
         } catch (error) {
           console.error('❌ Error getting slip', slipId.toString(), ':', error);
           continue;
@@ -563,7 +565,13 @@ class OddysseyService {
     try {
       console.log('🔍 Getting ALL user slips with data from backend for:', userAddress);
       
-      const response = await fetch(`/api/oddyssey/user-slips/${userAddress}`);
+      const response = await fetch(`/api/slips/user/${userAddress}?limit=50&offset=0&t=${Date.now()}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch user slips from backend');
       }
@@ -572,7 +580,7 @@ class OddysseyService {
       console.log('🔍 Backend slips data:', data);
       
       // Transform backend data to match expected OddysseySlip format
-      const backendSlips = data.slips || [];
+      const backendSlips = data.data || [];
       const slipsData: OddysseySlip[] = backendSlips.map((slip: any, index: number) => ({
         player: (slip.playerAddress || userAddress) as Address,
         cycleId: Number(slip.cycleId),
@@ -626,45 +634,7 @@ class OddysseyService {
     }
   }
 
-  // Get live slip evaluation status
-  async getLiveSlipEvaluation(slipId: number): Promise<any> {
-    try {
-      console.log('🔍 Getting live slip evaluation for slip ID:', slipId);
-      
-      const response = await fetch(`/api/live-slip-evaluation/${slipId}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch live slip evaluation');
-      }
-      
-      const data = await response.json();
-      console.log('🔍 Live slip evaluation data:', data);
-      
-      return data.data || null;
-    } catch (error) {
-      console.error('❌ Error getting live slip evaluation:', error);
-      return null;
-    }
-  }
 
-  // Get user slips for a specific cycle with live evaluation
-  async getUserSlipsForCycleWithLiveEvaluation(userAddress: Address, cycleId: number): Promise<any[]> {
-    try {
-      console.log('🔍 Getting user slips for cycle with live evaluation:', userAddress, cycleId);
-      
-      const response = await fetch(`/api/live-slip-evaluation/user/${userAddress}/cycle/${cycleId}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch user slips with live evaluation');
-      }
-      
-      const data = await response.json();
-      console.log('🔍 User slips with live evaluation:', data);
-      
-      return data.slips || [];
-    } catch (error) {
-      console.error('❌ Error getting user slips with live evaluation:', error);
-      return [];
-    }
-  }
 
   // Process slip data from contract response
   private processSlipData(rawSlip: any): OddysseySlip {
@@ -753,44 +723,6 @@ class OddysseyService {
     }
   }
 
-  // Get slip by ID from backend
-  async getSlip(slipId: bigint): Promise<OddysseySlip> {
-    try {
-      console.log('🔍 Getting slip from backend for ID:', slipId.toString());
-      
-      const response = await fetch(`/api/oddyssey/slip/${slipId}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch slip from backend');
-      }
-      
-      const data = await response.json();
-      console.log('🔍 Backend slip data:', data);
-      
-      // Transform backend data to OddysseySlip format
-      const slip = data.slip;
-      return {
-        player: slip.playerAddress as Address,
-        cycleId: Number(slip.cycleId),
-        placedAt: Number(slip.placedAt),
-        predictions: slip.predictions?.map((pred: any) => ({
-          matchId: BigInt(pred.matchId),
-          betType: Number(pred.betType),
-          selection: pred.selection,
-          selectedOdd: Number(pred.selectedOdd) / 1000,
-          homeTeam: pred.homeTeam || 'Team A',
-          awayTeam: pred.awayTeam || 'Team B',
-          leagueName: pred.leagueName || 'Unknown League',
-          isCorrect: pred.isCorrect !== undefined ? Boolean(pred.isCorrect) : undefined
-        })) || [],
-        finalScore: Number(slip.finalScore || 0),
-        correctCount: Number(slip.correctCount || 0),
-        isEvaluated: Boolean(slip.isEvaluated || false)
-      };
-    } catch (error) {
-      console.error('Error getting slip from backend:', error);
-      throw error;
-    }
-  }
 
   // Get daily leaderboard
   async getDailyLeaderboard(cycleId: bigint): Promise<LeaderboardEntry[]> {
@@ -931,9 +863,9 @@ class OddysseyService {
       // Get all slips and filter by user
       for (let i = 0; i < Number(totalSlips); i++) {
         try {
-          const slip = await this.getSlip(BigInt(i));
-          if (slip.player.toLowerCase() === userAddress.toLowerCase()) {
-            allSlips.push(slip);
+          const slipResult = await this.getSlip(BigInt(i));
+          if (slipResult.success && slipResult.data && slipResult.data.player.toLowerCase() === userAddress.toLowerCase()) {
+            allSlips.push(slipResult.data);
           }
         } catch (error) {
           // Skip invalid slip IDs
@@ -1036,13 +968,34 @@ class OddysseyService {
     }
   }
 
-  // Get matches (contract-only)
+  // Get matches with results from backend
   async getMatches(): Promise<{ success: boolean; data: any }> {
     try {
+      // First get matches from contract
       const matches = await this.getCurrentCycleMatches();
+      
+      // Then get results from backend
+      const resultsResponse = await fetch(`/api/oddyssey/results/${new Date().toISOString().split('T')[0]}`);
+      const resultsData = await resultsResponse.json();
+      
+      // Merge match data with results
+      const enrichedMatches = matches.map(match => {
+        const result = resultsData.data?.matches?.find((m: any) => m.id === match.id);
+        return {
+          ...match,
+          result: result ? {
+            homeScore: result.home_score,
+            awayScore: result.away_score,
+            outcome1X2: result.outcome_1x2,
+            outcomeOU25: result.outcome_ou25,
+            isFinished: result.is_finished || false
+          } : match.result
+        };
+      });
+      
       return {
         success: true,
-        data: matches
+        data: enrichedMatches
       };
     } catch (error) {
       console.error('Error getting matches:', error);
@@ -1058,7 +1011,13 @@ class OddysseyService {
     try {
       // For now, use date-based lookup since backend expects date
       // TODO: Update backend to support cycle ID lookup
-      const response = await fetch(`https://bitredict-backend.fly.dev/api/oddyssey/results/${new Date().toISOString().split('T')[0]}`);
+      const response = await fetch(`/api/oddyssey/results/${new Date().toISOString().split('T')[0]}?t=${Date.now()}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
       const data = await response.json();
       return {
         success: true,
@@ -1069,6 +1028,78 @@ class OddysseyService {
       return {
         success: false,
         data: []
+      };
+    }
+  }
+
+  // Get live slip evaluation
+  async getLiveSlipEvaluation(slipId: number): Promise<{ success: boolean; data: any }> {
+    try {
+      const response = await fetch(`/api/live-slip-evaluation/${slipId}?t=${Date.now()}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
+      const data = await response.json();
+      return {
+        success: true,
+        data: data.data
+      };
+    } catch (error) {
+      console.error('Error getting live slip evaluation:', error);
+      return {
+        success: false,
+        data: null
+      };
+    }
+  }
+
+  // Get user slips for cycle with live evaluation
+  async getUserSlipsForCycleWithLiveEvaluation(userAddress: Address, cycleId: number): Promise<{ success: boolean; data: any }> {
+    try {
+      const response = await fetch(`/api/live-slip-evaluation/user/${userAddress}/cycle/${cycleId}?t=${Date.now()}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
+      const data = await response.json();
+      return {
+        success: true,
+        data: data.data
+      };
+    } catch (error) {
+      console.error('Error getting user cycle evaluation:', error);
+      return {
+        success: false,
+        data: null
+      };
+    }
+  }
+
+  // Get specific slip details
+  async getSlip(slipId: bigint): Promise<{ success: boolean; data: any }> {
+    try {
+      const response = await fetch(`/api/slips/${slipId}?t=${Date.now()}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
+      const data = await response.json();
+      return {
+        success: true,
+        data: data.data
+      };
+    } catch (error) {
+      console.error('Error getting slip details:', error);
+      return {
+        success: false,
+        data: null
       };
     }
   }
