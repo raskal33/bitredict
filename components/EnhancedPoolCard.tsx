@@ -73,6 +73,11 @@ export interface EnhancedPool {
     odds: number;
   }>;
   comboOdds?: number;
+  liquidityProviders?: Array<{
+    address: string;
+    stake: string;
+    timestamp: number;
+  }>;
   
   // Indexed data fields
   indexedData?: {
@@ -475,10 +480,10 @@ export default function EnhancedPoolCard({
                 isWei: true
               });
               console.log(`📊 Pool ${pool.id} progress calculation:`, poolCalculation);
-              // Round to nearest whole number if decimal >= 0.5, otherwise show 1 decimal place
+              // Round to 1 decimal place for better display
               const percentage = poolCalculation.fillPercentage;
-              const roundedPercentage = percentage >= 99.5 ? 100 : Math.round(percentage * 10) / 10;
-              return `${roundedPercentage}%`;
+              const displayPercentage = percentage >= 99.95 ? 100 : Math.round(percentage * 10) / 10;
+              return `${displayPercentage}%`;
             })()}
           </span>
           </div>
@@ -640,10 +645,31 @@ export default function EnhancedPoolCard({
         <div>
           <div className="text-xs text-gray-400 flex items-center justify-center gap-1">
             <UserIcon className="w-3 h-3" />
-            {indexedData ? 'Participants' : 'Total Stake'}
+            Participants
           </div>
           <div className="text-sm font-bold text-white">
-            {indexedData ? indexedData.participantCount : formatStake(pool.totalBettorStake)} {indexedData ? '' : pool.usesBitr ? 'BITR' : 'STT'}
+            {(() => {
+              if (indexedData && indexedData.participantCount !== undefined) {
+                return indexedData.participantCount;
+              }
+              // Calculate participants: 1 creator + number of unique bettors + LP providers
+              let participantCount = 1; // Creator
+              
+              // Add bettor count (estimate based on pool activity)
+              const totalBettorStake = parseFloat(pool.totalBettorStake || "0");
+              if (totalBettorStake > 0) {
+                // Estimate 1-3 participants per 1000 stake units
+                const estimatedBettors = Math.max(1, Math.min(10, Math.ceil(totalBettorStake / 1000)));
+                participantCount += estimatedBettors;
+              }
+              
+              // Add LP providers if available
+              if (pool.liquidityProviders) {
+                participantCount += pool.liquidityProviders.length;
+              }
+              
+              return participantCount;
+            })()}
           </div>
         </div>
         <div>

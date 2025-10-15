@@ -585,23 +585,24 @@ class OddysseyService {
       console.log('🔍 Backend slips raw:', JSON.stringify(backendSlips[0], null, 2));
       
       const slipsData: OddysseySlip[] = backendSlips.map((slip: any, index: number) => ({
-        id: slip.slip_id || slip.id || index,
-        player: (slip.player_address || slip.playerAddress || userAddress) as Address,
-        cycleId: Number(slip.cycle_id || slip.cycleId || 0),
-        placedAt: Number(slip.placed_at || slip.placedAt || 0),
+        id: slip.slipId || slip.slip_id || slip.id || index,
+        player: (slip.playerAddress || slip.player_address || userAddress) as Address,
+        cycleId: Number(slip.cycleId || slip.cycle_id || 0),
+        placedAt: Number(slip.placedAt || slip.placed_at || 0),
         predictions: slip.predictions?.map((pred: any) => ({
-          matchId: BigInt(pred.match_id || pred.matchId || 0),
-          betType: Number(pred.bet_type || pred.betType || 0),
-          selection: pred.selection || '',
-          selectedOdd: Number(pred.selected_odd || pred.selectedOdd || 0) / 100, // Backend might send in different format
-          homeTeam: pred.home_team || pred.homeTeam || 'Team A',
-          awayTeam: pred.away_team || pred.awayTeam || 'Team B',
-          leagueName: pred.league_name || pred.leagueName || 'Unknown League',
-          isCorrect: pred.is_correct !== undefined ? Boolean(pred.is_correct) : (pred.isCorrect !== undefined ? Boolean(pred.isCorrect) : undefined)
+          matchId: BigInt(pred.matchId || pred.match_id || 0),
+          betType: Number(pred.betType || pred.bet_type || 0),
+          selection: pred.selection || pred.prediction || '',
+          selectedOdd: Number(pred.odds || pred.selected_odd || pred.selectedOdd || 0) / 100,
+          homeTeam: pred.homeTeam || pred.home_team || 'Team A',
+          awayTeam: pred.awayTeam || pred.away_team || 'Team B',
+          leagueName: pred.league || pred.league_name || pred.leagueName || 'Unknown League',
+          isCorrect: pred.isCorrect !== undefined ? Boolean(pred.isCorrect) : 
+                    (pred.is_correct !== undefined ? Boolean(pred.is_correct) : undefined)
         })) || [],
-        finalScore: Number(slip.final_score || slip.finalScore || 0),
-        correctCount: Number(slip.correct_count || slip.correctCount || 0),
-        isEvaluated: Boolean(slip.is_evaluated || slip.isEvaluated || false)
+        finalScore: Number(slip.finalScore || slip.final_score || 0),
+        correctCount: Number(slip.correctCount || slip.correct_count || 0),
+        isEvaluated: Boolean(slip.isEvaluated || slip.is_evaluated || false)
       }));
       
       console.log('🔍 Transformed first slip:', JSON.stringify(slipsData[0], null, 2));
@@ -625,7 +626,13 @@ class OddysseyService {
     try {
       console.log('🔍 Getting evaluated slip data for slip ID:', slipId);
       
-      const response = await fetch(`/api/oddyssey/evaluated-slip/${slipId}`);
+      const response = await fetch(`/api/oddyssey/evaluated-slip/${slipId}?t=${Date.now()}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch evaluated slip data');
       }
@@ -633,7 +640,31 @@ class OddysseyService {
       const data = await response.json();
       console.log('🔍 Evaluated slip data:', data);
       
-      return data.slip || null;
+      if (data.success && data.data) {
+        const slip = data.data;
+        
+        return {
+          id: slip.slipId || slipId,
+          player: '0x0000000000000000000000000000000000000000' as Address, // Will be filled by caller
+          cycleId: Number(slip.cycleId || 0),
+          placedAt: 0, // Not provided in evaluated slip
+          predictions: slip.predictions?.map((pred: any) => ({
+            matchId: BigInt(pred.matchId || 0),
+            betType: Number(pred.betType || 0),
+            selection: pred.prediction || pred.selection || '',
+            selectedOdd: Number(pred.odds || 0) / 100,
+            homeTeam: pred.homeTeam || 'Team A',
+            awayTeam: pred.awayTeam || 'Team B',
+            leagueName: pred.league || 'Unknown League',
+            isCorrect: pred.isCorrect !== undefined ? Boolean(pred.isCorrect) : undefined
+          })) || [],
+          finalScore: Number(slip.finalScore || 0),
+          correctCount: Number(slip.correctCount || slip.summary?.correctPredictions || 0),
+          isEvaluated: Boolean(slip.isEvaluated || true)
+        };
+      }
+      
+      return null;
     } catch (error) {
       console.error('❌ Error getting evaluated slip data:', error);
       return null;
@@ -977,38 +1008,58 @@ class OddysseyService {
   // Get matches with results from backend
   async getMatches(): Promise<{ success: boolean; data: any }> {
     try {
-      // First get matches from contract
-      const matches = await this.getCurrentCycleMatches();
-      
-      // Then get results from backend
-      const resultsResponse = await fetch(`/api/oddyssey/results/${new Date().toISOString().split('T')[0]}`);
-      const resultsData = await resultsResponse.json();
-      
-      // Merge match data with results
-      const enrichedMatches = matches.map(match => {
-        const result = resultsData.data?.matches?.find((m: any) => m.id === match.id);
-        return {
-          ...match,
-          result: result ? {
-            homeScore: result.home_score,
-            awayScore: result.away_score,
-            outcome1X2: result.outcome_1x2,
-            outcomeOU25: result.outcome_ou25,
-            isFinished: result.is_finished || false
-          } : match.result
-        };
+      // Use the new /api/oddyssey/results/all endpoint
+      const resultsResponse = await fetch(`/api/oddyssey/results/all?t=${Date.now()}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
       });
       
-      return {
-        success: true,
-        data: enrichedMatches
-      };
+      if (!resultsResponse.ok) {
+        throw new Error(`Results API responded with status: ${resultsResponse.status}`);
+      }
+      
+      const resultsData = await resultsResponse.json();
+      console.log('🔍 Results from /api/oddyssey/results/all:', resultsData);
+      
+      if (resultsData.success && resultsData.data?.cycles?.length > 0) {
+        // Get the latest cycle's matches
+        const latestCycle = resultsData.data.cycles[resultsData.data.cycles.length - 1];
+        const matches = latestCycle.matches || [];
+        
+        console.log('✅ Retrieved matches from results/all:', matches.length);
+        
+        return {
+          success: true,
+          data: matches
+        };
+      } else {
+        // Fallback to contract matches if no results available
+        const matches = await this.getCurrentCycleMatches();
+        return {
+          success: true,
+          data: matches
+        };
+      }
     } catch (error) {
-      console.error('Error getting matches:', error);
-      return {
-        success: false,
-        data: []
-      };
+      console.error('❌ Error getting matches from results/all, falling back to contract:', error);
+      
+      try {
+        // Fallback to contract matches
+        const matches = await this.getCurrentCycleMatches();
+        return {
+          success: true,
+          data: matches
+        };
+      } catch (fallbackError) {
+        console.error('❌ Error getting matches from contract:', fallbackError);
+        return {
+          success: false,
+          data: []
+        };
+      }
     }
   }
 

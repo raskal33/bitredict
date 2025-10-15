@@ -73,6 +73,7 @@ export interface Pool {
   confidence?: number;
   successRate?: number;
   totalValue?: number;
+  totalBettorStake?: string;
   liquidityProviders?: Array<{
     address: string;
     stake: string;

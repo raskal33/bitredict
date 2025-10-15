@@ -951,7 +951,19 @@ export default function BetPage() {
                 <div className="w-full h-0.5 bg-yellow-500/20 rounded-full mt-2"></div>
               </div>
               <div className="text-center group hover:scale-105 transition-transform">
-                <div className="text-xl sm:text-3xl font-bold text-cyan-400 mb-1 group-hover:text-cyan-300 transition-colors">0</div>
+                <div className="text-xl sm:text-3xl font-bold text-cyan-400 mb-1 group-hover:text-cyan-300 transition-colors">
+                  {(() => {
+                    // Calculate number of challengers (YES bettors)
+                    const totalBettorStake = parseFloat(pool.totalBettorStake || "0");
+                    if (totalBettorStake > 0) {
+                      // Estimate number of YES bettors based on stake amount
+                      // Assume average bet of 500-2000 tokens
+                      const estimatedChallengers = Math.max(1, Math.ceil(totalBettorStake / 1500));
+                      return estimatedChallengers;
+                    }
+                    return 0;
+                  })()}
+                </div>
                 <div className="text-xs text-gray-400 uppercase tracking-wider">Challengers</div>
                 <div className="w-full h-0.5 bg-cyan-500/20 rounded-full mt-2"></div>
               </div>

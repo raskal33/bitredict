@@ -10,8 +10,7 @@ import {
   XCircleIcon
 } from '@heroicons/react/24/outline';
 import { 
-  HandThumbUpIcon as ThumbUpSolid,
-  HandThumbDownIcon as ThumbDownSolid
+  HandThumbUpIcon as ThumbUpSolid
 } from '@heroicons/react/24/solid';
 
 interface Bet {
@@ -268,9 +267,9 @@ export default function BetDisplay({ poolId, className = "" }: BetDisplayProps) 
                         YES
                       </div>
                     ) : (
-                      <div className="flex items-center gap-1 px-2 py-1 bg-blue-500/20 text-blue-400 rounded-full text-xs">
-                        <ThumbDownSolid className="w-3 h-3" />
-                        NO
+                      <div className="flex items-center gap-1 px-2 py-1 bg-purple-500/20 text-purple-400 rounded-full text-xs">
+                        💧
+                        LP ADDED
                       </div>
                     )}
                   </div>

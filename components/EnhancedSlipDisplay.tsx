@@ -105,7 +105,18 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
       // Date filter
       let dateMatch = true;
       if (dateFilter !== 'all') {
-        const slipDate = new Date(slip.placedAt * 1000);
+        // Handle different date formats from backend
+        let slipDate: Date;
+        
+        if (slip.placedAt && slip.placedAt > 0) {
+          // If placedAt is a timestamp
+          slipDate = new Date(slip.placedAt > 1000000000000 ? slip.placedAt : slip.placedAt * 1000);
+        } else {
+          // Fallback to current date if no valid timestamp
+          console.warn('Invalid slip date for slip:', slip.id, 'placedAt:', slip.placedAt);
+          slipDate = new Date();
+        }
+        
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         
