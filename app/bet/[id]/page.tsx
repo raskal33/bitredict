@@ -28,7 +28,6 @@ import { usePools } from "@/hooks/usePools";
 import { useBITRToken } from "@/hooks/useBITRToken";
 import { TransactionFeedback } from "@/components/TransactionFeedback";
 import { optimizedPoolService } from "@/services/optimizedPoolService";
-import { poolStateService } from "@/services/poolStateService";
 import { frontendCache } from "@/services/frontendCache";
 import { toast } from "react-hot-toast";
 import { PoolExplanationService, PoolExplanation } from "@/services/poolExplanationService";
@@ -243,25 +242,27 @@ export default function BetPage() {
         marketId: poolData.marketId || ''
       });
         
-      // Get enhanced pool status from contract (cached for performance)
-      const poolState = await poolStateService.getPoolState(parseInt(poolId));
-      
-      // Determine pool status type using contract data
-      if (poolState.settled) {
-        if (poolState.creatorSideWon) {
-          setPoolStatusType('creator_won');
-        } else {
-          setPoolStatusType('bettor_won');
-        }
-      } else {
-        // Check if pool should be considered settled based on timing
-        const nowTime = Date.now();
-        const eventEndTime = poolData.eventEndTime * 1000;
+      // Determine pool status type using contract data (consistent with PoolStatusBanner)
+      if (contractData) {
+        const settled = (contractData.flags & 1) !== 0; // Bit 0: settled
+        const creatorSideWon = (contractData.flags & 2) !== 0; // Bit 1: creatorSideWon
         
-        if (nowTime > eventEndTime && poolData.status === 'settled') {
-          setPoolStatusType('settled'); // Awaiting settlement
+        if (settled) {
+          if (creatorSideWon) {
+            setPoolStatusType('creator_won');
+          } else {
+            setPoolStatusType('bettor_won');
+          }
         } else {
-          setPoolStatusType('active');
+          // Check if pool should be considered settled based on timing
+          const nowTime = Date.now();
+          const eventEndTime = poolData.eventEndTime * 1000;
+          
+          if (nowTime > eventEndTime && poolData.status === 'settled') {
+            setPoolStatusType('settled'); // Awaiting settlement
+          } else {
+            setPoolStatusType('active');
+          }
         }
       }
       
@@ -302,7 +303,7 @@ export default function BetPage() {
     } finally {
       setLoading(false);
     }
-   }, [poolId, lastFetchTime]);
+   }, [poolId, lastFetchTime, contractData]);
    // eslint-disable-next-line react-hooks/exhaustive-deps
 
   const checkUserBetStatus = useCallback(async () => {
@@ -667,6 +668,16 @@ export default function BetPage() {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
       {/* Transaction Feedback Modal */}
       <TransactionFeedback status={null} onClose={() => {}} />
+      
+      {/* Match Center - Only show for football pools */}
+      {pool.marketType === 'football' && (
+        <div className="container mx-auto px-4 py-4">
+          <MatchCenter 
+            fixtureId={pool.marketId} 
+            className="w-full"
+          />
+        </div>
+      )}
       
       <div className="container mx-auto px-4 py-4 sm:py-8 space-y-4 sm:space-y-8">
         {/* Header Section */}

@@ -458,12 +458,24 @@ contract BitredictPoolCore is Ownable, ReentrancyGuard {
         if (alreadyClaimed) return (false, 0, false, 0, true, "Already claimed");
         bool creatorSideWon = _poolCreatorSideWon(poolId);
         if (creatorSideWon) {
-            userStake = lpStakes[poolId][user];
-            if (userStake == 0) return (false, 0, false, 0, false, "No LP stake");
-            if (pool.totalCreatorSideStake == 0) return (false, 0, false, userStake, false, "Invalid pool state");
-            uint256 sharePercentage = (userStake * 10000) / pool.totalCreatorSideStake;
-            claimableAmount = userStake + ((pool.totalBettorStake * sharePercentage) / 10000);
-            return (true, claimableAmount, true, userStake, false, "Ready to claim");
+            // Check if user is the creator
+            if (user == pool.creator) {
+                // Creator gets their initial stake + LP stake + share of bettor stake
+                userStake = pool.creatorStake + lpStakes[poolId][user];
+                if (userStake == 0) return (false, 0, false, 0, false, "No creator stake");
+                if (pool.totalCreatorSideStake == 0) return (false, 0, false, userStake, false, "Invalid pool state");
+                uint256 sharePercentage = (userStake * 10000) / pool.totalCreatorSideStake;
+                claimableAmount = userStake + ((pool.totalBettorStake * sharePercentage) / 10000);
+                return (true, claimableAmount, true, userStake, false, "Ready to claim");
+            } else {
+                // Regular LP provider
+                userStake = lpStakes[poolId][user];
+                if (userStake == 0) return (false, 0, false, 0, false, "No LP stake");
+                if (pool.totalCreatorSideStake == 0) return (false, 0, false, userStake, false, "Invalid pool state");
+                uint256 sharePercentage = (userStake * 10000) / pool.totalCreatorSideStake;
+                claimableAmount = userStake + ((pool.totalBettorStake * sharePercentage) / 10000);
+                return (true, claimableAmount, true, userStake, false, "Ready to claim");
+            }
         } else {
             userStake = bettorStakes[poolId][user];
             if (userStake == 0) return (false, 0, false, 0, false, "No bet placed");
