@@ -36,6 +36,8 @@ import PoolTitleRow from "@/components/PoolTitleRow";
 import CryptoTitleRow from "@/components/CryptoTitleRow";
 import PoolStatusBanner from "@/components/PoolStatusBanner";
 import BetDisplay from "@/components/BetDisplay";
+import SettlementResults from "@/components/SettlementResults";
+import MatchCenter from "@/components/MatchCenter";
 import ClaimRewards from "@/components/ClaimRewards";
 import SkeletonLoader from "@/components/SkeletonLoader";
 
@@ -51,7 +53,7 @@ export default function BetPage() {
     return false; // Simplified - no approval needed
   };
   
-  const [activeTab, setActiveTab] = useState<"bet" | "liquidity" | "analysis">("bet");
+  const [activeTab, setActiveTab] = useState<"bet" | "liquidity" | "analysis" | "settlement">("bet");
   const [betAmount, setBetAmount] = useState<number>(0);
   const [hasUserBet, setHasUserBet] = useState(false);
   const [userBetAmount, setUserBetAmount] = useState(0);
@@ -828,6 +830,15 @@ export default function BetPage() {
                     />
                   )
                 )}
+            {/* Match Center - Only show for football pools */}
+            {pool.marketType === 'football' && (
+              <div className="mb-8">
+                <MatchCenter 
+                  fixtureId={pool.marketId} 
+                  className="w-full"
+                />
+              </div>
+            )}
                 
                 {/* Pool Status Banner */}
                 {contractData && (
@@ -1003,11 +1014,12 @@ export default function BetPage() {
           {[
             { id: 'bet', label: 'Place Bet', icon: BanknotesIcon },
             { id: 'analysis', label: 'Analysis', icon: ChartBarIcon },
+            { id: 'settlement', label: 'Settlement', icon: TrophyIcon },
             { id: 'liquidity', label: 'Liquidity', icon: ScaleIcon }
           ].map(tab => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as "bet" | "liquidity" | "analysis")}
+              onClick={() => setActiveTab(tab.id as "bet" | "liquidity" | "analysis" | "settlement")}
               className={`flex-1 flex items-center justify-center gap-1 sm:gap-2 px-2 sm:px-4 py-2 sm:py-3 rounded-lg font-medium transition-all text-xs sm:text-sm ${
                 activeTab === tab.id
                   ? 'bg-cyan-500 text-black shadow-lg'
@@ -1321,6 +1333,22 @@ export default function BetPage() {
               </div>
             )}
 
+            {activeTab === 'settlement' && (
+              <div className="space-y-6">
+                <div className="text-center">
+                  <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">Settlement Results</h3>
+                  <p className="text-sm sm:text-base text-gray-400">
+                    View detailed settlement information and transparency data
+                  </p>
+                </div>
+
+                <SettlementResults 
+                  poolId={poolId}
+                  className="w-full"
+                />
+              </div>
+            )}
+            
             {activeTab === 'liquidity' && (
               <div className="space-y-6">
                 <div className="text-center">
@@ -1414,13 +1442,12 @@ export default function BetPage() {
                 )}
               </div>
             )}
-                  </div>
 
-          {/* Sidebar */}
+        </div>
+      </div>
+
+      {/* Sidebar */}
           <div className="space-y-6">
-
-                </div>
-                </div>
 
 
 
@@ -1525,6 +1552,7 @@ export default function BetPage() {
               comments.map(renderComment)
               )}
           </div>
+        </div>
         </div>
       </div>
       

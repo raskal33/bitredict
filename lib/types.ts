@@ -45,6 +45,8 @@ export interface Pool {
   socialStats: SocialStats;
   comments: Comment[];
   defeated: number;
+  marketType?: string;
+  marketId?: string;
   progress?: number;
   total?: number;
   outcome?: string;
