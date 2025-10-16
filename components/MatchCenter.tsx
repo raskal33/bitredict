@@ -58,8 +58,9 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
         setLoading(true);
         setError(null);
         
-        // Use marketId if provided, otherwise try to use fixtureId
-        const id = marketId || fixtureId;
+        // Prioritize fixtureId (SportMonks fixture ID) over marketId
+        const id = fixtureId || marketId;
+        const isFixtureId = !!fixtureId;
         
         if (!id) {
           setError('No match ID provided');
@@ -67,10 +68,14 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
           return;
         }
         
-        console.log('🔍 MatchCenter fetching data for ID:', id);
+        console.log('🔍 MatchCenter fetching data for ID:', { id, isFixtureId, type: isFixtureId ? 'fixture' : 'market' });
         
-        // Try the market endpoint first
-        const response = await fetch(`/api/match-center/market/${id}?t=${Date.now()}`, {
+        // Use fixture endpoint if fixtureId is provided, otherwise use market endpoint
+        const endpoint = isFixtureId 
+          ? `/api/match-center/fixture/${id}?t=${Date.now()}`
+          : `/api/match-center/market/${id}?t=${Date.now()}`;
+        
+        const response = await fetch(endpoint, {
           headers: {
             'Cache-Control': 'no-cache, no-store, must-revalidate',
             'Pragma': 'no-cache',

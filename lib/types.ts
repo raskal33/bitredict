@@ -47,6 +47,7 @@ export interface Pool {
   defeated: number;
   marketType?: string;
   marketId?: string;
+  fixtureId?: string;  // SportMonks fixture ID for football pools
   progress?: number;
   total?: number;
   outcome?: string;

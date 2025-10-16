@@ -226,6 +226,7 @@ export default function BetPage() {
         poolType: "single",
         comments: [],
         marketId: poolData.marketId || '',
+        fixtureId: poolData.fixtureId || '',
         eventDetails: {
           league: poolData.league || '',
           region: poolData.region || '',
@@ -238,13 +239,31 @@ export default function BetPage() {
       setPool(transformedPool);
       
       // Set contract data for status banner (API provides all needed fields)
+      const flags = 
+        (poolData.status === 'settled' ? 1 : 0) |  // Bit 0: settled
+        (
+          poolData.creatorSideWon === true || poolData.defeated === 0
+          ? 2 : 0  // Bit 1: creatorSideWon
+        );
+      
+      console.log('🔍 Pool Status DEBUG:', {
+        poolId: poolData.id,
+        status: poolData.status,
+        creatorSideWon: poolData.creatorSideWon,
+        defeated: poolData.defeated,
+        flagsCalculation: {
+          settled: (poolData.status === 'settled' ? 1 : 0),
+          creatorSideWon: (poolData.creatorSideWon === true || poolData.defeated === 0 ? 2 : 0),
+          combinedFlags: flags,
+          flagBits: {
+            bit0_settled: (flags & 1) !== 0,
+            bit1_creatorSideWon: (flags & 2) !== 0
+          }
+        }
+      });
+      
       setContractData({
-        flags: 
-          (poolData.status === 'settled' ? 1 : 0) |  // Bit 0: settled
-          (
-            poolData.creatorSideWon === true || poolData.defeated === 0
-            ? 2 : 0  // Bit 1: creatorSideWon
-          ),
+        flags,
         eventStartTime: poolData.eventStartTime,
         eventEndTime: poolData.eventEndTime,
         bettingEndTime: poolData.bettingEndTime,
@@ -255,27 +274,25 @@ export default function BetPage() {
         marketId: poolData.marketId || ''
       });
         
-      // Determine pool status type using contract data (consistent with PoolStatusBanner)
-      if (contractData) {
-        const settled = (contractData.flags & 1) !== 0; // Bit 0: settled
-        const creatorSideWon = (contractData.flags & 2) !== 0; // Bit 1: creatorSideWon
-        
-        if (settled) {
-          if (creatorSideWon) {
-            setPoolStatusType('creator_won');
-          } else {
-            setPoolStatusType('bettor_won');
-          }
+      // Determine pool status type using local flags (not async state)
+      const settled = (flags & 1) !== 0; // Bit 0: settled
+      const creatorSideWon = (flags & 2) !== 0; // Bit 1: creatorSideWon
+      
+      if (settled) {
+        if (creatorSideWon) {
+          setPoolStatusType('creator_won');
         } else {
-          // Check if pool should be considered settled based on timing
-          const nowTime = Date.now();
-          const eventEndTime = poolData.eventEndTime * 1000;
-          
-          if (nowTime > eventEndTime && poolData.status === 'settled') {
-            setPoolStatusType('settled'); // Awaiting settlement
-          } else {
-            setPoolStatusType('active');
-          }
+          setPoolStatusType('bettor_won');
+        }
+      } else {
+        // Check if pool should be considered settled based on timing
+        const nowTime = Date.now();
+        const eventEndTime = poolData.eventEndTime * 1000;
+        
+        if (nowTime > eventEndTime && poolData.status === 'settled') {
+          setPoolStatusType('settled'); // Awaiting settlement
+        } else {
+          setPoolStatusType('active');
         }
       }
       
@@ -712,14 +729,15 @@ export default function BetPage() {
       {(() => {
         console.log('🔍 MATCH CENTER DEBUG:', {
           poolCategory: pool.category,
+          poolFixtureId: pool.fixtureId,
           poolMarketId: pool.marketId,
           poolMarketType: pool.marketType,
           shouldShowMatchCenter: pool.category === 'football'
         });
-        return pool.category === 'football' && (
+        return pool.category === 'football' && pool.fixtureId && (
           <div className="container mx-auto px-4 py-4">
             <MatchCenter 
-              marketId={pool.marketId} 
+              fixtureId={pool.fixtureId} 
               className="w-full"
             />
           </div>

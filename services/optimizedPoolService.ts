@@ -56,6 +56,7 @@ export interface OptimizedPool {
   region?: string;
   predictedOutcome?: string;
   marketId?: string;
+  fixtureId?: string;  // SportMonks fixture ID (use this instead of marketId for match center)
   oracleType?: string;
   // Settlement information
   creatorSideWon?: boolean;  // Whether creator side won (true) or bettor side won (false)
