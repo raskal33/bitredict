@@ -680,7 +680,7 @@ export default function BetPage() {
         return pool.category === 'football' && (
           <div className="container mx-auto px-4 py-4">
             <MatchCenter 
-              fixtureId={pool.marketId} 
+              marketId={pool.marketId} 
               className="w-full"
             />
           </div>
@@ -853,7 +853,7 @@ export default function BetPage() {
             {pool.category === 'football' && (
               <div className="mb-8">
                 <MatchCenter 
-                  fixtureId={pool.marketId} 
+                  marketId={pool.marketId} 
                   className="w-full"
                 />
               </div>
