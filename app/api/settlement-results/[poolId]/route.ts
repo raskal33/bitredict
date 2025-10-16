@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET(request: NextRequest, { params }: { params: { poolId: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ poolId: string }> }) {
   try {
-    const { poolId } = params;
+    const { poolId } = await params;
     console.log(`🎯 Fetching settlement results for pool ID: ${poolId}`);
 
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://bitredict-backend.fly.dev';
