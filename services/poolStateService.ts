@@ -18,7 +18,7 @@ interface PoolStateCache {
 class PoolStateService {
   private cache: PoolStateCache = {};
   private readonly CACHE_DURATION = 30000; // 30 seconds cache
-  private readonly CONTRACT_ADDRESS = "0xE57F5662Be9E0195F58d2Ba87b8D55b4890D4391";
+  private readonly CONTRACT_ADDRESS = "0xf6C56Ef095d88a04a3C594ECA30F6e275EEbe3db";
 
   /**
    * Get pool settlement status with smart caching
