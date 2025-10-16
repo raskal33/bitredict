@@ -39,30 +39,62 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
       const targetCycleId = cycleId;
       let targetDate = selectedDate;
       
-      // If no specific cycle ID provided, get current cycle or use date-based lookup
+      // If no specific cycle ID provided, get the latest cycle results
       if (!targetCycleId) {
-        if (selectedDate === 'today') {
-          targetDate = new Date().toISOString().split('T')[0];
-        } else if (selectedDate === 'yesterday') {
-          const yesterday = new Date();
-          yesterday.setDate(yesterday.getDate() - 1);
-          targetDate = yesterday.toISOString().split('T')[0];
-        } else {
-          targetDate = selectedDate;
-        }
+        console.log('🔍 No cycle ID provided, fetching latest cycle results...');
         
-        // Get results by date instead of cycle ID
-        const response = await oddysseyService.getResultsByDate(targetDate);
-        
-        if (response.success && response.data) {
-          setResults(response.data.matches || []);
-          setCurrentCycleId(response.data.cycleId);
-          setCycleInfo({
-            isResolved: response.data.isResolved || false,
-            totalMatches: response.data.totalMatches || 0,
-            finishedMatches: response.data.finishedMatches || 0
-          });
-        } else {
+        // Try to get the latest cycle first
+        try {
+          const currentCycleId = await oddysseyService.getCurrentCycle();
+          console.log('✅ Current cycle ID:', currentCycleId);
+          
+          if (currentCycleId) {
+            const response = await oddysseyService.getCycleResults(Number(currentCycleId));
+            
+            if (response.success && response.data) {
+              setResults(response.data.matches || []);
+              setCurrentCycleId(Number(currentCycleId));
+              setCycleInfo({
+                isResolved: response.data.isResolved || false,
+                totalMatches: response.data.totalMatches || 0,
+                finishedMatches: response.data.finishedMatches || 0
+              });
+            } else {
+              // Fallback to date-based lookup
+              if (selectedDate === 'today') {
+                targetDate = new Date().toISOString().split('T')[0];
+              } else if (selectedDate === 'yesterday') {
+                const yesterday = new Date();
+                yesterday.setDate(yesterday.getDate() - 1);
+                targetDate = yesterday.toISOString().split('T')[0];
+              } else {
+                targetDate = selectedDate;
+              }
+              
+              const dateResponse = await oddysseyService.getResultsByDate(targetDate);
+              
+              if (dateResponse.success && dateResponse.data) {
+                setResults(dateResponse.data.matches || []);
+                setCurrentCycleId(dateResponse.data.cycleId);
+                setCycleInfo({
+                  isResolved: dateResponse.data.isResolved || false,
+                  totalMatches: dateResponse.data.totalMatches || 0,
+                  finishedMatches: dateResponse.data.finishedMatches || 0
+                });
+              } else {
+                setResults([]);
+                setCycleInfo({
+                  isResolved: false,
+                  totalMatches: 0,
+                  finishedMatches: 0
+                });
+              }
+            }
+          } else {
+            throw new Error('No current cycle found');
+          }
+        } catch (error) {
+          console.error('❌ Error fetching latest cycle results:', error);
           setResults([]);
           setCycleInfo({
             isResolved: false,

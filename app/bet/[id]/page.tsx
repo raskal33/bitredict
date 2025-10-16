@@ -670,14 +670,22 @@ export default function BetPage() {
       <TransactionFeedback status={null} onClose={() => {}} />
       
       {/* Match Center - Only show for football pools */}
-      {pool.marketType === 'football' && (
-        <div className="container mx-auto px-4 py-4">
-          <MatchCenter 
-            fixtureId={pool.marketId} 
-            className="w-full"
-          />
-        </div>
-      )}
+      {(() => {
+        console.log('🔍 MATCH CENTER DEBUG:', {
+          poolCategory: pool.category,
+          poolMarketId: pool.marketId,
+          poolMarketType: pool.marketType,
+          shouldShowMatchCenter: pool.category === 'football'
+        });
+        return pool.category === 'football' && (
+          <div className="container mx-auto px-4 py-4">
+            <MatchCenter 
+              fixtureId={pool.marketId} 
+              className="w-full"
+            />
+          </div>
+        );
+      })()}
       
       <div className="container mx-auto px-4 py-4 sm:py-8 space-y-4 sm:space-y-8">
         {/* Header Section */}
@@ -842,7 +850,7 @@ export default function BetPage() {
                   )
                 )}
             {/* Match Center - Only show for football pools */}
-            {pool.marketType === 'football' && (
+            {pool.category === 'football' && (
               <div className="mb-8">
                 <MatchCenter 
                   fixtureId={pool.marketId} 

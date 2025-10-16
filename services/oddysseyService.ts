@@ -1066,8 +1066,63 @@ class OddysseyService {
   // Get cycle results from backend
   async getCycleResults(cycleId: number): Promise<{ success: boolean; data: any }> {
     try {
-      // For now, use date-based lookup since backend expects date
-      // TODO: Update backend to support cycle ID lookup
+      console.log(`🔍 Fetching results for cycle ${cycleId}...`);
+      
+      // Try to get results for the specific cycle
+      // First, try the /api/oddyssey/results/all endpoint to get all cycles
+      const allResultsResponse = await fetch(`/api/oddyssey/results/all?t=${Date.now()}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
+      
+      if (allResultsResponse.ok) {
+        const allResultsData = await allResultsResponse.json();
+        console.log('🔍 All results data:', allResultsData);
+        
+        if (allResultsData.success && allResultsData.data?.cycles?.length > 0) {
+          // Find the specific cycle
+          const targetCycle = allResultsData.data.cycles.find((cycle: any) => 
+            Number(cycle.cycleId) === Number(cycleId)
+          );
+          
+          if (targetCycle) {
+            console.log(`✅ Found cycle ${cycleId} results:`, targetCycle);
+            return {
+              success: true,
+              data: {
+                matches: targetCycle.matches || [],
+                cycleId: targetCycle.cycleId,
+                isResolved: targetCycle.isResolved || false,
+                totalMatches: targetCycle.totalMatches || 0,
+                finishedMatches: targetCycle.finishedMatches || 0
+              }
+            };
+          } else {
+            console.log(`❌ Cycle ${cycleId} not found in results`);
+            // Fallback to latest cycle
+            const latestCycle = allResultsData.data.cycles[allResultsData.data.cycles.length - 1];
+            if (latestCycle) {
+              console.log(`🔄 Using latest cycle ${latestCycle.cycleId} as fallback`);
+              return {
+                success: true,
+                data: {
+                  matches: latestCycle.matches || [],
+                  cycleId: latestCycle.cycleId,
+                  isResolved: latestCycle.isResolved || false,
+                  totalMatches: latestCycle.totalMatches || 0,
+                  finishedMatches: latestCycle.finishedMatches || 0
+                }
+              };
+            }
+          }
+        }
+      }
+      
+      // Fallback to date-based lookup
+      console.log(`🔄 Falling back to date-based lookup for cycle ${cycleId}`);
       const response = await fetch(`/api/oddyssey/results/${new Date().toISOString().split('T')[0]}?t=${Date.now()}`, {
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -1075,16 +1130,33 @@ class OddysseyService {
           'Expires': '0'
         }
       });
-      const data = await response.json();
-      return {
-        success: true,
-        data: data.data || []
-      };
+      
+      if (response.ok) {
+        const data = await response.json();
+        return {
+          success: true,
+          data: {
+            matches: data.data?.matches || [],
+            cycleId: data.data?.cycleId || cycleId,
+            isResolved: data.data?.isResolved || false,
+            totalMatches: data.data?.totalMatches || 0,
+            finishedMatches: data.data?.finishedMatches || 0
+          }
+        };
+      } else {
+        throw new Error(`API responded with status: ${response.status}`);
+      }
     } catch (error) {
-      console.error('Error getting cycle results:', error);
+      console.error('❌ Error getting cycle results:', error);
       return {
         success: false,
-        data: []
+        data: {
+          matches: [],
+          cycleId: cycleId,
+          isResolved: false,
+          totalMatches: 0,
+          finishedMatches: 0
+        }
       };
     }
   }

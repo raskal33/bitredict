@@ -48,23 +48,91 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
   console.log('🔍 Slips type:', typeof slips);
   console.log('🔍 Slips is array:', Array.isArray(slips));
 
-  // Fetch live evaluation data for slips
+  // Fetch live evaluation data for slips and calculate correctness
   useEffect(() => {
     const fetchLiveEvaluations = async () => {
       if (!slips || slips.length === 0) return;
       
       const evaluations = new Map();
+      
+      // Get unique cycle IDs from slips
+      const cycleIds = [...new Set(slips.map(slip => slip.cycleId))];
+      
+      // Fetch match results for each cycle
+      const matchResultsMap = new Map();
+      for (const cycleId of cycleIds) {
+        try {
+          const response = await fetch(`/api/oddyssey/results/all?t=${Date.now()}`, {
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0'
+            }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.data?.cycles?.length > 0) {
+              // Find the specific cycle
+              const targetCycle = data.data.cycles.find((cycle: { cycleId: number }) => 
+                Number(cycle.cycleId) === Number(cycleId)
+              );
+              
+              if (targetCycle && targetCycle.matches) {
+                matchResultsMap.set(cycleId, targetCycle.matches);
+                console.log(`✅ Found ${targetCycle.matches.length} match results for cycle ${cycleId}`);
+              }
+            }
+          }
+        } catch (error) {
+          console.error(`Error fetching match results for cycle ${cycleId}:`, error);
+        }
+      }
+      
+      // Process each slip
       for (const slip of slips) {
         try {
+          // Try to get live evaluation data first
           const response = await fetch(`/api/live-slip-evaluation/${slip.id}`);
           if (response.ok) {
             const data = await response.json();
             evaluations.set(slip.id, data.data);
+          } else {
+            // If no live evaluation, calculate correctness using match results
+            const matchResults = matchResultsMap.get(slip.cycleId);
+            if (matchResults && matchResults.length > 0) {
+              const calculatedPredictions = slip.predictions.map((prediction: { matchId: number; betType: number; selection: string }) => {
+                const matchResult = matchResults.find((match: { matchId: number; result: { moneyline: number; overUnder: number }; status?: string }) => 
+                  Number(match.matchId) === Number(prediction.matchId)
+                );
+                
+                if (matchResult && matchResult.result) {
+                  const isCorrect = calculatePredictionCorrectness(prediction, matchResult);
+                  return {
+                    ...prediction,
+                    isCorrect,
+                    status: matchResult.status || 'FINISHED'
+                  };
+                }
+                
+                return {
+                  ...prediction,
+                  isCorrect: undefined,
+                  status: 'NOT_STARTED'
+                };
+              });
+              
+              evaluations.set(slip.id, {
+                predictions: calculatedPredictions,
+                calculated: true
+              });
+            }
           }
         } catch (error) {
-          console.error(`Error fetching live evaluation for slip ${slip.id}:`, error);
+          console.error(`Error processing slip ${slip.id}:`, error);
         }
       }
+      
       setLiveEvaluations(evaluations);
     };
 
@@ -74,6 +142,27 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
     const interval = setInterval(fetchLiveEvaluations, 30000);
     return () => clearInterval(interval);
   }, [slips]);
+
+  // Helper function to calculate prediction correctness
+  const calculatePredictionCorrectness = (prediction: { betType: number; selection: string }, matchResult: { result: { moneyline: number; overUnder: number } }): boolean => {
+    if (!matchResult || !matchResult.result) {
+      return false; // No result available
+    }
+
+    const { betType, selection } = prediction;
+    const { moneyline, overUnder } = matchResult.result;
+
+    if (betType === 0) { // MONEYLINE
+      if (selection === "1" && moneyline === 1) return true; // HomeWin
+      if (selection === "X" && moneyline === 2) return true; // Draw
+      if (selection === "2" && moneyline === 3) return true; // AwayWin
+    } else if (betType === 1) { // OVER_UNDER
+      if (selection === "Over" && overUnder === 1) return true; // Over
+      if (selection === "Under" && overUnder === 2) return true; // Under
+    }
+
+    return false;
+  };
 
   const toggleSlipExpansion = (slipId: number) => {
     const newExpanded = new Set(expandedSlips);
@@ -256,7 +345,22 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
       }
     }
     
-    // Fallback to prediction.isCorrect
+    // Check if we have calculated predictions
+    if (liveEval && typeof liveEval === 'object' && 'calculated' in liveEval && liveEval.calculated && 'predictions' in liveEval) {
+      const calculatedPred = (liveEval as { predictions: Array<{ matchId: number; status: string; isCorrect: boolean }> }).predictions.find((p) => p.matchId === prediction.matchId);
+      if (calculatedPred) {
+        if (calculatedPred.status === 'LIVE' || calculatedPred.status === 'FINISHED') {
+          return calculatedPred.isCorrect ? 
+            <CheckCircleIcon className="w-4 h-4 text-green-400" /> : 
+            <XCircleIcon className="w-4 h-4 text-red-400" />;
+        }
+        if (calculatedPred.status === 'NOT_STARTED') {
+          return <ClockIcon className="w-4 h-4 text-yellow-400" />;
+        }
+      }
+    }
+    
+    // Fallback to prediction.isCorrect from slip data
     if (isCorrect === undefined) {
       return <ClockIcon className="w-4 h-4 text-yellow-400" />;
     }

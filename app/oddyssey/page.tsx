@@ -2276,7 +2276,7 @@ export default function OddysseyPage() {
                     <DocumentTextIcon className="h-6 w-6 text-magenta-400" />
                     Match Results
                   </h2>
-                  <OddysseyMatchResults />
+                  <OddysseyMatchResults cycleId={cycleInfo ? Number(cycleInfo.cycleId) : undefined} />
                 </div>
               </motion.div>
             ) : activeTab === "stats" ? (

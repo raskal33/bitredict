@@ -66,6 +66,13 @@ export default function SettlementResults({ poolId, className = "" }: Settlement
         });
 
         if (!response.ok) {
+          if (response.status === 404 || response.status === 500) {
+            // Settlement data not available yet - this is normal for unsettled pools
+            console.log(`ℹ️ Settlement data not available for pool ${poolId} (${response.status})`);
+            setResults([]);
+            setError(null);
+            return;
+          }
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
 
@@ -183,9 +190,9 @@ export default function SettlementResults({ poolId, className = "" }: Settlement
         </div>
         <div className="p-6 bg-gray-800/30 border border-gray-700/30 rounded-lg text-center">
           <TrophyIcon className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-          <p className="text-gray-400 font-medium">No settlement results available</p>
+          <p className="text-gray-400 font-medium">Settlement results will be available after settlement</p>
           <p className="text-gray-500 text-sm mt-1">
-            {poolId ? 'This pool has not been settled yet.' : 'No pools have been settled yet.'}
+            {poolId ? 'This pool is either still active or recently settled. Settlement data will appear here once the oracle has processed the results.' : 'No pools have been settled yet.'}
           </p>
         </div>
       </div>
