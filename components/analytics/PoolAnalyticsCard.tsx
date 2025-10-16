@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   ArrowTrendingUpIcon,
-  ArrowTrendingDownIcon,
   ShieldCheckIcon,
   FireIcon,
   SparklesIcon,
@@ -87,7 +86,7 @@ export default function PoolAnalyticsCard({ poolId, className = "" }: PoolAnalyt
   }: { 
     label: string; 
     value: number; 
-    icon: any; 
+    icon: React.ElementType; 
     color: string;
   }) => {
     const percentage = Math.min(100, Math.max(0, value));

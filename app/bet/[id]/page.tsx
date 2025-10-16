@@ -93,6 +93,13 @@ export default function BetPage() {
   const [maxPoolSizeFormatted, setMaxPoolSizeFormatted] = useState<number>(0);
   const [fillPercentage, setFillPercentage] = useState<number>(0);
   
+  // Pool statistics
+  const [defeatedCount, setDefeatedCount] = useState<number>(0);
+  const [challengersCount, setChallegersCount] = useState<number>(0);
+  const [totalBetsCount, setTotalBetsCount] = useState<number>(0);
+  const [totalLiquidityFormatted, setTotalLiquidityFormatted] = useState<number>(0);
+  const [totalVolumeFormatted, setTotalVolumeFormatted] = useState<number>(0);
+  
   // Rate limiting for API calls
   const [lastFetchTime, setLastFetchTime] = useState<number>(0);
   const FETCH_COOLDOWN = 5000; // 5 seconds between fetches
@@ -213,7 +220,7 @@ export default function BetPage() {
         boosted: poolData.boostTier !== 'NONE',
         boostTier: poolData.boostTier === 'GOLD' ? 3 : poolData.boostTier === 'SILVER' ? 2 : poolData.boostTier === 'BRONZE' ? 1 : 0,
         socialStats: poolData.socialStats || { likes: 0, comments: 0, shares: 0, views: 0 },
-        defeated: 0,
+        defeated: poolData.defeated || 0,
         currency: poolData.currency || 'STT',
         endDate: new Date(poolData.eventEndTime * 1000).toISOString().split('T')[0],
         poolType: "single",
@@ -232,7 +239,12 @@ export default function BetPage() {
       
       // Set contract data for status banner (API provides all needed fields)
       setContractData({
-        flags: poolData.status === 'settled' ? 1 : 0,
+        flags: 
+          (poolData.status === 'settled' ? 1 : 0) |  // Bit 0: settled
+          (
+            poolData.creatorSideWon === true || poolData.defeated === 0
+            ? 2 : 0  // Bit 1: creatorSideWon
+          ),
         eventStartTime: poolData.eventStartTime,
         eventEndTime: poolData.eventEndTime,
         bettingEndTime: poolData.bettingEndTime,
@@ -297,6 +309,32 @@ export default function BetPage() {
         
         setTimeLeft({ days, hours, minutes, seconds });
       }
+      
+      // Calculate pool statistics
+      // Defeated: If pool is settled and bettor side won, count defeated as creators/LPs
+      const defeated = (poolData.status === 'settled' && poolData.defeated === 1) 
+        ? Math.max(1, Math.ceil((creatorStakeNum + (poolData.liquidityProviders?.reduce((sum, lp) => sum + parseFloat(lp.stake), 0) || 0)) / 1500))
+        : 0;
+      setDefeatedCount(defeated);
+      
+      // Challengers: Calculate number of YES bettors (bettor side)
+      // Estimate based on total bettor stake, assuming average bet of 500-2000 tokens
+      const challengers = totalBettorStakeNum > 0 
+        ? Math.max(1, Math.ceil(totalBettorStakeNum / 1500))
+        : 0;
+      setChallegersCount(challengers);
+      
+      // Total Bets: Use from backend if available, otherwise estimate
+      const totalBets = poolData.totalBets || Math.max(1, Math.ceil(totalBettorStakeNum / 1500));
+      setTotalBetsCount(totalBets);
+      
+      // Total Liquidity: Creator stake + all LP stakes
+      const totalLPStake = poolData.liquidityProviders?.reduce((sum, lp) => sum + parseFloat(lp.stake), 0) || 0;
+      const totalLiquidity = creatorStakeNum + totalLPStake;
+      setTotalLiquidityFormatted(totalLiquidity);
+      
+      // Total Volume: Total bettor stake
+      setTotalVolumeFormatted(totalBettorStakeNum);
       
     } catch (error) {
       console.error('Error fetching pool data from API:', error);
@@ -958,7 +996,7 @@ export default function BetPage() {
             {/* Enhanced Challenge Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 p-4 sm:p-6 bg-gradient-to-br from-gray-800/40 to-gray-700/40 rounded-xl border border-gray-600/30 backdrop-blur-sm shadow-lg">
               <div className="text-center group hover:scale-105 transition-transform">
-                <div className="text-xl sm:text-3xl font-bold text-white mb-1 group-hover:text-red-400 transition-colors">{pool.defeated}</div>
+                <div className="text-xl sm:text-3xl font-bold text-white mb-1 group-hover:text-red-400 transition-colors">{defeatedCount}</div>
                 <div className="text-xs text-gray-400 uppercase tracking-wider">Defeated</div>
                 <div className="w-full h-0.5 bg-red-500/20 rounded-full mt-2"></div>
               </div>
@@ -974,17 +1012,7 @@ export default function BetPage() {
               </div>
               <div className="text-center group hover:scale-105 transition-transform">
                 <div className="text-xl sm:text-3xl font-bold text-cyan-400 mb-1 group-hover:text-cyan-300 transition-colors">
-                  {(() => {
-                    // Calculate number of challengers (YES bettors)
-                    const totalBettorStake = parseFloat(pool.totalBettorStake || "0");
-                    if (totalBettorStake > 0) {
-                      // Estimate number of YES bettors based on stake amount
-                      // Assume average bet of 500-2000 tokens
-                      const estimatedChallengers = Math.max(1, Math.ceil(totalBettorStake / 1500));
-                      return estimatedChallengers;
-                    }
-                    return 0;
-                  })()}
+                  {challengersCount}
                 </div>
                 <div className="text-xs text-gray-400 uppercase tracking-wider">Challengers</div>
                 <div className="w-full h-0.5 bg-cyan-500/20 rounded-full mt-2"></div>
@@ -1373,7 +1401,9 @@ export default function BetPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 sm:gap-6">
                   <div className="p-4 sm:p-6 bg-gray-700/30 rounded-lg border border-gray-600/30 text-center">
                     <div className="text-2xl sm:text-3xl font-bold text-cyan-400 mb-2">
-                      {pool.volume.toLocaleString()}
+                      {totalLiquidityFormatted > 1000 
+                        ? `${(totalLiquidityFormatted / 1000).toFixed(1)}K` 
+                        : totalLiquidityFormatted.toFixed(0)}
                 </div>
                     <div className="text-sm sm:text-base text-gray-400">Total Liquidity</div>
               </div>
@@ -1385,13 +1415,15 @@ export default function BetPage() {
                 </div>
                   <div className="p-4 sm:p-6 bg-gray-700/30 rounded-lg border border-gray-600/30 text-center">
                     <div className="text-2xl sm:text-3xl font-bold text-yellow-400 mb-2">
-                      0
+                      {totalBetsCount}
               </div>
                     <div className="text-sm sm:text-base text-gray-400">Total Bets</div>
                   </div>
                   <div className="p-4 sm:p-6 bg-gray-700/30 rounded-lg border border-gray-600/30 text-center">
                     <div className="text-2xl sm:text-3xl font-bold text-purple-400 mb-2">
-                      0
+                      {totalVolumeFormatted > 1000 
+                        ? `${(totalVolumeFormatted / 1000).toFixed(1)}K` 
+                        : totalVolumeFormatted.toFixed(0)}
               </div>
                     <div className="text-sm sm:text-base text-gray-400">Total Volume</div>
                   </div>

@@ -57,6 +57,13 @@ export interface OptimizedPool {
   predictedOutcome?: string;
   marketId?: string;
   oracleType?: string;
+  // Settlement information
+  creatorSideWon?: boolean;  // Whether creator side won (true) or bettor side won (false)
+  defeated?: number;  // 0 = creator won, 1 = bettor won
+  // Betting statistics
+  totalBets?: number;  // Total number of bets placed
+  bettorCount?: number;  // Number of unique bettors (YES bettors)
+  totalCreatorSideStake?: string;  // Total stake on creator side (creator + all LPs)
 }
 
 export interface OptimizedPoolProgress {
