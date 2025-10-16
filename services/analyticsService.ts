@@ -150,6 +150,203 @@ export interface VisualizationData {
   };
 }
 
+// ============================================================================
+// NEW: Pool Analytics Interfaces
+// ============================================================================
+
+export interface PoolAnalytics {
+  poolId: number;
+  popularityScore: number; // 0-10000
+  riskLevel: number; // 1-5
+  riskFactors: string[];
+  efficiencyScore: number; // 0-10000
+  utilizationRate: number; // 0-100%
+  participantCount: number;
+  totalVolume: string;
+  creatorReputation: number;
+}
+
+export interface PotentialWinnings {
+  poolId: number;
+  stake: string;
+  grossPayout: string;
+  netPayout: string;
+  feeAmount: string;
+  profit: string;
+  roi: string; // percentage
+  winProbability: number; // 0-100
+  breakEvenOdds: string;
+}
+
+export interface CreatorReputation {
+  creatorAddress: Address;
+  reputationScore: number; // 0-100
+  totalPoolsCreated: number;
+  successfulPools: number;
+  totalVolumeCreated: string;
+  averagePoolSize: string;
+  averageRoi: string;
+  participantSatisfaction: number; // 0-100
+  trustScore: number; // 0-100
+  badges: string[];
+}
+
+export interface MarketTrend {
+  poolId: number;
+  trendDirection: 'up' | 'down' | 'stable';
+  trendStrength: number; // 0-100
+  volumeRatio: string;
+  participantMomentum: number; // -100 to 100
+  priceMovement: string;
+  predictedOutcome: string;
+  confidenceLevel: number; // 0-100
+}
+
+// ============================================================================
+// API Service
+// ============================================================================
+
+export class PoolAnalyticsService {
+  private static readonly API_BASE = '/api/pool-analytics';
+  private static readonly CACHE_DURATION = 30000; // 30 seconds
+  private static cache = new Map<string, { data: any; timestamp: number }>();
+
+  /**
+   * Get pool analytics
+   */
+  static async getPoolAnalytics(poolId: number): Promise<PoolAnalytics | null> {
+    const cacheKey = `pool-analytics-${poolId}`;
+    
+    if (this.isCached(cacheKey)) {
+      return this.cache.get(cacheKey)?.data;
+    }
+
+    try {
+      const response = await fetch(`${this.API_BASE}/${poolId}`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      
+      const data = await response.json();
+      this.setCache(cacheKey, data.data);
+      return data.data;
+    } catch (error) {
+      console.error('Error fetching pool analytics:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get potential winnings for a bet
+   */
+  static async getPotentialWinnings(
+    poolId: number,
+    stakeAmount: string,
+    selectedOdds: number
+  ): Promise<PotentialWinnings | null> {
+    const cacheKey = `potential-winnings-${poolId}-${stakeAmount}`;
+    
+    if (this.isCached(cacheKey)) {
+      return this.cache.get(cacheKey)?.data;
+    }
+
+    try {
+      const params = new URLSearchParams({
+        stake: stakeAmount,
+        odds: selectedOdds.toString()
+      });
+
+      const response = await fetch(
+        `${this.API_BASE}/${poolId}/potential-winnings?${params}`
+      );
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      
+      const data = await response.json();
+      this.setCache(cacheKey, data.data);
+      return data.data;
+    } catch (error) {
+      console.error('Error fetching potential winnings:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get creator reputation
+   */
+  static async getCreatorReputation(
+    creatorAddress: Address
+  ): Promise<CreatorReputation | null> {
+    const cacheKey = `creator-reputation-${creatorAddress}`;
+    
+    if (this.isCached(cacheKey)) {
+      return this.cache.get(cacheKey)?.data;
+    }
+
+    try {
+      const response = await fetch(
+        `${this.API_BASE}/creator/${creatorAddress}`
+      );
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      
+      const data = await response.json();
+      this.setCache(cacheKey, data.data);
+      return data.data;
+    } catch (error) {
+      console.error('Error fetching creator reputation:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get market trend
+   */
+  static async getMarketTrend(poolId: number): Promise<MarketTrend | null> {
+    const cacheKey = `market-trend-${poolId}`;
+    
+    if (this.isCached(cacheKey)) {
+      return this.cache.get(cacheKey)?.data;
+    }
+
+    try {
+      const response = await fetch(`${this.API_BASE}/${poolId}/market-trend`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      
+      const data = await response.json();
+      this.setCache(cacheKey, data.data);
+      return data.data;
+    } catch (error) {
+      console.error('Error fetching market trend:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Clear cache
+   */
+  static clearCache(): void {
+    this.cache.clear();
+  }
+
+  /**
+   * Private helper methods
+   */
+  private static isCached(key: string): boolean {
+    const cached = this.cache.get(key);
+    if (!cached) return false;
+    
+    const isExpired = Date.now() - cached.timestamp > this.CACHE_DURATION;
+    if (isExpired) {
+      this.cache.delete(key);
+      return false;
+    }
+    
+    return true;
+  }
+
+  private static setCache(key: string, data: any): void {
+    this.cache.set(key, { data, timestamp: Date.now() });
+  }
+}
+
+
 class AnalyticsService {
   // Slip probability analysis
   async getSlipProbability(slipId: string): Promise<SlipProbability> {

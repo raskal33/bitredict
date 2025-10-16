@@ -188,13 +188,13 @@ export default function BetPage() {
           username: poolData.creator.username,
           avatar: "/logo.png",
           reputation: 0,
-          totalPools: poolData.creator.totalPools,
-          successRate: poolData.creator.successRate,
+          totalPools: poolData.creator.totalPools || 0,
+          successRate: poolData.creator.successRate || 0,
           challengeScore: Math.round((poolData.odds / 100) * 20), // Convert basis points to decimal first
           totalVolume: typeof poolData.creator.totalVolume === 'string' 
             ? parseFloat(poolData.creator.totalVolume) / 1e18  // Convert from Wei to ETH/BITR
             : (poolData.creator.totalVolume || 0) / 1e18,
-          badges: poolData.creator.badges,
+          badges: poolData.creator.badges || [],
           createdAt: new Date().toISOString(),
           bio: ""
         },
@@ -204,20 +204,21 @@ export default function BetPage() {
         predictedOutcome: poolData.predictedOutcome || '',
         creatorPrediction: "no",
         odds: poolData.odds,
-        participants: poolData.participants,
+        participants: poolData.participants || 0,
         volume: totalBettorStakeNum,
         image: poolData.category === "football" ? "⚽" : poolData.category === "basketball" ? "🏀" : "🎯",
         cardTheme: poolData.category === "football" ? "green" : poolData.category === "basketball" ? "orange" : "purple",
         tags: [poolData.category, poolData.league || '', poolData.region || ''].filter(Boolean),
-        trending: poolData.trending,
+        trending: poolData.trending || false,
         boosted: poolData.boostTier !== 'NONE',
         boostTier: poolData.boostTier === 'GOLD' ? 3 : poolData.boostTier === 'SILVER' ? 2 : poolData.boostTier === 'BRONZE' ? 1 : 0,
-        socialStats: poolData.socialStats,
+        socialStats: poolData.socialStats || { likes: 0, comments: 0, shares: 0, views: 0 },
         defeated: 0,
-        currency: poolData.currency,
+        currency: poolData.currency || 'STT',
         endDate: new Date(poolData.eventEndTime * 1000).toISOString().split('T')[0],
         poolType: "single",
         comments: [],
+        marketId: poolData.marketId || '',
         eventDetails: {
           league: poolData.league || '',
           region: poolData.region || '',
@@ -849,15 +850,6 @@ export default function BetPage() {
                     />
                   )
                 )}
-            {/* Match Center - Only show for football pools */}
-            {pool.category === 'football' && (
-              <div className="mb-8">
-                <MatchCenter 
-                  marketId={pool.marketId} 
-                  className="w-full"
-                />
-              </div>
-            )}
                 
                 {/* Pool Status Banner */}
                 {contractData && (
