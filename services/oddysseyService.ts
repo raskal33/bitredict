@@ -588,7 +588,7 @@ class OddysseyService {
     try {
       console.log('🔍 Getting ALL user slips with data from backend for:', userAddress);
       
-      const response = await fetch(`/api/slips/user/${userAddress}?limit=50&offset=0&t=${Date.now()}`, {
+      const response = await fetch(`/api/oddyssey/user-slips/${userAddress}?limit=50&offset=0&t=${Date.now()}`, {
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Pragma': 'no-cache',
@@ -611,27 +611,34 @@ class OddysseyService {
         id: slip.slipId || slip.slip_id || slip.id || index,
         player: (slip.playerAddress || slip.player_address || userAddress) as Address,
         cycleId: Number(slip.cycleId || slip.cycle_id || 0),
-        placedAt: Number(slip.placedAt || slip.placed_at || 0),
+        placedAt: slip.created_at ? Math.floor(new Date(slip.created_at).getTime() / 1000) : 0,
         predictions: slip.predictions?.map((pred: any, predIndex: number) => {
           console.log(`🔍 Processing prediction ${predIndex}:`, pred);
+          
+          // Determine bet type based on prediction value
+          const prediction = pred.prediction || pred.pick || '';
+          let betType = 0; // Default to MONEYLINE
+          if (['over', 'under'].includes(prediction.toLowerCase())) {
+            betType = 1; // OVER_UNDER
+          } else if (['yes', 'no'].includes(prediction.toLowerCase())) {
+            betType = 2; // BTTS
+          }
+          
           const transformed = {
-            matchId: BigInt(pred.matchId || pred.match_id || 0),
-            betType: Number(pred.betType || pred.bet_type || 0),
-            selection: pred.selection || pred.prediction || '',
-            // ✅ FIX: Odds are scaled by 1000 in contract (e.g., 1500 = 1.5x)
-            // Backend may return as scaled (1500) or as decimal (1.5 or 1.50)
-            // Safely convert to number first, then divide by 1000 if needed
+            matchId: BigInt(pred.matchId || pred.match_id || pred.id || 0),
+            betType: betType,
+            selection: prediction,
+            // ✅ FIX: Backend returns scaled odds (e.g., 1570 = 1.57x)
             selectedOdd: (() => {
-              const oddsValue = Number(pred.odds || pred.selected_odd || pred.selectedOdd || 0);
-              console.log(`🔍 Odds transformation: ${pred.odds || pred.selected_odd || pred.selectedOdd} -> ${oddsValue >= 100 ? oddsValue / 1000 : oddsValue}`);
-              // If odds >= 100, it's already scaled (1500, 2000, etc.) - divide by 1000
-              // If odds < 100, it's decimal format (1.5, 2.0, etc.) - keep as is
-              return oddsValue >= 100 ? oddsValue / 1000 : oddsValue;
+              const oddsValue = Number(pred.odds || pred.odd || pred.selectedOdd || 0);
+              console.log(`🔍 Odds transformation: ${pred.odds || pred.odd || pred.selectedOdd} -> ${oddsValue / 1000}`);
+              // Backend returns scaled odds, divide by 1000 to get decimal
+              return oddsValue / 1000;
             })(),
-            // ✅ FIX: Use actual team names from prediction, not placeholders
-            homeTeam: pred.homeTeam || pred.home_team || '',
-            awayTeam: pred.awayTeam || pred.away_team || '',
-            leagueName: pred.league || pred.league_name || pred.leagueName || '',
+            // ✅ FIX: Use actual team names from backend
+            homeTeam: pred.home_team || pred.team1 || '',
+            awayTeam: pred.away_team || pred.team2 || '',
+            leagueName: pred.league_name || '',
             isCorrect: pred.isCorrect !== undefined ? Boolean(pred.isCorrect) : 
                       (pred.is_correct !== undefined ? Boolean(pred.is_correct) : undefined)
           };

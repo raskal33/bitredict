@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay, Pagination } from "swiper/modules";
 import Button from "@/components/button";
-// import { useGlobalStats } from "@/hooks/useAnalytics"; // Removed - using direct service calls
+import { useGlobalStats } from "@/hooks/useAnalytics";
 import { useTrendingPools } from "@/hooks/useMarkets";
 
 // Import Swiper styles
@@ -19,16 +19,10 @@ export default function Page() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   
   // Real-time data from backend
-  // Mock data for now since we removed the analytics hook
-  const mockGlobalStats = {
-    totalVolume: 1234567,
-    activePools: 45,
-    totalPools: 234,
-    totalBets: 5678
-  };
+  const { data: globalStats, isLoading: statsLoading } = useGlobalStats();
   const { data: trendingData, isLoading: trendingLoading } = useTrendingPools({ limit: 8 });
   
-  const isLoading = trendingLoading;
+  const isLoading = statsLoading || trendingLoading;
   
   // Use real trending pools or fallback data
   const predictionPools = trendingData || [];
@@ -47,15 +41,15 @@ export default function Page() {
   const stats = [
     {
       label: "Total Volume",
-      value: mockGlobalStats.totalVolume.toLocaleString(),
+      value: globalStats?.totalVolume?.toLocaleString() || "0",
       unit: "STT",
-      change: "+23.5%", // Would need historical data to calculate real change
+      change: globalStats?.platformGrowth ? `+${globalStats.platformGrowth.toFixed(1)}%` : "+0%",
       positive: true,
       icon: "💰"
     },
     {
       label: "Active Markets",
-      value: mockGlobalStats.activePools.toLocaleString(),
+      value: globalStats?.activePools?.toLocaleString() || "0",
       unit: "",
       change: "+8",
       positive: true,
@@ -63,7 +57,7 @@ export default function Page() {
     },
     {
       label: "Total Pools",
-      value: mockGlobalStats.totalPools.toLocaleString(),
+      value: globalStats?.totalPools?.toLocaleString() || "0",
       unit: "",
       change: "+156",
       positive: true,
@@ -71,7 +65,7 @@ export default function Page() {
     },
     {
       label: "Total Bets",
-      value: mockGlobalStats.totalBets.toLocaleString(),
+      value: globalStats?.totalBets?.toLocaleString() || "0",
       unit: "",
       change: "+2.1%",
       positive: true,
