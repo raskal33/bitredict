@@ -11,6 +11,7 @@ import { formatEther } from "viem";
 import { oddysseyService, type OddysseyMatch, type CycleInfo, type UserStats } from "@/services/oddysseyService";
 import { useTransactionFeedback, TransactionFeedback } from "@/components/TransactionFeedback";
 import { safeStartTimeToISOString, safeStartTimeToDate } from "@/utils/time-helpers";
+import oddysseyWebSocketService from "@/services/oddysseyWebSocketService";
 import OddysseyMatchResults from "@/components/OddysseyMatchResults";
 import OddysseyLeaderboard from "@/components/OddysseyLeaderboard";
 import EnhancedSlipDisplay from "@/components/EnhancedSlipDisplay";
@@ -324,6 +325,153 @@ export default function OddysseyPage() {
       setAllSlips([]);
     }
   }, [isConnected, address, walletClient, initializeUserData]);
+
+  // Setup WebSocket subscriptions for real-time updates
+  useEffect(() => {
+    if (!isConnected || !address) {
+      oddysseyWebSocketService.cleanup();
+      return;
+    }
+
+    console.log('📡 Setting up WebSocket subscriptions for:', address);
+    
+    // Initialize WebSocket subscriptions
+    oddysseyWebSocketService.initializeUserSubscriptions(address);
+
+    // Subscribe to slip placed events
+    const unsubPlaced = oddysseyWebSocketService.onSlipPlaced(address, (event) => {
+      console.log('📡 ✅ Slip placed via WebSocket:', event);
+      
+      // Create new slip object
+      const newSlip: EnhancedSlip = {
+        id: event.slipId,
+        cycleId: event.cycleId,
+        placedAt: event.timestamp,
+        predictions: event.predictions?.map((pred: { matchId: number; betType: number; selection: string; selectedOdd: number; homeTeam: string; awayTeam: string; leagueName: string; isCorrect?: boolean }) => ({
+        matchId: pred.matchId,
+        betType: pred.betType,
+        selection: pred.selection,
+        selectedOdd: pred.selectedOdd,
+        homeTeam: pred.homeTeam,
+        awayTeam: pred.awayTeam,
+        leagueName: pred.leagueName,
+        isCorrect: pred.isCorrect
+      })) || [],
+        finalScore: 0,
+        correctCount: 0,
+        isEvaluated: false,
+        status: 'pending'
+      };
+
+      // Add to top of list
+      setAllSlips(prev => [newSlip, ...prev]);
+      
+      // Show notification
+      toast.success('🎉 New slip placed!', {
+        position: 'top-right',
+        duration: 4000,
+        style: {
+          background: '#1a1a1a',
+          color: '#00ff88',
+          border: '1px solid #00ff88'
+        }
+      });
+      
+      console.log('📡 Slip added to list, total slips:', allSlips.length + 1);
+    });
+
+    // Subscribe to slip evaluated events
+    const unsubEvaluated = oddysseyWebSocketService.onSlipEvaluated(address, (event) => {
+      console.log('📡 📊 Slip evaluated via WebSocket:', event);
+      
+      // Update slip in list
+      setAllSlips(prev => 
+        prev.map(slip => 
+          slip.id === event.slipId 
+            ? {
+                ...slip,
+                correctCount: event.correctCount,
+                finalScore: event.finalScore,
+                isEvaluated: true,
+                status: event.correctCount >= 7 ? 'won' : 'lost'
+              }
+            : slip
+        )
+      );
+      
+      // Show notification
+      const statusMsg = event.correctCount >= 7 ? '🏆 Won!' : '❌ Lost';
+      toast.success(`📊 Slip Evaluated: ${event.correctCount}/10 correct - ${statusMsg}`, {
+        position: 'top-right',
+        duration: 4000,
+        style: {
+          background: '#1a1a1a',
+          color: event.correctCount >= 7 ? '#00ff88' : '#ff6b6b',
+          border: `1px solid ${event.correctCount >= 7 ? '#00ff88' : '#ff6b6b'}`
+        }
+      });
+      
+      console.log('📡 Slip evaluated, status:', event.correctCount >= 7 ? 'WON' : 'LOST');
+    });
+
+    // Subscribe to prize claimed events
+    const unsubPrizeClaimed = oddysseyWebSocketService.onSlipPrizeClaimed(address, (event) => {
+      console.log('📡 🏆 Prize claimed via WebSocket:', event);
+      
+      // Update slip to show prize claimed
+      setAllSlips(prev => 
+        prev.map(slip => 
+          slip.id === event.slipId 
+            ? { ...slip, status: 'won' }
+            : slip
+        )
+      );
+      
+      // Show notification
+      toast.success(`🏆 Prize Claimed! ${event.prizeAmount} STT won!`, {
+        position: 'top-right',
+        duration: 5000,
+        style: {
+          background: '#1a1a1a',
+          color: '#ffd700',
+          border: '1px solid #ffd700'
+        }
+      });
+      
+      console.log('📡 Prize claimed:', event.prizeAmount, 'STT');
+    });
+
+    // Listen to custom events dispatched by the service
+    const handleSlipPlacedEvent = (e: Event) => {
+      console.log('📡 Custom slip:placed event:', (e as CustomEvent).detail);
+    };
+
+    const handleSlipEvaluatedEvent = (e: Event) => {
+      console.log('📡 Custom slip:evaluated event:', (e as CustomEvent).detail);
+    };
+
+    const handlePrizeClaimedEvent = (e: Event) => {
+      console.log('📡 Custom prize:claimed event:', (e as CustomEvent).detail);
+    };
+
+    window.addEventListener('oddyssey:slip:placed', handleSlipPlacedEvent);
+    window.addEventListener('oddyssey:slip:evaluated', handleSlipEvaluatedEvent);
+    window.addEventListener('oddyssey:prize:claimed', handlePrizeClaimedEvent);
+
+    console.log('📡 WebSocket subscriptions initialized');
+
+    // Cleanup on unmount or disconnect
+    return () => {
+      console.log('📡 Cleaning up WebSocket subscriptions');
+      unsubPlaced();
+      unsubEvaluated();
+      unsubPrizeClaimed();
+      window.removeEventListener('oddyssey:slip:placed', handleSlipPlacedEvent);
+      window.removeEventListener('oddyssey:slip:evaluated', handleSlipEvaluatedEvent);
+      window.removeEventListener('oddyssey:prize:claimed', handlePrizeClaimedEvent);
+      oddysseyWebSocketService.cleanup();
+    };
+  }, [isConnected, address]);
 
   // Enhanced wallet initialization with mobile support
   useEffect(() => {

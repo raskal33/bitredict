@@ -615,10 +615,19 @@ class OddysseyService {
           matchId: BigInt(pred.matchId || pred.match_id || 0),
           betType: Number(pred.betType || pred.bet_type || 0),
           selection: pred.selection || pred.prediction || '',
-          selectedOdd: Number(pred.odds || pred.selected_odd || pred.selectedOdd || 0) / 100,
-          homeTeam: pred.homeTeam || pred.home_team || 'Team A',
-          awayTeam: pred.awayTeam || pred.away_team || 'Team B',
-          leagueName: pred.league || pred.league_name || pred.leagueName || 'Unknown League',
+          // ✅ FIX: Odds are scaled by 1000 in contract (e.g., 1500 = 1.5x)
+          // Backend may return as scaled (1500) or as decimal (1.5 or 1.50)
+          // Safely convert to number first, then divide by 1000 if needed
+          selectedOdd: (() => {
+            const oddsValue = Number(pred.odds || pred.selected_odd || pred.selectedOdd || 0);
+            // If odds >= 100, it's already scaled (1500, 2000, etc.) - divide by 1000
+            // If odds < 100, it's decimal format (1.5, 2.0, etc.) - keep as is
+            return oddsValue >= 100 ? oddsValue / 1000 : oddsValue;
+          })(),
+          // ✅ FIX: Use actual team names from prediction, not placeholders
+          homeTeam: pred.homeTeam || pred.home_team || '',
+          awayTeam: pred.awayTeam || pred.away_team || '',
+          leagueName: pred.league || pred.league_name || pred.leagueName || '',
           isCorrect: pred.isCorrect !== undefined ? Boolean(pred.isCorrect) : 
                     (pred.is_correct !== undefined ? Boolean(pred.is_correct) : undefined)
         })) || [],

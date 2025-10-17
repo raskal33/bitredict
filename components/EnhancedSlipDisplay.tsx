@@ -506,7 +506,12 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
                       <div className="flex items-center gap-2 md:gap-3 text-xs text-gray-400 flex-wrap">
                         <span>Cycle {slip.cycleId}</span>
                         <span className="hidden sm:inline">•</span>
-                        <span className="truncate">{new Date(slip.placedAt * 1000).toLocaleDateString()}</span>
+                        <span className="truncate">
+                          {slip.placedAt && slip.placedAt > 0 
+                            ? new Date(slip.placedAt * 1000).toLocaleDateString()
+                            : 'Date pending'
+                          }
+                        </span>
                         <span className="hidden sm:inline">•</span>
                         <span>{slip.predictions.length} predictions</span>
                         {slip.predictions.some(p => p.isCorrect !== undefined) && !slip.isEvaluated && (
@@ -571,7 +576,10 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
                                     {getSelectionDisplay(prediction.selection, prediction.betType)}
                                   </span>
                                   <span className="text-xs text-gray-500 flex-shrink-0">
-                                    {prediction.selectedOdd.toFixed(2)}x
+                                    {prediction.selectedOdd && prediction.selectedOdd > 0 
+                                      ? prediction.selectedOdd.toFixed(2) + 'x'
+                                      : '—'
+                                    }
                                   </span>
                                 </div>
                               </div>
@@ -585,7 +593,10 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
                         <div className="text-center p-2 md:p-3 bg-gray-800/30 rounded-lg">
                           <div className="text-xs text-gray-400 mb-1">Total Odds</div>
                           <div className="text-sm md:text-lg font-bold text-white">
-                            {(slip.predictions.reduce((acc, p) => acc * p.selectedOdd, 1)).toFixed(2)}x
+                            {slip.predictions.every(p => p.selectedOdd && p.selectedOdd > 0)
+                              ? (slip.predictions.reduce((acc, p) => acc * (p.selectedOdd || 1), 1)).toFixed(2) + 'x'
+                              : '—'
+                            }
                           </div>
                         </div>
                         <div className="text-center p-2 md:p-3 bg-gray-800/30 rounded-lg">

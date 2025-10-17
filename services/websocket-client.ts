@@ -157,6 +157,68 @@ class WebSocketClient {
     return this.subscribe(`pool:${poolId}:updates`, callback);
   }
 
+  // ===== ODDYSSEY SUBSCRIPTION METHODS =====
+  
+  /**
+   * Subscribe to user's slip events (placed, evaluated, prize claimed)
+   * @param userAddress The user's wallet address
+   * @param callback Callback function for slip events
+   */
+  public subscribeToUserSlips(userAddress: string, callback: (data: any) => void) {
+    console.log(`🎯 Subscribing to slips for user: ${userAddress}`);
+    return this.subscribe(`slips:user:${userAddress}`, callback);
+  }
+
+  /**
+   * Subscribe to slip placed events for a specific user
+   * @param userAddress The user's wallet address
+   * @param callback Callback function for slip placed events
+   */
+  public subscribeToSlipPlaced(userAddress: string, callback: (data: any) => void) {
+    console.log(`🎯 Subscribing to slip:placed events for user: ${userAddress}`);
+    return this.subscribe(`slip:placed:user:${userAddress}`, callback);
+  }
+
+  /**
+   * Subscribe to slip evaluated events for a specific user
+   * @param userAddress The user's wallet address
+   * @param callback Callback function for slip evaluated events
+   */
+  public subscribeToSlipEvaluated(userAddress: string, callback: (data: any) => void) {
+    console.log(`🎯 Subscribing to slip:evaluated events for user: ${userAddress}`);
+    return this.subscribe(`slip:evaluated:user:${userAddress}`, callback);
+  }
+
+  /**
+   * Subscribe to prize claimed events for a specific user
+   * @param userAddress The user's wallet address
+   * @param callback Callback function for prize claimed events
+   */
+  public subscribeToSlipPrizeClaimed(userAddress: string, callback: (data: any) => void) {
+    console.log(`🎯 Subscribing to slip:prize_claimed events for user: ${userAddress}`);
+    return this.subscribe(`slip:prize_claimed:user:${userAddress}`, callback);
+  }
+
+  /**
+   * Subscribe to all Oddyssey events for a cycle
+   * @param cycleId The cycle ID
+   * @param callback Callback function for cycle events
+   */
+  public subscribeToOddysseyCycle(cycleId: number, callback: (data: any) => void) {
+    console.log(`🎯 Subscribing to events for cycle: ${cycleId}`);
+    return this.subscribe(`oddyssey:cycle:${cycleId}`, callback);
+  }
+
+  /**
+   * Subscribe to live slip evaluation for a specific slip
+   * @param slipId The slip ID
+   * @param callback Callback function for evaluation updates
+   */
+  public subscribeToLiveSlipEvaluation(slipId: number, callback: (data: any) => void) {
+    console.log(`🎯 Subscribing to live evaluation for slip: ${slipId}`);
+    return this.subscribe(`oddyssey:slip:${slipId}:evaluation`, callback);
+  }
+
   public getStats() {
     return {
       connected: this.isConnected,
