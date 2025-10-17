@@ -359,7 +359,7 @@ export default function BetPage() {
     } finally {
       setLoading(false);
     }
-   }, [poolId, lastFetchTime, contractData]);
+   }, [poolId, lastFetchTime]);
    // eslint-disable-next-line react-hooks/exhaustive-deps
 
   const checkUserBetStatus = useCallback(async () => {

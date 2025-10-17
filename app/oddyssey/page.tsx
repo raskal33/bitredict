@@ -373,7 +373,7 @@ export default function OddysseyPage() {
         }
       });
       
-      console.log('📡 Slip added to list (raw data), total slips:', allSlips.length + 1);
+      console.log('📡 Slip added to list (raw data)');
 
       // Phase 2: Enrich with REST API data (after 5 seconds)
       setTimeout(async () => {

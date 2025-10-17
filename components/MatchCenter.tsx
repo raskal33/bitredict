@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { 
   MapPinIcon,
 } from '@heroicons/react/24/outline';
@@ -193,9 +194,11 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
           {/* Home Team */}
           <div className="flex flex-col items-center gap-2 flex-1">
             {homeTeamLogo && (
-              <img 
+              <Image 
                 src={homeTeamLogo} 
                 alt={homeTeam}
+                width={64}
+                height={64}
                 className="w-14 h-14 sm:w-16 sm:h-16 object-contain rounded-lg"
               />
             )}
@@ -222,9 +225,11 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
           {/* Away Team */}
           <div className="flex flex-col items-center gap-2 flex-1">
             {awayTeamLogo && (
-              <img 
+              <Image 
                 src={awayTeamLogo} 
                 alt={awayTeam}
+                width={64}
+                height={64}
                 className="w-14 h-14 sm:w-16 sm:h-16 object-contain rounded-lg"
               />
             )}
