@@ -605,32 +605,39 @@ class OddysseyService {
       // Transform backend data to match expected OddysseySlip format
       const backendSlips = data.data || [];
       console.log('🔍 Backend slips raw:', JSON.stringify(backendSlips[0], null, 2));
+      console.log('🔍 First slip predictions:', JSON.stringify(backendSlips[0]?.predictions, null, 2));
       
       const slipsData: OddysseySlip[] = backendSlips.map((slip: any, index: number) => ({
         id: slip.slipId || slip.slip_id || slip.id || index,
         player: (slip.playerAddress || slip.player_address || userAddress) as Address,
         cycleId: Number(slip.cycleId || slip.cycle_id || 0),
         placedAt: Number(slip.placedAt || slip.placed_at || 0),
-        predictions: slip.predictions?.map((pred: any) => ({
-          matchId: BigInt(pred.matchId || pred.match_id || 0),
-          betType: Number(pred.betType || pred.bet_type || 0),
-          selection: pred.selection || pred.prediction || '',
-          // ✅ FIX: Odds are scaled by 1000 in contract (e.g., 1500 = 1.5x)
-          // Backend may return as scaled (1500) or as decimal (1.5 or 1.50)
-          // Safely convert to number first, then divide by 1000 if needed
-          selectedOdd: (() => {
-            const oddsValue = Number(pred.odds || pred.selected_odd || pred.selectedOdd || 0);
-            // If odds >= 100, it's already scaled (1500, 2000, etc.) - divide by 1000
-            // If odds < 100, it's decimal format (1.5, 2.0, etc.) - keep as is
-            return oddsValue >= 100 ? oddsValue / 1000 : oddsValue;
-          })(),
-          // ✅ FIX: Use actual team names from prediction, not placeholders
-          homeTeam: pred.homeTeam || pred.home_team || '',
-          awayTeam: pred.awayTeam || pred.away_team || '',
-          leagueName: pred.league || pred.league_name || pred.leagueName || '',
-          isCorrect: pred.isCorrect !== undefined ? Boolean(pred.isCorrect) : 
-                    (pred.is_correct !== undefined ? Boolean(pred.is_correct) : undefined)
-        })) || [],
+        predictions: slip.predictions?.map((pred: any, predIndex: number) => {
+          console.log(`🔍 Processing prediction ${predIndex}:`, pred);
+          const transformed = {
+            matchId: BigInt(pred.matchId || pred.match_id || 0),
+            betType: Number(pred.betType || pred.bet_type || 0),
+            selection: pred.selection || pred.prediction || '',
+            // ✅ FIX: Odds are scaled by 1000 in contract (e.g., 1500 = 1.5x)
+            // Backend may return as scaled (1500) or as decimal (1.5 or 1.50)
+            // Safely convert to number first, then divide by 1000 if needed
+            selectedOdd: (() => {
+              const oddsValue = Number(pred.odds || pred.selected_odd || pred.selectedOdd || 0);
+              console.log(`🔍 Odds transformation: ${pred.odds || pred.selected_odd || pred.selectedOdd} -> ${oddsValue >= 100 ? oddsValue / 1000 : oddsValue}`);
+              // If odds >= 100, it's already scaled (1500, 2000, etc.) - divide by 1000
+              // If odds < 100, it's decimal format (1.5, 2.0, etc.) - keep as is
+              return oddsValue >= 100 ? oddsValue / 1000 : oddsValue;
+            })(),
+            // ✅ FIX: Use actual team names from prediction, not placeholders
+            homeTeam: pred.homeTeam || pred.home_team || '',
+            awayTeam: pred.awayTeam || pred.away_team || '',
+            leagueName: pred.league || pred.league_name || pred.leagueName || '',
+            isCorrect: pred.isCorrect !== undefined ? Boolean(pred.isCorrect) : 
+                      (pred.is_correct !== undefined ? Boolean(pred.is_correct) : undefined)
+          };
+          console.log(`🔍 Transformed prediction ${predIndex}:`, transformed);
+          return transformed;
+        }) || [],
         finalScore: Number(slip.finalScore || slip.final_score || 0),
         correctCount: Number(slip.correctCount || slip.correct_count || 0),
         isEvaluated: Boolean(slip.isEvaluated || slip.is_evaluated || false)

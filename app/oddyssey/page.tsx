@@ -254,23 +254,28 @@ export default function OddysseyPage() {
       
       const enhancedSlips = allSlipsData.slipsData.map((slip, index) => {
         console.log(`🔍 Processing slip ${index}:`, slip);
+        console.log(`🔍 Slip predictions:`, slip.predictions);
+        
         const enhanced = {
           id: Number(allSlipsData.slipIds[index].toString()),
           cycleId: slip.cycleId,
           placedAt: slip.placedAt,
-          predictions: slip.predictions.map(pred => ({
-            matchId: Number(pred.matchId.toString()),
-            betType: pred.betType,
-            selection: pred.selection,
-            selectedOdd: pred.selectedOdd,
-            homeTeam: pred.homeTeam,
-            awayTeam: pred.awayTeam,
-            leagueName: pred.leagueName,
-            isCorrect: pred.isCorrect // Use the isCorrect from backend data
-          })),
+          predictions: slip.predictions.map(pred => {
+            console.log(`🔍 Processing prediction:`, pred);
+            return {
+              matchId: Number(pred.matchId.toString()),
+              betType: pred.betType,
+              selection: pred.selection,
+              selectedOdd: pred.selectedOdd,
+              homeTeam: pred.homeTeam,
+              awayTeam: pred.awayTeam,
+              leagueName: pred.leagueName,
+              isCorrect: pred.isCorrect
+            };
+          }),
           finalScore: slip.finalScore,
           correctCount: slip.correctCount,
-            isEvaluated: slip.isEvaluated,
+          isEvaluated: slip.isEvaluated,
           status: slip.isEvaluated ? (slip.correctCount >= 7 ? 'won' : 'lost') : 'pending' as 'pending' | 'evaluated' | 'won' | 'lost'
         };
         console.log(`🔍 Enhanced slip ${index}:`, enhanced);
@@ -339,35 +344,26 @@ export default function OddysseyPage() {
     oddysseyWebSocketService.initializeUserSubscriptions(address);
 
     // Subscribe to slip placed events
-    const unsubPlaced = oddysseyWebSocketService.onSlipPlaced(address, (event) => {
+    const unsubPlaced = oddysseyWebSocketService.onSlipPlaced(address, async (event) => {
       console.log('📡 ✅ Slip placed via WebSocket:', event);
       
-      // Create new slip object
+      // Create new slip object with raw WebSocket data
       const newSlip: EnhancedSlip = {
         id: event.slipId,
         cycleId: event.cycleId,
-        placedAt: event.timestamp,
-        predictions: event.predictions?.map((pred: { matchId: number; betType: number; selection: string; selectedOdd: number; homeTeam: string; awayTeam: string; leagueName: string; isCorrect?: boolean }) => ({
-        matchId: pred.matchId,
-        betType: pred.betType,
-        selection: pred.selection,
-        selectedOdd: pred.selectedOdd,
-        homeTeam: pred.homeTeam,
-        awayTeam: pred.awayTeam,
-        leagueName: pred.leagueName,
-        isCorrect: pred.isCorrect
-      })) || [],
+        placedAt: new Date(event.placedAt).getTime() / 1000, // Convert ISO to timestamp
+        predictions: event.processedPredictions || [],
         finalScore: 0,
         correctCount: 0,
         isEvaluated: false,
         status: 'pending'
       };
 
-      // Add to top of list
+      // Add to top of list immediately (Phase 1: Raw data)
       setAllSlips(prev => [newSlip, ...prev]);
       
-      // Show notification
-      toast.success('🎉 New slip placed!', {
+      // Show notification with raw data
+      toast.success(`🎉 ${event.displayText || 'New slip placed!'}`, {
         position: 'top-right',
         duration: 4000,
         style: {
@@ -377,7 +373,55 @@ export default function OddysseyPage() {
         }
       });
       
-      console.log('📡 Slip added to list, total slips:', allSlips.length + 1);
+      console.log('📡 Slip added to list (raw data), total slips:', allSlips.length + 1);
+
+      // Phase 2: Enrich with REST API data (after 5 seconds)
+      setTimeout(async () => {
+        try {
+          console.log(`🔍 Enriching slip ${event.slipId} with REST API data...`);
+          const enrichedData = await oddysseyWebSocketService.enrichSlipData(event.slipId, address);
+          
+          if (enrichedData && enrichedData.length > 0) {
+            // Update slip with enriched data
+            setAllSlips(prev => 
+              prev.map(slip => 
+                slip.id === event.slipId 
+                  ? {
+                      ...slip,
+                      predictions: enrichedData.map(pred => ({
+                        matchId: Number(pred.matchId),
+                        betType: pred.prediction === 'home' || pred.prediction === 'draw' || pred.prediction === 'away' ? 0 : 1,
+                        selection: pred.prediction,
+                        selectedOdd: pred.odds,
+                        homeTeam: pred.home_team,
+                        awayTeam: pred.away_team,
+                        leagueName: pred.league_name,
+                        isCorrect: pred.isCorrect
+                      }))
+                    }
+                  : slip
+              )
+            );
+            
+            console.log(`✅ Slip ${event.slipId} enriched with team names and details`);
+            
+            // Show enrichment notification
+            toast.success(`📊 Slip #${event.slipId} enriched with match details!`, {
+              position: 'top-right',
+              duration: 3000,
+              style: {
+                background: '#1a1a1a',
+                color: '#00bcd4',
+                border: '1px solid #00bcd4'
+              }
+            });
+          } else {
+            console.warn(`⚠️ Could not enrich slip ${event.slipId} - REST API data not available yet`);
+          }
+        } catch (error) {
+          console.error(`❌ Error enriching slip ${event.slipId}:`, error);
+        }
+      }, 5000); // Wait 5 seconds before enrichment
     });
 
     // Subscribe to slip evaluated events
