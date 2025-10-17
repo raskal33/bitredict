@@ -582,17 +582,24 @@ contract Oddyssey is Ownable, ReentrancyGuard {
     }
 
     function claimPrize(uint256 _cycleId, uint256 _slipId) external nonReentrant validSlipId(_slipId) {
+        // ✅ SECURITY: Validate cycle ID
+        require(_cycleId > 0 && _cycleId <= dailyCycleId, "Invalid cycle ID");
+        
+        // ✅ SECURITY: Validate cycle state
         if (cycleInfo[_cycleId].state != CycleState.Resolved) revert InvalidState();
+        
+        // ✅ SECURITY: Validate claiming timing
         if (block.timestamp < claimableStartTimes[_cycleId]) revert InvalidTiming();
         
-        // Validate slip belongs to user and cycle
+        // ✅ SECURITY: Validate slip ID and ownership
         Slip storage slip = slips[_slipId];
-        if (slip.player != msg.sender) revert Unauthorized();
-        if (slip.cycleId != _cycleId) revert InvalidInput();
-        if (!slip.isEvaluated) revert InvalidState();
+        require(slip.player == msg.sender, "Slip does not belong to you");
+        require(slip.cycleId == _cycleId, "Slip does not belong to this cycle");
+        require(slip.isEvaluated, "Slip has not been evaluated yet");
         
+        // ✅ SECURITY: Validate leaderboard entry
         LeaderboardEntry[DAILY_LEADERBOARD_SIZE] storage leaderboard = dailyLeaderboards[_cycleId];
-        uint8 rank = 0;
+        uint8 rank = 255; // Invalid rank
         bool playerFound = false;
 
         // Find the user on the leaderboard WITH matching slip ID
@@ -604,27 +611,41 @@ contract Oddyssey is Ownable, ReentrancyGuard {
             }
         }
 
-        if (!playerFound) revert DataNotFound();
+        require(playerFound, "Player not found on leaderboard");
+        require(rank < DAILY_LEADERBOARD_SIZE, "Invalid rank");
 
-        if (prizeClaimed[_cycleId][rank]) revert InvalidState();
+        // ✅ SECURITY: Prevent double claiming
+        require(!prizeClaimed[_cycleId][rank], "Prize already claimed for this rank");
 
-        uint256 prizeAmount = _calculatePrize(rank, dailyPrizePools[_cycleId]);
-        if (prizeAmount == 0) { // This can happen if prize pool was 0
-            prizeClaimed[_cycleId][rank] = true;
+        // ✅ SECURITY: Validate prize pool exists
+        uint256 totalPrizePool = dailyPrizePools[_cycleId];
+        require(totalPrizePool > 0, "No prize pool available");
+
+        uint256 prizeAmount = _calculatePrize(rank, totalPrizePool);
+        
+        // Mark as claimed BEFORE transfer (reentrancy protection)
+        prizeClaimed[_cycleId][rank] = true;
+
+        if (prizeAmount == 0) {
+            // This can happen if prize pool was distributed to higher ranks
+            emit PrizeClaimed(_cycleId, msg.sender, _slipId, rank, 0);
             return;
         }
-
-        prizeClaimed[_cycleId][rank] = true;
 
         uint256 devFee = (prizeAmount * DEV_FEE_PERCENTAGE) / 10000;
         uint256 userShare = prizeAmount - devFee;
         
-        // Transfer native STT
-        (bool success1, ) = payable(devWallet).call{value: devFee}("");
-        if (!success1) revert TransferFailed();
+        // ✅ SECURITY: Validate transfers before execution
+        require(userShare > 0, "User share must be greater than 0");
+        require(devFee + userShare == prizeAmount, "Fee calculation mismatch");
         
+        // Transfer dev fee
+        (bool success1, ) = payable(devWallet).call{value: devFee}("");
+        require(success1, "Dev fee transfer failed");
+        
+        // Transfer user prize
         (bool success2, ) = payable(msg.sender).call{value: userShare}("");
-        if (!success2) revert TransferFailed();
+        require(success2, "Prize transfer failed");
 
         emit PrizeClaimed(_cycleId, msg.sender, _slipId, rank, userShare);
         
@@ -705,7 +726,9 @@ contract Oddyssey is Ownable, ReentrancyGuard {
         cycleId = dailyCycleId;
         if (cycleId > 0) {
             CycleInfo memory info = cycleInfo[cycleId];
-            return (cycleId, uint8(info.state), info.endTime, info.prizePool, info.slipCount);
+            // Include both current prize pool AND any rollovers from previous cycles
+            uint256 totalPrizePool = info.prizePool + dailyPrizePools[cycleId];
+            return (cycleId, uint8(info.state), info.endTime, totalPrizePool, info.slipCount);
         }
         return (0, 0, 0, 0, 0);
     }
@@ -726,11 +749,13 @@ contract Oddyssey is Ownable, ReentrancyGuard {
         }
         
         CycleInfo memory info = cycleInfo[_cycleId];
+        // Include both current prize pool AND any rollovers from previous cycles
+        uint256 totalPrizePool = info.prizePool + dailyPrizePools[_cycleId];
         return (
             info.startTime > 0,
             uint8(info.state),
             info.endTime,
-            info.prizePool,
+            totalPrizePool,
             info.slipCount,
             info.hasWinner
         );

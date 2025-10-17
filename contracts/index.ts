@@ -5,7 +5,6 @@ import BitredictTokenABI from './abis/BitredictToken.json';
 import BitrFaucetABI from './abis/BitrFaucet.json';
 import GuidedOracleABI from './abis/GuidedOracle.json';
 import OptimisticOracleABI from './abis/OptimisticOracle.json';
-import BitredictPoolABI from './abis/BitredictPool.json';
 import BitredictPoolCoreABI from './abis/BitredictPoolCore.json';
 import BitredictBoostSystemABI from './abis/BitredictBoostSystem.json';
 import BitredictComboPoolsABI from './abis/BitredictComboPools.json';
@@ -69,7 +68,7 @@ export const CONTRACTS = {
   // Legacy support (for backward compatibility) - DEPRECATED: Use POOL_CORE instead
   BITREDICT_POOL: {
     address: CONTRACT_ADDRESSES.BITREDICT_POOL, // DEPRECATED: Use POOL_CORE
-    abi: BitredictPoolABI.abi, // DEPRECATED: Use POOL_CORE.abi
+    abi: BitredictPoolCoreABI.abi, // DEPRECATED: Use POOL_CORE.abi
   },
   BITREDICT_STAKING: {
     address: CONTRACT_ADDRESSES.BITREDICT_STAKING,
@@ -84,7 +83,6 @@ export {
   BitrFaucetABI,
   GuidedOracleABI,
   OptimisticOracleABI,
-  BitredictPoolABI,
   BitredictPoolCoreABI,
   BitredictBoostSystemABI,
   BitredictComboPoolsABI,

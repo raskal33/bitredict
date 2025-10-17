@@ -421,16 +421,38 @@ class OddysseyService {
     try {
       console.log('🎯 Placing slip with predictions:', predictions);
       
+      // Fetch the actual entry fee from the contract
+      const entryFeeResult = await this.publicClient.readContract({
+        address: CONTRACTS.ODDYSSEY.address,
+        abi: CONTRACTS.ODDYSSEY.abi,
+        functionName: 'entryFee',
+      });
+      
+      const entryFeeBigInt = entryFeeResult as bigint;
+      console.log(`💰 Entry fee from contract: ${formatEther(entryFeeBigInt)} STT (${entryFeeBigInt.toString()} wei)`);
+      
       // Convert predictions to contract format
-      const contractPredictions = predictions.map(pred => ({
-        matchId: BigInt(pred.matchId),
-        betType: ['1', 'X', '2'].includes(pred.prediction) ? 0 : 1, // 0=MONEYLINE, 1=OVER_UNDER
-        selection: pred.prediction,
-        selectedOdd: Math.floor(pred.odds * 1000), // Convert to contract format
-        homeTeam: '', // Will be filled by contract
-        awayTeam: '', // Will be filled by contract
-        leagueName: '', // Will be filled by contract
-      }));
+      const contractPredictions = predictions.map(pred => {
+        // Convert odds: if pred.odds is already scaled (e.g., 1500 for 1.5x), keep it
+        // If it's decimal format (e.g., 1.5), scale it by 1000
+        let scaledOdds = pred.odds;
+        if (scaledOdds < 100) {
+          // Likely decimal format (e.g., 1.5, 2.3), scale by 1000
+          scaledOdds = Math.floor(scaledOdds * 1000);
+        }
+        
+        console.log(`🔢 Odds conversion: ${pred.odds} -> ${scaledOdds}`);
+        
+        return {
+          matchId: BigInt(pred.matchId),
+          betType: ['1', 'X', '2'].includes(pred.prediction) ? 0 : 1, // 0=MONEYLINE, 1=OVER_UNDER
+          selection: pred.prediction,
+          selectedOdd: scaledOdds, // Contract format: odds * 1000
+          homeTeam: '', // Will be filled by contract
+          awayTeam: '', // Will be filled by contract
+          leagueName: '', // Will be filled by contract
+        };
+      });
 
       console.log('📝 Contract predictions:', contractPredictions);
 
@@ -439,7 +461,7 @@ class OddysseyService {
         abi: CONTRACTS.ODDYSSEY.abi,
         functionName: 'placeSlip',
         args: [contractPredictions],
-        value: parseEther('0.5'), // Entry fee
+        value: entryFeeBigInt, // ✅ Use actual entry fee from contract
         chain: somniaTestnet,
         account: this.walletClient.account,
       });
