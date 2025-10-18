@@ -58,17 +58,27 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
 
   // Calculate won odds: Only multiply odds of CORRECT predictions
   const calculateWonOdds = useCallback((predictions: EnhancedPrediction[]) => {
-    if (predictions.length === 0) return 0;
+    if (predictions.length === 0) {
+      console.log('⚠️ No predictions to calculate odds from');
+      return 0;
+    }
     
     // Only multiply odds of CORRECT predictions
     const correctPredictions = predictions.filter(pred => pred.isCorrect === true);
-    if (correctPredictions.length === 0) return 0;
+    console.log(`📊 Calculating won odds: ${correctPredictions.length}/${predictions.length} correct predictions`);
+    
+    if (correctPredictions.length === 0) {
+      console.log('⚠️ No correct predictions found');
+      return 0;
+    }
     
     const wonOdds = correctPredictions.reduce((acc, pred) => {
       const odds = (pred.selectedOdd / 1000) || 1;
+      console.log(`  - Prediction odds: ${odds.toFixed(3)}x, Running total: ${(acc * odds).toFixed(3)}x`);
       return acc * odds;
     }, 1);
     
+    console.log(`✅ Final won odds: ${wonOdds.toFixed(3)}x`);
     return wonOdds;
   }, []);
 
@@ -288,14 +298,20 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
                 setSlips(prevSlips =>
                   prevSlips.map(s => {
                     if (s.slip_id === slip.slip_id) {
+                      const updatedPredictions = s.predictions.map((pred: EnhancedPrediction, idx: number) => ({
+                        ...pred,
+                        isCorrect: data.data.predictions[idx]?.isCorrect,
+                        actualResult: data.data.predictions[idx]?.actualResult
+                      }));
+                      
+                      // Recalculate won odds with updated isCorrect values
+                      const wonOdds = calculateWonOdds(updatedPredictions);
+                      
                       return {
                         ...s,
                         correctCount: data.data.liveStatus.correct,
-                        predictions: s.predictions.map((pred: EnhancedPrediction, idx: number) => ({
-                          ...pred,
-                          isCorrect: data.data.predictions[idx]?.isCorrect,
-                          actualResult: data.data.predictions[idx]?.actualResult
-                        }))
+                        predictions: updatedPredictions,
+                        wonOdds: wonOdds
                       };
                     }
                     return s;
@@ -321,7 +337,7 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
     return () => {
       if (pollInterval) clearInterval(pollInterval);
     };
-  }, [slips, userAddress]);
+  }, [slips, userAddress, calculateWonOdds]);
 
   // ✅ Real-time On-Chain Evaluation Status Polling
   useEffect(() => {
@@ -369,9 +385,21 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
     return () => clearInterval(interval);
   }, [userAddress, slips]);
 
-  // ✅ Enhanced Status Indicators
+  // ✅ Enhanced Status Indicators - FIXED: Check cycleResolved first
   const getEvaluationStatus = (slip: EnhancedSlip) => {
-    if (slip.isEvaluated) {
+    // CRITICAL: If cycle is NOT resolved, slip MUST be pending
+    if (!slip.cycleResolved) {
+      return {
+        icon: <ClockIcon className="w-4 h-4 text-yellow-400 animate-spin" />,
+        text: "Pending",
+        color: "text-yellow-400",
+        bgColor: "bg-yellow-500/20",
+        borderColor: "border-yellow-500/30"
+      };
+    }
+
+    // Only check isEvaluated if cycle IS resolved
+    if (slip.cycleResolved && slip.isEvaluated) {
       if (slip.correctCount >= 7) {
         return {
           icon: <TrophyIcon className="w-4 h-4 text-yellow-400" />,
@@ -475,15 +503,61 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
 
   const getSelectionLabel = (selection: string, betType: number) => {
     if (betType === 0) {
-      switch (selection) {
-        case '1': return 'Home Win';
-        case 'X': return 'Draw';
-        case '2': return 'Away Win';
+      switch (selection.toLowerCase()) {
+        case '1':
+        case 'home': return '1';
+        case 'x':
+        case 'draw': return 'X';
+        case '2':
+        case 'away': return '2';
         default: return selection;
       }
     } else {
-      return selection;
+      return selection.charAt(0).toUpperCase() + selection.slice(1).toLowerCase();
     }
+  };
+
+  const getSelectionColor = (selection: string, betType: number, isCorrect?: boolean) => {
+    let baseColor = '';
+    const correctColor = 'bg-green-500/20 text-green-400 border-green-500/30';
+    const incorrectColor = 'bg-red-500/20 text-red-400 border-red-500/30';
+    
+    if (betType === 0) { // 1X2
+      switch (selection.toLowerCase()) {
+        case '1':
+        case 'home':
+          baseColor = 'bg-primary/20 text-primary border-primary/30';
+          break;
+        case 'x':
+        case 'draw':
+          baseColor = 'bg-secondary/20 text-secondary border-secondary/30';
+          break;
+        case '2':
+        case 'away':
+          baseColor = 'bg-accent/20 text-accent border-accent/30';
+          break;
+        default:
+          baseColor = 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+      }
+    } else if (betType === 1) { // Over/Under
+      switch (selection.toLowerCase()) {
+        case 'over':
+          baseColor = 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+          break;
+        case 'under':
+          baseColor = 'bg-purple-500/20 text-purple-400 border-purple-500/30';
+          break;
+        default:
+          baseColor = 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+      }
+    } else {
+      baseColor = 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+    }
+
+    // Return appropriate color based on correctness
+    if (isCorrect === true) return correctColor;
+    if (isCorrect === false) return incorrectColor;
+    return baseColor;
   };
 
 
@@ -733,7 +807,10 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
                         <div className={`text-base sm:text-lg font-bold ${
                           slip.correctCount >= 7 ? 'text-green-400' : 'text-yellow-400'
                         }`}>
-                          {(slip.wonOdds || slip.finalScore).toFixed(2)}x
+                          {(slip.wonOdds && slip.wonOdds > 0) ? slip.wonOdds.toFixed(3) : '0.00'}x
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {slip.correctCount} correct × odds
                         </div>
                       </div>
                     </div>
@@ -809,16 +886,16 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
                         {/* User Prediction Column */}
                         <div className="space-y-1">
                           <div className="text-xs text-gray-400 font-medium">Your Prediction</div>
-                          <div className="flex items-center gap-2">
-                            <div className="text-xs text-gray-400">
+                          <div className="flex flex-col gap-1">
+                            <div className="text-xs text-gray-500">
                               {getBetTypeLabel(prediction.betType)}
                             </div>
-                            <div className="font-medium px-2 py-1 rounded border text-xs bg-blue-500/20 text-blue-400 border-blue-500/30">
+                            <div className={`font-medium px-2 py-1 rounded border text-xs ${getSelectionColor(prediction.selection, prediction.betType)}`}>
                               {getSelectionLabel(prediction.selection, prediction.betType)}
                             </div>
-                          </div>
-                          <div className="text-xs text-gray-400">
-                            Odds: <span className="font-bold text-green-400">{(prediction.selectedOdd / 1000).toFixed(2)}x</span>
+                            <div className="text-xs text-gray-400">
+                              Odds: <span className="font-bold text-green-400">{(prediction.selectedOdd / 1000).toFixed(2)}x</span>
+                            </div>
                           </div>
                         </div>
 
@@ -826,12 +903,15 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
                         <div className="space-y-1">
                           <div className="text-xs text-gray-400 font-medium">Match Result</div>
                           {prediction.actualResult ? (
-                            <div className="font-medium px-2 py-1 rounded border text-xs bg-purple-500/20 text-purple-400 border-purple-500/30">
-                              {prediction.actualResult}
+                            <div className="flex flex-col gap-1">
+                              <div className="font-medium px-2 py-1 rounded border text-xs bg-purple-500/20 text-purple-400 border-purple-500/30">
+                                {prediction.actualResult}
+                              </div>
                             </div>
                           ) : (
-                            <div className="text-xs text-gray-500 italic">
-                              Match not finished
+                            <div className="flex items-center gap-1 text-xs text-gray-500">
+                              <ClockIcon className="w-3 h-3" />
+                              <span>Not finished</span>
                             </div>
                           )}
                         </div>
@@ -839,24 +919,30 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
                         {/* Evaluation Column */}
                         <div className="space-y-1">
                           <div className="text-xs text-gray-400 font-medium">Evaluation</div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1">
                             {prediction.isCorrect === true && (
-                              <div className="flex items-center gap-1 text-green-400">
-                                <CheckIcon className="w-4 h-4" />
-                                <span className="text-xs font-medium">Correct</span>
-                              </div>
+                              <>
+                                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-green-500/20 border border-green-500/30">
+                                  <CheckIcon className="w-4 h-4 text-green-400" />
+                                </div>
+                                <span className="text-xs font-medium text-green-400">Correct</span>
+                              </>
                             )}
                             {prediction.isCorrect === false && (
-                              <div className="flex items-center gap-1 text-red-400">
-                                <XMarkIcon className="w-4 h-4" />
-                                <span className="text-xs font-medium">Wrong</span>
-                              </div>
+                              <>
+                                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-red-500/20 border border-red-500/30">
+                                  <XMarkIcon className="w-4 h-4 text-red-400" />
+                                </div>
+                                <span className="text-xs font-medium text-red-400">Wrong</span>
+                              </>
                             )}
                             {prediction.isCorrect === undefined && (
-                              <div className="flex items-center gap-1 text-yellow-400">
-                                <ClockIcon className="w-4 h-4" />
-                                <span className="text-xs font-medium">Pending</span>
-                              </div>
+                              <>
+                                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-yellow-500/20 border border-yellow-500/30">
+                                  <ClockIcon className="w-4 h-4 text-yellow-400" />
+                                </div>
+                                <span className="text-xs font-medium text-yellow-400">Pending</span>
+                              </>
                             )}
                           </div>
                         </div>
