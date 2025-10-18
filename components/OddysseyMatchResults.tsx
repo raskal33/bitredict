@@ -179,43 +179,54 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
   };
 
   const formatScore = (match: OddysseyMatchWithResult) => {
-    if (match.result.home_score !== null && match.result.away_score !== null) {
-      return `${match.result.home_score} - ${match.result.away_score}`;
+    // Since Oddyssey doesn't provide scores, just return match status
+    // The actual results are in the result.moneyline and result.overUnder codes
+    if (match.result && (match.result.moneyline !== 0 || match.result.overUnder !== 0)) {
+      return '✓'; // Match has a result
     }
+    return 'Pending';
+  };
+
+  const getOutcomeText = (outcome: string | number | null) => {
+    if (!outcome || outcome === 0 || outcome === '0') return 'TBD';
+    
+    // Handle moneyline outcomes (1X2)
+    if (typeof outcome === 'string' || typeof outcome === 'number') {
+      const outcomeStr = String(outcome);
+      switch (outcomeStr) {
+        case '1':
+          return 'Home Win';
+        case 'X':
+        case '2':
+          return 'Draw';
+        case '3':
+          return 'Away Win';
+        case 'Over':
+        case 'over':
+          return 'Over 2.5';
+        case 'Under':
+        case 'under':
+          return 'Under 2.5';
+        default:
+          return outcomeStr;
+      }
+    }
+    
     return 'TBD';
   };
 
-  const getOutcomeText = (outcome: string | null) => {
-    if (!outcome) return 'TBD';
+  const getOutcomeColor = (outcome: string | number | null) => {
+    if (!outcome || outcome === 0 || outcome === '0') return 'text-gray-400';
     
-    switch (outcome) {
+    const outcomeStr = String(outcome);
+    switch (outcomeStr) {
       case '1':
-        return 'Home Win';
-      case 'X':
-        return 'Draw';
+        return 'text-green-400';
       case '2':
-        return 'Away Win';
-      case 'Over':
-      case 'over':
-        return 'Over 2.5';
-      case 'Under':
-      case 'under':
-        return 'Under 2.5';
-      default:
-        return outcome;
-    }
-  };
-
-  const getOutcomeColor = (outcome: string | null) => {
-    if (!outcome) return 'text-gray-400';
-    
-    switch (outcome) {
-      case '1':
-        return 'text-primary';
       case 'X':
-        return 'text-secondary';
-      case '2':
-        return 'text-accent';
+        return 'text-yellow-400';
+      case '3':
+        return 'text-blue-400';
       case 'Over':
         return 'text-blue-400';
       case 'Under':
