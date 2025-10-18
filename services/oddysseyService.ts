@@ -181,6 +181,11 @@ class OddysseyService {
     try {
       const currentCycle = await this.getCurrentCycle();
       
+      // Check if cycle is valid (not 0)
+      if (currentCycle === BigInt(0)) {
+        throw new Error('Cycle 0 does not exist');
+      }
+      
       // Use getCycleStatus to get the full CycleInfo structure
       const result = await this.publicClient.readContract({
         address: CONTRACTS.ODDYSSEY.address,
@@ -229,6 +234,25 @@ class OddysseyService {
       };
     } catch (error) {
       console.error('Error getting current cycle info:', error);
+      
+      // If cycle 0 error, return a default inactive cycle
+      if (error instanceof Error && error.message.includes('Cycle 0 does not exist')) {
+        console.log('🔄 No active cycle, returning default inactive cycle');
+        return {
+          cycleId: BigInt(0),
+          state: 0, // Inactive
+          endTime: BigInt(0),
+          prizePool: BigInt(0),
+          slipCount: BigInt(0),
+          startTime: BigInt(0),
+          matchesCount: BigInt(0),
+          participantCount: BigInt(0),
+          evaluatedSlips: BigInt(0),
+          hasWinner: false,
+          rolloverAmount: BigInt(0)
+        };
+      }
+      
       // Fallback to basic getCurrentCycleInfo if getCycleStatus fails
       try {
         const result = await this.publicClient.readContract({

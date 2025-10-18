@@ -77,7 +77,12 @@ class WebSocketClient {
     const subscriptions = this.subscriptions.get(message.channel) || [];
     subscriptions.forEach(sub => {
       try {
-        sub.callback(message.data);
+        // Add null check for message.data
+        if (message.data !== undefined && message.data !== null) {
+          sub.callback(message.data);
+        } else {
+          console.warn('Received undefined/null WebSocket data for channel:', message.channel);
+        }
       } catch (error) {
         console.error('Error in subscription callback:', error);
       }

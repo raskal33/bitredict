@@ -347,6 +347,12 @@ export default function OddysseyPage() {
     const unsubPlaced = oddysseyWebSocketService.onSlipPlaced(address, async (event) => {
       console.log('📡 ✅ Slip placed via WebSocket:', event);
       
+      // Add null check for event
+      if (!event || !event.slipId) {
+        console.warn('Received invalid slip placed event:', event);
+        return;
+      }
+      
       // Create new slip object with raw WebSocket data
       const newSlip: EnhancedSlip = {
         id: event.slipId,
@@ -428,6 +434,12 @@ export default function OddysseyPage() {
     const unsubEvaluated = oddysseyWebSocketService.onSlipEvaluated(address, (event) => {
       console.log('📡 📊 Slip evaluated via WebSocket:', event);
       
+      // Add null check for event
+      if (!event || !event.slipId) {
+        console.warn('Received invalid slip evaluated event:', event);
+        return;
+      }
+      
       // Update slip in list
       setAllSlips(prev => 
         prev.map(slip => 
@@ -461,6 +473,12 @@ export default function OddysseyPage() {
     // Subscribe to prize claimed events
     const unsubPrizeClaimed = oddysseyWebSocketService.onSlipPrizeClaimed(address, (event) => {
       console.log('📡 🏆 Prize claimed via WebSocket:', event);
+      
+      // Add null check for event
+      if (!event || !event.slipId) {
+        console.warn('Received invalid prize claimed event:', event);
+        return;
+      }
       
       // Update slip to show prize claimed
       setAllSlips(prev => 

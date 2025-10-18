@@ -102,8 +102,12 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
       const slipsData = await response.json();
       
       if (slipsData.success && slipsData.data) {
+        console.log('📥 Raw API Response:', JSON.stringify(slipsData.data[0], null, 2));
+        
         // Map REST API data to our interface
-        const mappedSlips: EnhancedSlip[] = slipsData.data.map((slip: { player_address: string; cycle_id: string; created_at: string; predictions: Array<{ home_team: string; away_team: string; league_name: string; bet_type: number; selection: string; selected_odd: number; is_correct?: boolean; match_id?: number }>; final_score: string; correctCount?: number; correct_count?: number; is_evaluated: boolean; slip_id: string; cycle_resolved: boolean; leaderboard_rank?: number; prize_amount?: number; prize_claimed?: boolean }) => ({
+        const mappedSlips: EnhancedSlip[] = slipsData.data.map((slip: { player_address: string; cycle_id: string; created_at: string; predictions: Array<{ home_team: string; away_team: string; league_name: string; bet_type: number; selection: string; selected_odd: number; is_correct?: boolean; match_id?: number; actualResult?: string; starting_at?: string }>; final_score: string; correctCount?: number; correct_count?: number; is_evaluated: boolean; slip_id: string; cycle_resolved: boolean; leaderboard_rank?: number; prize_amount?: number; prize_claimed?: boolean }) => {
+          console.log(`🔍 Slip #${slip.slip_id}: cycle_resolved=${slip.cycle_resolved}, is_evaluated=${slip.is_evaluated}, cycleId=${slip.cycle_id}`);
+          return {
           player: slip.player_address,
           cycleId: parseInt(slip.cycle_id),
           placedAt: new Date(slip.created_at).getTime(),
@@ -139,7 +143,16 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
           leaderboardRank: slip.leaderboard_rank, // ✅ Add from API
           prizeAmount: slip.prize_amount, // ✅ Add from API
           prizeClaimed: slip.prize_claimed // ✅ Add from API
-        }));
+          };
+        });
+        
+        console.log('✅ Mapped Slips:', mappedSlips.map(s => ({
+          slip_id: s.slip_id,
+          cycleId: s.cycleId,
+          cycleResolved: s.cycleResolved,
+          isEvaluated: s.isEvaluated,
+          correctCount: s.correctCount
+        })));
 
         setSlips(mappedSlips);
         
@@ -387,8 +400,11 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
 
   // ✅ Enhanced Status Indicators - FIXED: Check cycleResolved first
   const getEvaluationStatus = (slip: EnhancedSlip) => {
+    console.log(`🎯 getEvaluationStatus - Slip #${slip.slip_id}: cycleResolved=${slip.cycleResolved}, isEvaluated=${slip.isEvaluated}, correctCount=${slip.correctCount}`);
+    
     // CRITICAL: If cycle is NOT resolved, slip MUST be pending
     if (!slip.cycleResolved) {
+      console.log(`   → Status: PENDING (cycle not resolved)`);
       return {
         icon: <ClockIcon className="w-4 h-4 text-yellow-400 animate-spin" />,
         text: "Pending",
@@ -845,10 +861,10 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
                       <div className="mb-3 flex items-start justify-between gap-2">
                         <div className="flex-1">
                           <div className="font-medium text-white text-sm leading-tight">
-                            {prediction.homeTeam} vs {prediction.awayTeam}
+                            {prediction.homeTeam || 'Unknown'} vs {prediction.awayTeam || 'Unknown'}
                           </div>
                           <div className="text-xs text-gray-400 mt-1">
-                            {prediction.leagueName}
+                            {prediction.leagueName || 'Unknown League'}
                           </div>
                           {prediction.startingAt && (
                             <div className="text-xs text-gray-500 mt-1">
@@ -882,7 +898,7 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
                       </div>
                       
                       {/* Prediction Details Grid */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         {/* User Prediction Column */}
                         <div className="space-y-1">
                           <div className="text-xs text-gray-400 font-medium">Your Prediction</div>
@@ -890,8 +906,8 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
                             <div className="text-xs text-gray-500">
                               {getBetTypeLabel(prediction.betType)}
                             </div>
-                            <div className={`font-medium px-2 py-1 rounded border text-xs ${getSelectionColor(prediction.selection, prediction.betType)}`}>
-                              {getSelectionLabel(prediction.selection, prediction.betType)}
+                            <div className={`font-medium px-2 py-1 rounded border text-xs ${getSelectionColor(prediction.selection || '', prediction.betType)}`}>
+                              {getSelectionLabel(prediction.selection || '', prediction.betType)}
                             </div>
                             <div className="text-xs text-gray-400">
                               Odds: <span className="font-bold text-green-400">{(prediction.selectedOdd / 1000).toFixed(2)}x</span>
@@ -905,7 +921,7 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
                           {prediction.actualResult ? (
                             <div className="flex flex-col gap-1">
                               <div className="font-medium px-2 py-1 rounded border text-xs bg-purple-500/20 text-purple-400 border-purple-500/30">
-                                {prediction.actualResult}
+                                {prediction.actualResult || 'Unknown'}
                               </div>
                             </div>
                           ) : (
