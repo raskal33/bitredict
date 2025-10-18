@@ -28,6 +28,8 @@ interface EnhancedPrediction {
   selectedOdd: number;
   isCorrect?: boolean;
   matchId?: number;
+  actualResult?: string; // Add actual result from API
+  startingAt?: string; // Add match start time
 }
 
 interface EnhancedSlip {
@@ -95,7 +97,7 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
           player: slip.player_address,
           cycleId: parseInt(slip.cycle_id),
           placedAt: new Date(slip.created_at).getTime(),
-          predictions: slip.predictions.map((pred: { home_team: string; away_team: string; league_name: string; bet_type: number; selection: string; selected_odd: number; is_correct?: boolean; match_id?: number }) => ({
+          predictions: slip.predictions.map((pred: { home_team: string; away_team: string; league_name: string; bet_type: number; selection: string; selected_odd: number; is_correct?: boolean; match_id?: number; actualResult?: string; starting_at?: string }) => ({
             homeTeam: pred.home_team,
             awayTeam: pred.away_team,
             leagueName: pred.league_name,
@@ -103,12 +105,14 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
             selection: pred.selection,
             selectedOdd: pred.selected_odd,
             isCorrect: pred.is_correct,
-            matchId: pred.match_id
+            matchId: pred.match_id,
+            actualResult: pred.actualResult,
+            startingAt: pred.starting_at
           })),
           finalScore: parseInt(slip.final_score),
           correctCount: slip.correctCount || slip.correct_count, // ✅ Use API value (correctCount) with fallback
           isEvaluated: slip.is_evaluated,
-          wonOdds: calculateWonOdds(slip.predictions.map((pred: { home_team: string; away_team: string; league_name: string; bet_type: number; selection: string; selected_odd: number; is_correct?: boolean; match_id?: number }) => ({
+          wonOdds: calculateWonOdds(slip.predictions.map((pred: { home_team: string; away_team: string; league_name: string; bet_type: number; selection: string; selected_odd: number; is_correct?: boolean; match_id?: number; actualResult?: string; starting_at?: string }) => ({
             homeTeam: pred.home_team,
             awayTeam: pred.away_team,
             leagueName: pred.league_name,
@@ -116,7 +120,9 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
             selection: pred.selection,
             selectedOdd: pred.selected_odd,
             isCorrect: pred.is_correct,
-            matchId: pred.match_id
+            matchId: pred.match_id,
+            actualResult: pred.actualResult,
+            startingAt: pred.starting_at
           }))),
           slip_id: parseInt(slip.slip_id),
           cycleResolved: slip.cycle_resolved, // Use backend field directly
@@ -287,7 +293,8 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
                         correctCount: data.data.liveStatus.correct,
                         predictions: s.predictions.map((pred: EnhancedPrediction, idx: number) => ({
                           ...pred,
-                          isCorrect: data.data.predictions[idx]?.isCorrect
+                          isCorrect: data.data.predictions[idx]?.isCorrect,
+                          actualResult: data.data.predictions[idx]?.actualResult
                         }))
                       };
                     }
@@ -479,14 +486,6 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
     }
   };
 
-  const getPredictionResultIcon = (isCorrect?: boolean) => {
-    if (isCorrect === true) {
-      return <CheckIcon className="w-5 h-5 text-green-400" />;
-    } else if (isCorrect === false) {
-      return <XMarkIcon className="w-5 h-5 text-red-400" />;
-    }
-    return null;
-  };
 
   const getPredictionBorderColor = (isCorrect?: boolean) => {
     if (isCorrect === true) return 'border-green-500/50 bg-green-500/5';
@@ -753,10 +752,10 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
                 </motion.div>
               )}
 
-              {/* Mobile-responsive predictions with evaluation icons */}
+              {/* Enhanced predictions display with three columns */}
               <div className="space-y-2">
                 <div className="text-sm font-medium text-gray-300 mb-2">Predictions ({slip.predictions.filter(p => p.isCorrect !== undefined).length}/{slip.predictions.length}):</div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-2">
                   {slip.predictions.map((prediction, index) => (
                     <motion.div
                       key={index}
@@ -765,8 +764,8 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
                       transition={{ delay: index * 0.05 }}
                       className={`p-3 bg-gray-600/20 rounded-lg text-sm border transition-colors ${getPredictionBorderColor(prediction.isCorrect)}`}
                     >
-                      {/* Mobile-first match info with correctness indicator */}
-                      <div className="mb-2 flex items-start justify-between gap-2">
+                      {/* Match Header */}
+                      <div className="mb-3 flex items-start justify-between gap-2">
                         <div className="flex-1">
                           <div className="font-medium text-white text-sm leading-tight">
                             {prediction.homeTeam} vs {prediction.awayTeam}
@@ -774,34 +773,91 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
                           <div className="text-xs text-gray-400 mt-1">
                             {prediction.leagueName}
                           </div>
+                          {prediction.startingAt && (
+                            <div className="text-xs text-gray-500 mt-1">
+                              {new Date(prediction.startingAt).toLocaleString()}
+                            </div>
+                          )}
                         </div>
                         
-                        {/* Correctness Icon */}
-                        {prediction.isCorrect !== undefined && (
-                          <div className="flex-shrink-0">
-                            {getPredictionResultIcon(prediction.isCorrect)}
-                          </div>
-                        )}
+                        {/* Evaluation Status */}
+                        <div className="flex-shrink-0">
+                          {prediction.isCorrect !== undefined ? (
+                            <div className={`flex items-center gap-1 px-2 py-1 rounded border text-xs ${
+                              prediction.isCorrect === true 
+                                ? 'bg-green-500/20 text-green-400 border-green-500/30' 
+                                : 'bg-red-500/20 text-red-400 border-red-500/30'
+                            }`}>
+                              {prediction.isCorrect ? (
+                                <CheckIcon className="w-3 h-3" />
+                              ) : (
+                                <XMarkIcon className="w-3 h-3" />
+                              )}
+                              <span>{prediction.isCorrect ? 'Correct' : 'Wrong'}</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1 px-2 py-1 rounded border text-xs bg-yellow-500/20 text-yellow-300 border-yellow-500/30">
+                              <ClockIcon className="w-3 h-3" />
+                              <span>Pending</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                       
-                      {/* Mobile-responsive prediction details */}
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <div className="text-xs text-gray-400">
-                            {getBetTypeLabel(prediction.betType)}
+                      {/* Prediction Details Grid */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        {/* User Prediction Column */}
+                        <div className="space-y-1">
+                          <div className="text-xs text-gray-400 font-medium">Your Prediction</div>
+                          <div className="flex items-center gap-2">
+                            <div className="text-xs text-gray-400">
+                              {getBetTypeLabel(prediction.betType)}
+                            </div>
+                            <div className="font-medium px-2 py-1 rounded border text-xs bg-blue-500/20 text-blue-400 border-blue-500/30">
+                              {getSelectionLabel(prediction.selection, prediction.betType)}
+                            </div>
                           </div>
-                          <div className={`font-medium px-2 py-1 rounded border text-xs ${
-                            prediction.isCorrect === true ? 'bg-green-500/20 text-green-400 border-green-500/30' :
-                            prediction.isCorrect === false ? 'bg-red-500/20 text-red-400 border-red-500/30' :
-                            'bg-yellow-500/20 text-yellow-300 border-yellow-500/30'
-                          }`}>
-                            {getSelectionLabel(prediction.selection, prediction.betType)}
+                          <div className="text-xs text-gray-400">
+                            Odds: <span className="font-bold text-green-400">{(prediction.selectedOdd / 1000).toFixed(2)}x</span>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <div className="text-xs text-gray-400">Odds</div>
-                          <div className="font-bold text-green-400 text-sm">
-                            {(prediction.selectedOdd / 1000).toFixed(2)}x
+
+                        {/* Current Result Column */}
+                        <div className="space-y-1">
+                          <div className="text-xs text-gray-400 font-medium">Match Result</div>
+                          {prediction.actualResult ? (
+                            <div className="font-medium px-2 py-1 rounded border text-xs bg-purple-500/20 text-purple-400 border-purple-500/30">
+                              {prediction.actualResult}
+                            </div>
+                          ) : (
+                            <div className="text-xs text-gray-500 italic">
+                              Match not finished
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Evaluation Column */}
+                        <div className="space-y-1">
+                          <div className="text-xs text-gray-400 font-medium">Evaluation</div>
+                          <div className="flex items-center gap-2">
+                            {prediction.isCorrect === true && (
+                              <div className="flex items-center gap-1 text-green-400">
+                                <CheckIcon className="w-4 h-4" />
+                                <span className="text-xs font-medium">Correct</span>
+                              </div>
+                            )}
+                            {prediction.isCorrect === false && (
+                              <div className="flex items-center gap-1 text-red-400">
+                                <XMarkIcon className="w-4 h-4" />
+                                <span className="text-xs font-medium">Wrong</span>
+                              </div>
+                            )}
+                            {prediction.isCorrect === undefined && (
+                              <div className="flex items-center gap-1 text-yellow-400">
+                                <ClockIcon className="w-4 h-4" />
+                                <span className="text-xs font-medium">Pending</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
