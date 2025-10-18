@@ -526,14 +526,14 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
               <div className="md:col-span-3 text-center space-y-1">
                 <div className="text-xs">
                   <span className="text-text-muted">1X2: </span>
-                  <span className={`font-medium ${getOutcomeColor(match.result.outcome_1x2 || match.result.moneyline)}`}>
-                    {getOutcomeText(match.result.outcome_1x2 || match.result.moneyline)}
+                  <span className={`font-medium ${getOutcomeColor((match.result.outcome_1x2 || match.result.moneyline) ?? null)}`}>
+                    {getOutcomeText((match.result.outcome_1x2 || match.result.moneyline) ?? null)}
                   </span>
                 </div>
                 <div className="text-xs">
                   <span className="text-text-muted">O/U: </span>
-                  <span className={`font-medium ${getOutcomeColor(match.result.outcome_ou25 || match.result.overUnder)}`}>
-                    {getOutcomeText(match.result.outcome_ou25 || match.result.overUnder)}
+                  <span className={`font-medium ${getOutcomeColor((match.result.outcome_ou25 || match.result.overUnder) ?? null)}`}>
+                    {getOutcomeText((match.result.outcome_ou25 || match.result.overUnder) ?? null)}
                   </span>
                 </div>
               </div>
