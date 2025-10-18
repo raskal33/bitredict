@@ -310,18 +310,6 @@ export class OddysseyContractService {
     }
   }
 
-  // ===== SLIP FUNCTIONS =====
-
-  public static async getSlip(slipId: number): Promise<Slip | null> {
-    try {
-      const contract = await this.getContract();
-      const slip = await contract.getSlip(slipId);
-      return this.parseSlip(slip);
-    } catch (error) {
-      console.error('Error fetching slip:', error);
-      return null;
-    }
-  }
 
   // ===== MATCH FUNCTIONS =====
 
@@ -391,5 +379,57 @@ export class OddysseyContractService {
         overUnder: Number(match.result.overUnder)
       }
     };
+  }
+
+  // ===== SLIP FUNCTIONS =====
+
+  public static async getSlip(slipId: number): Promise<Slip | null> {
+    try {
+      const contract = await this.getContract();
+      const slip = await contract.getSlip(slipId);
+      
+      return {
+        player: slip.player,
+        cycleId: Number(slip.cycleId),
+        placedAt: Number(slip.placedAt),
+        predictions: slip.predictions.map((pred: any) => ({
+          matchId: Number(pred.matchId),
+          betType: Number(pred.betType),
+          selection: pred.selection,
+          selectedOdd: Number(pred.selectedOdd),
+          homeTeam: pred.homeTeam,
+          awayTeam: pred.awayTeam,
+          leagueName: pred.leagueName
+        })),
+        finalScore: Number(slip.finalScore),
+        correctCount: Number(slip.correctCount),
+        isEvaluated: slip.isEvaluated
+      };
+    } catch (error) {
+      console.error('Error fetching slip:', error);
+      return null;
+    }
+  }
+
+  // ===== PRIZE CLAIMING FUNCTIONS =====
+
+  public static async claimPrize(cycleId: number, slipId: number): Promise<{ success: boolean; prizeAmount?: number; transactionHash?: string; error?: string }> {
+    try {
+      const contract = await this.getContract();
+      const tx = await contract.claimPrize(cycleId, slipId);
+      const receipt = await tx.wait();
+      
+      return {
+        success: true,
+        transactionHash: receipt.transactionHash,
+        prizeAmount: receipt.events?.PrizeClaimed?.args?.amount || 0
+      };
+    } catch (error: any) {
+      console.error('Error claiming prize:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to claim prize'
+      };
+    }
   }
 }

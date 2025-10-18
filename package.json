@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
+    "@playwright/test": "^1.56.1",
     "@react-spring/web": "^10.0.1",
     "@reown/appkit": "^1.7.11",
     "@reown/appkit-adapter-wagmi": "^1.7.11",

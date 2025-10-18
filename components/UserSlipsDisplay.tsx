@@ -10,7 +10,7 @@ import {
   CheckIcon,
   XMarkIcon
 } from '@heroicons/react/24/outline';
-import { OddysseyContractService, Slip, UserData } from '@/services/oddysseyContractService';
+import { OddysseyContractService, UserData } from '@/services/oddysseyContractService';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 
@@ -41,6 +41,9 @@ interface EnhancedSlip {
   wonOdds?: number;
   slip_id?: number;
   cycleResolved?: boolean; // Added for filtering
+  leaderboardRank?: number; // ✅ Add leaderboard rank
+  prizeAmount?: number; // ✅ Add prize amount
+  prizeClaimed?: boolean; // ✅ Add claim status
 }
 
 export default function UserSlipsDisplay({ userAddress, className = "" }: UserSlipsDisplayProps) {
@@ -67,57 +70,86 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
     return wonOdds;
   }, []);
 
-  // Enrich slips with evaluation data from backend
-  const enrichSlipsWithEvaluation = useCallback(async (baseSlips: Slip[]): Promise<EnhancedSlip[]> => {
-    try {
-      const enrichedSlips = await Promise.all(
-        baseSlips.map(async (slip, slipIndex) => {
-          const enrichedSlip: EnhancedSlip = {
-            ...slip,
-            slip_id: slipIndex,
-            predictions: slip.predictions as EnhancedPrediction[],
-            wonOdds: calculateWonOdds(slip.predictions as EnhancedPrediction[])
-          };
-
-          return enrichedSlip;
-        })
-      );
-
-      return enrichedSlips;
-    } catch (error) {
-      console.error('Error enriching slips:', error);
-      return baseSlips.map((slip, index) => ({
-        ...slip,
-        slip_id: index,
-        predictions: slip.predictions as EnhancedPrediction[],
-        wonOdds: calculateWonOdds(slip.predictions as EnhancedPrediction[])
-      }));
-    }
-  }, [calculateWonOdds]);
 
   const fetchUserData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Fetch user data and slips in parallel
-      const [userDataResult, slipsResult] = await Promise.all([
-        OddysseyContractService.getUserData(userAddress),
-        OddysseyContractService.getAllUserSlipsWithData(userAddress)
-      ]);
+      // Fetch user slips from REST API
+      const response = await fetch(`/api/oddyssey/user-slips/${userAddress}?limit=50&offset=0&t=${Date.now()}`, {
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
 
-      setUserData(userDataResult);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch user slips: ${response.status}`);
+      }
+
+      const slipsData = await response.json();
       
-      // Enrich slips with won odds and evaluation data
-      const enrichedSlips = await enrichSlipsWithEvaluation(slipsResult.slipsData);
-      setSlips(enrichedSlips);
+      if (slipsData.success && slipsData.data) {
+        // Map REST API data to our interface
+        const mappedSlips: EnhancedSlip[] = slipsData.data.map((slip: { player_address: string; cycle_id: string; created_at: string; predictions: Array<{ home_team: string; away_team: string; league_name: string; bet_type: number; selection: string; selected_odd: number; is_correct?: boolean; match_id?: number }>; final_score: string; correctCount?: number; correct_count?: number; is_evaluated: boolean; slip_id: string; cycle_resolved: boolean; leaderboard_rank?: number; prize_amount?: number; prize_claimed?: boolean }) => ({
+          player: slip.player_address,
+          cycleId: parseInt(slip.cycle_id),
+          placedAt: new Date(slip.created_at).getTime(),
+          predictions: slip.predictions.map((pred: { home_team: string; away_team: string; league_name: string; bet_type: number; selection: string; selected_odd: number; is_correct?: boolean; match_id?: number }) => ({
+            homeTeam: pred.home_team,
+            awayTeam: pred.away_team,
+            leagueName: pred.league_name,
+            betType: pred.bet_type,
+            selection: pred.selection,
+            selectedOdd: pred.selected_odd,
+            isCorrect: pred.is_correct,
+            matchId: pred.match_id
+          })),
+          finalScore: parseInt(slip.final_score),
+          correctCount: slip.correctCount || slip.correct_count, // ✅ Use API value (correctCount) with fallback
+          isEvaluated: slip.is_evaluated,
+          wonOdds: calculateWonOdds(slip.predictions.map((pred: { home_team: string; away_team: string; league_name: string; bet_type: number; selection: string; selected_odd: number; is_correct?: boolean; match_id?: number }) => ({
+            homeTeam: pred.home_team,
+            awayTeam: pred.away_team,
+            leagueName: pred.league_name,
+            betType: pred.bet_type,
+            selection: pred.selection,
+            selectedOdd: pred.selected_odd,
+            isCorrect: pred.is_correct,
+            matchId: pred.match_id
+          }))),
+          slip_id: parseInt(slip.slip_id),
+          cycleResolved: slip.cycle_resolved, // Use backend field directly
+          leaderboardRank: slip.leaderboard_rank, // ✅ Add from API
+          prizeAmount: slip.prize_amount, // ✅ Add from API
+          prizeClaimed: slip.prize_claimed // ✅ Add from API
+        }));
+
+        setSlips(mappedSlips);
+        
+        // Set mock user data for now
+        setUserData({
+          userStats: {
+            totalSlips: mappedSlips.length,
+            totalWins: mappedSlips.filter(s => s.isEvaluated && s.correctCount > 0).length,
+            bestScore: Math.max(...mappedSlips.map(s => s.finalScore), 0),
+            averageScore: mappedSlips.length > 0 ? mappedSlips.reduce((acc, s) => acc + s.finalScore, 0) / mappedSlips.length : 0,
+            winRate: mappedSlips.length > 0 ? (mappedSlips.filter(s => s.isEvaluated && s.correctCount > 0).length / mappedSlips.filter(s => s.isEvaluated).length) * 100 : 0,
+            currentStreak: 0,
+            bestStreak: 0,
+            lastActiveCycle: Math.max(...mappedSlips.map(s => s.cycleId), 0)
+          },
+          reputation: 0,
+          correctPredictions: mappedSlips.reduce((acc, s) => acc + s.correctCount, 0)
+        });
+      }
     } catch (err) {
       console.error('Error fetching user data:', err);
       setError('Failed to load user data');
     } finally {
       setLoading(false);
     }
-  }, [userAddress, enrichSlipsWithEvaluation]);
+  }, [userAddress, calculateWonOdds]);
 
   useEffect(() => {
     if (userAddress) {
@@ -283,6 +315,135 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
       if (pollInterval) clearInterval(pollInterval);
     };
   }, [slips, userAddress]);
+
+  // ✅ Real-time On-Chain Evaluation Status Polling
+  useEffect(() => {
+    if (!userAddress) return;
+    
+    const pollEvaluationStatus = async () => {
+      try {
+        const unevaluatedSlips = slips.filter(slip => !slip.isEvaluated);
+        
+        if (unevaluatedSlips.length === 0) return;
+        
+        for (const slip of unevaluatedSlips) {
+          try {
+            // Check if slip has been evaluated on-chain
+            const slipData = await OddysseyContractService.getSlip(slip.slip_id!);
+            
+            if (slipData && slipData.isEvaluated) {
+              // Update slip status
+              setSlips(prevSlips =>
+                prevSlips.map(s => {
+                  if (s.slip_id === slip.slip_id) {
+                    return {
+                      ...s,
+                      isEvaluated: true,
+                      correctCount: slipData.correctCount,
+                      finalScore: slipData.finalScore
+                    };
+                  }
+                  return s;
+                })
+              );
+              
+              toast.success(`Slip #${slip.slip_id} has been evaluated!`, { duration: 3000 });
+            }
+          } catch (error) {
+            console.warn(`Error checking evaluation status for slip ${slip.slip_id}:`, error);
+          }
+        }
+      } catch (error) {
+        console.error('Error in evaluation status poll:', error);
+      }
+    };
+    
+    const interval = setInterval(pollEvaluationStatus, 30000); // Poll every 30 seconds
+    return () => clearInterval(interval);
+  }, [userAddress, slips]);
+
+  // ✅ Enhanced Status Indicators
+  const getEvaluationStatus = (slip: EnhancedSlip) => {
+    if (slip.isEvaluated) {
+      if (slip.correctCount >= 7) {
+        return {
+          icon: <TrophyIcon className="w-4 h-4 text-yellow-400" />,
+          text: "Winner",
+          color: "text-yellow-400",
+          bgColor: "bg-yellow-500/20",
+          borderColor: "border-yellow-500/30"
+        };
+      } else {
+        return {
+          icon: <CheckCircleIcon className="w-4 h-4 text-green-400" />,
+          text: "Evaluated",
+          color: "text-green-400",
+          bgColor: "bg-green-500/20",
+          borderColor: "border-green-500/30"
+        };
+      }
+    } else {
+      return {
+        icon: <ClockIcon className="w-4 h-4 text-yellow-400 animate-spin" />,
+        text: "Pending",
+        color: "text-yellow-400",
+        bgColor: "bg-yellow-500/20",
+        borderColor: "border-yellow-500/30"
+      };
+    }
+  };
+
+  // ✅ Prize Button States
+  const getPrizeButtonState = (slip: EnhancedSlip) => {
+    if (!slip.isEvaluated) {
+      return { disabled: true, text: "Not Evaluated", variant: "gray" };
+    }
+    
+    if (slip.correctCount < 7) {
+      return { disabled: true, text: "Not Qualified", variant: "gray" };
+    }
+    
+    if (slip.prizeClaimed) {
+      return { disabled: true, text: "Claimed", variant: "green" };
+    }
+    
+    if (slip.leaderboardRank === undefined) {
+      return { disabled: true, text: "Awaiting Rank", variant: "yellow" };
+    }
+    
+    return { disabled: false, text: "Claim Prize", variant: "primary" };
+  };
+
+  // ✅ Prize Claiming Function
+  const handleClaimPrize = async (cycleId: number, slipId: number) => {
+    try {
+      setLoading(true);
+      
+      // Call contract method to claim prize
+      const result = await OddysseyContractService.claimPrize(cycleId, slipId);
+      
+      if (result.success) {
+        toast.success(`Prize claimed successfully! ${result.prizeAmount} BITR`, { duration: 5000 });
+        
+        // Update slip status
+        setSlips(prevSlips =>
+          prevSlips.map(slip => {
+            if (slip.cycleId === cycleId && slip.slip_id === slipId) {
+              return { ...slip, prizeClaimed: true };
+            }
+            return slip;
+          })
+        );
+      } else {
+        toast.error(`Failed to claim prize: ${result.error}`, { duration: 5000 });
+      }
+    } catch (error) {
+      console.error('Error claiming prize:', error);
+      toast.error('Failed to claim prize', { duration: 3000 });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredSlips = slips.filter(slip => {
     switch (filter) {
@@ -479,19 +640,79 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
                 </div>
                 
                 <div className="flex items-center gap-2">
-                  {slip.isEvaluated ? (
+                  {/* ✅ Enhanced Status Indicator with Blockchain Status */}
+                  <div className={`flex items-center gap-2 px-2 py-1 rounded-lg border ${getEvaluationStatus(slip).bgColor} ${getEvaluationStatus(slip).borderColor}`}>
                     <div className="flex items-center gap-1">
-                      <CheckCircleIcon className="w-4 h-4 text-green-400" />
-                      <span className="text-sm text-green-400">Evaluated</span>
+                      {getEvaluationStatus(slip).icon}
+                      <span className={`text-sm ${getEvaluationStatus(slip).color}`}>
+                        {getEvaluationStatus(slip).text}
+                      </span>
                     </div>
-                  ) : (
-                    <div className="flex items-center gap-1">
-                      <ClockIcon className="w-4 h-4 text-yellow-400 animate-spin" />
-                      <span className="text-sm text-yellow-400">Pending</span>
-                    </div>
-                  )}
+                    {/* Blockchain Status Indicator */}
+                    <div 
+                      className={`w-2 h-2 rounded-full ${
+                        slip.isEvaluated 
+                          ? 'bg-green-400' 
+                          : 'bg-yellow-400 animate-pulse'
+                      }`}
+                      title={slip.isEvaluated ? "On-chain verified" : "Awaiting on-chain evaluation"}
+                    />
+                  </div>
                 </div>
               </div>
+
+              {/* ✅ Leaderboard Ranking Display */}
+              {slip.isEvaluated && slip.leaderboardRank !== undefined && (
+                <motion.div 
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="mb-3 p-3 bg-gray-600/30 rounded-lg border border-blue-500/20"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex items-center gap-4">
+                      <div>
+                        <div className="text-xs sm:text-sm text-gray-400">Leaderboard Rank</div>
+                        <div className="text-base sm:text-lg font-bold text-blue-400">
+                          #{slip.leaderboardRank}
+                        </div>
+                      </div>
+                      {slip.prizeAmount && (
+                        <div>
+                          <div className="text-xs sm:text-sm text-gray-400">Prize Amount</div>
+                          <div className="text-base sm:text-lg font-bold text-yellow-400">
+                            {slip.prizeAmount.toFixed(4)} BITR
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Prize Claiming Button */}
+                    {slip.prizeAmount && !slip.prizeClaimed && (
+                      <button
+                        onClick={() => handleClaimPrize(slip.cycleId, slip.slip_id!)}
+                        disabled={getPrizeButtonState(slip).disabled}
+                        className={`px-4 py-3 sm:px-6 sm:py-2 font-medium rounded-lg transition-colors touch-manipulation ${
+                          getPrizeButtonState(slip).variant === 'primary' 
+                            ? 'bg-yellow-500 hover:bg-yellow-600 text-black'
+                            : getPrizeButtonState(slip).variant === 'green'
+                            ? 'bg-green-500 text-white cursor-not-allowed'
+                            : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                        }`}
+                      >
+                        {getPrizeButtonState(slip).text}
+                      </button>
+                    )}
+                    
+                    {/* Prize Claimed Indicator */}
+                    {slip.prizeClaimed && (
+                      <div className="flex items-center gap-1 text-green-400">
+                        <CheckCircleIcon className="w-4 h-4" />
+                        <span className="text-sm font-medium">Prize Claimed</span>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
 
               {/* Mobile-responsive slip results */}
               {slip.isEvaluated && (
@@ -556,7 +777,7 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
                         </div>
                         
                         {/* Correctness Icon */}
-                        {slip.isEvaluated && getPredictionResultIcon(prediction.isCorrect) && (
+                        {prediction.isCorrect !== undefined && (
                           <div className="flex-shrink-0">
                             {getPredictionResultIcon(prediction.isCorrect)}
                           </div>

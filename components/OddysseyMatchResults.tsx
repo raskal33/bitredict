@@ -13,7 +13,7 @@ import {
   ChevronRightIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
-import { oddysseyService, OddysseyMatchWithResult } from '@/services/oddysseyService';
+import { OddysseyMatchWithResult } from '@/services/oddysseyService';
 
 interface OddysseyMatchResultsProps {
   cycleId?: number;
@@ -43,32 +43,54 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [pickerMonth, setPickerMonth] = useState(new Date());
 
-  // Fetch available cycles with dates
+  // Fetch available cycles with dates - Use current date approach since /all endpoint times out
   const fetchAvailableCycles = useCallback(async () => {
     try {
-      const response = await fetch(`/api/oddyssey/results/all?t=${Date.now()}`, {
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
-      });
+      // Generate last 7 days of dates to check for cycles
+      const dates = [];
+      for (let i = 0; i < 7; i++) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        dates.push(date.toISOString().split('T')[0]);
+      }
       
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.data?.cycles?.length > 0) {
-          const cycles = data.data.cycles
-            .map((cycle: CycleWithDate) => ({
-              cycleId: Number(cycle.cycleId),
-              startTime: cycle.startTime,
-              endTime: cycle.endTime
-            }))
-            .sort((a: CycleWithDate, b: CycleWithDate) => b.cycleId - a.cycleId);
+      const cyclesFound: CycleWithDate[] = [];
+      
+      // Check each date for available cycles
+      for (const date of dates) {
+        try {
+          const response = await fetch(`/api/oddyssey/results/${date}?t=${Date.now()}`, {
+            headers: {
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0'
+            }
+          });
           
-          setAvailableCycles(cycles);
-          if (!selectedCycle && cycles.length > 0) {
-            setSelectedCycle(cycles[0].cycleId);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.data?.cycleId) {
+              cyclesFound.push({
+                cycleId: Number(data.data.cycleId),
+                startTime: data.data.cycleStartTime,
+                endTime: data.data.cycleEndTime || new Date().toISOString()
+              });
+            }
           }
+        } catch (error) {
+          console.warn(`Error fetching cycle for date ${date}:`, error);
+        }
+      }
+      
+      if (cyclesFound.length > 0) {
+        // Remove duplicates and sort by cycleId descending
+        const uniqueCycles = cyclesFound.filter((cycle, index, self) => 
+          index === self.findIndex(c => c.cycleId === cycle.cycleId)
+        ).sort((a: CycleWithDate, b: CycleWithDate) => b.cycleId - a.cycleId);
+        
+        setAvailableCycles(uniqueCycles);
+        if (!selectedCycle && uniqueCycles.length > 0) {
+          setSelectedCycle(uniqueCycles[0].cycleId);
         }
       }
     } catch (error) {
@@ -82,63 +104,70 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
       setError(null);
       
       const targetCycleId = selectedCycle || cycleId;
+      console.log('🎯 Fetching results for cycle:', targetCycleId);
       
-      if (!targetCycleId) {
-        console.log('🔍 No cycle ID provided, fetching latest cycle results...');
-        
-        try {
-          const currentCycleId = await oddysseyService.getCurrentCycle();
-          console.log('✅ Current cycle ID:', currentCycleId);
-          
-          if (currentCycleId) {
-            const response = await oddysseyService.getCycleResults(Number(currentCycleId));
-            
-            if (response.success && response.data) {
-              setResults(response.data.matches || []);
-              setCurrentCycleId(Number(currentCycleId));
-              setCycleInfo({
-                isResolved: response.data.isResolved || false,
-                totalMatches: response.data.totalMatches || 0,
-                finishedMatches: response.data.finishedMatches || 0
-              });
-            } else {
-              setResults([]);
-              setCycleInfo({
-                isResolved: false,
-                totalMatches: 0,
-                finishedMatches: 0
-              });
-            }
-          } else {
-            throw new Error('No current cycle found');
+      if (targetCycleId) {
+        // Use direct API call to get specific cycle results
+        const response = await fetch(`/api/oddyssey/cycle/${targetCycleId}/results?t=${Date.now()}`, {
+          headers: {
+            'Cache-Control': 'no-cache'
           }
-        } catch (error) {
-          console.error('❌ Error fetching latest cycle results:', error);
-          setResults([]);
-          setCycleInfo({
-            isResolved: false,
-            totalMatches: 0,
-            finishedMatches: 0
-          });
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('✅ Cycle results fetched:', data);
+          
+          if (data.success && data.data) {
+            setResults(data.data.matches || []);
+            setCurrentCycleId(targetCycleId);
+            setCycleInfo({
+              isResolved: data.data.isResolved || false,
+              totalMatches: data.data.matchesCount || data.data.matches?.length || 0,
+              finishedMatches: data.data.matches?.filter((m: OddysseyMatchWithResult) => m.result?.finished_at).length || 0
+            });
+          } else {
+            throw new Error('No data in response');
+          }
+        } else {
+          throw new Error(`API responded with status: ${response.status}`);
         }
       } else {
-        const response = await oddysseyService.getCycleResults(targetCycleId);
+        // Fallback: Use /results/all to get latest cycle
+        console.log('🔍 No cycle ID provided, fetching from /results/all...');
         
-        if (response.success) {
-          setResults(response.data.matches || []);
-          setCurrentCycleId(targetCycleId);
-          setCycleInfo({
-            isResolved: response.data.isResolved || false,
-            totalMatches: response.data.totalMatches || 0,
-            finishedMatches: response.data.finishedMatches || 0
-          });
+        const response = await fetch(`/api/oddyssey/results/all?t=${Date.now()}`, {
+          headers: {
+            'Cache-Control': 'no-cache'
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('✅ All results fetched:', data);
+          
+          if (data.success && data.data?.cycles?.length > 0) {
+            // Get the latest cycle
+            const latestCycle = data.data.cycles[0];
+            setResults(latestCycle.matches || []);
+            setCurrentCycleId(latestCycle.cycleId);
+            setSelectedCycle(latestCycle.cycleId);
+            setCycleInfo({
+              isResolved: latestCycle.isResolved || false,
+              totalMatches: latestCycle.matchesCount || latestCycle.matches?.length || 0,
+              finishedMatches: latestCycle.matches?.filter((m: OddysseyMatchWithResult) => m.result?.finished_at).length || 0
+            });
+          } else {
+            throw new Error('No cycles found');
+          }
         } else {
-          setError('Failed to fetch match results');
+          throw new Error(`API responded with status: ${response.status}`);
         }
       }
     } catch (err) {
-      console.error('Error fetching match results:', err);
+      console.error('❌ Error fetching results:', err);
       setError('Failed to load match results');
+      setResults([]);
     } finally {
       setLoading(false);
     }
@@ -179,35 +208,66 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
   };
 
   const formatScore = (match: OddysseyMatchWithResult) => {
-    // Check if match has results using moneyline and overUnder codes
-    if (match.result && (match.result.moneyline !== 0 && match.result.moneyline !== undefined) || (match.result.overUnder !== 0 && match.result.overUnder !== undefined)) {
-      return '✓'; // Match has a result
+    // Check if match has results based on backend data structure
+    if (match.result) {
+      // Check if match has finished_at timestamp (indicates completion)
+      if (match.result.finished_at) {
+        // Show actual scores if available
+        if (match.result.home_score !== null && match.result.away_score !== null) {
+          return `${match.result.home_score} - ${match.result.away_score}`;
+        }
+        // Otherwise show checkmark for finished match
+        return '✓';
+      }
+      // Check if match has result codes (moneyline: 1=home, 2=draw, 3=away)
+      if (match.result.moneyline && match.result.moneyline !== 0) {
+        return '✓'; // Match has a result
+      }
+      // Check overUnder codes (1=over, 2=under)
+      if (match.result.overUnder && match.result.overUnder !== 0) {
+        return '✓'; // Match has a result
+      }
     }
     return 'Pending';
   };
 
-  const getOutcomeText = (outcome: string | number | null) => {
+  const getOutcomeText = (outcome: string | number | null, isOverUnder = false) => {
     if (!outcome || outcome === 0 || outcome === '0') return 'TBD';
     
-    // Handle moneyline outcomes (1X2)
+    // Handle both string and numeric outcomes
     if (typeof outcome === 'string' || typeof outcome === 'number') {
       const outcomeStr = String(outcome);
-      switch (outcomeStr) {
-        case '1':
-          return 'Home Win';
-        case 'X':
-        case '2':
-          return 'Draw';
-        case '3':
-          return 'Away Win';
-        case 'Over':
-        case 'over':
-          return 'Over 2.5';
-        case 'Under':
-        case 'under':
-          return 'Under 2.5';
-        default:
-          return outcomeStr;
+      
+      if (isOverUnder) {
+        // OverUnder codes: 1=over, 2=under
+        switch (outcomeStr) {
+          case '1':
+            return 'Over 2.5';
+          case '2':
+            return 'Under 2.5';
+          case 'Over':
+          case 'over':
+            return 'Over 2.5';
+          case 'Under':
+          case 'under':
+            return 'Under 2.5';
+          default:
+            return outcomeStr;
+        }
+      } else {
+        // Moneyline codes: 1=home, 2=draw, 3=away
+        switch (outcomeStr) {
+          case '1':
+            return 'Home Win';
+          case '2':
+            return 'Draw';
+          case '3':
+            return 'Away Win';
+          case 'X':
+            return 'Draw';
+          default:
+            return outcomeStr;
+        }
       }
     }
     
@@ -341,13 +401,12 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
 
   return (
     <div className={`space-y-6 ${className}`}>
-      {/* Date Picker Section */}
-      {!cycleId && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="glass-card p-4"
-        >
+      {/* Date Picker Section - Always Visible */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="glass-card p-4"
+      >
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <CalendarDaysIcon className="h-5 w-5 text-primary" />
@@ -440,7 +499,6 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
             )}
           </AnimatePresence>
         </motion.div>
-      )}
 
       {/* Cycle Info */}
       {cycleInfo && (
@@ -482,9 +540,21 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
             transition={{ delay: index * 0.1 }}
             className="glass-card p-4"
           >
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-              {/* Match Number */}
-              <div className="md:col-span-1 text-center">
+            {/* Mobile-First Responsive Layout */}
+            <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-12 md:gap-4 md:items-center">
+              {/* Mobile: Match Header */}
+              <div className="flex items-center justify-between md:hidden">
+                <div className="w-6 h-6 rounded-full bg-primary/20 text-primary font-bold text-xs flex items-center justify-center">
+                  {match.display_order}
+                </div>
+                <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(match.status)}`}>
+                  {getStatusIcon(match.status)}
+                  <span className="capitalize">{match.status}</span>
+                </div>
+              </div>
+
+              {/* Desktop: Match Number */}
+              <div className="hidden md:block md:col-span-1 text-center">
                 <div className="w-8 h-8 rounded-full bg-primary/20 text-primary font-bold text-sm flex items-center justify-center mx-auto">
                   {match.display_order}
                 </div>
@@ -502,8 +572,8 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
                 </div>
               </div>
 
-              {/* Status */}
-              <div className="md:col-span-2 text-center">
+              {/* Desktop: Status */}
+              <div className="hidden md:block md:col-span-2 text-center">
                 <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(match.status)}`}>
                   {getStatusIcon(match.status)}
                   <span className="capitalize">{match.status}</span>
@@ -527,13 +597,13 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
                 <div className="text-xs">
                   <span className="text-text-muted">1X2: </span>
                   <span className={`font-medium ${getOutcomeColor((match.result.outcome_1x2 || match.result.moneyline) ?? null)}`}>
-                    {getOutcomeText((match.result.outcome_1x2 || match.result.moneyline) ?? null)}
+                    {getOutcomeText((match.result.outcome_1x2 || match.result.moneyline) ?? null, false)}
                   </span>
                 </div>
                 <div className="text-xs">
                   <span className="text-text-muted">O/U: </span>
                   <span className={`font-medium ${getOutcomeColor((match.result.outcome_ou25 || match.result.overUnder) ?? null)}`}>
-                    {getOutcomeText((match.result.outcome_ou25 || match.result.overUnder) ?? null)}
+                    {getOutcomeText((match.result.outcome_ou25 || match.result.overUnder) ?? null, true)}
                   </span>
                 </div>
               </div>
