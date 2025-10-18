@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   CheckCircleIcon, 
   ClockIcon, 
@@ -9,12 +9,21 @@ import {
   TrophyIcon,
   ChartBarIcon,
   CalendarDaysIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { oddysseyService, OddysseyMatchWithResult } from '@/services/oddysseyService';
 
 interface OddysseyMatchResultsProps {
   cycleId?: number;
   className?: string;
+}
+
+interface CycleWithDate {
+  cycleId: number;
+  startTime: string;
+  endTime: string;
 }
 
 export default function OddysseyMatchResults({ cycleId, className = '' }: OddysseyMatchResultsProps) {
@@ -28,22 +37,55 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
   } | null>(null);
   
   // Time filtering states
-  const [selectedDate, setSelectedDate] = useState<string>('today');
   const [currentCycleId, setCurrentCycleId] = useState<number | null>(null);
+  const [availableCycles, setAvailableCycles] = useState<CycleWithDate[]>([]);
+  const [selectedCycle, setSelectedCycle] = useState<number | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [pickerMonth, setPickerMonth] = useState(new Date());
+
+  // Fetch available cycles with dates
+  const fetchAvailableCycles = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/oddyssey/results/all?t=${Date.now()}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data?.cycles?.length > 0) {
+          const cycles = data.data.cycles
+            .map((cycle: CycleWithDate) => ({
+              cycleId: Number(cycle.cycleId),
+              startTime: cycle.startTime,
+              endTime: cycle.endTime
+            }))
+            .sort((a: CycleWithDate, b: CycleWithDate) => b.cycleId - a.cycleId);
+          
+          setAvailableCycles(cycles);
+          if (!selectedCycle && cycles.length > 0) {
+            setSelectedCycle(cycles[0].cycleId);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching available cycles:', error);
+    }
+  }, [selectedCycle]);
 
   const fetchResults = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const targetCycleId = cycleId;
-      let targetDate = selectedDate;
+      const targetCycleId = selectedCycle || cycleId;
       
-      // If no specific cycle ID provided, get the latest cycle results
       if (!targetCycleId) {
         console.log('🔍 No cycle ID provided, fetching latest cycle results...');
         
-        // Try to get the latest cycle first
         try {
           const currentCycleId = await oddysseyService.getCurrentCycle();
           console.log('✅ Current cycle ID:', currentCycleId);
@@ -60,35 +102,12 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
                 finishedMatches: response.data.finishedMatches || 0
               });
             } else {
-              // Fallback to date-based lookup
-              if (selectedDate === 'today') {
-                targetDate = new Date().toISOString().split('T')[0];
-              } else if (selectedDate === 'yesterday') {
-                const yesterday = new Date();
-                yesterday.setDate(yesterday.getDate() - 1);
-                targetDate = yesterday.toISOString().split('T')[0];
-              } else {
-                targetDate = selectedDate;
-              }
-              
-              const dateResponse = await oddysseyService.getResultsByDate(targetDate);
-              
-              if (dateResponse.success && dateResponse.data) {
-                setResults(dateResponse.data.matches || []);
-                setCurrentCycleId(dateResponse.data.cycleId);
-                setCycleInfo({
-                  isResolved: dateResponse.data.isResolved || false,
-                  totalMatches: dateResponse.data.totalMatches || 0,
-                  finishedMatches: dateResponse.data.finishedMatches || 0
-                });
-              } else {
-                setResults([]);
-                setCycleInfo({
-                  isResolved: false,
-                  totalMatches: 0,
-                  finishedMatches: 0
-                });
-              }
+              setResults([]);
+              setCycleInfo({
+                isResolved: false,
+                totalMatches: 0,
+                finishedMatches: 0
+              });
             }
           } else {
             throw new Error('No current cycle found');
@@ -103,7 +122,6 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
           });
         }
       } else {
-        // Use specific cycle ID
         const response = await oddysseyService.getCycleResults(targetCycleId);
         
         if (response.success) {
@@ -124,7 +142,11 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
     } finally {
       setLoading(false);
     }
-  }, [cycleId, selectedDate]);
+  }, [cycleId, selectedCycle]);
+
+  useEffect(() => {
+    fetchAvailableCycles();
+  }, [fetchAvailableCycles]);
 
   useEffect(() => {
     fetchResults();
@@ -203,6 +225,81 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
     }
   };
 
+  // Date picker helper functions
+  const getDaysInMonth = (date: Date) => {
+    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  };
+
+  const getFirstDayOfMonth = (date: Date) => {
+    return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+  };
+
+  const formatMonthYear = (date: Date) => {
+    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  };
+
+  const getCycleForDate = (date: Date) => {
+    const dateString = date.toISOString().split('T')[0];
+    return availableCycles.find(cycle => {
+      const cycleStart = new Date(cycle.startTime).toISOString().split('T')[0];
+      const cycleEnd = new Date(cycle.endTime).toISOString().split('T')[0];
+      return dateString >= cycleStart && dateString <= cycleEnd;
+    });
+  };
+
+  const handleDateSelect = (day: number) => {
+    const selectedDate = new Date(pickerMonth.getFullYear(), pickerMonth.getMonth(), day);
+    const cycle = getCycleForDate(selectedDate);
+    if (cycle) {
+      setSelectedCycle(cycle.cycleId);
+      setShowDatePicker(false);
+    }
+  };
+
+  const isDateInCycle = (day: number) => {
+    const date = new Date(pickerMonth.getFullYear(), pickerMonth.getMonth(), day);
+    return getCycleForDate(date) !== undefined;
+  };
+
+  const renderCalendarDays = () => {
+    const daysInMonth = getDaysInMonth(pickerMonth);
+    const firstDay = getFirstDayOfMonth(pickerMonth);
+    const days = [];
+
+    // Empty cells for days before month starts
+    for (let i = 0; i < firstDay; i++) {
+      days.push(
+        <div key={`empty-${i}`} className="h-10"></div>
+      );
+    }
+
+    // Days of month
+    for (let day = 1; day <= daysInMonth; day++) {
+      const hasData = isDateInCycle(day);
+      const isSelected = selectedCycle !== null && 
+        getCycleForDate(new Date(pickerMonth.getFullYear(), pickerMonth.getMonth(), day))?.cycleId === selectedCycle;
+
+      days.push(
+        <button
+          key={day}
+          onClick={() => handleDateSelect(day)}
+          disabled={!hasData}
+          className={`h-10 rounded text-sm font-medium transition-all ${
+            hasData
+              ? isSelected
+                ? 'bg-primary text-black'
+                : 'bg-primary/20 text-primary hover:bg-primary/30'
+              : 'text-gray-600 cursor-not-allowed'
+          }`}
+        >
+          {day}
+        </button>
+      );
+    }
+
+    return days;
+  };
+
   if (loading) {
     return (
       <div className={`glass-card p-6 ${className}`}>
@@ -234,7 +331,7 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
 
   return (
     <div className={`space-y-6 ${className}`}>
-      {/* Time Filter */}
+      {/* Date Picker Section */}
       {!cycleId && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -244,42 +341,94 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <CalendarDaysIcon className="h-5 w-5 text-primary" />
-              <h3 className="text-lg font-semibold text-white">Filter by Date</h3>
+              <h3 className="text-lg font-semibold text-white">Select Cycle</h3>
             </div>
-          </div>
-          
-          <div className="flex flex-wrap gap-2">
             <button
-              onClick={() => setSelectedDate('today')}
-              className={`px-4 py-2 rounded-button text-sm font-medium transition-all ${
-                selectedDate === 'today'
-                  ? 'bg-primary text-black'
-                  : 'bg-primary/10 text-primary hover:bg-primary/20'
-              }`}
+              onClick={() => setShowDatePicker(!showDatePicker)}
+              className="px-4 py-2 bg-primary/20 text-primary rounded-button hover:bg-primary/30 transition-all flex items-center gap-2"
             >
-              Today
-            </button>
-            <button
-              onClick={() => setSelectedDate('yesterday')}
-              className={`px-4 py-2 rounded-button text-sm font-medium transition-all ${
-                selectedDate === 'yesterday'
-                  ? 'bg-primary text-black'
-                  : 'bg-primary/10 text-primary hover:bg-primary/20'
-              }`}
-            >
-              Yesterday
-            </button>
-            <button
-              onClick={() => setSelectedDate('all')}
-              className={`px-4 py-2 rounded-button text-sm font-medium transition-all ${
-                selectedDate === 'all'
-                  ? 'bg-primary text-black'
-                  : 'bg-primary/10 text-primary hover:bg-primary/20'
-              }`}
-            >
-              All Cycles
+              <CalendarDaysIcon className="h-4 w-4" />
+              <span className="hidden sm:inline">Pick Date</span>
+              <span className="sm:hidden">📅</span>
             </button>
           </div>
+
+          {/* Quick Select Cycle Buttons */}
+          <div className="flex flex-wrap gap-2 mb-4">
+            {availableCycles.slice(0, 5).map((cycle) => {
+              const startDate = new Date(cycle.startTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+              return (
+                <button
+                  key={cycle.cycleId}
+                  onClick={() => {
+                    setSelectedCycle(cycle.cycleId);
+                    setShowDatePicker(false);
+                  }}
+                  className={`px-4 py-2 rounded-button text-sm font-medium transition-all ${
+                    selectedCycle === cycle.cycleId
+                      ? 'bg-primary text-black'
+                      : 'bg-primary/10 text-primary hover:bg-primary/20'
+                  }`}
+                >
+                  Cycle #{cycle.cycleId}
+                  <span className="hidden sm:inline text-xs ml-1 opacity-70">({startDate})</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Calendar Picker */}
+          <AnimatePresence>
+            {showDatePicker && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="border-t border-primary/20 pt-4"
+              >
+                <div className="bg-gray-900/30 rounded-lg p-4">
+                  {/* Calendar Header */}
+                  <div className="flex items-center justify-between mb-4">
+                    <button
+                      onClick={() => setPickerMonth(new Date(pickerMonth.getFullYear(), pickerMonth.getMonth() - 1))}
+                      className="p-2 hover:bg-primary/20 rounded transition-colors"
+                    >
+                      <ChevronLeftIcon className="h-5 w-5 text-primary" />
+                    </button>
+                    <h4 className="text-white font-semibold">{formatMonthYear(pickerMonth)}</h4>
+                    <button
+                      onClick={() => setPickerMonth(new Date(pickerMonth.getFullYear(), pickerMonth.getMonth() + 1))}
+                      className="p-2 hover:bg-primary/20 rounded transition-colors"
+                    >
+                      <ChevronRightIcon className="h-5 w-5 text-primary" />
+                    </button>
+                  </div>
+
+                  {/* Day names */}
+                  <div className="grid grid-cols-7 gap-2 mb-2">
+                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+                      <div key={day} className="h-10 flex items-center justify-center text-xs font-semibold text-gray-400">
+                        {day}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Calendar Days */}
+                  <div className="grid grid-cols-7 gap-2">
+                    {renderCalendarDays()}
+                  </div>
+
+                  <button
+                    onClick={() => setShowDatePicker(false)}
+                    className="mt-4 w-full py-2 bg-primary/20 text-primary rounded-button hover:bg-primary/30 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <XMarkIcon className="h-4 w-4" />
+                    Close
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
       )}
 
@@ -295,7 +444,7 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
               <TrophyIcon className="h-6 w-6 text-primary" />
               <div>
                 <h3 className="text-lg font-bold text-white">
-                  Cycle #{currentCycleId || cycleId || 'N/A'}
+                  Cycle #{selectedCycle || currentCycleId || cycleId || 'N/A'}
                 </h3>
                 <p className="text-sm text-text-muted">
                   {cycleInfo.finishedMatches}/{cycleInfo.totalMatches} matches finished

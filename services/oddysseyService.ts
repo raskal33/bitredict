@@ -1138,11 +1138,25 @@ class OddysseyService {
             return {
               success: true,
               data: {
-                matches: targetCycle.matches || [],
+                matches: (targetCycle.matches || []).map((match: any, index: number) => ({
+                  id: match.id,
+                  display_order: index + 1,
+                  home_team: match.homeTeam || '',
+                  away_team: match.awayTeam || '',
+                  league_name: match.league || '',
+                  status: match.result?.moneyline !== undefined ? 'finished' : 'upcoming',
+                  result: {
+                    home_score: match.result?.home_score || null,
+                    away_score: match.result?.away_score || null,
+                    outcome_1x2: match.result?.moneyline === 1 ? '1' : match.result?.moneyline === 2 ? 'X' : match.result?.moneyline === 3 ? '2' : null,
+                    outcome_ou25: match.result?.overUnder === 1 ? 'Over' : match.result?.overUnder === 2 ? 'Under' : null,
+                    finished_at: match.result?.finished_at || null
+                  }
+                })),
                 cycleId: targetCycle.cycleId,
                 isResolved: targetCycle.isResolved || false,
-                totalMatches: targetCycle.totalMatches || 0,
-                finishedMatches: targetCycle.finishedMatches || 0
+                totalMatches: targetCycle.matchesCount || targetCycle.totalMatches || 0,
+                finishedMatches: (targetCycle.matches || []).filter((match: any) => match.result?.moneyline !== undefined).length
               }
             };
           } else {
@@ -1154,11 +1168,25 @@ class OddysseyService {
               return {
                 success: true,
                 data: {
-                  matches: latestCycle.matches || [],
+                  matches: (latestCycle.matches || []).map((match: any, index: number) => ({
+                    id: match.id,
+                    display_order: index + 1,
+                    home_team: match.homeTeam || '',
+                    away_team: match.awayTeam || '',
+                    league_name: match.league || '',
+                    status: match.result?.moneyline !== undefined ? 'finished' : 'upcoming',
+                    result: {
+                      home_score: match.result?.home_score || null,
+                      away_score: match.result?.away_score || null,
+                      outcome_1x2: match.result?.moneyline === 1 ? '1' : match.result?.moneyline === 2 ? 'X' : match.result?.moneyline === 3 ? '2' : null,
+                      outcome_ou25: match.result?.overUnder === 1 ? 'Over' : match.result?.overUnder === 2 ? 'Under' : null,
+                      finished_at: match.result?.finished_at || null
+                    }
+                  })),
                   cycleId: latestCycle.cycleId,
                   isResolved: latestCycle.isResolved || false,
-                  totalMatches: latestCycle.totalMatches || 0,
-                  finishedMatches: latestCycle.finishedMatches || 0
+                  totalMatches: latestCycle.matchesCount || latestCycle.totalMatches || 0,
+                  finishedMatches: (latestCycle.matches || []).filter((match: any) => match.result?.moneyline !== undefined).length
                 }
               };
             }
@@ -1302,9 +1330,37 @@ class OddysseyService {
     try {
       const response = await fetch(`https://bitredict-backend.fly.dev/api/oddyssey/results/${date}`);
       const data = await response.json();
+      
+      if (data.success && data.data) {
+        return {
+          success: true,
+          data: {
+            matches: (data.data.matches || []).map((match: any, index: number) => ({
+              id: match.id,
+              display_order: index + 1,
+              home_team: match.homeTeam || '',
+              away_team: match.awayTeam || '',
+              league_name: match.league || '',
+              status: match.result?.moneyline !== undefined ? 'finished' : 'upcoming',
+              result: {
+                home_score: match.result?.home_score || null,
+                away_score: match.result?.away_score || null,
+                outcome_1x2: match.result?.moneyline === 1 ? '1' : match.result?.moneyline === 2 ? 'X' : match.result?.moneyline === 3 ? '2' : null,
+                outcome_ou25: match.result?.overUnder === 1 ? 'Over' : match.result?.overUnder === 2 ? 'Under' : null,
+                finished_at: match.result?.finished_at || null
+              }
+            })),
+            cycleId: data.data.cycleId,
+            isResolved: data.data.isResolved || false,
+            totalMatches: data.data.matchesCount || data.data.totalMatches || 0,
+            finishedMatches: (data.data.matches || []).filter((match: any) => match.result?.moneyline !== undefined).length
+          }
+        };
+      }
+      
       return {
-        success: true,
-        data: data.data || null
+        success: false,
+        data: null
       };
     } catch (error) {
       console.error('Error getting results by date:', error);
