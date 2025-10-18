@@ -119,6 +119,8 @@ export interface OddysseyMatchWithResult {
     outcome_ou25: string | null;
     finished_at: string | null;
     is_finished: boolean;
+    moneyline?: number;
+    overUnder?: number;
   };
 }
 

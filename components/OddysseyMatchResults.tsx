@@ -179,9 +179,8 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
   };
 
   const formatScore = (match: OddysseyMatchWithResult) => {
-    // Since Oddyssey doesn't provide scores, just return match status
-    // The actual results are in the result.moneyline and result.overUnder codes
-    if (match.result && (match.result.moneyline !== 0 || match.result.overUnder !== 0)) {
+    // Check if match has results using moneyline and overUnder codes
+    if (match.result && (match.result.moneyline !== 0 && match.result.moneyline !== undefined) || (match.result.overUnder !== 0 && match.result.overUnder !== undefined)) {
       return '✓'; // Match has a result
     }
     return 'Pending';
@@ -527,14 +526,14 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
               <div className="md:col-span-3 text-center space-y-1">
                 <div className="text-xs">
                   <span className="text-text-muted">1X2: </span>
-                  <span className={`font-medium ${getOutcomeColor(match.result.outcome_1x2)}`}>
-                    {getOutcomeText(match.result.outcome_1x2)}
+                  <span className={`font-medium ${getOutcomeColor(match.result.outcome_1x2 || match.result.moneyline)}`}>
+                    {getOutcomeText(match.result.outcome_1x2 || match.result.moneyline)}
                   </span>
                 </div>
                 <div className="text-xs">
                   <span className="text-text-muted">O/U: </span>
-                  <span className={`font-medium ${getOutcomeColor(match.result.outcome_ou25)}`}>
-                    {getOutcomeText(match.result.outcome_ou25)}
+                  <span className={`font-medium ${getOutcomeColor(match.result.outcome_ou25 || match.result.overUnder)}`}>
+                    {getOutcomeText(match.result.outcome_ou25 || match.result.overUnder)}
                   </span>
                 </div>
               </div>

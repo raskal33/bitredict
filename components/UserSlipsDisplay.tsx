@@ -40,6 +40,7 @@ interface EnhancedSlip {
   isEvaluated: boolean;
   wonOdds?: number;
   slip_id?: number;
+  cycleResolved?: boolean; // Added for filtering
 }
 
 export default function UserSlipsDisplay({ userAddress, className = "" }: UserSlipsDisplayProps) {
@@ -50,14 +51,20 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
   const [filter, setFilter] = useState<'all' | 'evaluated' | 'pending'>('all');
   const [wsConnected, setWsConnected] = useState(false);
 
-  // Calculate won odds: (correct predictions / total) × combined odds
-  const calculateWonOdds = useCallback((predictions: EnhancedPrediction[], correctCount: number) => {
+  // Calculate won odds: Only multiply odds of CORRECT predictions
+  const calculateWonOdds = useCallback((predictions: EnhancedPrediction[]) => {
     if (predictions.length === 0) return 0;
-    const combinedOdds = predictions.reduce((acc, pred) => {
+    
+    // Only multiply odds of CORRECT predictions
+    const correctPredictions = predictions.filter(pred => pred.isCorrect === true);
+    if (correctPredictions.length === 0) return 0;
+    
+    const wonOdds = correctPredictions.reduce((acc, pred) => {
       const odds = (pred.selectedOdd / 1000) || 1;
       return acc * odds;
     }, 1);
-    return (correctCount / predictions.length) * combinedOdds;
+    
+    return wonOdds;
   }, []);
 
   // Enrich slips with evaluation data from backend
@@ -69,38 +76,8 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
             ...slip,
             slip_id: slipIndex,
             predictions: slip.predictions as EnhancedPrediction[],
-            wonOdds: calculateWonOdds(slip.predictions as EnhancedPrediction[], slip.correctCount)
+            wonOdds: calculateWonOdds(slip.predictions as EnhancedPrediction[])
           };
-
-          // If evaluated, fetch detailed evaluation data
-          if (slip.isEvaluated) {
-            try {
-              const response = await fetch(`/api/oddyssey/evaluated-slip/${slip.cycleId}?t=${Date.now()}`, {
-                headers: { 'Cache-Control': 'no-cache' }
-              });
-
-              if (response.ok) {
-                const data = await response.json();
-                console.log(`📊 Evaluation data for slip ${slip.cycleId}:`, data);
-
-                // Map evaluation results to predictions
-                if (data.data?.predictions) {
-                  enrichedSlip.predictions = slip.predictions.map((pred: EnhancedPrediction, index: number) => {
-                    const evalPred = data.data.predictions[index];
-                    return {
-                      ...pred,
-                      isCorrect: evalPred?.isCorrect
-                    };
-                  });
-                }
-
-                // Recalculate won odds based on evaluation
-                enrichedSlip.wonOdds = calculateWonOdds(enrichedSlip.predictions, slip.correctCount);
-              }
-            } catch (error) {
-              console.warn(`⚠️ Could not fetch evaluation for slip ${slip.cycleId}:`, error);
-            }
-          }
 
           return enrichedSlip;
         })
@@ -113,7 +90,7 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
         ...slip,
         slip_id: index,
         predictions: slip.predictions as EnhancedPrediction[],
-        wonOdds: calculateWonOdds(slip.predictions as EnhancedPrediction[], slip.correctCount)
+        wonOdds: calculateWonOdds(slip.predictions as EnhancedPrediction[])
       }));
     }
   }, [calculateWonOdds]);
@@ -185,7 +162,7 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
                 setSlips(prevSlips =>
                   prevSlips.map(slip => {
                     if (slip.cycleId === data.cycleId) {
-                      const wonOdds = calculateWonOdds(slip.predictions, data.correctPredictions);
+                      const wonOdds = calculateWonOdds(slip.predictions);
                       toast.success(`🎉 Slip evaluated! ${data.correctPredictions}/10 correct`, {
                         duration: 5000,
                         icon: data.correctPredictions >= 7 ? '🏆' : '📊'
@@ -245,12 +222,76 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
     };
   }, [userAddress, fetchUserData, calculateWonOdds]);
 
+  // Poll live evaluation for slips in active cycles
+  useEffect(() => {
+    if (!userAddress) return;
+    
+    const pollLiveEvaluation = async () => {
+      try {
+        const activeSlips = slips.filter(slip => !slip.cycleResolved);
+        
+        if (activeSlips.length === 0) return;
+        
+        for (const slip of activeSlips) {
+          try {
+            const response = await fetch(
+              `/api/live-slip-evaluation/${slip.slip_id}?t=${Date.now()}`,
+              {
+                headers: { 'Cache-Control': 'no-cache' }
+              }
+            );
+            
+            if (response.ok) {
+              const data = await response.json();
+              console.log(`📊 Live eval for slip ${slip.slip_id}:`, data.data);
+              
+              if (data.data?.liveStatus && data.data?.predictions) {
+                // Update the specific slip with live evaluation data
+                setSlips(prevSlips =>
+                  prevSlips.map(s => {
+                    if (s.slip_id === slip.slip_id) {
+                      return {
+                        ...s,
+                        correctCount: data.data.liveStatus.correct,
+                        predictions: s.predictions.map((pred: EnhancedPrediction, idx: number) => ({
+                          ...pred,
+                          isCorrect: data.data.predictions[idx]?.isCorrect
+                        }))
+                      };
+                    }
+                    return s;
+                  })
+                );
+              }
+            }
+          } catch (error) {
+            console.warn(`⚠️ Error fetching live evaluation for slip ${slip.slip_id}:`, error);
+          }
+        }
+      } catch (error) {
+        console.error('Error in live evaluation poll:', error);
+      }
+    };
+    
+    // Initial poll
+    pollLiveEvaluation();
+    
+    // Set up interval for continuous polling
+    const pollInterval = setInterval(pollLiveEvaluation, 15000); // Poll every 15 seconds
+    
+    return () => {
+      if (pollInterval) clearInterval(pollInterval);
+    };
+  }, [slips, userAddress]);
+
   const filteredSlips = slips.filter(slip => {
     switch (filter) {
       case 'evaluated':
-        return slip.isEvaluated;
+        // Only show as evaluated if cycle is resolved AND slip is evaluated
+        return slip.cycleResolved && slip.isEvaluated;
       case 'pending':
-        return !slip.isEvaluated;
+        // Show if cycle is active OR slip not evaluated yet
+        return !slip.cycleResolved || !slip.isEvaluated;
       default:
         return true;
     }
