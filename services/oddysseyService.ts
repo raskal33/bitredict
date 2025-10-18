@@ -245,8 +245,6 @@ class OddysseyService {
           prizePool: BigInt(0),
           slipCount: BigInt(0),
           startTime: BigInt(0),
-          matchesCount: BigInt(0),
-          participantCount: BigInt(0),
           evaluatedSlips: BigInt(0),
           hasWinner: false,
           rolloverAmount: BigInt(0)
