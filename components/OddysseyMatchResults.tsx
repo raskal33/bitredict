@@ -30,6 +30,9 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
   const [results, setResults] = useState<OddysseyMatchWithResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Debug: Log received cycleId
+  console.log('🔍 OddysseyMatchResults received cycleId:', cycleId);
   const [cycleInfo, setCycleInfo] = useState<{
     isResolved: boolean;
     totalMatches: number;
@@ -90,7 +93,13 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
         
         setAvailableCycles(uniqueCycles);
         if (!selectedCycle && uniqueCycles.length > 0) {
-          setSelectedCycle(uniqueCycles[0].cycleId);
+          // Prioritize the cycleId prop (current contract cycle) if available
+          if (cycleId && uniqueCycles.some(c => c.cycleId === cycleId)) {
+            setSelectedCycle(cycleId);
+          } else {
+            // Fallback to the latest cycle
+            setSelectedCycle(uniqueCycles[0].cycleId);
+          }
         }
       }
     } catch (error) {
@@ -158,7 +167,15 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
               finishedMatches: latestCycle.matches?.filter((m: OddysseyMatchWithResult) => m.result?.finished_at).length || 0
             });
           } else {
-            throw new Error('No cycles found');
+            // If no backend data available, show empty state with current cycle info
+            console.log('⚠️ No backend cycles found, showing empty state for cycle:', targetCycleId);
+            setResults([]);
+            setCurrentCycleId(targetCycleId);
+            setCycleInfo({
+              isResolved: false,
+              totalMatches: 0,
+              finishedMatches: 0
+            });
           }
         } else {
           throw new Error(`API responded with status: ${response.status}`);
@@ -166,7 +183,20 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
       }
     } catch (err) {
       console.error('❌ Error fetching results:', err);
-      setError('Failed to load match results');
+      
+      // Show more specific error messages
+      if (err instanceof Error) {
+        if (err.message.includes('No cycles found')) {
+          setError('No match results available for this cycle yet');
+        } else if (err.message.includes('No data in response')) {
+          setError('Match results are not yet available');
+        } else {
+          setError('Failed to load match results');
+        }
+      } else {
+        setError('Failed to load match results');
+      }
+      
       setResults([]);
     } finally {
       setLoading(false);
@@ -176,6 +206,14 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
   useEffect(() => {
     fetchAvailableCycles();
   }, [fetchAvailableCycles]);
+
+  // Update selected cycle when cycleId prop changes
+  useEffect(() => {
+    if (cycleId && cycleId !== selectedCycle) {
+      console.log('🔄 Updating selected cycle from prop:', cycleId);
+      setSelectedCycle(cycleId);
+    }
+  }, [cycleId, selectedCycle]);
 
   useEffect(() => {
     fetchResults();

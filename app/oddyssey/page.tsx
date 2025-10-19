@@ -638,6 +638,13 @@ export default function OddysseyPage() {
   const [cycleInfo, setCycleInfo] = useState<CycleInfo | null>(null); // Enhanced cycle info
   const [userStats, setUserStats] = useState<UserStats | null>(null); // User stats from contract
   const [showPrizeModal, setShowPrizeModal] = useState(false);
+
+  // Debug: Log cycleInfo changes
+  useEffect(() => {
+    if (cycleInfo) {
+      console.log('🔍 OddysseyMatchResults cycleId:', Number(cycleInfo.cycleId));
+    }
+  }, [cycleInfo]);
   // const [dailyStats, setDailyStats] = useState<DailyStats>({
   //   date: new Date().toISOString().split('T')[0],
   //   dailyPlayers: 0,

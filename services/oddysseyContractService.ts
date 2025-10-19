@@ -1,7 +1,7 @@
 import { ethers } from 'ethers';
 // Contract addresses - using deployed contract address
 const CONTRACT_ADDRESSES = {
-  ODDYSSEY: '0xD9E1f0c0D1105B03CE3ad6db1Ad36a4909EE733C' // Deployed Oddyssey contract
+  ODDYSSEY: '0x70D7D101641c72b8254Ab45Ff2a5CED9b0ad0E75' // Deployed Oddyssey contract
 };
 
 // Contract ABI for Oddyssey contract

@@ -18,7 +18,7 @@ const chain = {
   }
 };
 
-const ODDYSSEY_ADDRESS = '0xc4715403c3c8e5C282009e5690ef3032e1f87b60';
+const ODDYSSEY_ADDRESS = '0x70D7D101641c72b8254Ab45Ff2a5CED9b0ad0E75';
 
 // Get private key from environment or prompt
 const PRIVATE_KEY = process.env.PRIVATE_KEY || process.env.BOT_PRIVATE_KEY;
