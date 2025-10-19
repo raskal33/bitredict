@@ -7,6 +7,25 @@ import {
 } from '@heroicons/react/24/outline';
 import { motion } from 'framer-motion';
 
+interface GoalScorer {
+  player: string;
+  minute: number;
+  team: 'home' | 'away';
+}
+
+interface MatchEvent {
+  type: string;
+  player: string;
+  minute: number;
+  team: 'home' | 'away';
+}
+
+interface Pool {
+  poolId: string;
+  title: string;
+  odds: number;
+}
+
 interface MatchData {
   marketId: string;
   teams?: {
@@ -26,22 +45,9 @@ interface MatchData {
     away?: number;
     current?: string;
   };
-  goalScorers?: Array<{
-    player: string;
-    minute: number;
-    team: 'home' | 'away';
-  }>;
-  events?: Array<{
-    type: string;
-    player: string;
-    minute: number;
-    team: 'home' | 'away';
-  }>;
-  pools?: Array<{
-    poolId: string;
-    title: string;
-    odds: number;
-  }>;
+  goalScorers?: GoalScorer[];
+  events?: MatchEvent[];
+  pools?: Pool[];
 }
 
 interface MatchCenterProps {
@@ -51,7 +57,7 @@ interface MatchCenterProps {
 }
 
 export default function MatchCenter({ fixtureId, marketId, className = "" }: MatchCenterProps) {
-  const [matchData, setMatchData] = useState<any>(null);
+  const [matchData, setMatchData] = useState<MatchData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -160,8 +166,8 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
 
   // Format goal scorers
   const goalScorers = matchData.goalScorers || [];
-  const homeGoals = goalScorers.filter((g: any) => g.team === 'home');
-  const awayGoals = goalScorers.filter((g: any) => g.team === 'away');
+  const homeGoals = goalScorers.filter((g: GoalScorer) => g.team === 'home');
+  const awayGoals = goalScorers.filter((g: GoalScorer) => g.team === 'away');
 
   // Status badge
   const getStatusDisplay = () => {
@@ -262,7 +268,7 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
           {league && (
             <div className="flex items-center gap-1">
               <span>📊</span>
-              <span>{typeof league === 'string' ? league : league?.name || ''}</span>
+              <span>{typeof league === 'string' ? league : (league as { name: string })?.name || ''}</span>
             </div>
           )}
           {matchData.match?.country && (
@@ -286,7 +292,7 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
             
             <div className="space-y-2">
               {/* Home Goal Scorers */}
-              {homeGoals.map((goal: any, idx: number) => (
+                {homeGoals.map((goal: GoalScorer, idx: number) => (
                 <div key={`home-${idx}`} className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
                     <span className="text-green-400">⚽</span>
@@ -297,7 +303,7 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
               ))}
 
               {/* Away Goal Scorers */}
-              {awayGoals.map((goal: any, idx: number) => (
+                {awayGoals.map((goal: GoalScorer, idx: number) => (
                 <div key={`away-${idx}`} className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
                     <span className="text-yellow-400">⚽</span>
