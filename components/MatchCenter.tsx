@@ -19,6 +19,7 @@ interface MatchData {
     league?: string | { name: string };
     status?: string;
     referee?: string;
+    country?: string;
   };
   score?: {
     home?: number;
@@ -50,7 +51,7 @@ interface MatchCenterProps {
 }
 
 export default function MatchCenter({ fixtureId, marketId, className = "" }: MatchCenterProps) {
-  const [matchData, setMatchData] = useState<MatchData | null>(null);
+  const [matchData, setMatchData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -111,8 +112,8 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
 
     fetchMatchData();
     
-    // Refresh every 30 seconds for live matches
-    const interval = setInterval(fetchMatchData, 30000);
+    // Refresh every 3 minutes for live score updates
+    const interval = setInterval(fetchMatchData, 180000);
     return () => clearInterval(interval);
   }, [fixtureId, marketId]);
 
@@ -159,8 +160,8 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
 
   // Format goal scorers
   const goalScorers = matchData.goalScorers || [];
-  const homeGoals = goalScorers.filter(g => g.team === 'home');
-  const awayGoals = goalScorers.filter(g => g.team === 'away');
+  const homeGoals = goalScorers.filter((g: any) => g.team === 'home');
+  const awayGoals = goalScorers.filter((g: any) => g.team === 'away');
 
   // Status badge
   const getStatusDisplay = () => {
@@ -264,6 +265,12 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
               <span>{typeof league === 'string' ? league : league?.name || ''}</span>
             </div>
           )}
+          {matchData.match?.country && (
+            <div className="flex items-center gap-1">
+              <span>🌍</span>
+              <span>{matchData.match.country}</span>
+            </div>
+          )}
           {matchData.match?.referee && (
             <div className="flex items-center gap-1">
               <span>👮</span>
@@ -279,7 +286,7 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
             
             <div className="space-y-2">
               {/* Home Goal Scorers */}
-              {homeGoals.map((goal, idx) => (
+              {homeGoals.map((goal: any, idx: number) => (
                 <div key={`home-${idx}`} className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
                     <span className="text-green-400">⚽</span>
@@ -290,7 +297,7 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
               ))}
 
               {/* Away Goal Scorers */}
-              {awayGoals.map((goal, idx) => (
+              {awayGoals.map((goal: any, idx: number) => (
                 <div key={`away-${idx}`} className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
                     <span className="text-yellow-400">⚽</span>
