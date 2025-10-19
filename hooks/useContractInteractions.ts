@@ -302,14 +302,27 @@ export function usePoolCore() {
     }
   }, [writeContractAsync, address, getAllowance, approve, publicClient]);
 
-  const placeBet = useCallback(async (poolId: bigint, betAmount: bigint) => {
+  const placeBet = useCallback(async (poolId: bigint, betAmount: bigint, useBitr: boolean = false) => {
     try {
+      // For BITR pools, check and handle approval first
+      if (useBitr && address) {
+        const currentAllowance = await getAllowance(address, CONTRACT_ADDRESSES.POOL_CORE);
+        
+        if (currentAllowance < betAmount) {
+          console.log('BITR approval needed for bet placement');
+          toast.loading('Approving BITR tokens...', { id: 'bitr-approval' });
+          
+          await approve(CONTRACT_ADDRESSES.POOL_CORE, betAmount);
+          toast.success('BITR tokens approved!', { id: 'bitr-approval' });
+        }
+      }
+      
       const txHash = await writeContractAsync({
         address: CONTRACT_ADDRESSES.POOL_CORE,
         abi: CONTRACTS.POOL_CORE.abi,
         functionName: 'placeBet',
         args: [poolId, betAmount],
-        value: betAmount,
+        value: useBitr ? 0n : betAmount, // Only send ETH if not using BITR
         ...getTransactionOptions(),
       });
       
@@ -332,15 +345,18 @@ export function usePoolCore() {
     } catch (error) {
       console.error('Error placing bet:', error);
       toast.dismiss('bet-placement');
+      toast.dismiss('bitr-approval');
       
       if (error instanceof Error && error.message.includes('Transaction failed with status')) {
         toast.error('Bet transaction failed on-chain. Please try again.');
+      } else if (error instanceof Error && error.message.includes('insufficient allowance')) {
+        toast.error('Insufficient BITR allowance. Please approve more tokens.');
       } else {
         toast.error('Failed to place bet');
       }
       throw error;
     }
-  }, [writeContractAsync, publicClient]);
+  }, [writeContractAsync, publicClient, address, getAllowance, approve]);
 
   const settlePool = useCallback(async (poolId: bigint, outcome: string) => {
     try {

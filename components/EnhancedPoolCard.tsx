@@ -472,17 +472,33 @@ export default function EnhancedPoolCard({
               if (indexedData && indexedData.fillPercentage > 0) {
                 return `${indexedData.fillPercentage}%`;
               }
-              // CORRECTED: Use standardized calculation
+              // Calculate total filled amount (creator stake + bettor stakes)
+              const creatorStake = parseFloat(pool.creatorStake || "0") / 1e18;
+              const totalBettorStake = parseFloat(pool.totalBettorStake || "0") / 1e18;
+              const totalFilled = creatorStake + totalBettorStake;
+              
+              // Calculate total pool capacity (creator stake + max bettor stake)
               const poolCalculation = calculatePoolFill({
                 creatorStake: pool.creatorStake,
                 totalBettorStake: pool.totalBettorStake,
                 odds: pool.odds,
                 isWei: true
               });
-              console.log(`📊 Pool ${pool.id} progress calculation:`, poolCalculation);
+              const totalCapacity = creatorStake + poolCalculation.maxBettorStake;
+              
+              // Calculate percentage of total capacity filled
+              const fillPercentage = totalCapacity > 0 ? Math.min((totalFilled / totalCapacity) * 100, 100) : 0;
+              
+              console.log(`📊 Pool ${pool.id} progress calculation:`, {
+                creatorStake,
+                totalBettorStake,
+                totalFilled,
+                totalCapacity,
+                fillPercentage
+              });
+              
               // Round to 1 decimal place for better display
-              const percentage = poolCalculation.fillPercentage;
-              const displayPercentage = percentage >= 99.95 ? 100 : Math.round(percentage * 10) / 10;
+              const displayPercentage = fillPercentage >= 99.95 ? 100 : Math.round(fillPercentage * 10) / 10;
               return `${displayPercentage}%`;
             })()}
           </span>
@@ -494,14 +510,24 @@ export default function EnhancedPoolCard({
                 if (indexedData && indexedData.fillPercentage > 0) {
                   return getProgressColor(indexedData.fillPercentage);
                 }
-                // CORRECTED: Use standardized calculation
+                // Calculate total filled amount (creator stake + bettor stakes)
+                const creatorStake = parseFloat(pool.creatorStake || "0") / 1e18;
+                const totalBettorStake = parseFloat(pool.totalBettorStake || "0") / 1e18;
+                const totalFilled = creatorStake + totalBettorStake;
+                
+                // Calculate total pool capacity (creator stake + max bettor stake)
                 const poolCalculation = calculatePoolFill({
                   creatorStake: pool.creatorStake,
                   totalBettorStake: pool.totalBettorStake,
                   odds: pool.odds,
                   isWei: true
                 });
-                return getProgressColor(poolCalculation.fillPercentage);
+                const totalCapacity = creatorStake + poolCalculation.maxBettorStake;
+                
+                // Calculate percentage of total capacity filled
+                const fillPercentage = totalCapacity > 0 ? Math.min((totalFilled / totalCapacity) * 100, 100) : 0;
+                
+                return getProgressColor(fillPercentage);
               })()
             }`}
             style={{ 
@@ -509,15 +535,32 @@ export default function EnhancedPoolCard({
                 if (indexedData && indexedData.fillPercentage > 0) {
                   return Math.min(indexedData.fillPercentage, 100);
                 }
-                // CORRECTED: Use standardized calculation
+                // Calculate total filled amount (creator stake + bettor stakes)
+                const creatorStake = parseFloat(pool.creatorStake || "0") / 1e18;
+                const totalBettorStake = parseFloat(pool.totalBettorStake || "0") / 1e18;
+                const totalFilled = creatorStake + totalBettorStake;
+                
+                // Calculate total pool capacity (creator stake + max bettor stake)
                 const poolCalculation = calculatePoolFill({
                   creatorStake: pool.creatorStake,
                   totalBettorStake: pool.totalBettorStake,
                   odds: pool.odds,
                   isWei: true
                 });
-                console.log(`📊 Pool ${pool.id} progress bar width:`, poolCalculation);
-                return Math.min(poolCalculation.fillPercentage, 100);
+                const totalCapacity = creatorStake + poolCalculation.maxBettorStake;
+                
+                // Calculate percentage of total capacity filled
+                const fillPercentage = totalCapacity > 0 ? Math.min((totalFilled / totalCapacity) * 100, 100) : 0;
+                
+                console.log(`📊 Pool ${pool.id} progress calculation:`, {
+                  creatorStake,
+                  totalBettorStake,
+                  totalFilled,
+                  totalCapacity,
+                  fillPercentage
+                });
+                
+                return Math.min(fillPercentage, 100);
               })()}%`,
               minWidth: '2px' // Ensure minimum visibility
             }}
@@ -528,14 +571,16 @@ export default function EnhancedPoolCard({
         <div className="flex justify-between text-xs text-gray-400 mt-1">
           <span>
             {(() => {
-              // Use proper human-readable formatting from optimized API data
+              // Include creator stake in the "filled" amount
               const totalBettorStake = parseFloat(pool.totalBettorStake || "0");
+              const creatorStake = parseFloat(pool.creatorStake || "0");
+              const totalFilled = totalBettorStake + creatorStake;
               
               // Format for display
-              if (totalBettorStake >= 1000000) return `${(totalBettorStake / 1000000).toFixed(1)}M`;
-              if (totalBettorStake >= 1000) return `${(totalBettorStake / 1000).toFixed(1)}K`;
-              return Math.round(totalBettorStake).toString();
-            })()} {pool.usesBitr ? 'BITR' : 'STT'} filled
+              if (totalFilled >= 1000000) return `${(totalFilled / 1000000).toFixed(1)}M`;
+              if (totalFilled >= 1000) return `${(totalFilled / 1000).toFixed(1)}K`;
+              return Math.round(totalFilled).toString();
+            })()} {pool.usesBitr ? 'BITR' : 'STT'} Filled
           </span>
           <span>
             {(() => {
@@ -546,7 +591,7 @@ export default function EnhancedPoolCard({
               if (maxPoolSize >= 1000000) return `${(maxPoolSize / 1000000).toFixed(1)}M`;
               if (maxPoolSize >= 1000) return `${(maxPoolSize / 1000).toFixed(1)}K`;
               return Math.round(maxPoolSize).toString();
-            })()} {pool.usesBitr ? 'BITR' : 'STT'} capacity
+            })()} {pool.usesBitr ? 'BITR' : 'STT'} Capacity
           </span>
         </div>
       </div>

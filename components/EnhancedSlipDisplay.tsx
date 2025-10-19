@@ -54,7 +54,7 @@ interface EnhancedSlipDisplayProps {
 
 const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
   const [expandedSlips, setExpandedSlips] = useState<Set<number>>(new Set());
-  const [filter, setFilter] = useState<'all' | 'pending' | 'evaluated' | 'won' | 'lost'>('all');
+  const [filter, setFilter] = useState<'all' | 'realtime' | 'won' | 'lost'>('all');
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
   const [liveEvaluations, setLiveEvaluations] = useState<Map<number, unknown>>(new Map());
 
@@ -225,9 +225,8 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
           statusMatch = status === 'won';
         } else if (filter === 'lost') {
           statusMatch = status === 'lost';
-        } else if (filter === 'evaluated') {
-          statusMatch = status === 'evaluated';
-        } else if (filter === 'pending') {
+        } else if (filter === 'realtime') {
+          // Realtime shows pending slips (active cycles with live evaluation)
           statusMatch = status === 'pending';
         }
       }
@@ -360,17 +359,11 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
           color: 'bg-red-500/10 text-red-400 border border-red-500/20',
           icon: XCircleIcon 
         };
-      case 'evaluated':
-        return { 
-          text: 'Evaluated', 
-          color: 'bg-green-500/10 text-green-400 border border-green-500/20',
-          icon: CheckCircleIcon 
-        };
       case 'pending':
       default:
         return { 
-          text: 'Pending', 
-          color: 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20',
+          text: 'Realtime', 
+          color: 'bg-blue-500/10 text-blue-400 border border-blue-500/20',
           icon: ClockIcon 
         };
     }
@@ -388,14 +381,13 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
           </div>
           {[
             { key: 'all', label: 'All Slips', count: slips.length },
-            { key: 'pending', label: 'Pending', count: slips.filter(s => getSlipStatus(s) === 'pending').length },
-            { key: 'evaluated', label: 'Real-time', count: slips.filter(s => getSlipStatus(s) === 'evaluated').length },
+            { key: 'realtime', label: 'Realtime', count: slips.filter(s => getSlipStatus(s) === 'pending').length },
             { key: 'won', label: 'Won', count: slips.filter(s => getSlipStatus(s) === 'won').length },
             { key: 'lost', label: 'Lost', count: slips.filter(s => getSlipStatus(s) === 'lost').length },
           ].map(({ key, label, count }) => (
             <button
               key={key}
-              onClick={() => setFilter(key as 'all' | 'pending' | 'evaluated' | 'won' | 'lost')}
+              onClick={() => setFilter(key as 'all' | 'realtime' | 'won' | 'lost')}
               className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition-all ${
                 filter === key
                   ? 'bg-primary text-black'
@@ -538,8 +530,12 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
                               </div>
                             </div>
                             
-                            {/* 3-Column Layout */}
-                            <div className="grid grid-cols-3 gap-3 items-start">
+                            {/* Conditional Layout: 3-column for Realtime/Won/Lost, 2-column for All */}
+                            <div className={`grid gap-3 items-start ${
+                              filter === 'all' 
+                                ? 'grid-cols-2' 
+                                : 'grid-cols-3'
+                            }`}>
                               {/* Your Prediction Column */}
                               <div className="space-y-2">
                                 <div className="text-xs text-gray-400 font-medium">Prediction</div>
@@ -639,50 +635,70 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
                                 </div>
                               </div>
 
-                              {/* Evaluation Column */}
-                              <div className="space-y-2">
-                                <div className="text-xs text-gray-400 font-medium">Evaluation</div>
+                              {/* Evaluation Column - Only show for Realtime/Won/Lost views */}
+                              {filter !== 'all' && (
                                 <div className="space-y-2">
-                                  {(() => {
-                                    // Check live evaluation data for isCorrect
-                                    const liveEval = liveEvaluations.get(slip.id);
-                                    let isCorrect = prediction.isCorrect;
-                                    
-                                    if (liveEval && typeof liveEval === 'object' && 'predictions' in liveEval) {
-                                      const livePreds = (liveEval as LiveEvaluation).predictions;
-                                      const livePred = livePreds.find((p) => String(p.matchId) === String(prediction.matchId));
+                                  <div className="text-xs text-gray-400 font-medium">Evaluation</div>
+                                  <div className="space-y-2">
+                                    {(() => {
+                                      // Check live evaluation data for isCorrect
+                                      const liveEval = liveEvaluations.get(slip.id);
+                                      let isCorrect = prediction.isCorrect;
+                                      let matchStatus = 'pending';
                                       
-                                      if (livePred && livePred.isCorrect !== undefined) {
-                                        isCorrect = livePred.isCorrect;
+                                      if (liveEval && typeof liveEval === 'object' && 'predictions' in liveEval) {
+                                        const livePreds = (liveEval as LiveEvaluation).predictions;
+                                        const livePred = livePreds.find((p) => String(p.matchId) === String(prediction.matchId));
+                                        
+                                        if (livePred) {
+                                          // Check if match has finished
+                                          if (livePred.status === 'FINISHED' && livePred.isCorrect !== null && livePred.isCorrect !== undefined) {
+                                            isCorrect = livePred.isCorrect;
+                                            matchStatus = 'finished';
+                                          } else if (livePred.status === 'LIVE' || livePred.status === 'IN_PROGRESS') {
+                                            matchStatus = 'live';
+                                          } else {
+                                            matchStatus = 'pending';
+                                          }
+                                        }
                                       }
-                                    }
-                                    
-                                    if (isCorrect !== undefined) {
-                                      return (
-                                        <div className={`flex items-center gap-1 px-2 py-1 rounded border text-xs ${
-                                          isCorrect === true 
-                                            ? 'bg-green-500/20 text-green-400 border-green-500/30' 
-                                            : 'bg-red-500/20 text-red-400 border-red-500/30'
-                                        }`}>
-                                          {isCorrect ? (
-                                            <CheckCircleIcon className="w-3 h-3" />
-                                          ) : (
-                                            <XCircleIcon className="w-3 h-3" />
-                                          )}
-                                          <span>{isCorrect ? 'Correct' : 'Wrong'}</span>
-                                        </div>
-                                      );
-                                    } else {
-                                      return (
-                                        <div className="flex items-center gap-1 px-2 py-1 rounded border text-xs bg-yellow-500/20 text-yellow-300 border-yellow-500/30">
-                                          <ClockIcon className="w-3 h-3" />
-                                          <span>Pending</span>
-                                        </div>
-                                      );
-                                    }
-                                  })()}
+                                      
+                                      // Show evaluation based on match status
+                                      if (matchStatus === 'finished' && isCorrect !== undefined && isCorrect !== null) {
+                                        return (
+                                          <div className={`flex items-center gap-1 px-2 py-1 rounded border text-xs ${
+                                            isCorrect === true 
+                                              ? 'bg-green-500/20 text-green-400 border-green-500/30' 
+                                              : 'bg-red-500/20 text-red-400 border-red-500/30'
+                                          }`}>
+                                            {isCorrect ? (
+                                              <CheckCircleIcon className="w-3 h-3" />
+                                            ) : (
+                                              <XCircleIcon className="w-3 h-3" />
+                                            )}
+                                            <span>{isCorrect ? 'Correct' : 'Wrong'}</span>
+                                          </div>
+                                        );
+                                      } else if (matchStatus === 'live') {
+                                        return (
+                                          <div className="flex items-center gap-1 px-2 py-1 rounded border text-xs bg-blue-500/20 text-blue-400 border-blue-500/30">
+                                            <ClockIcon className="w-3 h-3 animate-pulse" />
+                                            <span>Live</span>
+                                          </div>
+                                        );
+                                      } else {
+                                        // Pending or not started
+                                        return (
+                                          <div className="flex items-center gap-1 px-2 py-1 rounded border text-xs bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
+                                            <ClockIcon className="w-3 h-3" />
+                                            <span>Awaiting</span>
+                                          </div>
+                                        );
+                                      }
+                                    })()}
+                                  </div>
                                 </div>
-                              </div>
+                              )}
                             </div>
                           </div>
                         ))}
