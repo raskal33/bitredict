@@ -999,14 +999,10 @@ export default function BetPage() {
               </div>
               <div className="flex justify-between text-xs text-gray-400">
                 <span>
-                  {totalBettorStakeFormatted > 1000 
-                    ? `${(totalBettorStakeFormatted / 1000).toFixed(1)}K` 
-                    : totalBettorStakeFormatted.toFixed(0)} {pool.currency} filled
+                  {(creatorStakeFormatted + totalBettorStakeFormatted).toFixed(2)} {pool.currency} Filled
                 </span>
                 <span>
-                  {maxPoolSizeFormatted > 1000 
-                    ? `${(maxPoolSizeFormatted / 1000).toFixed(1)}K` 
-                    : maxPoolSizeFormatted.toFixed(0)} {pool.currency} capacity
+                  {maxPoolSizeFormatted.toFixed(2)} {pool.currency} Capacity
                 </span>
               </div>
             </div>
