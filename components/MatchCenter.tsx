@@ -95,9 +95,9 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
         const data = await response.json();
         console.log('✅ Match data fetched:', data);
         
-        if (data.success && data.data) {
+        if (data.success && data.data && Object.keys(data.data).length > 0) {
           setMatchData(data.data);
-        } else {
+        } else if (!data.success) {
           setError(data.message || 'Failed to fetch match data');
         }
       } catch (err) {
@@ -201,7 +201,7 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
         <div className="flex items-center justify-between gap-4">
           {/* Home Team */}
           <div className="flex flex-col items-center gap-2 flex-1">
-            {homeTeamLogo && typeof homeTeamLogo === 'string' && homeTeamLogo.startsWith('http') && (
+            {homeTeamLogo && typeof homeTeamLogo === 'string' && homeTeamLogo.trim() && homeTeamLogo.startsWith('http') && (
               <Image 
                 src={homeTeamLogo} 
                 alt={homeTeam || 'Home Team'}
@@ -232,7 +232,7 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
 
           {/* Away Team */}
           <div className="flex flex-col items-center gap-2 flex-1">
-            {awayTeamLogo && typeof awayTeamLogo === 'string' && awayTeamLogo.startsWith('http') && (
+            {awayTeamLogo && typeof awayTeamLogo === 'string' && awayTeamLogo.trim() && awayTeamLogo.startsWith('http') && (
               <Image 
                 src={awayTeamLogo} 
                 alt={awayTeam || 'Away Team'}
