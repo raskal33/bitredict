@@ -415,20 +415,70 @@ export class OddysseyContractService {
 
   public static async claimPrize(cycleId: number, slipId: number): Promise<{ success: boolean; prizeAmount?: number; transactionHash?: string; error?: string }> {
     try {
+      console.log('🏆 Claiming Oddyssey prize:', { cycleId, slipId });
+      
       const contract = await this.getContract();
+      
+      // Call the contract's claimPrize function
       const tx = await contract.claimPrize(cycleId, slipId);
+      console.log('📝 Transaction submitted:', tx.hash);
+      
+      // Wait for transaction confirmation
       const receipt = await tx.wait();
+      console.log('✅ Transaction confirmed:', receipt.transactionHash);
+      
+      // Extract prize amount from events
+      let prizeAmount = 0;
+      if (receipt.logs) {
+        for (const log of receipt.logs) {
+          try {
+            const parsedLog = contract.interface.parseLog(log);
+            if (parsedLog && parsedLog.name === 'PrizeClaimed') {
+              prizeAmount = Number(parsedLog.args.userShare || 0);
+              break;
+            }
+          } catch (e) {
+            // Continue searching for the event
+          }
+        }
+      }
       
       return {
         success: true,
         transactionHash: receipt.transactionHash,
-        prizeAmount: receipt.events?.PrizeClaimed?.args?.amount || 0
+        prizeAmount: prizeAmount
       };
     } catch (error: any) {
-      console.error('Error claiming prize:', error);
+      console.error('❌ Error claiming prize:', error);
+      
+      // Handle specific error cases
+      let errorMessage = 'Failed to claim prize';
+      
+      if (error.message) {
+        if (error.message.includes('Slip does not belong to you')) {
+          errorMessage = 'This slip does not belong to you';
+        } else if (error.message.includes('Slip has not been evaluated yet')) {
+          errorMessage = 'Slip has not been evaluated yet';
+        } else if (error.message.includes('Player not found on leaderboard')) {
+          errorMessage = 'You are not on the leaderboard for this cycle';
+        } else if (error.message.includes('Prize already claimed')) {
+          errorMessage = 'Prize already claimed';
+        } else if (error.message.includes('Invalid cycle ID')) {
+          errorMessage = 'Invalid cycle ID';
+        } else if (error.message.includes('InvalidTiming')) {
+          errorMessage = 'Prize claiming is not yet available';
+        } else if (error.message.includes('InvalidState')) {
+          errorMessage = 'Cycle is not in the correct state for claiming';
+        } else if (error.message.includes('user rejected')) {
+          errorMessage = 'Transaction was rejected by user';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       return {
         success: false,
-        error: error.message || 'Failed to claim prize'
+        error: errorMessage
       };
     }
   }
