@@ -153,7 +153,9 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
   const league = typeof matchData.match?.league === 'string' 
     ? matchData.match.league 
     : matchData.match?.league?.name || '';
-  const venue = matchData.match?.venue || '';
+  const venue = (matchData.match?.venue && typeof matchData.match.venue === 'object' && Object.keys(matchData.match.venue).length > 0) 
+    ? matchData.match.venue 
+    : '';
   const matchDate = matchData.match?.date;
 
   // Format goal scorers
