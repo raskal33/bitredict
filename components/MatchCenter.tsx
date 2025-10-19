@@ -10,13 +10,13 @@ import { motion } from 'framer-motion';
 interface MatchData {
   marketId: string;
   teams?: {
-    home?: { name: string; logo?: string };
-    away?: { name: string; logo?: string };
+    home?: string | { name: string; logo?: string };
+    away?: string | { name: string; logo?: string };
   };
   match?: {
     date?: string;
     venue?: string;
-    league?: string;
+    league?: string | { name: string };
     status?: string;
   };
   score?: {
@@ -138,13 +138,23 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
     return null;
   }
 
-  const homeTeam = matchData.teams?.home?.name || 'Home Team';
-  const awayTeam = matchData.teams?.away?.name || 'Away Team';
-  const homeTeamLogo = matchData.teams?.home?.logo;
-  const awayTeamLogo = matchData.teams?.away?.logo;
+  const homeTeam = typeof matchData.teams?.home === 'string' 
+    ? matchData.teams.home 
+    : matchData.teams?.home?.name || 'Home Team';
+  const awayTeam = typeof matchData.teams?.away === 'string' 
+    ? matchData.teams.away 
+    : matchData.teams?.away?.name || 'Away Team';
+  const homeTeamLogo = typeof matchData.teams?.home === 'object' 
+    ? matchData.teams.home?.logo 
+    : undefined;
+  const awayTeamLogo = typeof matchData.teams?.away === 'object' 
+    ? matchData.teams.away?.logo 
+    : undefined;
   const score = matchData.score;
   const matchStatus = matchData.match?.status || 'NS';
-  const league = matchData.match?.league || '';
+  const league = typeof matchData.match?.league === 'string' 
+    ? matchData.match.league 
+    : matchData.match?.league?.name || '';
   const venue = matchData.match?.venue || '';
   const matchDate = matchData.match?.date;
 
@@ -193,10 +203,10 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
         <div className="flex items-center justify-between gap-4">
           {/* Home Team */}
           <div className="flex flex-col items-center gap-2 flex-1">
-            {homeTeamLogo && (
+            {homeTeamLogo && typeof homeTeamLogo === 'string' && homeTeamLogo.startsWith('http') && (
               <Image 
                 src={homeTeamLogo} 
-                alt={homeTeam}
+                alt={homeTeam || 'Home Team'}
                 width={64}
                 height={64}
                 className="w-14 h-14 sm:w-16 sm:h-16 object-contain rounded-lg"
@@ -224,10 +234,10 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
 
           {/* Away Team */}
           <div className="flex flex-col items-center gap-2 flex-1">
-            {awayTeamLogo && (
+            {awayTeamLogo && typeof awayTeamLogo === 'string' && awayTeamLogo.startsWith('http') && (
               <Image 
                 src={awayTeamLogo} 
-                alt={awayTeam}
+                alt={awayTeam || 'Away Team'}
                 width={64}
                 height={64}
                 className="w-14 h-14 sm:w-16 sm:h-16 object-contain rounded-lg"

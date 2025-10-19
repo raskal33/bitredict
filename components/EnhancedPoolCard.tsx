@@ -470,7 +470,8 @@ export default function EnhancedPoolCard({
           <span className="text-xs text-white font-medium">
             {(() => {
               if (indexedData && indexedData.fillPercentage > 0) {
-                return `${indexedData.fillPercentage}%`;
+                const roundedPercentage = Math.round(indexedData.fillPercentage * 10) / 10;
+                return `${roundedPercentage}%`;
               }
               // Calculate total filled amount (creator stake + bettor stakes)
               const creatorStake = parseFloat(pool.creatorStake || "0") / 1e18;
@@ -572,25 +573,28 @@ export default function EnhancedPoolCard({
           <span>
             {(() => {
               // Include creator stake in the "filled" amount
-              const totalBettorStake = parseFloat(pool.totalBettorStake || "0");
-              const creatorStake = parseFloat(pool.creatorStake || "0");
+              const totalBettorStake = parseFloat(pool.totalBettorStake || "0") / 1e18;
+              const creatorStake = parseFloat(pool.creatorStake || "0") / 1e18;
               const totalFilled = totalBettorStake + creatorStake;
               
-              // Format for display
-              if (totalFilled >= 1000000) return `${(totalFilled / 1000000).toFixed(1)}M`;
-              if (totalFilled >= 1000) return `${(totalFilled / 1000).toFixed(1)}K`;
-              return Math.round(totalFilled).toString();
+              // Show precise number to avoid confusion
+              return totalFilled.toFixed(2);
             })()} {pool.usesBitr ? 'BITR' : 'STT'} Filled
           </span>
           <span>
             {(() => {
-              // Use proper human-readable formatting from optimized API data
-              const maxPoolSize = parseFloat(pool.maxBettorStake || "0");
+              // Use precise calculation instead of API data to avoid rounding issues
+              const creatorStake = parseFloat(pool.creatorStake || "0") / 1e18;
+              const poolCalculation = calculatePoolFill({
+                creatorStake: pool.creatorStake,
+                totalBettorStake: pool.totalBettorStake,
+                odds: pool.odds,
+                isWei: true
+              });
+              const totalCapacity = creatorStake + poolCalculation.maxBettorStake;
               
-              // Format for display
-              if (maxPoolSize >= 1000000) return `${(maxPoolSize / 1000000).toFixed(1)}M`;
-              if (maxPoolSize >= 1000) return `${(maxPoolSize / 1000).toFixed(1)}K`;
-              return Math.round(maxPoolSize).toString();
+              // Show precise number to avoid confusion and reverted transactions
+              return totalCapacity.toFixed(2);
             })()} {pool.usesBitr ? 'BITR' : 'STT'} Capacity
           </span>
         </div>

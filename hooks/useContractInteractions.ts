@@ -105,10 +105,10 @@ export function usePoolCore() {
         ? poolData.predictedOutcome 
         : ethers.encodeBytes32String(poolData.predictedOutcome.slice(0, 31)); // Truncate to fit bytes32
       
-      // Market ID should be keccak256 hash of fixture ID for guided markets
-      // This ensures proper fixture mapping for settlement
+      // Market ID should be the original SportMonks fixture ID for guided markets
+      // This ensures proper fixture mapping for settlement and easier backend processing
       const marketIdString = poolData.oracleType === 0 // GUIDED oracle
-        ? ethers.keccak256(ethers.solidityPacked(['uint256'], [BigInt(poolData.marketId)])) // Match backend logic
+        ? poolData.marketId // Use original SportMonks fixture ID directly
         : poolData.marketId; // For custom markets, use as-is
 
       // Calculate total required amount (creation fee + creator stake)
