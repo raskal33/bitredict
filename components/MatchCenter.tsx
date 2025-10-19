@@ -79,10 +79,7 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
           : `${backendUrl}/api/match-center/market/${id}?t=${Date.now()}`;
         
         const response = await fetch(endpoint, {
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache'
-          }
+          method: 'GET'
         });
         
         if (!response.ok) {
