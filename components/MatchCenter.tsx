@@ -18,6 +18,7 @@ interface MatchData {
     venue?: string;
     league?: string | { name: string };
     status?: string;
+    referee?: string;
   };
   score?: {
     home?: number;
@@ -153,9 +154,7 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
   const league = typeof matchData.match?.league === 'string' 
     ? matchData.match.league 
     : matchData.match?.league?.name || '';
-  const venue = (matchData.match?.venue && typeof matchData.match.venue === 'object' && Object.keys(matchData.match.venue).length > 0) 
-    ? matchData.match.venue 
-    : '';
+  const venue = matchData.match?.venue || '';
   const matchDate = matchData.match?.date;
 
   // Format goal scorers
@@ -256,6 +255,22 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
             <span>{venue}</span>
           </div>
         )}
+
+        {/* Match Metadata */}
+        <div className="flex items-center justify-center gap-4 text-xs text-gray-400 pt-2">
+          {league && (
+            <div className="flex items-center gap-1">
+              <span>📊</span>
+              <span>{typeof league === 'string' ? league : league?.name || ''}</span>
+            </div>
+          )}
+          {matchData.match?.referee && (
+            <div className="flex items-center gap-1">
+              <span>👮</span>
+              <span>{matchData.match.referee}</span>
+            </div>
+          )}
+        </div>
 
         {/* Goal Scorers */}
         {(homeGoals.length > 0 || awayGoals.length > 0) && (
