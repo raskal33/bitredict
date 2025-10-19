@@ -170,7 +170,7 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
             // If no backend data available, show empty state with current cycle info
             console.log('⚠️ No backend cycles found, showing empty state for cycle:', targetCycleId);
             setResults([]);
-            setCurrentCycleId(targetCycleId);
+            setCurrentCycleId(targetCycleId || null);
             setCycleInfo({
               isResolved: false,
               totalMatches: 0,
