@@ -87,6 +87,7 @@ interface EnhancedSlip {
   correctCount: number;
   isEvaluated: boolean;
   status: 'pending' | 'evaluated' | 'won' | 'lost';
+  cycleResolved?: boolean; // Added for proper status logic
 }
 
 interface Match {
@@ -276,7 +277,8 @@ export default function OddysseyPage() {
           finalScore: slip.finalScore,
           correctCount: slip.correctCount,
           isEvaluated: slip.isEvaluated,
-          status: slip.isEvaluated ? (slip.correctCount >= 7 ? 'won' : 'lost') : 'pending' as 'pending' | 'evaluated' | 'won' | 'lost'
+          status: slip.isEvaluated ? (slip.correctCount >= 7 ? 'won' : 'lost') : 'pending' as 'pending' | 'evaluated' | 'won' | 'lost',
+          cycleResolved: slip.cycleResolved || false // Added for proper status logic
         };
         console.log(`🔍 Enhanced slip ${index}:`, enhanced);
         return enhanced;
@@ -362,7 +364,8 @@ export default function OddysseyPage() {
         finalScore: 0,
         correctCount: 0,
         isEvaluated: false,
-        status: 'pending'
+        status: 'pending',
+        cycleResolved: false // Added for proper status logic
       };
 
       // Add to top of list immediately (Phase 1: Raw data)

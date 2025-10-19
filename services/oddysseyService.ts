@@ -71,6 +71,7 @@ export interface OddysseySlip {
   finalScore: number;
   correctCount: number;
   isEvaluated: boolean;
+  cycleResolved?: boolean; // Added for proper status logic
 }
 
 export interface CycleInfo {
@@ -671,7 +672,8 @@ class OddysseyService {
         }) || [],
         finalScore: Number(slip.finalScore || slip.final_score || 0),
         correctCount: Number(slip.correctCount || slip.correct_count || 0),
-        isEvaluated: Boolean(slip.isEvaluated || slip.is_evaluated || false)
+        isEvaluated: Boolean(slip.isEvaluated || slip.is_evaluated || false),
+        cycleResolved: Boolean(slip.cycleResolved || slip.cycle_resolved || false)
       }));
       
       console.log('🔍 Transformed first slip:', JSON.stringify(slipsData[0], null, 2));
@@ -1009,6 +1011,22 @@ class OddysseyService {
       };
     } catch (error) {
       console.error('Error getting current prize pool:', error);
+      
+      // Handle "Cycle 0 does not exist" error gracefully
+      if (error instanceof Error && error.message.includes('Cycle 0 does not exist')) {
+        console.log('🔄 No active cycle, returning default prize pool data');
+        return {
+          success: true,
+          data: {
+            cycleId: 0,
+            prizePool: '0',
+            formattedPrizePool: '0 STT',
+            matchesCount: 10,
+            isActive: false
+          }
+        };
+      }
+      
       return {
         success: false,
         data: null

@@ -216,16 +216,16 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
         if (match.result.home_score !== null && match.result.away_score !== null) {
           return `${match.result.home_score} - ${match.result.away_score}`;
         }
-        // Otherwise show checkmark for finished match
-        return '✓';
+        // If no scores but match is finished, show "Finished"
+        return 'Finished';
       }
       // Check if match has result codes (moneyline: 1=home, 2=draw, 3=away)
       if (match.result.moneyline && match.result.moneyline !== 0) {
-        return '✓'; // Match has a result
+        return 'Finished'; // Match has a result
       }
       // Check overUnder codes (1=over, 2=under)
       if (match.result.overUnder && match.result.overUnder !== 0) {
-        return '✓'; // Match has a result
+        return 'Finished'; // Match has a result
       }
     }
     return 'Pending';

@@ -13,6 +13,19 @@ import {
   FunnelIcon
 } from '@heroicons/react/24/outline';
 
+interface LivePrediction {
+  matchId: number;
+  currentScore?: string;
+  actualResult?: string;
+  isCorrect?: boolean;
+  status?: string;
+}
+
+interface LiveEvaluation {
+  cycleResolved: boolean;
+  predictions: LivePrediction[];
+}
+
 interface EnhancedSlip {
   id: number;
   cycleId: number;
@@ -26,11 +39,13 @@ interface EnhancedSlip {
     awayTeam: string;
     leagueName: string;
     isCorrect?: boolean; // Will be determined by evaluation
+    actualResult?: string; // Added for match result display
   }[];
   finalScore: number;
   correctCount: number;
   isEvaluated: boolean;
   status: 'pending' | 'evaluated' | 'won' | 'lost';
+  cycleResolved?: boolean; // Added for proper status logic
 }
 
 interface EnhancedSlipDisplayProps {
@@ -174,20 +189,58 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
     setExpandedSlips(newExpanded);
   };
 
+  const getSlipStatus = React.useCallback((slip: EnhancedSlip): 'pending' | 'evaluated' | 'won' | 'lost' => {
+    // Check live evaluation data first for cycleResolved
+    const liveEval = liveEvaluations.get(slip.id);
+    let cycleResolved = slip.cycleResolved;
+    
+    if (liveEval && typeof liveEval === 'object' && 'cycleResolved' in liveEval) {
+      cycleResolved = (liveEval as LiveEvaluation).cycleResolved;
+    }
+    
+    // If cycle is NOT resolved (active cycle), check for real-time results
+    if (!cycleResolved) {
+      // Check if we have live evaluation data with some results
+      if (liveEval && typeof liveEval === 'object' && 'predictions' in liveEval) {
+        const livePreds = (liveEval as LiveEvaluation).predictions;
+        const hasLiveResults = livePreds.some(pred => pred.isCorrect !== undefined);
+        return hasLiveResults ? 'evaluated' : 'pending';
+      }
+      
+      // Fallback: check if slip has any prediction results
+      const hasResults = slip.predictions.some(pred => pred.isCorrect !== undefined);
+      return hasResults ? 'evaluated' : 'pending';
+    }
+    
+    // If cycle IS resolved, check if slip is evaluated
+    if (cycleResolved && slip.isEvaluated) {
+      if (slip.correctCount >= 7) return 'won'; // 7+ correct predictions is a win
+      return 'lost';
+    }
+    
+    // If cycle is resolved but slip is NOT evaluated, it's pending
+    if (cycleResolved && !slip.isEvaluated) {
+      return 'pending';
+    }
+    
+    return 'pending';
+  }, [liveEvaluations]);
+
   // Filter slips based on status and date
   const filteredSlips = React.useMemo(() => {
     return slips?.filter(slip => {
       // Status filter
       let statusMatch = true;
       if (filter !== 'all') {
+        const status = getSlipStatus(slip);
         if (filter === 'won') {
-          statusMatch = slip.correctCount >= 7;
+          statusMatch = status === 'won';
         } else if (filter === 'lost') {
-          statusMatch = slip.correctCount < 7 && slip.isEvaluated;
+          statusMatch = status === 'lost';
         } else if (filter === 'evaluated') {
-          statusMatch = slip.isEvaluated;
+          statusMatch = status === 'evaluated';
         } else if (filter === 'pending') {
-          statusMatch = !slip.isEvaluated;
+          statusMatch = status === 'pending';
         }
       }
 
@@ -222,33 +275,7 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
 
       return statusMatch && dateMatch;
     }) || [];
-  }, [slips, filter, dateFilter]);
-
-  const getSlipStatus = (slip: EnhancedSlip): 'pending' | 'evaluated' | 'won' | 'lost' => {
-    if (!slip.isEvaluated) {
-      // Check if we have real-time results available
-      const hasResults = slip.predictions.some(pred => pred.isCorrect !== undefined);
-      return hasResults ? 'evaluated' : 'pending';
-    }
-    if (slip.correctCount >= 7) return 'won'; // 7+ correct predictions is a win
-    return 'lost';
-  };
-
-
-
-  const getBetTypeDisplay = (betType: number) => {
-    switch (betType) {
-      case 0: return '1X2';
-      case 1: return 'Over/Under';
-      case 2: return 'BTTS';
-      case 3: return 'Half Time';
-      case 4: return 'Double Chance';
-      case 5: return 'Correct Score';
-      case 6: return 'First Goal';
-      case 7: return 'Half Time/Full Time';
-      default: return 'Unknown';
-    }
-  };
+  }, [slips, filter, dateFilter, getSlipStatus]);
 
   const getSelectionDisplay = (selection: string, betType: number): string => {
     // For 1X2 bets, show 1, X, 2 with proper styling
@@ -328,52 +355,17 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
     return baseColor;
   };
 
-  const getPredictionResult = (prediction: EnhancedSlip['predictions'][0], slipId: number, isCorrect?: boolean) => {
-    // Check for live evaluation data first
-    const liveEval = liveEvaluations.get(slipId);
-    if (liveEval && typeof liveEval === 'object' && 'predictions' in liveEval) {
-      const livePred = (liveEval as { predictions: Array<{ matchId: number; status: string; isCorrect: boolean }> }).predictions.find((p) => p.matchId === prediction.matchId);
-      if (livePred) {
-        if (livePred.status === 'LIVE' || livePred.status === 'FINISHED') {
-          return livePred.isCorrect ? 
-            <CheckCircleIcon className="w-4 h-4 text-green-400" /> : 
-            <XCircleIcon className="w-4 h-4 text-red-400" />;
-        }
-        if (livePred.status === 'NOT_STARTED') {
-          return <ClockIcon className="w-4 h-4 text-yellow-400" />;
-        }
-      }
-    }
-    
-    // Check if we have calculated predictions
-    if (liveEval && typeof liveEval === 'object' && 'calculated' in liveEval && liveEval.calculated && 'predictions' in liveEval) {
-      const calculatedPred = (liveEval as { predictions: Array<{ matchId: number; status: string; isCorrect: boolean }> }).predictions.find((p) => p.matchId === prediction.matchId);
-      if (calculatedPred) {
-        if (calculatedPred.status === 'LIVE' || calculatedPred.status === 'FINISHED') {
-          return calculatedPred.isCorrect ? 
-            <CheckCircleIcon className="w-4 h-4 text-green-400" /> : 
-            <XCircleIcon className="w-4 h-4 text-red-400" />;
-        }
-        if (calculatedPred.status === 'NOT_STARTED') {
-          return <ClockIcon className="w-4 h-4 text-yellow-400" />;
-        }
-      }
-    }
-    
-    // Fallback to prediction.isCorrect from slip data
-    if (isCorrect === undefined) {
-      return <ClockIcon className="w-4 h-4 text-yellow-400" />;
-    }
-    return isCorrect ? 
-      <CheckCircleIcon className="w-4 h-4 text-green-400" /> : 
-      <XCircleIcon className="w-4 h-4 text-red-400" />;
-  };
-
   const getSlipStatusInfo = (slip: EnhancedSlip) => {
-    const status = getSlipStatus(slip);
-    const hasRealTimeResults = slip.predictions.some(pred => pred.isCorrect !== undefined);
+    // Check live evaluation data first for cycleResolved
+    const liveEval = liveEvaluations.get(slip.id);
+    let cycleResolved = slip.cycleResolved;
     
-    if (status === 'pending' && !hasRealTimeResults) {
+    if (liveEval && typeof liveEval === 'object' && 'cycleResolved' in liveEval) {
+      cycleResolved = (liveEval as { cycleResolved: boolean }).cycleResolved;
+    }
+    
+    // CRITICAL: Check cycleResolved first - if cycle is not resolved, slip MUST be pending
+    if (!cycleResolved) {
       return { 
         text: 'Pending', 
         color: 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20',
@@ -381,34 +373,28 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
       };
     }
     
-    if (status === 'evaluated' && !slip.isEvaluated) {
-      return { 
-        text: 'Real-time Results', 
-        color: 'bg-blue-500/10 text-blue-400 border border-blue-500/20',
-        icon: CheckCircleIcon 
-      };
+    // Only check isEvaluated if cycle IS resolved
+    if (cycleResolved && slip.isEvaluated) {
+      if (slip.correctCount >= 7) {
+        return { 
+          text: 'Winner', 
+          color: 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20',
+          icon: TrophyIcon 
+        };
+      } else {
+        return { 
+          text: 'Evaluated', 
+          color: 'bg-green-500/10 text-green-400 border border-green-500/20',
+          icon: CheckCircleIcon 
+        };
+      }
     }
     
-    if (status === 'won') {
-      return { 
-        text: 'Won', 
-        color: 'bg-green-500/10 text-green-400 border border-green-500/20',
-        icon: TrophyIcon 
-      };
-    }
-    
-    if (status === 'lost') {
-      return { 
-        text: 'Lost', 
-        color: 'bg-red-500/10 text-red-400 border border-red-500/20',
-        icon: XCircleIcon 
-      };
-    }
-    
+    // If cycle is resolved but not evaluated, show pending
     return { 
-      text: 'Evaluated', 
-      color: 'bg-gray-500/10 text-gray-400 border border-gray-500/20',
-      icon: CheckCircleIcon 
+      text: 'Pending', 
+      color: 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20',
+      icon: ClockIcon 
     };
   };
 
@@ -424,8 +410,8 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
           </div>
           {[
             { key: 'all', label: 'All Slips', count: slips.length },
-            { key: 'pending', label: 'Pending', count: slips.filter(s => getSlipStatus(s) === 'pending' && !s.predictions.some(p => p.isCorrect !== undefined)).length },
-            { key: 'evaluated', label: 'Real-time', count: slips.filter(s => getSlipStatus(s) === 'evaluated' && !s.isEvaluated).length },
+            { key: 'pending', label: 'Pending', count: slips.filter(s => getSlipStatus(s) === 'pending').length },
+            { key: 'evaluated', label: 'Real-time', count: slips.filter(s => getSlipStatus(s) === 'evaluated').length },
             { key: 'won', label: 'Won', count: slips.filter(s => getSlipStatus(s) === 'won').length },
             { key: 'lost', label: 'Lost', count: slips.filter(s => getSlipStatus(s) === 'lost').length },
           ].map(({ key, label, count }) => (
@@ -561,26 +547,162 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
                       <div className="space-y-2">
                         <h4 className="text-sm font-medium text-gray-300 mb-3">Predictions</h4>
                         {slip.predictions.map((prediction: EnhancedSlip['predictions'][0], index: number) => (
-                          <div key={index} className="flex items-center justify-between p-3 md:p-4 bg-gray-800/40 rounded-xl border border-gray-700/50 hover:border-gray-600/50 transition-all duration-200">
-                            <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
-                              {getPredictionResult(prediction, slip.id)}
-                              <div className="flex-1 min-w-0">
-                                <div className="font-semibold text-white text-sm mb-1 truncate">
-                                  {prediction.homeTeam} vs {prediction.awayTeam}
+                          <div key={index} className="p-3 md:p-4 bg-gray-800/40 rounded-xl border border-gray-700/50 hover:border-gray-600/50 transition-all duration-200">
+                            {/* Match Header */}
+                            <div className="mb-3 flex items-start justify-between gap-2">
+                              <div className="flex-1">
+                                <div className="font-medium text-white text-sm leading-tight">
+                                  {prediction.homeTeam || 'Unknown'} vs {prediction.awayTeam || 'Unknown'}
                                 </div>
-                                <div className="text-gray-400 text-xs mb-2 truncate">
-                                  {prediction.leagueName} • {getBetTypeDisplay(prediction.betType)}
+                                <div className="text-xs text-gray-400 mt-1">
+                                  {prediction.leagueName || 'Unknown League'}
                                 </div>
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className={`px-2 md:px-3 py-1 rounded-full text-xs font-medium ${getSelectionColor(prediction.selection, prediction.betType, prediction.isCorrect)}`}>
-                                    {getSelectionDisplay(prediction.selection, prediction.betType)}
-                                  </span>
-                                  <span className="text-xs text-gray-500 flex-shrink-0">
-                                    {prediction.selectedOdd && prediction.selectedOdd > 0 
-                                      ? prediction.selectedOdd.toFixed(2) + 'x'
-                                      : '—'
+                              </div>
+                            </div>
+                            
+                            {/* 3-Column Layout */}
+                            <div className="grid grid-cols-3 gap-3 items-start">
+                              {/* Your Prediction Column */}
+                              <div className="space-y-2">
+                                <div className="text-xs text-gray-400 font-medium">Your Prediction</div>
+                                <div className="space-y-2">
+                                  <div className={`font-medium px-2 py-1 rounded border text-xs ${getSelectionColor(prediction.selection || '', prediction.betType)}`}>
+                                    {getSelectionDisplay(prediction.selection || '', prediction.betType)}
+                                  </div>
+                                  <div className="text-xs text-gray-400">
+                                    Odds: <span className="font-bold text-green-400">{(prediction.selectedOdd || 0).toFixed(2)}x</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Match Result Column */}
+                              <div className="space-y-2">
+                                <div className="text-xs text-gray-400 font-medium">Match Result</div>
+                                <div className="space-y-2">
+                                  {(() => {
+                                    // Check live evaluation data for actual result
+                                    const liveEval = liveEvaluations.get(slip.id);
+                                    let actualResult = prediction.actualResult || 'Pending';
+                                    
+                                    if (liveEval && typeof liveEval === 'object' && 'predictions' in liveEval) {
+                                      const livePreds = (liveEval as LiveEvaluation).predictions;
+                                      const livePred = livePreds.find((p) => p.matchId === prediction.matchId);
+                                      
+                                      // Debug: Log the prediction data structure
+                                      if (livePred) {
+                                        console.log(`🔍 Live prediction data for match ${prediction.matchId}:`, livePred);
+                                      }
+                                      
+                                      if (livePred) {
+                                        // Use backend fields in correct priority order
+                                        // 1. currentScore for live score (e.g., "2-1")
+                                        if (livePred.currentScore) {
+                                          actualResult = livePred.currentScore;
+                                        }
+                                        // 2. actualResult for outcome (e.g., "Home", "Over")
+                                        else if (livePred.actualResult) {
+                                          actualResult = livePred.actualResult;
+                                        }
+                                        // 3. Check status for match state
+                                        else if (livePred.status === 'FINISHED' || livePred.status === 'finished') {
+                                          actualResult = 'Finished';
+                                        }
+                                        else if (livePred.status === 'LIVE' || livePred.status === 'live') {
+                                          actualResult = 'Live';
+                                        }
+                                        else if (livePred.status === 'UPCOMING' || livePred.status === 'upcoming') {
+                                          actualResult = 'Upcoming';
+                                        }
+                                        // 4. Fallback to Pending
+                                        else {
+                                          actualResult = 'Pending';
+                                        }
+                                      }
                                     }
-                                  </span>
+                                    
+                                    // Try to get actual match result based on bet type
+                                    if (actualResult === 'Pending' && liveEval && typeof liveEval === 'object' && 'predictions' in liveEval) {
+                                      const livePreds = (liveEval as LiveEvaluation).predictions;
+                                      const livePred = livePreds.find((p) => p.matchId === prediction.matchId);
+                                      
+                                      if (livePred) {
+                                        // Use backend fields in correct priority order
+                                        // 1. currentScore for live score (e.g., "2-1")
+                                        if (livePred.currentScore) {
+                                          actualResult = livePred.currentScore;
+                                        }
+                                        // 2. actualResult for outcome (e.g., "Home", "Over")
+                                        else if (livePred.actualResult) {
+                                          actualResult = livePred.actualResult;
+                                        }
+                                        // 3. Check status for match state
+                                        else if (livePred.status === 'FINISHED' || livePred.status === 'finished') {
+                                          actualResult = 'Finished';
+                                        }
+                                        else if (livePred.status === 'LIVE' || livePred.status === 'live') {
+                                          actualResult = 'Live';
+                                        }
+                                        else if (livePred.status === 'UPCOMING' || livePred.status === 'upcoming') {
+                                          actualResult = 'Upcoming';
+                                        }
+                                        // 4. Fallback to Pending
+                                        else {
+                                          actualResult = 'Pending';
+                                        }
+                                      }
+                                    }
+                                    
+                                    return (
+                                      <div className="font-medium px-2 py-1 rounded border text-xs bg-purple-500/20 text-purple-400 border-purple-500/30">
+                                        {actualResult}
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+                              </div>
+
+                              {/* Evaluation Column */}
+                              <div className="space-y-2">
+                                <div className="text-xs text-gray-400 font-medium">Evaluation</div>
+                                <div className="space-y-2">
+                                  {(() => {
+                                    // Check live evaluation data for isCorrect
+                                    const liveEval = liveEvaluations.get(slip.id);
+                                    let isCorrect = prediction.isCorrect;
+                                    
+                                    if (liveEval && typeof liveEval === 'object' && 'predictions' in liveEval) {
+                                      const livePreds = (liveEval as LiveEvaluation).predictions;
+                                      const livePred = livePreds.find((p) => p.matchId === prediction.matchId);
+                                      
+                                      if (livePred && livePred.isCorrect !== undefined) {
+                                        isCorrect = livePred.isCorrect;
+                                      }
+                                    }
+                                    
+                                    if (isCorrect !== undefined) {
+                                      return (
+                                        <div className={`flex items-center gap-1 px-2 py-1 rounded border text-xs ${
+                                          isCorrect === true 
+                                            ? 'bg-green-500/20 text-green-400 border-green-500/30' 
+                                            : 'bg-red-500/20 text-red-400 border-red-500/30'
+                                        }`}>
+                                          {isCorrect ? (
+                                            <CheckCircleIcon className="w-3 h-3" />
+                                          ) : (
+                                            <XCircleIcon className="w-3 h-3" />
+                                          )}
+                                          <span>{isCorrect ? 'Correct' : 'Wrong'}</span>
+                                        </div>
+                                      );
+                                    } else {
+                                      return (
+                                        <div className="flex items-center gap-1 px-2 py-1 rounded border text-xs bg-yellow-500/20 text-yellow-300 border-yellow-500/30">
+                                          <ClockIcon className="w-3 h-3" />
+                                          <span>Pending</span>
+                                        </div>
+                                      );
+                                    }
+                                  })()}
                                 </div>
                               </div>
                             </div>

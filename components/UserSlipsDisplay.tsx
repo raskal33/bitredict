@@ -401,6 +401,7 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
   // ✅ Enhanced Status Indicators - FIXED: Check cycleResolved first
   const getEvaluationStatus = (slip: EnhancedSlip) => {
     console.log(`🎯 getEvaluationStatus - Slip #${slip.slip_id}: cycleResolved=${slip.cycleResolved}, isEvaluated=${slip.isEvaluated}, correctCount=${slip.correctCount}`);
+    console.log(`🎯 Raw slip data:`, slip);
     
     // CRITICAL: If cycle is NOT resolved, slip MUST be pending
     if (!slip.cycleResolved) {
@@ -898,7 +899,7 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
                       </div>
                       
                       {/* Prediction Details Grid */}
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="grid grid-cols-3 gap-3">
                         {/* User Prediction Column */}
                         <div className="space-y-1">
                           <div className="text-xs text-gray-400 font-medium">Your Prediction</div>
