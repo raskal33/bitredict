@@ -99,10 +99,10 @@ export class PoolExplanationService {
     
     try {
       // Map numeric market type to string format expected by title templates
-      const getMarketTypeString = (marketType: number): string => {
+      const getMarketTypeString = (marketType: number, predictedOutcome: string): string => {
         const marketTypeMap: Record<number, string> = {
           0: '1X2',           // MONEYLINE
-          1: 'OU25',          // OVER_UNDER (default to 2.5)
+          1: this.determineOverUnderType(predictedOutcome), // OVER_UNDER (determine from outcome)
           2: 'BTTS',          // BOTH_TEAMS_SCORE
           3: 'HT_1X2',        // HALF_TIME
           4: 'DC',            // DOUBLE_CHANCE
@@ -116,7 +116,7 @@ export class PoolExplanationService {
 
       // Use the same title generation as enhanced pool cards
       const marketData = {
-        marketType: getMarketTypeString(poolData.marketType),
+        marketType: getMarketTypeString(poolData.marketType, poolData.predictedOutcome),
         homeTeam: poolData.homeTeam,
         awayTeam: poolData.awayTeam,
         predictedOutcome: poolData.predictedOutcome,
@@ -138,6 +138,23 @@ export class PoolExplanationService {
       const marketTypeLabel = this.MARKET_TYPE_LABELS[poolData.marketType as keyof typeof this.MARKET_TYPE_LABELS] || 'FT 1X2';
       return `${eventTime} ${poolData.homeTeam} vs ${poolData.awayTeam} "${marketTypeLabel}" "${poolData.odds.toFixed(2)}" ${poolData.league}`;
     }
+  }
+
+  /**
+   * Determine the correct Over/Under type based on predicted outcome
+   */
+  private static determineOverUnderType(predictedOutcome: string): string {
+    const outcome = predictedOutcome.toLowerCase();
+    
+    // Check for specific over/under values in the outcome
+    if (outcome.includes('0.5')) return 'OU05';
+    if (outcome.includes('1.5')) return 'OU15';
+    if (outcome.includes('2.5')) return 'OU25';
+    if (outcome.includes('3.5')) return 'OU35';
+    if (outcome.includes('4.5')) return 'OU45';
+    
+    // Default to 2.5 if no specific value found
+    return 'OU25';
   }
 
   /**

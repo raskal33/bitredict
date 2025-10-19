@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
       predictedOutcome: pool.predictedOutcome,
       result: pool.result || '',
       marketId: pool.marketId,
+      marketType: pool.marketType || 0, // Add marketType field
       
       eventStartTime: typeof pool.eventStartTime === 'string' ? new Date(pool.eventStartTime).getTime() / 1000 : pool.eventStartTime,
       eventEndTime: typeof pool.eventEndTime === 'string' ? new Date(pool.eventEndTime).getTime() / 1000 : pool.eventEndTime,

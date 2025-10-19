@@ -105,8 +105,11 @@ export function usePoolCore() {
         ? poolData.predictedOutcome 
         : ethers.encodeBytes32String(poolData.predictedOutcome.slice(0, 31)); // Truncate to fit bytes32
       
-      // Market ID should be sent as string (fixture ID), not bytes32
-      const marketIdString = poolData.marketId;
+      // Market ID should be keccak256 hash of fixture ID for guided markets
+      // This ensures proper fixture mapping for settlement
+      const marketIdString = poolData.oracleType === 0 // GUIDED oracle
+        ? ethers.keccak256(ethers.solidityPacked(['uint256'], [BigInt(poolData.marketId)])) // Match backend logic
+        : poolData.marketId; // For custom markets, use as-is
 
       // Calculate total required amount (creation fee + creator stake)
       const creationFeeBITR = 50n * 10n**18n; // 50 BITR in wei
@@ -203,7 +206,9 @@ export function usePoolCore() {
         homeTeamBytes32,
         awayTeamBytes32,
         titleBytes32,
-        marketIdString: poolData.marketId
+        originalMarketId: poolData.marketId,
+        marketIdString: marketIdString,
+        isGuidedMarket: poolData.oracleType === 0
       });
 
       // 🚀 GAS OPTIMIZATION: Use createPool for gas efficiency
@@ -241,7 +246,7 @@ export function usePoolCore() {
           poolData.useBitr,
           poolData.oracleType,
           poolData.marketType,
-          marketIdString, // 🎯 Market ID as string (fixture ID)
+          marketIdString, // 🎯 Market ID: keccak256(fixtureId) for guided, raw string for custom
         ],
         value: poolData.useBitr ? 0n : totalRequired, // For BITR pools, value is 0 (token transfer handles it)
         gas: BigInt(10000000), // ✅ Reduced gas limit for lightweight function (10M instead of 14M)

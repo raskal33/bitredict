@@ -142,7 +142,7 @@ export default function BetPage() {
         region: poolData.region || '',
         predictedOutcome: poolData.predictedOutcome || '',
         odds: poolData.odds,
-        marketType: 0, // Not in API response
+        marketType: poolData.marketType || 0, // Use actual marketType from API
         eventStartTime: poolData.eventStartTime,
         eventEndTime: poolData.eventEndTime,
         usesBitr: poolData.currency === 'BITR',

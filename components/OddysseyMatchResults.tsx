@@ -7,7 +7,6 @@ import {
   ClockIcon, 
   ExclamationTriangleIcon,
   TrophyIcon,
-  ChartBarIcon,
   CalendarDaysIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -105,7 +104,7 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
     } catch (error) {
       console.error('Error fetching available cycles:', error);
     }
-  }, [selectedCycle]);
+  }, [selectedCycle, cycleId]);
 
   const fetchResults = useCallback(async () => {
     try {
@@ -128,12 +127,31 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
           console.log('✅ Cycle results fetched:', data);
           
           if (data.success && data.data) {
-            setResults(data.data.matches || []);
+            console.log('🔍 Cycle data received:', {
+              cycleId: data.data.cycleId,
+              isResolved: data.data.isResolved,
+              matchesCount: data.data.matchesCount,
+              matches: data.data.matches?.length || 0,
+              startTime: data.data.startTime,
+              endTime: data.data.endTime
+            });
+            
+            const matches = data.data.matches || [];
+            console.log('🔍 Matches array:', matches);
+            
+            if (matches.length === 0) {
+              console.log('⚠️ No matches found for cycle', targetCycleId);
+              setError('No matches available for this cycle yet');
+            } else {
+              setError(null);
+            }
+            
+            setResults(matches);
             setCurrentCycleId(targetCycleId);
             setCycleInfo({
               isResolved: data.data.isResolved || false,
-              totalMatches: data.data.matchesCount || data.data.matches?.length || 0,
-              finishedMatches: data.data.matches?.filter((m: OddysseyMatchWithResult) => m.result?.finished_at).length || 0
+              totalMatches: data.data.matchesCount || matches.length,
+              finishedMatches: matches.filter((m: OddysseyMatchWithResult) => m.result?.finished_at).length
             });
           } else {
             throw new Error('No data in response');
@@ -570,7 +588,31 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
 
       {/* Match Results */}
       <div className="space-y-4">
-        {results.map((match, index) => (
+        {results.length === 0 ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass-card p-8 text-center"
+          >
+            <div className="flex flex-col items-center justify-center">
+              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
+                <CalendarDaysIcon className="h-8 w-8 text-primary" />
+              </div>
+              <h3 className="text-lg font-semibold text-white mb-2">No Matches Available</h3>
+              <p className="text-text-muted mb-4">
+                {selectedCycle || currentCycleId 
+                  ? `No matches found for Cycle #${selectedCycle || currentCycleId}. Matches may not be available yet.`
+                  : 'No cycle selected. Please select a cycle to view matches.'
+                }
+              </p>
+              <div className="text-sm text-text-secondary">
+                <p>• Matches are typically added when the cycle starts</p>
+                <p>• Check back later or try a different cycle</p>
+              </div>
+            </div>
+          </motion.div>
+        ) : (
+          results.map((match, index) => (
           <motion.div
             key={match.id}
             initial={{ opacity: 0, y: 20 }}
@@ -647,21 +689,10 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
               </div>
             </div>
           </motion.div>
-        ))}
+        ))
+        )}
       </div>
 
-      {/* Empty State */}
-      {results.length === 0 && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="glass-card p-8 text-center"
-        >
-          <ChartBarIcon className="h-12 w-12 mx-auto mb-4 text-text-muted" />
-          <h3 className="text-lg font-semibold text-white mb-2">No Match Results</h3>
-          <p className="text-text-muted">Match results will appear here once they become available.</p>
-        </motion.div>
-      )}
     </div>
   );
 }

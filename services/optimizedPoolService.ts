@@ -56,6 +56,7 @@ export interface OptimizedPool {
   region?: string;
   predictedOutcome?: string;
   marketId?: string;
+  marketType?: number; // Market type enum from contract
   fixtureId?: string;  // SportMonks fixture ID (use this instead of marketId for match center)
   oracleType?: string;
   // Settlement information

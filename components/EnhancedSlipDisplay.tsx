@@ -200,16 +200,26 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
     
     // If cycle is NOT resolved (active cycle), check for real-time results
     if (!cycleResolved) {
-      // Check if we have live evaluation data with some results
+      // Check if we have live evaluation data with complete results
       if (liveEval && typeof liveEval === 'object' && 'predictions' in liveEval) {
         const livePreds = (liveEval as LiveEvaluation).predictions;
-        const hasLiveResults = livePreds.some(pred => pred.isCorrect !== undefined);
-        return hasLiveResults ? 'evaluated' : 'pending';
+        const hasCompleteResults = livePreds.every(pred => 
+          pred.isCorrect !== undefined && 
+          pred.status !== 'Pending' && 
+          pred.actualResult !== undefined
+        );
+        return hasCompleteResults ? 'evaluated' : 'pending';
       }
       
-      // Fallback: check if slip has any prediction results
-      const hasResults = slip.predictions.some(pred => pred.isCorrect !== undefined);
-      return hasResults ? 'evaluated' : 'pending';
+      // Fallback: check if slip has been properly evaluated
+      // A slip is only "evaluated" when ALL predictions have both isCorrect AND actualResult
+      // (meaning matches have finished and been evaluated)
+      const hasCompleteResults = slip.predictions.every(pred => 
+        pred.isCorrect !== undefined && 
+        pred.actualResult !== undefined && 
+        pred.actualResult !== 'Pending'
+      );
+      return hasCompleteResults ? 'evaluated' : 'pending';
     }
     
     // If cycle IS resolved, check if slip is evaluated
@@ -356,46 +366,36 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
   };
 
   const getSlipStatusInfo = (slip: EnhancedSlip) => {
-    // Check live evaluation data first for cycleResolved
-    const liveEval = liveEvaluations.get(slip.id);
-    let cycleResolved = slip.cycleResolved;
+    // Use the corrected getSlipStatus function for consistent logic
+    const status = getSlipStatus(slip);
     
-    if (liveEval && typeof liveEval === 'object' && 'cycleResolved' in liveEval) {
-      cycleResolved = (liveEval as { cycleResolved: boolean }).cycleResolved;
-    }
-    
-    // CRITICAL: Check cycleResolved first - if cycle is not resolved, slip MUST be pending
-    if (!cycleResolved) {
-      return { 
-        text: 'Pending', 
-        color: 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20',
-        icon: ClockIcon 
-      };
-    }
-    
-    // Only check isEvaluated if cycle IS resolved
-    if (cycleResolved && slip.isEvaluated) {
-      if (slip.correctCount >= 7) {
+    switch (status) {
+      case 'won':
         return { 
           text: 'Winner', 
           color: 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20',
           icon: TrophyIcon 
         };
-      } else {
+      case 'lost':
+        return { 
+          text: 'Lost', 
+          color: 'bg-red-500/10 text-red-400 border border-red-500/20',
+          icon: XCircleIcon 
+        };
+      case 'evaluated':
         return { 
           text: 'Evaluated', 
           color: 'bg-green-500/10 text-green-400 border border-green-500/20',
           icon: CheckCircleIcon 
         };
-      }
+      case 'pending':
+      default:
+        return { 
+          text: 'Pending', 
+          color: 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20',
+          icon: ClockIcon 
+        };
     }
-    
-    // If cycle is resolved but not evaluated, show pending
-    return { 
-      text: 'Pending', 
-      color: 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20',
-      icon: ClockIcon 
-    };
   };
 
   return (
