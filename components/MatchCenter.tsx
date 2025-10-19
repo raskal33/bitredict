@@ -72,9 +72,11 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
         console.log('🔍 MatchCenter fetching data for ID:', { id, isFixtureId, type: isFixtureId ? 'fixture' : 'market' });
         
         // Use fixture endpoint if fixtureId is provided, otherwise use market endpoint
+        // CRITICAL: Use absolute backend URL, not relative path which calls frontend domain
+        const backendUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://bitredict-backend.fly.dev';
         const endpoint = isFixtureId 
-          ? `/api/match-center/fixture/${id}?t=${Date.now()}`
-          : `/api/match-center/market/${id}?t=${Date.now()}`;
+          ? `${backendUrl}/api/match-center/fixture/${id}?t=${Date.now()}`
+          : `${backendUrl}/api/match-center/market/${id}?t=${Date.now()}`;
         
         const response = await fetch(endpoint, {
           headers: {
