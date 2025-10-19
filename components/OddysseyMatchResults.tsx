@@ -240,24 +240,24 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'finished':
-        return <CheckCircleIcon className="h-4 w-4 text-green-400" />;
+        return <CheckCircleIcon className="h-5 w-5 text-emerald-400" />;
       case 'live':
-        return <ExclamationTriangleIcon className="h-4 w-4 text-red-400 animate-pulse" />;
+        return <ExclamationTriangleIcon className="h-5 w-5 text-red-500 animate-pulse" />;
       case 'upcoming':
-        return <ClockIcon className="h-4 w-4 text-blue-400" />;
+        return <ClockIcon className="h-5 w-5 text-blue-400" />;
       default:
-        return <ClockIcon className="h-4 w-4 text-gray-400" />;
+        return <ClockIcon className="h-5 w-5 text-gray-400" />;
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'finished':
-        return 'text-green-400 bg-green-400/10 border-green-400/20';
+        return 'text-emerald-400 bg-emerald-400/15 border-emerald-400/30 shadow-emerald-400/20';
       case 'live':
-        return 'text-red-400 bg-red-400/10 border-red-400/20';
+        return 'text-red-500 bg-red-500/15 border-red-500/30 shadow-red-500/20 animate-pulse';
       case 'upcoming':
-        return 'text-blue-400 bg-blue-400/10 border-blue-400/20';
+        return 'text-blue-400 bg-blue-400/15 border-blue-400/30 shadow-blue-400/20';
       default:
         return 'text-gray-400 bg-gray-400/10 border-gray-400/20';
     }
@@ -336,16 +336,18 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
     const outcomeStr = String(outcome);
     switch (outcomeStr) {
       case '1':
-        return 'text-green-400';
+        return 'text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-full text-xs font-semibold';
       case '2':
       case 'X':
-        return 'text-yellow-400';
+        return 'text-amber-400 bg-amber-400/10 px-2 py-1 rounded-full text-xs font-semibold';
       case '3':
-        return 'text-blue-400';
+        return 'text-blue-400 bg-blue-400/10 px-2 py-1 rounded-full text-xs font-semibold';
       case 'Over':
-        return 'text-blue-400';
+      case 'O':
+        return 'text-cyan-400 bg-cyan-400/10 px-2 py-1 rounded-full text-xs font-semibold';
       case 'Under':
-        return 'text-purple-400';
+      case 'U':
+        return 'text-purple-400 bg-purple-400/10 px-2 py-1 rounded-full text-xs font-semibold';
       default:
         return 'text-gray-400';
     }
@@ -457,20 +459,25 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
 
   return (
     <div className={`space-y-6 ${className}`}>
-      {/* Date Picker Section - Always Visible */}
+      {/* Enhanced Date Picker Section */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass-card p-4"
+        className="glass-card p-6 bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20"
       >
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <CalendarDaysIcon className="h-5 w-5 text-primary" />
-              <h3 className="text-lg font-semibold text-white">Select Cycle</h3>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg">
+                <CalendarDaysIcon className="h-5 w-5 text-black" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-white">Select Cycle</h3>
+                <p className="text-sm text-text-muted">Choose a cycle to view match results</p>
+              </div>
             </div>
             <button
               onClick={() => setShowDatePicker(!showDatePicker)}
-              className="px-4 py-2 bg-primary/20 text-primary rounded-button hover:bg-primary/30 transition-all flex items-center gap-2"
+              className="px-6 py-3 bg-gradient-to-r from-primary to-primary/80 text-black rounded-full hover:from-primary/90 hover:to-primary/70 transition-all flex items-center gap-2 shadow-lg font-semibold"
             >
               <CalendarDaysIcon className="h-4 w-4" />
               <span className="hidden sm:inline">Pick Date</span>
@@ -478,8 +485,8 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
             </button>
           </div>
 
-          {/* Quick Select Cycle Buttons */}
-          <div className="flex flex-wrap gap-2 mb-4">
+          {/* Enhanced Quick Select Cycle Buttons */}
+          <div className="flex flex-wrap gap-3 mb-6">
             {availableCycles.slice(0, 5).map((cycle) => {
               const startDate = new Date(cycle.startTime).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
               return (
@@ -489,41 +496,44 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
                     setSelectedCycle(cycle.cycleId);
                     setShowDatePicker(false);
                   }}
-                  className={`px-4 py-2 rounded-button text-sm font-medium transition-all ${
+                  className={`px-6 py-3 rounded-full text-sm font-semibold transition-all duration-300 shadow-lg ${
                     selectedCycle === cycle.cycleId
-                      ? 'bg-primary text-black'
-                      : 'bg-primary/10 text-primary hover:bg-primary/20'
+                      ? 'bg-gradient-to-r from-primary to-primary/80 text-black shadow-primary/30'
+                      : 'bg-gradient-to-r from-primary/20 to-primary/10 text-primary hover:from-primary/30 hover:to-primary/20 border border-primary/30'
                   }`}
                 >
-                  Cycle #{cycle.cycleId}
-                  <span className="hidden sm:inline text-xs ml-1 opacity-70">({startDate})</span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-current"></div>
+                    <span>Cycle #{cycle.cycleId}</span>
+                    <span className="hidden sm:inline text-xs opacity-70">({startDate})</span>
+                  </div>
                 </button>
               );
             })}
           </div>
 
-          {/* Calendar Picker */}
+          {/* Enhanced Calendar Picker */}
           <AnimatePresence>
             {showDatePicker && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                className="border-t border-primary/20 pt-4"
+                className="border-t border-primary/20 pt-6"
               >
-                <div className="bg-gray-900/30 rounded-lg p-4">
-                  {/* Calendar Header */}
-                  <div className="flex items-center justify-between mb-4">
+                <div className="bg-gradient-to-br from-gray-900/50 to-gray-800/30 rounded-xl p-6 border border-primary/20 shadow-xl">
+                  {/* Enhanced Calendar Header */}
+                  <div className="flex items-center justify-between mb-6">
                     <button
                       onClick={() => setPickerMonth(new Date(pickerMonth.getFullYear(), pickerMonth.getMonth() - 1))}
-                      className="p-2 hover:bg-primary/20 rounded transition-colors"
+                      className="p-3 hover:bg-primary/20 rounded-full transition-all duration-300 hover:scale-110"
                     >
                       <ChevronLeftIcon className="h-5 w-5 text-primary" />
                     </button>
-                    <h4 className="text-white font-semibold">{formatMonthYear(pickerMonth)}</h4>
+                    <h4 className="text-xl font-bold text-white">{formatMonthYear(pickerMonth)}</h4>
                     <button
                       onClick={() => setPickerMonth(new Date(pickerMonth.getFullYear(), pickerMonth.getMonth() + 1))}
-                      className="p-2 hover:bg-primary/20 rounded transition-colors"
+                      className="p-3 hover:bg-primary/20 rounded-full transition-all duration-300 hover:scale-110"
                     >
                       <ChevronRightIcon className="h-5 w-5 text-primary" />
                     </button>
@@ -545,10 +555,10 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
 
                   <button
                     onClick={() => setShowDatePicker(false)}
-                    className="mt-4 w-full py-2 bg-primary/20 text-primary rounded-button hover:bg-primary/30 transition-colors flex items-center justify-center gap-2"
+                    className="mt-6 w-full py-3 bg-gradient-to-r from-primary/20 to-primary/10 text-primary rounded-full hover:from-primary/30 hover:to-primary/20 transition-all duration-300 flex items-center justify-center gap-2 font-semibold shadow-lg border border-primary/30"
                   >
                     <XMarkIcon className="h-4 w-4" />
-                    Close
+                    Close Calendar
                   </button>
                 </div>
               </motion.div>
@@ -556,31 +566,42 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
           </AnimatePresence>
         </motion.div>
 
-      {/* Cycle Info */}
+      {/* Enhanced Cycle Info */}
       {cycleInfo && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="glass-card p-4"
+          className="glass-card p-6 bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <TrophyIcon className="h-6 w-6 text-primary" />
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg">
+                <TrophyIcon className="h-6 w-6 text-black" />
+              </div>
               <div>
-                <h3 className="text-lg font-bold text-white">
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
                   Cycle #{selectedCycle || currentCycleId || cycleId || 'N/A'}
+                  <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
                 </h3>
-                <p className="text-sm text-text-muted">
-                  {cycleInfo.finishedMatches}/{cycleInfo.totalMatches} matches finished
-                </p>
+                <div className="flex items-center gap-4 mt-1">
+                  <p className="text-sm text-text-muted">
+                    {cycleInfo.finishedMatches}/{cycleInfo.totalMatches} matches finished
+                  </p>
+                  <div className="w-full max-w-32 bg-gray-700 rounded-full h-2">
+                    <div 
+                      className="bg-gradient-to-r from-primary to-primary/70 h-2 rounded-full transition-all duration-500"
+                      style={{ width: `${(cycleInfo.finishedMatches / cycleInfo.totalMatches) * 100}%` }}
+                    ></div>
+                  </div>
+                </div>
               </div>
             </div>
-            <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+            <div className={`px-4 py-2 rounded-full text-sm font-semibold shadow-lg ${
               cycleInfo.isResolved 
-                ? 'text-green-400 bg-green-400/10 border border-green-400/20' 
-                : 'text-yellow-400 bg-yellow-400/10 border border-yellow-400/20'
+                ? 'text-emerald-400 bg-emerald-400/20 border border-emerald-400/30 shadow-emerald-400/20' 
+                : 'text-amber-400 bg-amber-400/20 border border-amber-400/30 shadow-amber-400/20 animate-pulse'
             }`}>
-              {cycleInfo.isResolved ? 'Resolved' : 'Active'}
+              {cycleInfo.isResolved ? '✅ Resolved' : '⚡ Active'}
             </div>
           </div>
         </motion.div>
@@ -618,16 +639,22 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
-            className="glass-card p-4"
+            className={`glass-card p-5 transition-all duration-300 hover:shadow-lg ${
+              match.status === 'finished' 
+                ? 'bg-gradient-to-r from-emerald-500/5 to-emerald-500/10 border border-emerald-500/20' 
+                : match.status === 'live'
+                ? 'bg-gradient-to-r from-red-500/5 to-red-500/10 border border-red-500/20 animate-pulse'
+                : 'bg-gradient-to-r from-blue-500/5 to-blue-500/10 border border-blue-500/20'
+            }`}
           >
-            {/* Mobile-First Responsive Layout */}
-            <div className="space-y-3 md:space-y-0 md:grid md:grid-cols-12 md:gap-4 md:items-center">
+            {/* Enhanced Mobile-First Responsive Layout */}
+            <div className="space-y-4 md:space-y-0 md:grid md:grid-cols-12 md:gap-6 md:items-center">
               {/* Mobile: Match Header */}
               <div className="flex items-center justify-between md:hidden">
-                <div className="w-6 h-6 rounded-full bg-primary/20 text-primary font-bold text-xs flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary/70 text-black font-bold text-sm flex items-center justify-center shadow-lg">
                   {match.display_order}
                 </div>
-                <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(match.status)}`}>
+                <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold shadow-lg ${getStatusColor(match.status)}`}>
                   {getStatusIcon(match.status)}
                   <span className="capitalize">{match.status}</span>
                 </div>
@@ -635,56 +662,64 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
 
               {/* Desktop: Match Number */}
               <div className="hidden md:block md:col-span-1 text-center">
-                <div className="w-8 h-8 rounded-full bg-primary/20 text-primary font-bold text-sm flex items-center justify-center mx-auto">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/70 text-black font-bold text-lg flex items-center justify-center mx-auto shadow-lg">
                   {match.display_order}
                 </div>
               </div>
 
-              {/* Teams */}
+              {/* Enhanced Teams Section */}
               <div className="md:col-span-4">
-                <div className="text-sm font-semibold text-white text-center md:text-left">
-                  <div className="truncate">{match.home_team}</div>
-                  <div className="text-xs text-text-muted">vs</div>
-                  <div className="truncate">{match.away_team}</div>
-                </div>
-                <div className="text-xs text-text-muted text-center md:text-left mt-1">
-                  {match.league_name}
+                <div className="text-center md:text-left">
+                  <div className="text-lg font-bold text-white mb-1 truncate">{match.home_team}</div>
+                  <div className="text-sm text-primary font-semibold mb-1">VS</div>
+                  <div className="text-lg font-bold text-white mb-2 truncate">{match.away_team}</div>
+                  <div className="text-xs text-text-muted bg-gray-800/50 px-2 py-1 rounded-full inline-block">
+                    {match.league_name}
+                  </div>
                 </div>
               </div>
 
-              {/* Desktop: Status */}
+              {/* Desktop: Enhanced Status */}
               <div className="hidden md:block md:col-span-2 text-center">
-                <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(match.status)}`}>
+                <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold shadow-lg ${getStatusColor(match.status)}`}>
                   {getStatusIcon(match.status)}
                   <span className="capitalize">{match.status}</span>
                 </div>
               </div>
 
-              {/* Score */}
+              {/* Enhanced Score Section */}
               <div className="md:col-span-2 text-center">
-                <div className="text-lg font-bold text-white">
+                <div className={`text-2xl font-bold ${
+                  match.status === 'finished' 
+                    ? 'text-emerald-400' 
+                    : match.status === 'live'
+                    ? 'text-red-400 animate-pulse'
+                    : 'text-gray-400'
+                }`}>
                   {formatScore(match)}
                 </div>
                 {match.result.finished_at && (
-                  <div className="text-xs text-text-muted">
+                  <div className="text-xs text-text-muted mt-1 bg-gray-800/50 px-2 py-1 rounded-full">
                     {new Date(match.result.finished_at).toLocaleTimeString()}
                   </div>
                 )}
               </div>
 
-              {/* Outcomes */}
-              <div className="md:col-span-3 text-center space-y-1">
-                <div className="text-xs">
-                  <span className="text-text-muted">1X2: </span>
-                  <span className={`font-medium ${getOutcomeColor((match.result.outcome_1x2 || match.result.moneyline) ?? null)}`}>
-                    {getOutcomeText((match.result.outcome_1x2 || match.result.moneyline) ?? null, false)}
-                  </span>
-                </div>
-                <div className="text-xs">
-                  <span className="text-text-muted">O/U: </span>
-                  <span className={`font-medium ${getOutcomeColor((match.result.outcome_ou25 || match.result.overUnder) ?? null)}`}>
-                    {getOutcomeText((match.result.outcome_ou25 || match.result.overUnder) ?? null, true)}
-                  </span>
+              {/* Enhanced Outcomes Section */}
+              <div className="md:col-span-3 text-center space-y-2">
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="text-xs text-text-muted font-medium">1X2:</span>
+                    <span className={`${getOutcomeColor((match.result.outcome_1x2 || match.result.moneyline) ?? null)}`}>
+                      {getOutcomeText((match.result.outcome_1x2 || match.result.moneyline) ?? null, false)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="text-xs text-text-muted font-medium">O/U:</span>
+                    <span className={`${getOutcomeColor((match.result.outcome_ou25 || match.result.overUnder) ?? null)}`}>
+                      {getOutcomeText((match.result.outcome_ou25 || match.result.overUnder) ?? null, true)}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>

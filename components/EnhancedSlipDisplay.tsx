@@ -198,41 +198,19 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
       cycleResolved = (liveEval as LiveEvaluation).cycleResolved;
     }
     
-    // If cycle is NOT resolved (active cycle), check for real-time results
-    if (!cycleResolved) {
-      // Check if we have live evaluation data with complete results
-      if (liveEval && typeof liveEval === 'object' && 'predictions' in liveEval) {
-        const livePreds = (liveEval as LiveEvaluation).predictions;
-        const hasCompleteResults = livePreds.every(pred => 
-          pred.isCorrect !== undefined && 
-          pred.status !== 'Pending' && 
-          pred.actualResult !== undefined
-        );
-        return hasCompleteResults ? 'evaluated' : 'pending';
-      }
-      
-      // Fallback: check if slip has been properly evaluated
-      // A slip is only "evaluated" when ALL predictions have both isCorrect AND actualResult
-      // (meaning matches have finished and been evaluated)
-      const hasCompleteResults = slip.predictions.every(pred => 
-        pred.isCorrect !== undefined && 
-        pred.actualResult !== undefined && 
-        pred.actualResult !== 'Pending'
-      );
-      return hasCompleteResults ? 'evaluated' : 'pending';
-    }
-    
-    // If cycle IS resolved, check if slip is evaluated
+    // FIXED: Only show "evaluated" when cycle is actually resolved AND slip is evaluated on blockchain
     if (cycleResolved && slip.isEvaluated) {
       if (slip.correctCount >= 7) return 'won'; // 7+ correct predictions is a win
       return 'lost';
     }
     
-    // If cycle is resolved but slip is NOT evaluated, it's pending
+    // If cycle is resolved but slip is NOT evaluated on blockchain, it's pending
     if (cycleResolved && !slip.isEvaluated) {
       return 'pending';
     }
     
+    // If cycle is NOT resolved (active cycle), always show as pending
+    // Even if some matches are finished, the slip is not fully evaluated until cycle ends
     return 'pending';
   }, [liveEvaluations]);
 
@@ -564,7 +542,7 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
                             <div className="grid grid-cols-3 gap-3 items-start">
                               {/* Your Prediction Column */}
                               <div className="space-y-2">
-                                <div className="text-xs text-gray-400 font-medium">Your Prediction</div>
+                                <div className="text-xs text-gray-400 font-medium">Prediction</div>
                                 <div className="space-y-2">
                                   <div className={`font-medium px-2 py-1 rounded border text-xs ${getSelectionColor(prediction.selection || '', prediction.betType)}`}>
                                     {getSelectionDisplay(prediction.selection || '', prediction.betType)}
@@ -577,7 +555,7 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
 
                               {/* Match Result Column */}
                               <div className="space-y-2">
-                                <div className="text-xs text-gray-400 font-medium">Match Result</div>
+                                <div className="text-xs text-gray-400 font-medium">Score</div>
                                 <div className="space-y-2">
                                   {(() => {
                                     // Check live evaluation data for actual result
@@ -586,7 +564,7 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
                                     
                                     if (liveEval && typeof liveEval === 'object' && 'predictions' in liveEval) {
                                       const livePreds = (liveEval as LiveEvaluation).predictions;
-                                      const livePred = livePreds.find((p) => p.matchId === prediction.matchId);
+                                      const livePred = livePreds.find((p) => String(p.matchId) === String(prediction.matchId));
                                       
                                       // Debug: Log the prediction data structure
                                       if (livePred) {
@@ -623,7 +601,7 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
                                     // Try to get actual match result based on bet type
                                     if (actualResult === 'Pending' && liveEval && typeof liveEval === 'object' && 'predictions' in liveEval) {
                                       const livePreds = (liveEval as LiveEvaluation).predictions;
-                                      const livePred = livePreds.find((p) => p.matchId === prediction.matchId);
+                                      const livePred = livePreds.find((p) => String(p.matchId) === String(prediction.matchId));
                                       
                                       if (livePred) {
                                         // Use backend fields in correct priority order
@@ -672,7 +650,7 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
                                     
                                     if (liveEval && typeof liveEval === 'object' && 'predictions' in liveEval) {
                                       const livePreds = (liveEval as LiveEvaluation).predictions;
-                                      const livePred = livePreds.find((p) => p.matchId === prediction.matchId);
+                                      const livePred = livePreds.find((p) => String(p.matchId) === String(prediction.matchId));
                                       
                                       if (livePred && livePred.isCorrect !== undefined) {
                                         isCorrect = livePred.isCorrect;
