@@ -473,17 +473,17 @@ export default function EnhancedPoolCard({
                 const roundedPercentage = Math.round(indexedData.fillPercentage * 10) / 10;
                 return `${roundedPercentage}%`;
               }
-              // Calculate total filled amount (creator stake + bettor stakes)
-              const creatorStake = parseFloat(pool.creatorStake || "0") / 1e18;
-              const totalBettorStake = parseFloat(pool.totalBettorStake || "0") / 1e18;
+              // API returns already-converted decimal strings, not wei
+              const creatorStake = parseFloat(pool.creatorStake || "0");
+              const totalBettorStake = parseFloat(pool.totalBettorStake || "0");
               const totalFilled = creatorStake + totalBettorStake;
               
               // Calculate total pool capacity (creator stake + max bettor stake)
               const poolCalculation = calculatePoolFill({
-                creatorStake: pool.creatorStake,
-                totalBettorStake: pool.totalBettorStake,
-                odds: pool.odds,
-                isWei: true
+                creatorStake: creatorStake.toString(),
+                totalBettorStake: totalBettorStake.toString(),
+                odds: pool.odds / 100, // Convert from 160 -> 1.60 format
+                isWei: false // API returns already-converted values
               });
               const totalCapacity = creatorStake + poolCalculation.maxBettorStake;
               
@@ -511,17 +511,17 @@ export default function EnhancedPoolCard({
                 if (indexedData && indexedData.fillPercentage > 0) {
                   return getProgressColor(indexedData.fillPercentage);
                 }
-                // Calculate total filled amount (creator stake + bettor stakes)
-                const creatorStake = parseFloat(pool.creatorStake || "0") / 1e18;
-                const totalBettorStake = parseFloat(pool.totalBettorStake || "0") / 1e18;
+                // API returns already-converted decimal strings, not wei
+                const creatorStake = parseFloat(pool.creatorStake || "0");
+                const totalBettorStake = parseFloat(pool.totalBettorStake || "0");
                 const totalFilled = creatorStake + totalBettorStake;
                 
                 // Calculate total pool capacity (creator stake + max bettor stake)
                 const poolCalculation = calculatePoolFill({
-                  creatorStake: pool.creatorStake,
-                  totalBettorStake: pool.totalBettorStake,
-                  odds: pool.odds,
-                  isWei: true
+                  creatorStake: creatorStake.toString(),
+                  totalBettorStake: totalBettorStake.toString(),
+                  odds: pool.odds / 100, // Convert from 160 -> 1.60 format
+                  isWei: false // API returns already-converted values
                 });
                 const totalCapacity = creatorStake + poolCalculation.maxBettorStake;
                 
@@ -536,17 +536,17 @@ export default function EnhancedPoolCard({
                 if (indexedData && indexedData.fillPercentage > 0) {
                   return Math.min(indexedData.fillPercentage, 100);
                 }
-                // Calculate total filled amount (creator stake + bettor stakes)
-                const creatorStake = parseFloat(pool.creatorStake || "0") / 1e18;
-                const totalBettorStake = parseFloat(pool.totalBettorStake || "0") / 1e18;
+                // API returns already-converted decimal strings, not wei
+                const creatorStake = parseFloat(pool.creatorStake || "0");
+                const totalBettorStake = parseFloat(pool.totalBettorStake || "0");
                 const totalFilled = creatorStake + totalBettorStake;
                 
                 // Calculate total pool capacity (creator stake + max bettor stake)
                 const poolCalculation = calculatePoolFill({
-                  creatorStake: pool.creatorStake,
-                  totalBettorStake: pool.totalBettorStake,
-                  odds: pool.odds,
-                  isWei: true
+                  creatorStake: creatorStake.toString(),
+                  totalBettorStake: totalBettorStake.toString(),
+                  odds: pool.odds / 100, // Convert from 160 -> 1.60 format
+                  isWei: false // API returns already-converted values
                 });
                 const totalCapacity = creatorStake + poolCalculation.maxBettorStake;
                 
@@ -572,9 +572,9 @@ export default function EnhancedPoolCard({
         <div className="flex justify-between text-xs text-gray-400 mt-1">
           <span>
             {(() => {
-              // Include creator stake in the "filled" amount
-              const totalBettorStake = parseFloat(pool.totalBettorStake || "0") / 1e18;
-              const creatorStake = parseFloat(pool.creatorStake || "0") / 1e18;
+              // API returns already-converted decimal strings
+              const totalBettorStake = parseFloat(pool.totalBettorStake || "0");
+              const creatorStake = parseFloat(pool.creatorStake || "0");
               const totalFilled = totalBettorStake + creatorStake;
               
               // Show precise number to avoid confusion
@@ -583,13 +583,13 @@ export default function EnhancedPoolCard({
           </span>
           <span>
             {(() => {
-              // Use precise calculation instead of API data to avoid rounding issues
-              const creatorStake = parseFloat(pool.creatorStake || "0") / 1e18;
+              // API returns already-converted decimal strings
+              const creatorStake = parseFloat(pool.creatorStake || "0");
               const poolCalculation = calculatePoolFill({
-                creatorStake: pool.creatorStake,
-                totalBettorStake: pool.totalBettorStake,
-                odds: pool.odds,
-                isWei: true
+                creatorStake: creatorStake.toString(),
+                totalBettorStake: (parseFloat(pool.totalBettorStake || "0")).toString(),
+                odds: pool.odds / 100, // Convert from 160 -> 1.60 format
+                isWei: false // API returns already-converted values
               });
               const totalCapacity = creatorStake + poolCalculation.maxBettorStake;
               
