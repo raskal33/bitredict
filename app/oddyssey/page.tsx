@@ -34,7 +34,8 @@ import {
   ArrowPathIcon,
   DocumentTextIcon,
   GiftIcon,
-  CalendarDaysIcon
+  CalendarDaysIcon,
+  CheckCircleIcon
 } from "@heroicons/react/24/outline";
 import { FaSpinner } from "react-icons/fa";
 
@@ -2525,58 +2526,178 @@ export default function OddysseyPage() {
                   {stats && (
                     <div className="glass-card p-6">
                       <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-                        <ArrowTrendingUpIcon className="h-6 w-6" />
+                        <ArrowTrendingUpIcon className="h-6 w-6 text-primary" />
                         Global Statistics
                       </h2>
                       
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                        <div className="text-center">
-                          <div className="text-3xl font-bold text-primary mb-2">{(stats.totalPlayers || 0).toLocaleString()}</div>
-                          <div className="text-lg text-text-secondary">Total Players</div>
-                          <div className="text-sm text-text-muted">Current cycle</div>
-                        </div>
-                        
-                        <div className="text-center">
-                          <div className="text-3xl font-bold text-secondary mb-2">{stats.totalSlips || 0}</div>
-                          <div className="text-lg text-text-secondary">Total Slips</div>
-                          <div className="text-sm text-text-muted">Current cycle</div>
-                        </div>
-                        
-                        <div className="text-center">
-                          <div className="text-3xl font-bold text-accent mb-2">{stats.correctPredictions || 0}</div>
-                          <div className="text-lg text-text-secondary">Correct Predictions</div>
-                          <div className="text-sm text-text-muted">Current cycle</div>
-                        </div>
-                        
-                        <div className="text-center">
-                          <div className="text-3xl font-bold text-green-400 mb-2">{(stats.avgPrizePool || 0).toFixed(2)} STT</div>
-                          <div className="text-lg text-text-secondary">Prize Pool</div>
-                          <div className="text-sm text-text-muted">Current cycle</div>
-                        </div>
-                        
-                        <div className="text-center">
-                          <div className="text-3xl font-bold text-yellow-400 mb-2">{(stats.winRate || 0).toFixed(1)}%</div>
-                          <div className="text-lg text-text-secondary">Win Rate</div>
-                          <div className="text-sm text-text-muted">Current cycle</div>
-                        </div>
-                        
-                        <div className="text-center">
-                          <div className="text-3xl font-bold text-blue-400 mb-2">{(stats.evaluationProgress || 0).toFixed(1)}%</div>
-                          <div className="text-lg text-text-secondary">Evaluation Progress</div>
-                          <div className="text-sm text-text-muted">Slips evaluated</div>
-                        </div>
-                        
-                        <div className="text-center">
-                          <div className="text-3xl font-bold text-purple-400 mb-2">{stats.totalWinners || 0}</div>
-                          <div className="text-lg text-text-secondary">Winners</div>
-                          <div className="text-sm text-text-muted">Current cycle</div>
-                        </div>
-                        
-                        <div className="text-center">
-                          <div className="text-3xl font-bold text-cyan-400 mb-2">{(stats.avgCorrect || 0).toFixed(1)}</div>
-                          <div className="text-lg text-text-secondary">Average Score</div>
-                          <div className="text-sm text-text-muted">Current cycle</div>
-                        </div>
+                      {/* Primary Stats Grid - 4 Main Metrics */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                        {/* Total Players */}
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0 }}
+                          className="p-4 bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 rounded-xl hover:border-primary/40 transition-all duration-300"
+                        >
+                          <div className="flex items-center gap-2 mb-3">
+                            <UsersIcon className="w-5 h-5 text-primary" />
+                            <span className="text-sm font-medium text-gray-400">Total Players</span>
+                          </div>
+                          <div className="text-3xl font-bold text-primary mb-1">{(stats.totalPlayers || 0).toLocaleString()}</div>
+                          <div className="text-xs text-gray-500">across all cycles</div>
+                        </motion.div>
+
+                        {/* Total Slips */}
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.1 }}
+                          className="p-4 bg-gradient-to-br from-secondary/10 to-secondary/5 border border-secondary/20 rounded-xl hover:border-secondary/40 transition-all duration-300"
+                        >
+                          <div className="flex items-center gap-2 mb-3">
+                            <DocumentTextIcon className="w-5 h-5 text-secondary" />
+                            <span className="text-sm font-medium text-gray-400">Total Slips</span>
+                          </div>
+                          <div className="text-3xl font-bold text-secondary mb-1">{(stats.totalSlips || 0).toLocaleString()}</div>
+                          <div className="text-xs text-gray-500">submitted & tracked</div>
+                        </motion.div>
+
+                        {/* Total Volume */}
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.2 }}
+                          className="p-4 bg-gradient-to-br from-accent/10 to-accent/5 border border-accent/20 rounded-xl hover:border-accent/40 transition-all duration-300"
+                        >
+                          <div className="flex items-center gap-2 mb-3">
+                            <CurrencyDollarIcon className="w-5 h-5 text-accent" />
+                            <span className="text-sm font-medium text-gray-400">Total Volume</span>
+                          </div>
+                          <div className="text-3xl font-bold text-accent mb-1">{(stats.totalVolume / 1e18).toFixed(2)} STT</div>
+                          <div className="text-xs text-gray-500">prize pool value</div>
+                        </motion.div>
+
+                        {/* Total Winners */}
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.3 }}
+                          className="p-4 bg-gradient-to-br from-yellow-500/10 to-yellow-500/5 border border-yellow-500/20 rounded-xl hover:border-yellow-500/40 transition-all duration-300"
+                        >
+                          <div className="flex items-center gap-2 mb-3">
+                            <TrophyIcon className="w-5 h-5 text-yellow-400" />
+                            <span className="text-sm font-medium text-gray-400">Winners</span>
+                          </div>
+                          <div className="text-3xl font-bold text-yellow-400 mb-1">{(stats.totalWinners || 0).toLocaleString()}</div>
+                          <div className="text-xs text-gray-500">qualified players</div>
+                        </motion.div>
+                      </div>
+
+                      {/* Secondary Stats - Performance Metrics */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        {/* Win Rate */}
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.4 }}
+                          className="p-4 bg-gray-800/30 border border-gray-700/50 rounded-xl"
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <FireIcon className="w-5 h-5 text-orange-400" />
+                              <span className="text-sm font-medium text-gray-300">Win Rate</span>
+                            </div>
+                            <span className="text-2xl font-bold text-orange-400">{(stats.winRate || 0).toFixed(1)}%</span>
+                          </div>
+                          <div className="w-full bg-gray-700/50 rounded-full h-2">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${Math.min(stats.winRate || 0, 100)}%` }}
+                              transition={{ duration: 1, delay: 0.5 }}
+                              className="h-2 rounded-full bg-gradient-to-r from-orange-500 to-yellow-500"
+                            />
+                          </div>
+                        </motion.div>
+
+                        {/* Evaluation Progress */}
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.5 }}
+                          className="p-4 bg-gray-800/30 border border-gray-700/50 rounded-xl"
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <CheckCircleIcon className="w-5 h-5 text-blue-400" />
+                              <span className="text-sm font-medium text-gray-300">Evaluation Progress</span>
+                            </div>
+                            <span className="text-2xl font-bold text-blue-400">{(stats.evaluationProgress || 0).toFixed(1)}%</span>
+                          </div>
+                          <div className="w-full bg-gray-700/50 rounded-full h-2">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${Math.min(stats.evaluationProgress || 0, 100)}%` }}
+                              transition={{ duration: 1, delay: 0.5 }}
+                              className="h-2 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 relative overflow-hidden"
+                            >
+                              {(stats.evaluationProgress || 0) > 0 && (
+                                <motion.div
+                                  initial={{ x: '-100%' }}
+                                  animate={{ x: '100%' }}
+                                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                                />
+                              )}
+                            </motion.div>
+                          </div>
+                        </motion.div>
+                      </div>
+
+                      {/* Additional Stats - Bottom Section */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {/* Avg Prize Pool */}
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.6 }}
+                          className="text-center p-3 bg-gray-800/30 rounded-lg border border-gray-700/50 hover:border-gray-600 transition-all"
+                        >
+                          <div className="text-sm text-gray-400 mb-2">Avg Prize Pool</div>
+                          <div className="text-xl font-bold text-green-400">{(stats.avgPrizePool / 1e18).toFixed(2)} STT</div>
+                        </motion.div>
+
+                        {/* Total Cycles */}
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.7 }}
+                          className="text-center p-3 bg-gray-800/30 rounded-lg border border-gray-700/50 hover:border-gray-600 transition-all"
+                        >
+                          <div className="text-sm text-gray-400 mb-2">Total Cycles</div>
+                          <div className="text-xl font-bold text-purple-400">{(stats.totalCycles || 0).toLocaleString()}</div>
+                        </motion.div>
+
+                        {/* Avg Correct Predictions */}
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.8 }}
+                          className="text-center p-3 bg-gray-800/30 rounded-lg border border-gray-700/50 hover:border-gray-600 transition-all"
+                        >
+                          <div className="text-sm text-gray-400 mb-2">Avg Accuracy</div>
+                          <div className="text-xl font-bold text-cyan-400">{(stats.avgCorrect || 0).toFixed(1)}</div>
+                        </motion.div>
+
+                        {/* Correct Predictions */}
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.9 }}
+                          className="text-center p-3 bg-gray-800/30 rounded-lg border border-gray-700/50 hover:border-gray-600 transition-all"
+                        >
+                          <div className="text-sm text-gray-400 mb-2">Winning Slips</div>
+                          <div className="text-xl font-bold text-green-400">{(stats.correctPredictions || 0).toLocaleString()}</div>
+                        </motion.div>
                       </div>
                     </div>
                   )}
