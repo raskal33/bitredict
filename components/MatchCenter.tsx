@@ -6,6 +6,7 @@ import {
   MapPinIcon,
 } from '@heroicons/react/24/outline';
 import { motion } from 'framer-motion';
+import matchCenterWebSocketService from '@/services/matchCenterWebSocketService';
 
 interface GoalScorer {
   player: string;
@@ -122,6 +123,71 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
     const interval = setInterval(fetchMatchData, 30000);
     return () => clearInterval(interval);
   }, [fixtureId, marketId]);
+
+  // Setup WebSocket subscriptions for real-time updates
+  useEffect(() => {
+    if (!fixtureId && !marketId) return;
+    
+    const currentFixtureId = fixtureId || matchData?.marketId;
+    if (!currentFixtureId) return;
+
+    console.log(`📡 Setting up WebSocket for fixture: ${currentFixtureId}`);
+
+    // Subscribe to score updates
+    const unsubScore = matchCenterWebSocketService.onScoreUpdate(currentFixtureId, (event) => {
+      console.log('📊 Score update via WebSocket:', event);
+      setMatchData(prev => prev ? {
+        ...prev,
+        score: event.score,
+        match: { ...prev.match, status: event.status }
+      } : null);
+    });
+
+    // Subscribe to goal events
+    const unsubGoals = matchCenterWebSocketService.onGoalScored(currentFixtureId, (event) => {
+      console.log('⚽ Goal scored via WebSocket:', event);
+      setMatchData(prev => {
+        if (!prev) return null;
+        const newGoals = [...(prev.goalScorers || []), {
+          id: Date.now(),
+          player: event.player,
+          minute: event.minute,
+          team: event.team,
+          teamId: '',
+          relatedPlayer: null,
+          description: `${event.player} (${event.minute}')`
+        }];
+        return {
+          ...prev,
+          goalScorers: newGoals
+        };
+      });
+    });
+
+    // Subscribe to match events
+    const unsubEvents = matchCenterWebSocketService.onMatchEvent(currentFixtureId, (event) => {
+      console.log('📋 Match event via WebSocket:', event);
+      // Could add other event types here (cards, substitutions)
+    });
+
+    // Subscribe to status changes
+    const unsubStatus = matchCenterWebSocketService.onStatusChange(currentFixtureId, (event) => {
+      console.log('🔄 Match status changed via WebSocket:', event);
+      setMatchData(prev => prev ? {
+        ...prev,
+        match: { ...prev.match, status: event.status }
+      } : null);
+    });
+
+    // Cleanup subscriptions on unmount
+    return () => {
+      unsubScore();
+      unsubGoals();
+      unsubEvents();
+      unsubStatus();
+      console.log(`📡 WebSocket subscriptions cleaned up for fixture: ${currentFixtureId}`);
+    };
+  }, [fixtureId, marketId, matchData?.marketId]);
 
   if (loading) {
     return (
