@@ -118,8 +118,8 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
 
     fetchMatchData();
     
-    // Refresh every 3 minutes for live score updates
-    const interval = setInterval(fetchMatchData, 180000);
+    // Refresh every 30 seconds for live score updates (WebSocket-friendly)
+    const interval = setInterval(fetchMatchData, 30000);
     return () => clearInterval(interval);
   }, [fixtureId, marketId]);
 
@@ -290,28 +290,51 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
           <div className="pt-4 border-t border-gray-700/30 space-y-3">
             <p className="text-xs font-semibold text-gray-400 uppercase">Goal Scorers</p>
             
-            <div className="space-y-2">
-              {/* Home Goal Scorers */}
-                {homeGoals.map((goal: GoalScorer, idx: number) => (
-                <div key={`home-${idx}`} className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="text-green-400">⚽</span>
-                    <span className="text-gray-300">{goal.player}</span>
-                  </div>
-                  <span className="text-gray-500">{goal.minute}&apos;</span>
-                </div>
-              ))}
+            {/* Home vs Away side-by-side layout */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* Home Team Goals (Left) */}
+              <div className="space-y-2">
+                {homeGoals.length > 0 ? (
+                  homeGoals.map((goal: GoalScorer, idx: number) => (
+                    <motion.div
+                      key={`home-${idx}`}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="flex flex-col gap-1 px-2 py-1.5 rounded bg-green-500/10 border border-green-500/20"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-green-400 text-sm">⚽</span>
+                        <span className="text-gray-300 text-xs font-medium truncate">{goal.player}</span>
+                      </div>
+                      <span className="text-green-400/70 text-xs ml-6">{goal.minute}&apos;</span>
+                    </motion.div>
+                  ))
+                ) : (
+                  <div className="text-xs text-gray-500 italic">No goals</div>
+                )}
+              </div>
 
-              {/* Away Goal Scorers */}
-                {awayGoals.map((goal: GoalScorer, idx: number) => (
-                <div key={`away-${idx}`} className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="text-yellow-400">⚽</span>
-                    <span className="text-gray-300">{goal.player}</span>
-                  </div>
-                  <span className="text-gray-500">{goal.minute}&apos;</span>
-                </div>
-              ))}
+              {/* Away Team Goals (Right) */}
+              <div className="space-y-2">
+                {awayGoals.length > 0 ? (
+                  awayGoals.map((goal: GoalScorer, idx: number) => (
+                    <motion.div
+                      key={`away-${idx}`}
+                      initial={{ opacity: 0, x: 10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="flex flex-col gap-1 px-2 py-1.5 rounded bg-yellow-500/10 border border-yellow-500/20 text-right"
+                    >
+                      <div className="flex items-center justify-end gap-2">
+                        <span className="text-yellow-400 text-xs font-medium truncate">{goal.player}</span>
+                        <span className="text-yellow-400 text-sm">⚽</span>
+                      </div>
+                      <span className="text-yellow-400/70 text-xs mr-6">{goal.minute}&apos;</span>
+                    </motion.div>
+                  ))
+                ) : (
+                  <div className="text-xs text-gray-500 italic">No goals</div>
+                )}
+              </div>
             </div>
           </div>
         )}
