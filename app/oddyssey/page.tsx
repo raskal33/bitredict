@@ -791,23 +791,20 @@ export default function OddysseyPage() {
     
     try {
       setApiCallInProgress(true);
-      console.log('💰 Fetching current prize pool and daily stats...');
+      console.log('💰 Fetching current cycle info...');
       
-      const prizePoolResult = await oddysseyService.getCurrentPrizePool();
+      // Use getCurrentCycleInfo which provides prize pool data
+      const cycleInfo = await oddysseyService.getCurrentCycleInfo();
       
-      if (prizePoolResult.success && prizePoolResult.data) {
-        console.log('✅ Current prize pool received:', prizePoolResult.data);
-        setCurrentPrizePool(prizePoolResult.data);
-        
-        // Set daily stats from prize pool data - commented out as unused
-        // setDailyStats({
-        //   date: new Date().toISOString().split('T')[0],
-        //   dailyPlayers: 100, // Placeholder
-        //   dailySlips: 50, // Placeholder
-        //   avgCorrectToday: 8.5, // Placeholder
-        //   currentCycleId: prizePoolResult.data.cycleId,
-        //   currentPrizePool: prizePoolResult.data.prizePool
-        // });
+      if (cycleInfo) {
+        console.log('✅ Current cycle info received:', cycleInfo);
+        setCurrentPrizePool({
+          cycleId: Number(cycleInfo.cycleId),
+          prizePool: formatEther(cycleInfo.prizePool),
+          formattedPrizePool: `${formatEther(cycleInfo.prizePool)} STT`,
+          matchesCount: 10,
+          isActive: cycleInfo.state === 1
+        });
       }
       
     } catch (error) {
@@ -817,21 +814,22 @@ export default function OddysseyPage() {
     }
   }, [apiCallInProgress]);
 
-  // Fetch stats using the service (contract-only)
+  // Fetch stats using the service (contract-only - direct contract calls, NOT API)
   const fetchStats = useCallback(async () => {
     if (apiCallInProgress) return; // Prevent multiple simultaneous calls
     
     try {
       setApiCallInProgress(true);
-      console.log('🎯 Fetching Oddyssey stats...');
+      console.log('🎯 Fetching Oddyssey stats from contract...');
       
+      // Use DIRECT CONTRACT CALLS for page stats and statistics tab
       const [globalStatsResult, userStatsResult] = await Promise.all([
-        oddysseyService.getStats('global'),
-        address ? oddysseyService.getStats('user', address) : null
+        oddysseyService.getGlobalStatsFromContract(),
+        address ? oddysseyService.getUserStatsFromContract(address) : null
       ]);
 
       if (globalStatsResult.success && globalStatsResult.data) {
-        console.log('✅ Global stats received:', globalStatsResult.data);
+        console.log('✅ Global stats from contract:', globalStatsResult.data);
         setStats({
           totalPlayers: globalStatsResult.data.totalPlayers || 0,
           prizePool: `${(globalStatsResult.data.avgPrizePool || 0).toFixed(2)} STT`,
@@ -844,13 +842,13 @@ export default function OddysseyPage() {
           avgCorrect: globalStatsResult.data.avgCorrect || 0,
           totalVolume: globalStatsResult.data.totalVolume || 0,
           highestOdd: globalStatsResult.data.highestOdd || 0,
-          totalSlips: globalStatsResult.data.totalSlips || 0, // Added
-          correctPredictions: globalStatsResult.data.correctPredictions || 0, // Added
-          evaluationProgress: globalStatsResult.data.evaluationProgress || 0, // Added
-          totalWinners: globalStatsResult.data.totalWinners || 0 // Added
+          totalSlips: globalStatsResult.data.totalSlips || 0,
+          correctPredictions: globalStatsResult.data.correctPredictions || 0,
+          evaluationProgress: globalStatsResult.data.evaluationProgress || 0,
+          totalWinners: globalStatsResult.data.totalWinners || 0
         });
       } else {
-        console.warn('⚠️ No global stats received, using defaults');
+        console.warn('⚠️ No global stats received from contract, using defaults');
         setStats({
           totalPlayers: 0,
           prizePool: "0 STT",
@@ -863,22 +861,21 @@ export default function OddysseyPage() {
           avgCorrect: 0,
           totalVolume: 0,
           highestOdd: 0,
-          totalSlips: 0, // Added
-          correctPredictions: 0, // Added
-          evaluationProgress: 0, // Added
-          totalWinners: 0 // Added
+          totalSlips: 0,
+          correctPredictions: 0,
+          evaluationProgress: 0,
+          totalWinners: 0
         });
       }
 
       if (userStatsResult?.success && userStatsResult.data) {
-        console.log('✅ User stats received:', userStatsResult.data);
-        // User stats no longer stored separately - integrated into main stats
+        console.log('✅ User stats from contract:', userStatsResult.data);
+        // User stats integrated into main stats display
       } else {
-        console.warn('⚠️ No user stats received, using defaults');
-        // User stats no longer stored separately - integrated into main stats
+        console.warn('⚠️ No user stats received from contract');
       }
     } catch (error) {
-      console.error('❌ Error fetching stats:', error);
+      console.error('❌ Error fetching stats from contract:', error);
       // Set default stats on error
       setStats({
         totalPlayers: 0,
@@ -892,12 +889,11 @@ export default function OddysseyPage() {
         avgCorrect: 0,
         totalVolume: 0,
         highestOdd: 0,
-        totalSlips: 0, // Added
-        correctPredictions: 0, // Added
-        evaluationProgress: 0, // Added
-        totalWinners: 0 // Added
+        totalSlips: 0,
+        correctPredictions: 0,
+        evaluationProgress: 0,
+        totalWinners: 0
       });
-      // User stats no longer stored separately - integrated into main stats
     } finally {
       setApiCallInProgress(false);
     }

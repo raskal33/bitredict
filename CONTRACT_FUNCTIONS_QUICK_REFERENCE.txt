@@ -1,0 +1,185 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║          ODDYSSEY SMART CONTRACT - QUICK REFERENCE                         ║
+║                   All Available View/Read Functions                         ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+🔴 CURRENTLY USED IN PAGE STATS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. getCurrentCycle()
+   Returns: uint256 (cycle ID)
+   Purpose: Get current active cycle number
+   Example: 1, 2, 3, etc.
+
+2. getCycleStatus(cycleId)
+   Returns: (exists, state, endTime, prizePool, slipCount, hasWinner)
+   Purpose: Get detailed cycle information
+   States: 0=NotStarted, 1=Active, 2=Ended, 3=Resolved
+
+3. getDailyStats(cycleId)
+   Returns: DailyStats { slipCount, userCount, volume, correctPredictions,
+                          evaluatedSlips, averageScore, maxScore, minScore,
+                          winnersCount }
+   Purpose: Get comprehensive daily statistics
+
+4. getUserData(address)
+   Returns: (UserStats, reputation, correctPredictions)
+   Purpose: Get user statistics and metrics
+   UserStats includes: totalSlips, totalWins, bestScore, winRate, streaks, etc.
+
+
+🟡 RELATED CYCLE FUNCTIONS (Not Currently Used)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+5. getCurrentCycleInfo()
+   Returns: (cycleId, state, endTime, prizePool, slipCount)
+   Purpose: Alternative to getCycleStatus for current cycle
+
+6. isCycleInitialized(cycleId)
+   Returns: bool
+   Purpose: Check if cycle has matches data
+
+7. isCycleResolved(cycleId)
+   Returns: bool
+   Purpose: Check if cycle results are resolved
+
+
+🟡 MATCH FUNCTIONS (Not Currently Used)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+8. getDailyMatches(cycleId)
+   Returns: Match[10]
+   Purpose: Get 10 matches for a cycle
+   Match: id, startTime, odds*, teams, league, result
+
+9. getCycleMatches(cycleId)
+   Returns: Match[10]
+   Purpose: Alternative to getDailyMatches with validation
+
+10. getDailyLeaderboard(cycleId)
+    Returns: LeaderboardEntry[5]
+    Purpose: Get top 5 players for a cycle
+
+
+🟡 USER SLIP FUNCTIONS (Not Currently Used)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+11. getSlip(slipId)
+    Returns: Slip
+    Purpose: Get detailed info about single slip
+
+12. getBatchSlips(slipIds[])
+    Returns: Slip[]
+    Purpose: Get multiple slips efficiently
+
+13. getUserSlipsForCycle(address, cycleId)
+    Returns: uint256[]
+    Purpose: Get slip IDs for user in cycle
+
+14. getUserSlipCount(address)
+    Returns: uint256
+    Purpose: Get total slip count for user
+
+15. getAllUserSlips(address)
+    Returns: uint256[]
+    Purpose: Get all slip IDs across all cycles
+
+16. getUserSlipsWithData(address, cycleId)
+    Returns: (slipIds[], slipsData[])
+    Purpose: Get slips and their data for user in cycle
+
+
+╔════════════════════════════════════════════════════════════════════════════╗
+║                           USAGE BY FEATURE                                 ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+Oddyssey Page - Global Stats Card:
+  → getCurrentCycle() + getDailyStats()
+
+Oddyssey Page - Player Stats:
+  → getUserData()
+
+Statistics Tab - Global Stats:
+  → getCurrentCycle() + getDailyStats() + getCurrentCycleInfo()
+
+Statistics Tab - Player Stats:
+  → getUserData() + getUserSlipsForCycle()
+
+Slips Display:
+  → getUserSlipsForCycle() + getBatchSlips()
+
+Leaderboard Display:
+  → getDailyLeaderboard()
+
+Analytics Tab:
+  → Uses backend API only (NOT contract functions)
+
+
+╔════════════════════════════════════════════════════════════════════════════╗
+║                        RETURN DATA STRUCTURES                              ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+DailyStats {
+  slipCount          - Total slips in cycle
+  userCount          - Unique users
+  volume             - Total volume/prize pool
+  correctPredictions - Total correct predictions
+  evaluatedSlips     - Evaluated slip count
+  averageScore       - Average score (÷1000 for actual)
+  maxScore           - Highest score in cycle
+  minScore           - Lowest score in cycle
+  winnersCount       - Count of winners (7+ correct)
+}
+
+UserStats {
+  totalSlips      - All slips placed
+  totalWins       - Winning slips (7+ correct)
+  bestScore       - Highest score
+  averageScore    - Average score
+  winRate         - (totalWins × 10000) / totalSlips
+  currentStreak   - Current win streak
+  bestStreak      - Best ever streak
+  lastActiveCycle - Last cycle participated
+}
+
+Slip {
+  player        - Creator address
+  cycleId        - Which cycle
+  placedAt       - Unix timestamp
+  predictions    - Array of 10 predictions
+  finalScore     - Final score
+  correctCount   - Number correct
+  isEvaluated    - Is evaluated
+}
+
+Match {
+  id             - Match ID
+  startTime      - When match starts
+  oddsHome       - Home moneyline odds
+  oddsDraw       - Draw moneyline odds
+  oddsAway       - Away moneyline odds
+  oddsOver       - Over/Under odds
+  oddsUnder      - Under odds
+  homeTeam       - Home team name
+  awayTeam       - Away team name
+  leagueName     - League name
+  result         - (moneyline, overUnder)
+}
+
+
+╔════════════════════════════════════════════════════════════════════════════╗
+║                            IMPORTANT NOTES                                 ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+✓ All functions are VIEW functions = Read-only, no gas cost
+✓ All functions are deterministic = Same input = Same output
+✓ Direct contract calls = Real-time data
+✓ No caching delays
+✓ Use for Page Stats and Statistics Tab
+✗ Do NOT use for Analytics Tab (use backend API instead)
+
+
+For full documentation, see:
+  - ODDYSSEY_CONTRACT_FUNCTIONS.md (detailed reference)
+  - ARCHITECTURE_STATS_VS_ANALYTICS.md (architecture overview)
+  - ODDYSSEY_IMPLEMENTATION_GUIDE.md (implementation guide)

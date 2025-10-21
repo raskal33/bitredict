@@ -855,178 +855,70 @@ class OddysseyService {
     }
   }
 
-  // Get global stats using getDailyStats from current cycle
-  async getGlobalStats(): Promise<{
-    totalVolume: bigint;
-    totalSlips: number;
-    totalUsers: number;
-    totalWinners: number;
-    averageScore: number;
-    maxScore: number;
-    minScore: number;
-    correctPredictions: number; // Added missing field
-    evaluatedSlips: number; // Added missing field
-  }> {
+  // ===== DIRECT CONTRACT CALLS FOR PAGE STATS (Oddyssey Page + Statistics Tab) =====
+  // These use contract directly and should NOT use backend API
+  
+  /**
+   * Get global stats from contract (for page display)
+   * Used on: Oddyssey page stats, Statistics tab global stats
+   */
+  async getGlobalStatsFromContract(): Promise<{ success: boolean; data: any }> {
     try {
-      // Get current cycle to fetch its stats
-      const currentCycle = await this.getCurrentCycle();
+      // Get current cycle first
+      const currentCycleIdResult = (await this.publicClient.readContract({
+        address: CONTRACTS.ODDYSSEY.address,
+        abi: CONTRACTS.ODDYSSEY.abi,
+        functionName: 'getCurrentCycle',
+      })) as bigint;
+
+      const currentCycleNum = Number(currentCycleIdResult);
+
+      // Then get cycle status and daily stats
+      const [cycleStatus, dailyStatsData] = await Promise.all([
+        this.publicClient.readContract({
+          address: CONTRACTS.ODDYSSEY.address,
+          abi: CONTRACTS.ODDYSSEY.abi,
+          functionName: 'getCycleStatus',
+          args: [BigInt(1)],
+        }),
+        this.publicClient.readContract({
+          address: CONTRACTS.ODDYSSEY.address,
+          abi: CONTRACTS.ODDYSSEY.abi,
+          functionName: 'getDailyStats',
+          args: [BigInt(currentCycleNum)],
+        })
+      ]);
+
+      const [exists, state, endTime, prizePool, cycleSlipCount, hasWinner] = cycleStatus as any;
+      const dailyStats = dailyStatsData as any;
       
-      const result = await this.publicClient.readContract({
-        address: CONTRACTS.ODDYSSEY.address,
-        abi: CONTRACTS.ODDYSSEY.abi,
-        functionName: 'getDailyStats',
-        args: [currentCycle],
+      console.log('📊 Global stats from contract:', {
+        currentCycleId: currentCycleNum,
+        slipCount: cycleSlipCount,
+        winnersCount: dailyStats?.winnersCount || 0,
+        volume: prizePool
       });
 
-      const stats = result as any;
-      return {
-        totalVolume: stats.volume,
-        totalSlips: Number(stats.slipCount),
-        totalUsers: Number(stats.userCount),
-        totalWinners: Number(stats.winnersCount),
-        averageScore: Number(stats.averageScore),
-        maxScore: Number(stats.maxScore),
-        minScore: Number(stats.minScore),
-        correctPredictions: Number(stats.correctPredictions), // Added
-        evaluatedSlips: Number(stats.evaluatedSlips), // Added
-      };
-    } catch (error) {
-      console.error('Error getting global stats:', error);
-      throw error;
-    }
-  }
-
-  // Get user stats
-  async getUserStats(userAddress: Address): Promise<{
-    totalSlips: bigint;
-    totalWins: bigint;
-    bestScore: bigint;
-    averageScore: bigint;
-    winRate: bigint;
-    currentStreak: bigint;
-    bestStreak: bigint;
-    lastActiveCycle: bigint;
-  }> {
-    try {
-      const result = await this.publicClient.readContract({
-        address: CONTRACTS.ODDYSSEY.address,
-        abi: CONTRACTS.ODDYSSEY.abi,
-        functionName: 'getUserData',
-        args: [userAddress],
-      });
-
-      const [userStats, reputation, correctPredictions] = result as [any, bigint, bigint];
-      console.log('🔍 Raw user stats from contract:', userStats);
-      console.log('🔍 User reputation:', reputation);
-      console.log('🔍 User correct predictions:', correctPredictions);
-
-      return {
-        totalSlips: userStats?.[0] || BigInt(0),
-        totalWins: userStats?.[1] || BigInt(0),
-        bestScore: userStats?.[2] || BigInt(0),
-        averageScore: userStats?.[3] || BigInt(0),
-        winRate: userStats?.[4] || BigInt(0),
-        currentStreak: userStats?.[5] || BigInt(0),
-        bestStreak: userStats?.[6] || BigInt(0),
-        lastActiveCycle: userStats?.[7] || BigInt(0),
-      };
-    } catch (error) {
-      console.error('Error getting user stats:', error);
-      throw error;
-    }
-  }
-
-  // Check if cycle is active
-  async isCycleActive(cycleId: bigint): Promise<boolean> {
-    try {
-      const cycleInfo = await this.getCurrentCycleInfo();
-      return cycleInfo.state === 1; // 1 = Active
-    } catch (error) {
-      console.error('Error checking cycle status:', error);
-      return false;
-    }
-  }
-
-  // Get total slip count
-  async getTotalSlipCount(): Promise<bigint> {
-    try {
-      const result = await this.publicClient.readContract({
-        address: CONTRACTS.ODDYSSEY.address,
-        abi: CONTRACTS.ODDYSSEY.abi,
-        functionName: 'slipCount',
-      });
-      return result as bigint;
-    } catch (error) {
-      console.error('Error getting total slip count:', error);
-      throw error;
-    }
-  }
-
-  // Get all user slips (for all cycles)
-  async getUserSlips(userAddress: Address): Promise<{ success: boolean; data: OddysseySlip[] }> {
-    try {
-      const totalSlips = await this.getTotalSlipCount();
-      const allSlips: OddysseySlip[] = [];
-
-      // Get all slips and filter by user
-      for (let i = 0; i < Number(totalSlips); i++) {
-        try {
-          const slipResult = await this.getSlip(BigInt(i));
-          if (slipResult.success && slipResult.data && slipResult.data.player.toLowerCase() === userAddress.toLowerCase()) {
-            allSlips.push(slipResult.data);
-          }
-        } catch (error) {
-          // Skip invalid slip IDs
-          continue;
-        }
-      }
-
-      return {
-        success: true,
-        data: allSlips
-      };
-    } catch (error) {
-      console.error('Error getting user slips:', error);
-      return {
-        success: false,
-        data: []
-      };
-    }
-  }
-
-  // Get current prize pool (contract-only)
-  async getCurrentPrizePool(): Promise<{ success: boolean; data: any }> {
-    try {
-      const cycleInfo = await this.getCurrentCycleInfo();
-      
       return {
         success: true,
         data: {
-          cycleId: Number(cycleInfo.cycleId),
-          prizePool: formatEther(cycleInfo.prizePool),
-          formattedPrizePool: `${formatEther(cycleInfo.prizePool)} STT`,
-          matchesCount: 10, // Fixed for Oddyssey
-          isActive: cycleInfo.state === 1
+          totalPlayers: Number(dailyStats?.userCount || 0),
+          totalSlips: Number(cycleSlipCount || 0),
+          avgPrizePool: Number(prizePool || 0) / 1e18,
+          totalCycles: currentCycleNum,
+          activeCycles: state === 1 ? 1 : 0,
+          avgCorrect: dailyStats?.averageScore ? Number(dailyStats.averageScore) / 1000 : 0,
+          winRate: dailyStats?.slipCount > 0 ? (Number(dailyStats.winnersCount) / Number(dailyStats.slipCount)) * 100 : 0,
+          totalVolume: Number(prizePool || 0) / 1e18,
+          highestOdd: dailyStats?.maxScore || 0,
+          totalWinners: Number(dailyStats?.winnersCount || 0),
+          correctPredictions: Number(dailyStats?.correctPredictions || 0),
+          evaluatedSlips: Number(dailyStats?.evaluatedSlips || 0),
+          evaluationProgress: dailyStats?.slipCount > 0 ? (Number(dailyStats.evaluatedSlips) / Number(dailyStats.slipCount)) * 100 : 0
         }
       };
     } catch (error) {
-      console.error('Error getting current prize pool:', error);
-      
-      // Handle "Cycle 0 does not exist" error gracefully
-      if (error instanceof Error && error.message.includes('Cycle 0 does not exist')) {
-        console.log('🔄 No active cycle, returning default prize pool data');
-        return {
-          success: true,
-          data: {
-            cycleId: 0,
-            prizePool: '0',
-            formattedPrizePool: '0 STT',
-            matchesCount: 10,
-            isActive: false
-          }
-        };
-      }
-      
+      console.error('Error getting global stats from contract:', error);
       return {
         success: false,
         data: null
@@ -1034,11 +926,55 @@ class OddysseyService {
     }
   }
 
-  // Get stats (from backend API)
-  async getStats(type: 'global' | 'user', userAddress?: Address): Promise<{ success: boolean; data: any }> {
+  /**
+   * Get user stats from contract (for page display)
+   * Used on: Oddyssey page player stats, Statistics tab player stats
+   */
+  async getUserStatsFromContract(userAddress: Address): Promise<{ success: boolean; data: any }> {
+    try {
+      const [userStats, reputation, correctPredictions] = await this.publicClient.readContract({
+        address: CONTRACTS.ODDYSSEY.address,
+        abi: CONTRACTS.ODDYSSEY.abi,
+        functionName: 'getUserData',
+        args: [userAddress],
+      }) as any;
+
+      console.log('📊 User stats from contract:', userStats);
+
+      return {
+        success: true,
+        data: {
+          totalSlips: Number(userStats.totalSlips),
+          totalWins: Number(userStats.totalWins),
+          bestScore: Number(userStats.bestScore),
+          averageScore: Number(userStats.averageScore),
+          winRate: Number(userStats.winRate) / 100, // Convert from contract format
+          currentStreak: Number(userStats.currentStreak),
+          bestStreak: Number(userStats.bestStreak),
+          lastActiveCycle: Number(userStats.lastActiveCycle),
+          reputation: Number(reputation),
+          correctPredictions: Number(correctPredictions)
+        }
+      };
+    } catch (error) {
+      console.error('Error getting user stats from contract:', error);
+      return {
+        success: false,
+        data: null
+      };
+    }
+  }
+
+  // ===== BACKEND API CALLS (Analytics Tab ONLY) =====
+  // These use backend API and should ONLY be used for analytics tab
+  
+  /**
+   * Get analytics data from backend API (ANALYTICS TAB ONLY)
+   * DO NOT use this for page stats or statistics tab
+   */
+  async getAnalyticsFromBackend(type: 'global' | 'user', userAddress?: Address): Promise<{ success: boolean; data: any }> {
     try {
       if (type === 'global') {
-        // Fetch from backend API instead of contract
         const response = await fetch(`/api/oddyssey/stats?type=global&t=${Date.now()}`, {
           headers: {
             'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -1047,19 +983,15 @@ class OddysseyService {
           }
         });
         
-        if (!response.ok) {
-          throw new Error('Failed to fetch global stats from backend');
-        }
-        
+        if (!response.ok) throw new Error('Failed to fetch analytics from backend');
         const result = await response.json();
-        console.log('📊 Global stats from backend:', result.data);
+        console.log('📊 Analytics from backend:', result.data);
         
         return {
           success: result.success,
           data: result.data
         };
       } else if (type === 'user' && userAddress) {
-        // Fetch user stats from backend API
         const response = await fetch(`/api/oddyssey/stats?type=user&address=${userAddress}&t=${Date.now()}`, {
           headers: {
             'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -1068,12 +1000,9 @@ class OddysseyService {
           }
         });
         
-        if (!response.ok) {
-          throw new Error('Failed to fetch user stats from backend');
-        }
-        
+        if (!response.ok) throw new Error('Failed to fetch user analytics from backend');
         const result = await response.json();
-        console.log('📊 User stats from backend:', result.data);
+        console.log('📊 User analytics from backend:', result.data);
         
         return {
           success: result.success,
@@ -1081,17 +1010,25 @@ class OddysseyService {
         };
       }
       
-      return {
-        success: false,
-        data: null
-      };
+      return { success: false, data: null };
     } catch (error) {
-      console.error('Error getting stats:', error);
-      return {
-        success: false,
-        data: null
-      };
+      console.error('Error getting analytics from backend:', error);
+      return { success: false, data: null };
     }
+  }
+
+  // DEPRECATED: Use getGlobalStatsFromContract or getAnalyticsFromBackend instead
+  // This kept for backwards compatibility but should NOT be used
+  async getStats(type: 'global' | 'user', userAddress?: Address): Promise<{ success: boolean; data: any }> {
+    console.warn('⚠️ getStats() is deprecated! Use getGlobalStatsFromContract() or getAnalyticsFromBackend() instead');
+    
+    if (type === 'global') {
+      return this.getGlobalStatsFromContract();
+    } else if (type === 'user' && userAddress) {
+      return this.getUserStatsFromContract(userAddress);
+    }
+    
+    return { success: false, data: null };
   }
 
   // Get matches with results from backend
