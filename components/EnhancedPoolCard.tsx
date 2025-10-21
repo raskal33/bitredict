@@ -204,10 +204,41 @@ export default function EnhancedPoolCard({
                         pool.odds >= 150 ? 'INTERMEDIATE' : 'BEGINNER';
   
   
-  // Use backend-generated title or fallback
+  // Enhanced title generation with proper market type detection
   const displayTitle = pool.isComboPool 
     ? `Combo Pool #${pool.id} (${pool.comboConditions?.length || 0} conditions)`
-    : pool.title || `${pool.homeTeam || 'Team A'} vs ${pool.awayTeam || 'Team B'}`;
+    : (() => {
+        // If we have a backend-generated title, use it
+        if (pool.title) {
+          return pool.title;
+        }
+        
+        // Generate title based on market type and predicted outcome
+        if (pool.marketType && pool.predictedOutcome && pool.homeTeam && pool.awayTeam) {
+          // Import title templates service
+          const { titleTemplatesService } = await import('../services/title-templates');
+          
+          const marketData = {
+            marketType: pool.marketType,
+            homeTeam: pool.homeTeam,
+            awayTeam: pool.awayTeam,
+            predictedOutcome: pool.predictedOutcome,
+            league: pool.league,
+            category: pool.category
+          };
+          
+          try {
+            const generatedTitle = titleTemplatesService.generateTitle(marketData, { short: false });
+            console.log('🏷️ Generated title:', generatedTitle, 'for market type:', pool.marketType, 'outcome:', pool.predictedOutcome);
+            return generatedTitle;
+          } catch (error) {
+            console.warn('Failed to generate title:', error);
+          }
+        }
+        
+        // Fallback to basic team vs team format
+        return `${pool.homeTeam || 'Team A'} vs ${pool.awayTeam || 'Team B'}`;
+      })();
   
   const formatStake = (stake: string) => {
     try {
@@ -490,7 +521,21 @@ export default function EnhancedPoolCard({
                 odds: pool.odds / 100, // Convert from 160 -> 1.60 format
                 isWei: false // API returns already-converted values
               });
-              const totalCapacity = creatorStake + poolCalculation.maxBettorStake;
+              
+              // Calculate base capacity
+              let totalCapacity = creatorStake + poolCalculation.maxBettorStake;
+              
+              // Add LP events to capacity if they exist
+              if (pool.liquidityProviders && pool.liquidityProviders.length > 0) {
+                const lpTotal = pool.liquidityProviders.reduce((sum, lp) => {
+                  const lpAmount = parseFloat(lp.stake || "0");
+                  // Calculate additional capacity from LP: LP amount / (odds - 1)
+                  const oddsDecimal = pool.odds / 100;
+                  const additionalCapacity = lpAmount / (oddsDecimal - 1);
+                  return sum + additionalCapacity;
+                }, 0);
+                totalCapacity += lpTotal;
+              }
               
               // Calculate percentage of total capacity filled
               const fillPercentage = totalCapacity > 0 ? Math.min((totalFilled / totalCapacity) * 100, 100) : 0;
@@ -573,7 +618,7 @@ export default function EnhancedPoolCard({
             />
           </div>
         
-        {/* Pool Capacity Info */}
+        {/* Pool Capacity Info with LP Events */}
         <div className="flex justify-between text-xs text-gray-400 mt-1">
           <span>
             {(() => {
@@ -596,7 +641,21 @@ export default function EnhancedPoolCard({
                 odds: pool.odds / 100, // Convert from 160 -> 1.60 format
                 isWei: false // API returns already-converted values
               });
-              const totalCapacity = creatorStake + poolCalculation.maxBettorStake;
+              
+              // Calculate base capacity
+              let totalCapacity = creatorStake + poolCalculation.maxBettorStake;
+              
+              // Add LP events to capacity if they exist
+              if (pool.liquidityProviders && pool.liquidityProviders.length > 0) {
+                const lpTotal = pool.liquidityProviders.reduce((sum, lp) => {
+                  const lpAmount = parseFloat(lp.stake || "0");
+                  // Calculate additional capacity from LP: LP amount / (odds - 1)
+                  const oddsDecimal = pool.odds / 100;
+                  const additionalCapacity = lpAmount / (oddsDecimal - 1);
+                  return sum + additionalCapacity;
+                }, 0);
+                totalCapacity += lpTotal;
+              }
               
               // Show precise number to avoid confusion and reverted transactions
               return totalCapacity.toFixed(2);
@@ -650,18 +709,39 @@ export default function EnhancedPoolCard({
               Challenging users who think it WILL happen
             </div>
             
-            {/* Creator Selection Display */}
+            {/* Creator Selection Display with Enhanced Market Type Detection */}
             {pool.predictedOutcome && (
               <div className="mt-2 p-2 bg-primary/10 border border-primary/20 rounded text-xs">
                 <div className="text-primary font-medium">
-                  {pool.marketType === '1X2' ? 'Moneyline' : 
-                   pool.marketType === 'OU25' ? 'Over/Under 2.5' :
-                   pool.marketType === 'OU15' ? 'Over/Under 1.5' :
-                   pool.marketType === 'OU35' ? 'Over/Under 3.5' :
-                   pool.marketType === 'BTTS' ? 'Both Teams to Score' :
-                   pool.marketType === 'HTFT' ? 'Half Time/Full Time' :
-                   pool.marketType === 'DC' ? 'Double Chance' :
-                   'Market'}: {pool.predictedOutcome}
+                  {(() => {
+                    // Enhanced market type detection
+                    const marketTypeDisplay = (() => {
+                      if (pool.marketType === '1X2' || pool.marketType === 'MONEYLINE') return 'Moneyline';
+                      if (pool.marketType === 'OU25' || pool.marketType === 'OVER_UNDER') {
+                        // Check predicted outcome to determine the specific over/under
+                        if (pool.predictedOutcome.toLowerCase().includes('2.5')) return 'Over/Under 2.5';
+                        if (pool.predictedOutcome.toLowerCase().includes('1.5')) return 'Over/Under 1.5';
+                        if (pool.predictedOutcome.toLowerCase().includes('3.5')) return 'Over/Under 3.5';
+                        if (pool.predictedOutcome.toLowerCase().includes('0.5')) return 'Over/Under 0.5';
+                        return 'Over/Under';
+                      }
+                      if (pool.marketType === 'OU15') return 'Over/Under 1.5';
+                      if (pool.marketType === 'OU35') return 'Over/Under 3.5';
+                      if (pool.marketType === 'OU05') return 'Over/Under 0.5';
+                      if (pool.marketType === 'BTTS' || pool.marketType === 'BOTH_TEAMS_SCORE') return 'Both Teams to Score';
+                      if (pool.marketType === 'HTFT' || pool.marketType === 'HALF_TIME_FULL_TIME') return 'Half Time/Full Time';
+                      if (pool.marketType === 'DC' || pool.marketType === 'DOUBLE_CHANCE') return 'Double Chance';
+                      if (pool.marketType === 'CS' || pool.marketType === 'CORRECT_SCORE') return 'Correct Score';
+                      if (pool.marketType === 'FG' || pool.marketType === 'FIRST_GOAL') return 'First Goal';
+                      if (pool.marketType === 'HT_1X2' || pool.marketType === 'HALF_TIME') return 'Half Time Result';
+                      if (pool.marketType === 'CRYPTO_UP') return 'Crypto Price Up';
+                      if (pool.marketType === 'CRYPTO_DOWN') return 'Crypto Price Down';
+                      if (pool.marketType === 'CRYPTO_TARGET') return 'Crypto Price Target';
+                      return 'Market';
+                    })();
+                    
+                    return `${marketTypeDisplay}: ${pool.predictedOutcome}`;
+                  })()}
                 </div>
               </div>
             )}
@@ -703,7 +783,12 @@ export default function EnhancedPoolCard({
           </div>
           <div className="text-sm font-bold text-white">
             {(() => {
-              // Use participants from API (total YES bet amount in BITR)
+              // Use indexed data first, then fallback to API data
+              if (indexedData?.participantCount !== undefined) {
+                return indexedData.participantCount.toString();
+              }
+              
+              // Fallback: use participants from API (total YES bet amount in BITR)
               const participantAmount = parseFloat(pool.participants || "0");
               if (participantAmount > 0) {
                 // Show formatted amount with abbreviation
@@ -764,26 +849,32 @@ export default function EnhancedPoolCard({
         </div>
       </div>
 
-      {/* Additional Indexed Data */}
-      {indexedData || (pool.avgBet !== undefined || pool.totalBets !== undefined) ? (
-        <div className="grid grid-cols-2 gap-2 mb-3 text-center flex-shrink-0">
-          <div>
-            <div className="text-xs text-gray-400">Avg Bet</div>
-            <div className="text-xs font-bold text-white">
-              {(() => {
-                const avgBet = indexedData?.avgBetSize ? parseFloat(indexedData.avgBetSize) : parseFloat(pool.avgBet || "0");
-                if (avgBet >= 1000000) return `${(avgBet / 1000000).toFixed(1)}M`;
-                if (avgBet >= 1000) return `${(avgBet / 1000).toFixed(1)}K`;
-                return avgBet > 0 ? avgBet.toFixed(2) : '0.00';
-              })()} {pool.usesBitr ? 'BITR' : 'STT'}
-            </div>
-          </div>
-          <div>
-            <div className="text-xs text-gray-400">Total Bets</div>
-            <div className="text-xs font-bold text-white">{indexedData?.betCount ?? pool.totalBets ?? 0}</div>
+      {/* Additional Indexed Data - Total Bets, Participants, Avg Bet */}
+      <div className="grid grid-cols-3 gap-2 mb-3 text-center flex-shrink-0">
+        <div>
+          <div className="text-xs text-gray-400">Total Bets</div>
+          <div className="text-xs font-bold text-white">
+            {indexedData?.betCount ?? pool.totalBets ?? 0}
           </div>
         </div>
-      ) : null}
+        <div>
+          <div className="text-xs text-gray-400">Participants</div>
+          <div className="text-xs font-bold text-white">
+            {indexedData?.participantCount ?? 0}
+          </div>
+        </div>
+        <div>
+          <div className="text-xs text-gray-400">Avg Bet</div>
+          <div className="text-xs font-bold text-white">
+            {(() => {
+              const avgBet = indexedData?.avgBetSize ? parseFloat(indexedData.avgBetSize) : parseFloat(pool.avgBet || "0");
+              if (avgBet >= 1000000) return `${(avgBet / 1000000).toFixed(1)}M`;
+              if (avgBet >= 1000) return `${(avgBet / 1000).toFixed(1)}K`;
+              return avgBet > 0 ? avgBet.toFixed(2) : '0.00';
+            })()} {pool.usesBitr ? 'BITR' : 'STT'}
+          </div>
+        </div>
+      </div>
       
       {/* Social Stats - pushed to bottom */}
       {showSocialStats && pool.socialStats && (
