@@ -1034,48 +1034,50 @@ class OddysseyService {
     }
   }
 
-  // Get stats (contract-only)
+  // Get stats (from backend API)
   async getStats(type: 'global' | 'user', userAddress?: Address): Promise<{ success: boolean; data: any }> {
     try {
       if (type === 'global') {
-        const globalStats = await this.getGlobalStats();
-        // Get current cycle info for additional stats
-        const cycleInfo = await this.getCurrentCycleInfo();
-        const currentCycleId = Number(cycleInfo.cycleId);
+        // Fetch from backend API instead of contract
+        const response = await fetch(`/api/oddyssey/stats?type=global&t=${Date.now()}`, {
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch global stats from backend');
+        }
+        
+        const result = await response.json();
+        console.log('📊 Global stats from backend:', result.data);
         
         return {
-          success: true,
-          data: {
-            totalPlayers: globalStats.totalUsers || 0, // Use actual user count from contract
-            totalSlips: globalStats.totalSlips || 0,
-            avgPrizePool: Number(globalStats.totalVolume) / 1e18 || 0, // Current cycle volume
-            totalCycles: currentCycleId || 0, // Use current cycle ID as total cycles
-            activeCycles: cycleInfo.state === 1 ? 1 : 0, // Active if state is 1 (Active)
-            avgCorrect: globalStats.averageScore / 100 || 0, // Convert from contract format
-            winRate: globalStats.totalSlips > 0 ? (globalStats.totalWinners / globalStats.totalSlips) * 100 : 0,
-            totalVolume: Number(globalStats.totalVolume) / 1e18 || 0, // Add total volume in STT
-            maxScore: globalStats.maxScore / 100 || 0, // Convert from contract format
-            minScore: globalStats.minScore / 100 || 0, // Convert from contract format
-            totalWinners: globalStats.totalWinners || 0,
-            correctPredictions: globalStats.correctPredictions || 0, // Added
-            evaluatedSlips: globalStats.evaluatedSlips || 0, // Added
-            evaluationProgress: globalStats.totalSlips > 0 ? (globalStats.evaluatedSlips / globalStats.totalSlips) * 100 : 0 // Added calculated field
-          }
+          success: result.success,
+          data: result.data
         };
       } else if (type === 'user' && userAddress) {
-        const userStats = await this.getUserStats(userAddress);
-        return {
-          success: true,
-          data: {
-            totalSlips: Number(userStats.totalSlips),
-            totalWins: Number(userStats.totalWins),
-            bestScore: Number(userStats.bestScore),
-            averageScore: Number(userStats.averageScore),
-            winRate: Number(userStats.winRate),
-            currentStreak: Number(userStats.currentStreak),
-            bestStreak: Number(userStats.bestStreak),
-            lastActiveCycle: Number(userStats.lastActiveCycle)
+        // Fetch user stats from backend API
+        const response = await fetch(`/api/oddyssey/stats?type=user&address=${userAddress}&t=${Date.now()}`, {
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
           }
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch user stats from backend');
+        }
+        
+        const result = await response.json();
+        console.log('📊 User stats from backend:', result.data);
+        
+        return {
+          success: result.success,
+          data: result.data
         };
       }
       

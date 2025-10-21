@@ -641,7 +641,27 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
                                   <div className="text-xs text-gray-400 font-medium">Evaluation</div>
                                   <div className="space-y-2">
                                     {(() => {
-                                      // Check live evaluation data for isCorrect
+                                      // FIXED: Check if slip is already evaluated first
+                                      // If evaluated, use isCorrect from prediction directly
+                                      if (slip.isEvaluated && prediction.isCorrect !== undefined && prediction.isCorrect !== null) {
+                                        console.log(`✅ Using evaluated data for slip ${slip.id}, prediction isCorrect=${prediction.isCorrect}`);
+                                        return (
+                                          <div className={`flex items-center gap-1 px-2 py-1 rounded border text-xs ${
+                                            prediction.isCorrect === true 
+                                              ? 'bg-green-500/20 text-green-400 border-green-500/30' 
+                                              : 'bg-red-500/20 text-red-400 border-red-500/30'
+                                          }`}>
+                                            {prediction.isCorrect ? (
+                                              <CheckCircleIcon className="w-3 h-3" />
+                                            ) : (
+                                              <XCircleIcon className="w-3 h-3" />
+                                            )}
+                                            <span>{prediction.isCorrect ? 'Correct' : 'Wrong'}</span>
+                                          </div>
+                                        );
+                                      }
+                                      
+                                      // For pending slips, use live evaluation data
                                       const liveEval = liveEvaluations.get(slip.id);
                                       let isCorrect = prediction.isCorrect;
                                       let matchStatus = 'pending';
@@ -665,6 +685,7 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
                                       
                                       // Show evaluation based on match status
                                       if (matchStatus === 'finished' && isCorrect !== undefined && isCorrect !== null) {
+                                        console.log(`✅ Using live evaluation for slip ${slip.id}, isCorrect=${isCorrect}`);
                                         return (
                                           <div className={`flex items-center gap-1 px-2 py-1 rounded border text-xs ${
                                             isCorrect === true 

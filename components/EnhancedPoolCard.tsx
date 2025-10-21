@@ -92,6 +92,11 @@ export interface EnhancedPool {
     isHot: boolean;
     lastActivity: Date;
   };
+  
+  // Additional API fields that may be present
+  participants?: string;
+  avgBet?: string;
+  totalBets?: number;
 }
 
 interface EnhancedPoolCardProps {
@@ -698,26 +703,17 @@ export default function EnhancedPoolCard({
           </div>
           <div className="text-sm font-bold text-white">
             {(() => {
-              if (indexedData && indexedData.participantCount !== undefined) {
-                return indexedData.participantCount;
-              }
-              // Calculate participants: 1 creator + number of unique bettors + LP providers
-              let participantCount = 1; // Creator
-              
-              // Add bettor count (estimate based on pool activity)
-              const totalBettorStake = parseFloat(pool.totalBettorStake || "0");
-              if (totalBettorStake > 0) {
-                // Estimate 1-3 participants per 1000 stake units
-                const estimatedBettors = Math.max(1, Math.min(10, Math.ceil(totalBettorStake / 1000)));
-                participantCount += estimatedBettors;
+              // Use participants from API (total YES bet amount in BITR)
+              const participantAmount = parseFloat(pool.participants || "0");
+              if (participantAmount > 0) {
+                // Show formatted amount with abbreviation
+                if (participantAmount >= 1000000) return `${(participantAmount / 1000000).toFixed(1)}M`;
+                if (participantAmount >= 1000) return `${(participantAmount / 1000).toFixed(1)}K`;
+                return participantAmount.toFixed(0);
               }
               
-              // Add LP providers if available
-              if (pool.liquidityProviders) {
-                participantCount += pool.liquidityProviders.length;
-              }
-              
-              return participantCount;
+              // Fallback: return 0
+              return '0';
             })()}
           </div>
         </div>
@@ -769,25 +765,25 @@ export default function EnhancedPoolCard({
       </div>
 
       {/* Additional Indexed Data */}
-      {indexedData && (
+      {indexedData || (pool.avgBet !== undefined || pool.totalBets !== undefined) ? (
         <div className="grid grid-cols-2 gap-2 mb-3 text-center flex-shrink-0">
           <div>
             <div className="text-xs text-gray-400">Avg Bet</div>
             <div className="text-xs font-bold text-white">
               {(() => {
-                const avgBet = parseFloat(indexedData.avgBetSize);
+                const avgBet = indexedData?.avgBetSize ? parseFloat(indexedData.avgBetSize) : parseFloat(pool.avgBet || "0");
                 if (avgBet >= 1000000) return `${(avgBet / 1000000).toFixed(1)}M`;
                 if (avgBet >= 1000) return `${(avgBet / 1000).toFixed(1)}K`;
-                return avgBet.toFixed(1);
+                return avgBet > 0 ? avgBet.toFixed(2) : '0.00';
               })()} {pool.usesBitr ? 'BITR' : 'STT'}
             </div>
           </div>
           <div>
             <div className="text-xs text-gray-400">Total Bets</div>
-            <div className="text-xs font-bold text-white">{indexedData.betCount}</div>
+            <div className="text-xs font-bold text-white">{indexedData?.betCount ?? pool.totalBets ?? 0}</div>
           </div>
         </div>
-      )}
+      ) : null}
       
       {/* Social Stats - pushed to bottom */}
       {showSocialStats && pool.socialStats && (
