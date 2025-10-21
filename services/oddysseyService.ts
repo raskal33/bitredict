@@ -872,14 +872,35 @@ class OddysseyService {
       })) as bigint;
 
       const currentCycleNum = Number(currentCycleIdResult);
+      if (currentCycleNum === 0) {
+        console.warn('⚠️ No active cycle found');
+        return {
+          success: true,
+          data: {
+            totalPlayers: 0,
+            totalSlips: 0,
+            avgPrizePool: 0,
+            totalCycles: 0,
+            activeCycles: 0,
+            avgCorrect: 0,
+            winRate: 0,
+            totalVolume: 0,
+            highestOdd: 0,
+            totalWinners: 0,
+            correctPredictions: 0,
+            evaluatedSlips: 0,
+            evaluationProgress: 0
+          }
+        };
+      }
 
-      // Then get cycle status and daily stats
+      // Get status and stats for CURRENT cycle (not cycle 1)
       const [cycleStatus, dailyStatsData] = await Promise.all([
         this.publicClient.readContract({
           address: CONTRACTS.ODDYSSEY.address,
           abi: CONTRACTS.ODDYSSEY.abi,
           functionName: 'getCycleStatus',
-          args: [BigInt(1)],
+          args: [BigInt(currentCycleNum)], // Use current cycle, not cycle 1
         }),
         this.publicClient.readContract({
           address: CONTRACTS.ODDYSSEY.address,
@@ -896,25 +917,36 @@ class OddysseyService {
         currentCycleId: currentCycleNum,
         slipCount: cycleSlipCount,
         winnersCount: dailyStats?.winnersCount || 0,
-        volume: prizePool
+        volume: dailyStats?.volume || 0,
+        userCount: dailyStats?.userCount || 0,
+        averageScore: dailyStats?.averageScore || 0
       });
+
+      // Calculate win rate properly
+      const slipCount = Number(dailyStats?.slipCount || 0);
+      const winnersCount = Number(dailyStats?.winnersCount || 0);
+      const winRate = slipCount > 0 ? (winnersCount / slipCount) * 100 : 0;
+
+      // Calculate evaluation progress
+      const evaluatedSlips = Number(dailyStats?.evaluatedSlips || 0);
+      const evaluationProgress = slipCount > 0 ? (evaluatedSlips / slipCount) * 100 : 0;
 
       return {
         success: true,
         data: {
           totalPlayers: Number(dailyStats?.userCount || 0),
-          totalSlips: Number(cycleSlipCount || 0),
-          avgPrizePool: Number(prizePool || 0) / 1e18,
+          totalSlips: slipCount,
+          avgPrizePool: Number(dailyStats?.volume || 0) / 1e18,
           totalCycles: currentCycleNum,
           activeCycles: state === 1 ? 1 : 0,
           avgCorrect: dailyStats?.averageScore ? Number(dailyStats.averageScore) / 1000 : 0,
-          winRate: dailyStats?.slipCount > 0 ? (Number(dailyStats.winnersCount) / Number(dailyStats.slipCount)) * 100 : 0,
-          totalVolume: Number(prizePool || 0) / 1e18,
-          highestOdd: dailyStats?.maxScore || 0,
-          totalWinners: Number(dailyStats?.winnersCount || 0),
+          winRate: winRate,
+          totalVolume: Number(dailyStats?.volume || 0) / 1e18,
+          highestOdd: dailyStats?.maxScore ? Number(dailyStats.maxScore) : 0,
+          totalWinners: winnersCount,
           correctPredictions: Number(dailyStats?.correctPredictions || 0),
-          evaluatedSlips: Number(dailyStats?.evaluatedSlips || 0),
-          evaluationProgress: dailyStats?.slipCount > 0 ? (Number(dailyStats.evaluatedSlips) / Number(dailyStats.slipCount)) * 100 : 0
+          evaluatedSlips: evaluatedSlips,
+          evaluationProgress: evaluationProgress
         }
       };
     } catch (error) {
@@ -944,16 +976,16 @@ class OddysseyService {
       return {
         success: true,
         data: {
-          totalSlips: Number(userStats.totalSlips),
-          totalWins: Number(userStats.totalWins),
-          bestScore: Number(userStats.bestScore),
-          averageScore: Number(userStats.averageScore),
-          winRate: Number(userStats.winRate) / 100, // Convert from contract format
-          currentStreak: Number(userStats.currentStreak),
-          bestStreak: Number(userStats.bestStreak),
-          lastActiveCycle: Number(userStats.lastActiveCycle),
-          reputation: Number(reputation),
-          correctPredictions: Number(correctPredictions)
+          totalSlips: Number(userStats.totalSlips || 0),
+          totalWins: Number(userStats.totalWins || 0),
+          bestScore: Number(userStats.bestScore || 0),
+          averageScore: Number(userStats.averageScore || 0),
+          winRate: Number(userStats.winRate || 0) / 100, // Convert from contract format
+          currentStreak: Number(userStats.currentStreak || 0), // Contract has this
+          bestStreak: Number(userStats.bestStreak || 0), // Contract has this
+          lastActiveCycle: Number(userStats.lastActiveCycle || 0),
+          reputation: Number(reputation || 0),
+          correctPredictions: Number(correctPredictions || 0)
         }
       };
     } catch (error) {
