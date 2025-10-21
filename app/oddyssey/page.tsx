@@ -836,14 +836,25 @@ export default function OddysseyPage() {
 
       if (globalStatsResult.success && globalStatsResult.data) {
         console.log('✅ Global stats from contract:', globalStatsResult.data);
+        // Format avgPrizePool properly - ensure it's not a huge wei value
+        const avgPrizePoolValue = globalStatsResult.data.avgPrizePool || 0;
+        const formattedAvgPrizePool = avgPrizePoolValue > 1e15 
+          ? (avgPrizePoolValue / 1e18).toFixed(2) 
+          : avgPrizePoolValue.toFixed(2);
+        
+        console.log('🔍 avgPrizePool formatting:', { 
+          raw: avgPrizePoolValue, 
+          formatted: formattedAvgPrizePool 
+        });
+        
         setStats({
           totalPlayers: globalStatsResult.data.totalPlayers || 0,
-          prizePool: `${(globalStatsResult.data.avgPrizePool || 0).toFixed(2)} STT`,
+          prizePool: `${formattedAvgPrizePool} STT`,
           completedSlips: globalStatsResult.data.totalSlips?.toLocaleString() || "0",
           averageOdds: `${globalStatsResult.data.avgCorrect || 0}x`,
           totalCycles: globalStatsResult.data.totalCycles || 0,
           activeCycles: globalStatsResult.data.activeCycles || 0,
-          avgPrizePool: globalStatsResult.data.avgPrizePool || 0,
+          avgPrizePool: parseFloat(formattedAvgPrizePool),
           winRate: globalStatsResult.data.winRate || 0,
           avgCorrect: globalStatsResult.data.avgCorrect || 0,
           totalVolume: globalStatsResult.data.totalVolume || 0,

@@ -958,17 +958,26 @@ class OddysseyService {
       const winnersCount = Number(dailyStats?.winnersCount || 0);
       const evaluatedSlips = Number(dailyStats?.evaluatedSlips || 0);
 
+      // Ensure proper wei to ether conversion
+      const volumeInWei = Number(dailyStats?.volume || 0);
+      const volumeInEther = volumeInWei / 1e18;
+      
+      console.log('🔍 Volume conversion:', { 
+        wei: volumeInWei, 
+        ether: volumeInEther 
+      });
+      
       return {
         success: true,
         data: {
           totalPlayers: Number(dailyStats?.userCount || 0),
           totalSlips: slipCount,
-          avgPrizePool: Number(dailyStats?.volume || 0) / 1e18,
+          avgPrizePool: volumeInEther,
           totalCycles: currentCycleNum,
           activeCycles: state === 1 ? 1 : 0,
           avgCorrect: dailyStats?.averageScore ? Number(dailyStats.averageScore) / 1000 : 0,
           winRate: slipCount > 0 ? (winnersCount / slipCount) * 100 : 0,
-          totalVolume: Number(dailyStats?.volume || 0) / 1e18,
+          totalVolume: volumeInEther,
           highestOdd: dailyStats?.maxScore ? Number(dailyStats.maxScore) : 0,
           totalWinners: winnersCount,
           correctPredictions: Number(dailyStats?.correctPredictions || 0),
