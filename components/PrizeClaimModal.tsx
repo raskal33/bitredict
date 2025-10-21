@@ -5,7 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   XMarkIcon,
   TrophyIcon,
-  CheckCircleIcon
+  CheckCircleIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
 import Button from './button';
@@ -194,7 +195,7 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          className="bg-gray-800 rounded-2xl border border-gray-600 w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
+          className="bg-gray-800 rounded-2xl border border-gray-600 w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
@@ -278,16 +279,21 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
           </div>
 
           {/* Positions List */}
-          <div className="flex-1 overflow-y-auto max-h-96">
+          <div className="flex-1 overflow-y-auto min-h-96 max-h-96 bg-gray-900/20">
             {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <span className="ml-2 text-gray-400">Loading positions...</span>
+              <div className="flex items-center justify-center h-96">
+                <div className="text-center">
+                  <SparklesIcon className="h-12 w-12 text-purple-400 animate-spin mx-auto mb-2" />
+                  <span className="text-gray-400">Loading positions...</span>
+                </div>
               </div>
             ) : (
               odysseyPositions.length === 0 ? (
-                <div className="text-center py-12">
-                  <TrophyIcon className="h-12 w-12 text-gray-500 mx-auto mb-4" />
-                  <p className="text-gray-400">No Odyssey positions found</p>
+                <div className="flex items-center justify-center h-96">
+                  <div className="text-center">
+                    <TrophyIcon className="h-12 w-12 text-gray-500 mx-auto mb-4" />
+                    <p className="text-gray-400">No Odyssey positions found</p>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-2 p-6">

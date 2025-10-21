@@ -45,18 +45,23 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [pickerMonth, setPickerMonth] = useState(new Date());
 
-  // Fetch available cycles with dates - Use current date approach since /all endpoint times out
+  // Fetch available cycles with dates - Check last 30 days for cycles
   const fetchAvailableCycles = useCallback(async () => {
     try {
-      // Generate last 7 days of dates to check for cycles
+      console.log('📅 Fetching available cycles for past 30 days...');
+      
+      // Generate last 30 days of dates to check for cycles
       const dates = [];
-      for (let i = 0; i < 7; i++) {
+      for (let i = 0; i < 30; i++) {
         const date = new Date();
         date.setDate(date.getDate() - i);
         dates.push(date.toISOString().split('T')[0]);
       }
       
       const cyclesFound: CycleWithDate[] = [];
+      const cycleIds = new Set<number>(); // Track unique cycle IDs
+      
+      console.log(`📅 Checking ${dates.length} dates for available cycles...`);
       
       // Check each date for available cycles
       for (const date of dates) {
@@ -72,39 +77,50 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
           if (response.ok) {
             const data = await response.json();
             if (data.success && data.data?.cycleId) {
-              cyclesFound.push({
-                cycleId: Number(data.data.cycleId),
-                startTime: data.data.cycleStartTime,
-                endTime: data.data.cycleEndTime || new Date().toISOString()
-              });
+              const cycId = Number(data.data.cycleId);
+              // Only add if not already tracked (prevents duplicates)
+              if (!cycleIds.has(cycId)) {
+                cycleIds.add(cycId);
+                cyclesFound.push({
+                  cycleId: cycId,
+                  startTime: data.data.cycleStartTime,
+                  endTime: data.data.cycleEndTime || new Date().toISOString()
+                });
+                console.log(`✅ Found cycle ${cycId} for date ${date}`);
+              }
             }
           }
-        } catch (error) {
-          console.warn(`Error fetching cycle for date ${date}:`, error);
+        } catch {
+          // Silently skip errors for individual dates
+          console.debug(`Debug: No cycle data for ${date}`);
         }
       }
       
       if (cyclesFound.length > 0) {
-        // Remove duplicates and sort by cycleId descending
-        const uniqueCycles = cyclesFound.filter((cycle, index, self) => 
-          index === self.findIndex(c => c.cycleId === cycle.cycleId)
-        ).sort((a: CycleWithDate, b: CycleWithDate) => b.cycleId - a.cycleId);
+        console.log(`📅 Found ${cyclesFound.length} unique cycles`);
+        // Sort by cycleId descending (newest first)
+        const sortedCycles = cyclesFound.sort((a: CycleWithDate, b: CycleWithDate) => b.cycleId - a.cycleId);
         
-        setAvailableCycles(uniqueCycles);
-        if (!selectedCycle && uniqueCycles.length > 0) {
+        setAvailableCycles(sortedCycles);
+        if (!selectedCycle) {
           // Prioritize the cycleId prop (current contract cycle) if available
-          if (cycleId && uniqueCycles.some(c => c.cycleId === cycleId)) {
+          if (cycleId && sortedCycles.some(c => c.cycleId === cycleId)) {
+            console.log(`✅ Setting selected cycle to prop cycleId: ${cycleId}`);
             setSelectedCycle(cycleId);
           } else {
             // Fallback to the latest cycle
-            setSelectedCycle(uniqueCycles[0].cycleId);
+            console.log(`✅ Setting selected cycle to latest: ${sortedCycles[0].cycleId}`);
+            setSelectedCycle(sortedCycles[0].cycleId);
           }
         }
+      } else {
+        console.warn('⚠️ No cycles found in past 30 days');
       }
     } catch (error) {
       console.error('Error fetching available cycles:', error);
+      setError('Failed to load available cycles');
     }
-  }, [selectedCycle, cycleId]);
+  }, [cycleId, selectedCycle]);
 
   const fetchResults = useCallback(async () => {
     try {

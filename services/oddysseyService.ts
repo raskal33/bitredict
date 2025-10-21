@@ -864,6 +864,40 @@ class OddysseyService {
    */
   async getGlobalStatsFromContract(): Promise<{ success: boolean; data: any }> {
     try {
+      // For GLOBAL stats (aggregate across ALL cycles), use backend API
+      // Backend provides: avgPrizePool, totalCycles, avgAccuracy, etc.
+      const response = await fetch(`/api/oddyssey/stats?type=global&t=${Date.now()}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
+      
+      if (!response.ok) {
+        console.warn('⚠️ Backend API call failed, falling back to contract');
+        return this.getGlobalStatsFromContractFallback();
+      }
+      
+      const result = await response.json();
+      console.log('📊 Global stats from backend API:', result.data);
+      
+      return {
+        success: result.success,
+        data: result.data
+      };
+    } catch (error) {
+      console.error('Error getting global stats from backend:', error);
+      return this.getGlobalStatsFromContractFallback();
+    }
+  }
+
+  /**
+   * Fallback to contract data if backend is unavailable
+   * Returns current cycle stats only (not aggregate)
+   */
+  private async getGlobalStatsFromContractFallback(): Promise<{ success: boolean; data: any }> {
+    try {
       // Get current cycle first
       const currentCycleIdResult = (await this.publicClient.readContract({
         address: CONTRACTS.ODDYSSEY.address,
@@ -894,13 +928,13 @@ class OddysseyService {
         };
       }
 
-      // Get status and stats for CURRENT cycle (not cycle 1)
+      // Get current cycle status and daily stats
       const [cycleStatus, dailyStatsData] = await Promise.all([
         this.publicClient.readContract({
           address: CONTRACTS.ODDYSSEY.address,
           abi: CONTRACTS.ODDYSSEY.abi,
           functionName: 'getCycleStatus',
-          args: [BigInt(currentCycleNum)], // Use current cycle, not cycle 1
+          args: [BigInt(currentCycleNum)],
         }),
         this.publicClient.readContract({
           address: CONTRACTS.ODDYSSEY.address,
@@ -913,23 +947,16 @@ class OddysseyService {
       const [exists, state, endTime, prizePool, cycleSlipCount, hasWinner] = cycleStatus as any;
       const dailyStats = dailyStatsData as any;
       
-      console.log('📊 Global stats from contract:', {
+      console.log('📊 Global stats from contract (fallback):', {
         currentCycleId: currentCycleNum,
         slipCount: cycleSlipCount,
         winnersCount: dailyStats?.winnersCount || 0,
-        volume: dailyStats?.volume || 0,
-        userCount: dailyStats?.userCount || 0,
-        averageScore: dailyStats?.averageScore || 0
+        volume: dailyStats?.volume || 0
       });
 
-      // Calculate win rate properly
       const slipCount = Number(dailyStats?.slipCount || 0);
       const winnersCount = Number(dailyStats?.winnersCount || 0);
-      const winRate = slipCount > 0 ? (winnersCount / slipCount) * 100 : 0;
-
-      // Calculate evaluation progress
       const evaluatedSlips = Number(dailyStats?.evaluatedSlips || 0);
-      const evaluationProgress = slipCount > 0 ? (evaluatedSlips / slipCount) * 100 : 0;
 
       return {
         success: true,
@@ -940,17 +967,17 @@ class OddysseyService {
           totalCycles: currentCycleNum,
           activeCycles: state === 1 ? 1 : 0,
           avgCorrect: dailyStats?.averageScore ? Number(dailyStats.averageScore) / 1000 : 0,
-          winRate: winRate,
+          winRate: slipCount > 0 ? (winnersCount / slipCount) * 100 : 0,
           totalVolume: Number(dailyStats?.volume || 0) / 1e18,
           highestOdd: dailyStats?.maxScore ? Number(dailyStats.maxScore) : 0,
           totalWinners: winnersCount,
           correctPredictions: Number(dailyStats?.correctPredictions || 0),
           evaluatedSlips: evaluatedSlips,
-          evaluationProgress: evaluationProgress
+          evaluationProgress: slipCount > 0 ? (evaluatedSlips / slipCount) * 100 : 0
         }
       };
     } catch (error) {
-      console.error('Error getting global stats from contract:', error);
+      console.error('Error getting global stats from contract fallback:', error);
       return {
         success: false,
         data: null
