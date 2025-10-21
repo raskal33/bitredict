@@ -1028,6 +1028,40 @@ class OddysseyService {
   // These use backend API and should ONLY be used for analytics tab
   
   /**
+   * Get cycle-specific stats from backend API (CURRENT CYCLE HEADER DISPLAY)
+   * Returns participants and stats for the current cycle only
+   */
+  async getCycleStatsForCurrentCycle(): Promise<{ success: boolean; data: any }> {
+    try {
+      console.log('📊 Fetching current cycle stats from backend...');
+      
+      const response = await fetch(`/api/oddyssey/stats?type=cycle&t=${Date.now()}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
+      
+      if (!response.ok) {
+        console.warn('⚠️ Failed to fetch cycle stats, will use global data');
+        return { success: false, data: null };
+      }
+      
+      const result = await response.json();
+      console.log('📊 Cycle stats from backend:', result.data);
+      
+      return {
+        success: result.success,
+        data: result.data
+      };
+    } catch (error) {
+      console.error('Error getting cycle stats from backend:', error);
+      return { success: false, data: null };
+    }
+  }
+
+  /**
    * Get analytics data from backend API (ANALYTICS TAB ONLY)
    * DO NOT use this for page stats or statistics tab
    */

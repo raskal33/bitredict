@@ -368,11 +368,13 @@ class OddysseyWebSocketService {
   /**
    * Enrich slip data with REST API details
    */
-  public async enrichSlipData(slipId: number, userAddress: string): Promise<EnrichedPrediction[] | null> {
+  public async enrichSlipData(slipId: number, userAddress: string, options?: { skipCache?: boolean }): Promise<EnrichedPrediction[] | null> {
     try {
-      console.log(`🔍 Enriching slip ${slipId} with REST API data...`);
+      console.log(`🔍 Enriching slip ${slipId} with REST API data ${options?.skipCache ? '(bypassing cache)' : ''}...`);
       
-      const response = await fetch(`/api/slips/user/${userAddress}?limit=50&offset=0`, {
+      // Use Oddyssey-specific endpoint which has predictions enrichment
+      const cacheParam = options?.skipCache ? `&t=${Date.now()}` : '';
+      const response = await fetch(`/api/oddyssey/user-slips/${userAddress}?limit=50&offset=0${cacheParam}`, {
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Pragma': 'no-cache',
@@ -389,7 +391,7 @@ class OddysseyWebSocketService {
       const slips = data.data || [];
       
       // Find the specific slip
-      const targetSlip = slips.find((slip: any) => slip.slip_id === slipId);
+      const targetSlip = slips.find((slip: any) => slip.slip_id === slipId || slip.id === slipId);
       
       if (!targetSlip) {
         console.warn(`Slip ${slipId} not found in REST API response`);

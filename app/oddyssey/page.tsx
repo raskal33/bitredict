@@ -385,11 +385,14 @@ export default function OddysseyPage() {
       
       console.log('📡 Slip added to list (raw data)');
 
-      // Phase 2: Enrich with REST API data (after 5 seconds)
-      setTimeout(async () => {
+      // Phase 2: Enrich with REST API data IMMEDIATELY (no delay)
+      // Using async IIFE to avoid blocking
+      (async () => {
         try {
-          console.log(`🔍 Enriching slip ${event.slipId} with REST API data...`);
-          const enrichedData = await oddysseyWebSocketService.enrichSlipData(event.slipId, address);
+          console.log(`🔍 Enriching slip ${event.slipId} with REST API data immediately...`);
+          const enrichedData = await oddysseyWebSocketService.enrichSlipData(event.slipId, address, {
+            skipCache: true  // Bypass backend cache for immediate display
+          });
           
           if (enrichedData && enrichedData.length > 0) {
             // Update slip with enriched data
@@ -413,10 +416,10 @@ export default function OddysseyPage() {
               )
             );
             
-            console.log(`✅ Slip ${event.slipId} enriched with team names and details`);
+            console.log(`✅ Slip ${event.slipId} enriched immediately with team names and details`);
             
             // Show enrichment notification
-            toast.success(`📊 Slip #${event.slipId} enriched with match details!`, {
+            toast.success(`📊 Slip #${event.slipId} details loaded!`, {
               position: 'top-right',
               duration: 3000,
               style: {
@@ -431,7 +434,7 @@ export default function OddysseyPage() {
         } catch (error) {
           console.error(`❌ Error enriching slip ${event.slipId}:`, error);
         }
-      }, 5000); // Wait 5 seconds before enrichment
+      })();  // Execute immediately, not after 5 seconds
     });
 
     // Subscribe to slip evaluated events
@@ -635,6 +638,7 @@ export default function OddysseyPage() {
   const [activeTab, setActiveTab] = useState<"today" | "slips" | "stats" | "results" | "leaderboard" | "analytics" | "claim">("today");
   const [matches, setMatches] = useState<Match[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
+  const [cycleStats, setCycleStats] = useState<{ participants: number; totalSlips: number; prizePool: string } | null>(null); // Cycle-specific stats for header
   const [currentPrizePool, setCurrentPrizePool] = useState<CurrentPrizePool | null>(null);
   const [cycleInfo, setCycleInfo] = useState<CycleInfo | null>(null); // Enhanced cycle info
   const [userStats, setUserStats] = useState<UserStats | null>(null); // User stats from contract
@@ -823,9 +827,11 @@ export default function OddysseyPage() {
       console.log('🎯 Fetching Oddyssey stats from contract...');
       
       // Use DIRECT CONTRACT CALLS for page stats and statistics tab
-      const [globalStatsResult, userStatsResult] = await Promise.all([
+      // Also fetch cycle-specific stats for header display
+      const [globalStatsResult, userStatsResult, cycleStatsResult] = await Promise.all([
         oddysseyService.getGlobalStatsFromContract(),
-        address ? oddysseyService.getUserStatsFromContract(address) : null
+        address ? oddysseyService.getUserStatsFromContract(address) : null,
+        oddysseyService.getCycleStatsForCurrentCycle() // Fetch cycle-specific stats for header
       ]);
 
       if (globalStatsResult.success && globalStatsResult.data) {
@@ -873,6 +879,19 @@ export default function OddysseyPage() {
         // User stats integrated into main stats display
       } else {
         console.warn('⚠️ No user stats received from contract');
+      }
+
+      // Set cycle-specific stats for header display
+      if (cycleStatsResult?.success && cycleStatsResult.data) {
+        console.log('✅ Cycle stats from backend:', cycleStatsResult.data);
+        setCycleStats({
+          participants: cycleStatsResult.data.participants || 0,
+          totalSlips: cycleStatsResult.data.totalSlips || 0,
+          prizePool: formatEther(cycleStatsResult.data.prizePool)
+        });
+      } else {
+        console.warn('⚠️ No cycle stats received, using global stats as fallback');
+        setCycleStats(null);
       }
     } catch (error) {
       console.error('❌ Error fetching stats from contract:', error);
@@ -1649,7 +1668,7 @@ export default function OddysseyPage() {
               className="glass-card text-center p-4"
             >
               <UsersIcon className="h-12 w-12 mx-auto mb-4 text-secondary" />
-              <h3 className="text-2xl font-bold text-white mb-1">{stats.totalPlayers.toLocaleString()}</h3>
+              <h3 className="text-2xl font-bold text-white mb-1">{(cycleStats?.participants || stats?.totalPlayers || 0).toLocaleString()}</h3>
               <p className="text-lg font-semibold text-text-secondary mb-1">Total Players</p>
               <p className="text-sm text-text-muted">Current cycle</p>
         </motion.div>
