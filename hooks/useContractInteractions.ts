@@ -189,15 +189,37 @@ export function usePoolCore() {
         });
       }
 
+      // Helper function to safely encode strings as bytes32
+      const safeEncodeBytes32 = (str: string, fieldName: string): string => {
+        if (!str) return ethers.encodeBytes32String('');
+        
+        // Ensure string is exactly 31 characters or less
+        const truncated = str.slice(0, 31);
+        console.log(`🔍 Encoding ${fieldName}: "${truncated}" (${truncated.length} chars)`);
+        
+        try {
+          return ethers.encodeBytes32String(truncated);
+        } catch (error) {
+          console.error(`❌ Failed to encode ${fieldName}:`, error);
+          // Fallback to empty string
+          return ethers.encodeBytes32String('');
+        }
+      };
+      
       // Encode strings as bytes32 (not hashed) for the updated contract
-      // Ensure all strings are 32 bytes or less for bytes32 encoding
-      const leagueBytes32 = ethers.encodeBytes32String(poolData.league.slice(0, 31));
-      const categoryBytes32 = ethers.encodeBytes32String(poolData.category.slice(0, 31));
-      const homeTeamBytes32 = ethers.encodeBytes32String(teamNames.homeTeam.slice(0, 31));
-      const awayTeamBytes32 = ethers.encodeBytes32String(teamNames.awayTeam.slice(0, 31));
-      // Ensure title is 32 bytes or less for bytes32 encoding
-      const truncatedTitle = (poolData.title || '').slice(0, 31); // Leave 1 byte for null terminator
-      const titleBytes32 = ethers.encodeBytes32String(truncatedTitle);
+      console.log('🔍 String length validation before encoding:', {
+        league: poolData.league.length,
+        category: poolData.category.length,
+        homeTeam: teamNames.homeTeam.length,
+        awayTeam: teamNames.awayTeam.length,
+        title: (poolData.title || '').length
+      });
+      
+      const leagueBytes32 = safeEncodeBytes32(poolData.league, 'league');
+      const categoryBytes32 = safeEncodeBytes32(poolData.category, 'category');
+      const homeTeamBytes32 = safeEncodeBytes32(teamNames.homeTeam, 'homeTeam');
+      const awayTeamBytes32 = safeEncodeBytes32(teamNames.awayTeam, 'awayTeam');
+      const titleBytes32 = safeEncodeBytes32(poolData.title || '', 'title');
       
       console.log('🔍 Encoded data for contract:', {
         predictedOutcomeBytes32,

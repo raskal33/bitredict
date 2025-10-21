@@ -27,10 +27,20 @@ export function formatTeamNameForBytes32(teamName: string): string {
     formatted = smartShortenTeamName(formatted);
   }
 
-  // Step 4: Final validation - ensure it fits
+  // Step 4: Final validation - ensure it fits (be more aggressive)
   if (formatted.length > 31) {
-    formatted = formatted.substring(0, 31);
+    console.warn(`⚠️ Team name still too long after shortening: "${formatted}" (${formatted.length} chars)`);
+    // Try ultra-shortening as last resort
+    formatted = ultraShortenTeamName(formatted);
+    
+    // Final fallback - hard truncate
+    if (formatted.length > 31) {
+      formatted = formatted.substring(0, 31);
+    }
   }
+  
+  // Step 5: Additional safety check - ensure no special characters remain
+  formatted = formatted.replace(/[^\x00-\x7F]/g, ''); // Remove any non-ASCII characters
 
   return formatted;
 }
@@ -130,6 +140,22 @@ function smartShortenTeamName(teamName: string): string {
   
   // Multiple words - use abbreviation strategy
   return abbreviateMultiWord(words);
+}
+
+/**
+ * Ultra-aggressive shortening for very long names
+ */
+function ultraShortenTeamName(teamName: string): string {
+  const words = teamName.split(' ');
+  
+  if (words.length === 1) {
+    // Single word - keep first 8 chars
+    return words[0].substring(0, 8);
+  }
+  
+  // Multiple words - use first letters only
+  const firstLetters = words.map(word => word[0]).join('');
+  return firstLetters.substring(0, 8);
 }
 
 /**
