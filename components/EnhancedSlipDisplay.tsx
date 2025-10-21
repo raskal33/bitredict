@@ -371,58 +371,65 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
 
   return (
     <div className="space-y-4">
-      {/* Filter Tabs */}
-      <div className="space-y-4 mb-4 md:mb-6">
-        {/* Status Filter */}
-        <div className="flex flex-wrap gap-2">
-          <div className="flex items-center gap-2 text-sm text-gray-400 mb-2 w-full">
-            <FunnelIcon className="h-4 w-4" />
-            <span>Status Filter:</span>
+      {/* Mobile-optimized Filter Tabs */}
+      <div className="space-y-3 mb-4 md:mb-6">
+        {/* Status Filter - Mobile-first design */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-400">
+            <FunnelIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span>Status:</span>
           </div>
-          {[
-            { key: 'all', label: 'All Slips', count: slips.length },
-            { key: 'realtime', label: 'Realtime', count: slips.filter(s => getSlipStatus(s) === 'pending').length },
-            { key: 'won', label: 'Won', count: slips.filter(s => getSlipStatus(s) === 'won').length },
-            { key: 'lost', label: 'Lost', count: slips.filter(s => getSlipStatus(s) === 'lost').length },
-          ].map(({ key, label, count }) => (
-            <button
-              key={key}
-              onClick={() => setFilter(key as 'all' | 'realtime' | 'won' | 'lost')}
-              className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition-all ${
-                filter === key
-                  ? 'bg-primary text-black'
-                  : 'bg-gray-800/50 text-gray-300 hover:bg-gray-700/50'
-              }`}
-            >
-              {label} ({count})
-            </button>
-          ))}
+          <div className="flex flex-wrap gap-1.5 sm:gap-2">
+            {[
+              { key: 'all', label: 'All', shortLabel: 'All', count: slips.length },
+              { key: 'realtime', label: 'Realtime', shortLabel: 'Live', count: slips.filter(s => getSlipStatus(s) === 'pending').length },
+              { key: 'won', label: 'Won', shortLabel: 'Won', count: slips.filter(s => getSlipStatus(s) === 'won').length },
+              { key: 'lost', label: 'Lost', shortLabel: 'Lost', count: slips.filter(s => getSlipStatus(s) === 'lost').length },
+            ].map(({ key, label, shortLabel, count }) => (
+              <button
+                key={key}
+                onClick={() => setFilter(key as 'all' | 'realtime' | 'won' | 'lost')}
+                className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all flex-shrink-0 ${
+                  filter === key
+                    ? 'bg-primary text-black'
+                    : 'bg-gray-800/50 text-gray-300 hover:bg-gray-700/50'
+                }`}
+              >
+                <span className="hidden sm:inline">{label}</span>
+                <span className="sm:hidden">{shortLabel}</span>
+                <span className="ml-1">({count})</span>
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* Date Filter */}
-        <div className="flex flex-wrap gap-2">
-          <div className="flex items-center gap-2 text-sm text-gray-400 mb-2 w-full">
-            <CalendarIcon className="h-4 w-4" />
-            <span>Date Filter:</span>
+        {/* Date Filter - Mobile-optimized */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-400">
+            <CalendarIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span>Date:</span>
           </div>
-          {[
-            { key: 'all', label: 'All Time' },
-            { key: 'today', label: 'Today' },
-            { key: 'week', label: 'This Week' },
-            { key: 'month', label: 'This Month' },
-          ].map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setDateFilter(key as 'all' | 'today' | 'week' | 'month')}
-              className={`px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium transition-all ${
-                dateFilter === key
-                  ? 'bg-secondary text-black'
-                  : 'bg-gray-800/50 text-gray-300 hover:bg-gray-700/50'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+          <div className="flex flex-wrap gap-1.5 sm:gap-2">
+            {[
+              { key: 'all', label: 'All Time', shortLabel: 'All' },
+              { key: 'today', label: 'Today', shortLabel: 'Today' },
+              { key: 'week', label: 'This Week', shortLabel: 'Week' },
+              { key: 'month', label: 'This Month', shortLabel: 'Month' },
+            ].map(({ key, label, shortLabel }) => (
+              <button
+                key={key}
+                onClick={() => setDateFilter(key as 'all' | 'today' | 'week' | 'month')}
+                className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all flex-shrink-0 ${
+                  dateFilter === key
+                    ? 'bg-secondary text-black'
+                    : 'bg-gray-800/50 text-gray-300 hover:bg-gray-700/50'
+                }`}
+              >
+                <span className="hidden sm:inline">{label}</span>
+                <span className="sm:hidden">{shortLabel}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -445,21 +452,22 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
               animate={{ opacity: 1, y: 0 }}
               className="glass-card border border-gray-600/30 overflow-hidden"
             >
-              {/* Slip Header */}
+              {/* Mobile-optimized Slip Header */}
               <div 
-                className="p-4 md:p-5 cursor-pointer hover:bg-gray-800/30 transition-all duration-200 border-b border-gray-700/30"
+                className="p-3 sm:p-4 md:p-5 cursor-pointer hover:bg-gray-800/30 transition-all duration-200 border-b border-gray-700/30"
                 onClick={() => toggleSlipExpansion(slip.id)}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
-                    <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center flex-shrink-0">
-                      <TrophyIcon className="w-4 h-4 md:w-5 md:h-5 text-cyan-400" />
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  {/* Left section - Slip info */}
+                  <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center flex-shrink-0">
+                      <TrophyIcon className="w-4 h-4 sm:w-5 sm:h-5 text-cyan-400" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm md:text-base font-semibold text-white truncate">
+                      <div className="text-sm sm:text-base font-semibold text-white truncate">
                         Slip #{slip.id}
                       </div>
-                      <div className="flex items-center gap-2 md:gap-3 text-xs text-gray-400 flex-wrap">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 text-xs text-gray-400">
                         <span>Cycle {slip.cycleId}</span>
                         <span className="hidden sm:inline">•</span>
                         <span className="truncate">
@@ -471,32 +479,36 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
                         <span className="hidden sm:inline">•</span>
                         <span>{slip.predictions.length} predictions</span>
                         {slip.predictions.some(p => p.isCorrect !== undefined) && !slip.isEvaluated && (
-                          <span className="px-2 py-1 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-full text-xs flex-shrink-0">
-                            Live Results
+                          <span className="px-1.5 py-0.5 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-full text-xs flex-shrink-0">
+                            Live
                           </span>
                         )}
                       </div>
                     </div>
                   </div>
                   
-                  <div className="flex items-center gap-2 md:gap-4 flex-shrink-0">
-                    <div className="text-right">
-                      <div className="text-xs md:text-sm font-semibold text-white">
-                        {slip.correctCount}/{slip.predictions.length} correct
+                  {/* Right section - Status and controls */}
+                  <div className="flex items-center justify-between sm:justify-end gap-2 sm:gap-3">
+                    {/* Mobile: Stack score and status vertically */}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+                      <div className="text-right">
+                        <div className="text-xs sm:text-sm font-semibold text-white">
+                          {slip.correctCount}/{slip.predictions.length} correct
+                        </div>
+                        <div className="text-xs text-gray-400">
+                          Score: {slip.finalScore}
+                        </div>
                       </div>
-                      <div className="text-xs text-gray-400">
-                        Score: {slip.finalScore} points
+                      
+                      <div className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-bold ${getSlipStatusInfo(slip).color}`}>
+                        {getSlipStatusInfo(slip).text}
                       </div>
-                    </div>
-                    
-                    <div className={`px-2 md:px-4 py-1 md:py-2 rounded-full text-xs font-bold ${getSlipStatusInfo(slip).color}`}>
-                      {getSlipStatusInfo(slip).text}
                     </div>
                     
                     {isExpanded ? (
-                      <ChevronUpIcon className="w-4 h-4 md:w-5 md:h-5 text-gray-400 transition-transform duration-200 flex-shrink-0" />
+                      <ChevronUpIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 transition-transform duration-200 flex-shrink-0" />
                     ) : (
-                      <ChevronDownIcon className="w-4 h-4 md:w-5 md:h-5 text-gray-400 transition-transform duration-200 flex-shrink-0" />
+                      <ChevronDownIcon className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 transition-transform duration-200 flex-shrink-0" />
                     )}
                   </div>
                 </div>
@@ -530,11 +542,11 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
                               </div>
                             </div>
                             
-                            {/* Conditional Layout: 3-column for Realtime/Won/Lost, 2-column for All */}
+                            {/* Mobile-responsive Layout: Stack on mobile, grid on larger screens */}
                             <div className={`grid gap-3 items-start ${
                               filter === 'all' 
-                                ? 'grid-cols-2' 
-                                : 'grid-cols-3'
+                                ? 'grid-cols-1 sm:grid-cols-2' 
+                                : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
                             }`}>
                               {/* Your Prediction Column */}
                               <div className="space-y-2">
@@ -725,27 +737,27 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
                         ))}
                       </div>
 
-                      {/* Slip Summary */}
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-4 pt-4 border-t border-gray-600/30">
-                        <div className="text-center p-2 md:p-3 bg-gray-800/30 rounded-lg">
+                      {/* Mobile-responsive Slip Summary */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pt-4 border-t border-gray-600/30">
+                        <div className="text-center p-3 bg-gray-800/30 rounded-lg">
                           <div className="text-xs text-gray-400 mb-1">Total Odds</div>
-                          <div className="text-sm md:text-lg font-bold text-white">
+                          <div className="text-sm sm:text-base font-bold text-white">
                             {slip.predictions.every(p => p.selectedOdd && p.selectedOdd > 0)
                               ? (slip.predictions.reduce((acc, p) => acc * (p.selectedOdd || 1), 1)).toFixed(2) + 'x'
                               : '—'
                             }
                           </div>
                         </div>
-                        <div className="text-center p-2 md:p-3 bg-gray-800/30 rounded-lg">
+                        <div className="text-center p-3 bg-gray-800/30 rounded-lg">
                           <div className="text-xs text-gray-400 mb-1">Winning Probability</div>
-                          <div className="text-sm md:text-lg font-bold text-cyan-400">
+                          <div className="text-sm sm:text-base font-bold text-cyan-400">
                             {/* TODO: Fetch from backend - using default for now */}
                             {slip.correctCount >= 7 ? '85%' : slip.correctCount >= 5 ? '45%' : '15%'}
                           </div>
                         </div>
-                        <div className="text-center p-2 md:p-3 bg-gray-800/30 rounded-lg col-span-2 md:col-span-1">
+                        <div className="text-center p-3 bg-gray-800/30 rounded-lg sm:col-span-2 lg:col-span-1">
                           <div className="text-xs text-gray-400 mb-1">Status</div>
-                          <div className={`text-sm md:text-lg font-bold ${
+                          <div className={`text-sm sm:text-base font-bold ${
                             status === 'won' ? 'text-green-400' : 
                             status === 'lost' ? 'text-red-400' : 
                             'text-yellow-400'

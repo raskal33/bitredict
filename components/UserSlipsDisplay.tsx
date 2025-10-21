@@ -646,29 +646,29 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
             </div>
           </div>
           
-          {/* Mobile-first responsive stats grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-            <div className="bg-gray-700/50 rounded-lg p-3">
-              <div className="text-xs sm:text-sm text-gray-400">Best Score</div>
-              <div className="text-base sm:text-lg font-bold text-yellow-400">
+          {/* Mobile-optimized responsive stats grid */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 mb-4">
+            <div className="bg-gray-700/50 rounded-lg p-2 sm:p-3">
+              <div className="text-xs text-gray-400 mb-1">Best Score</div>
+              <div className="text-sm sm:text-base font-bold text-yellow-400">
                 {userData.userStats.bestScore.toFixed(2)}x
               </div>
             </div>
-            <div className="bg-gray-700/50 rounded-lg p-3">
-              <div className="text-xs sm:text-sm text-gray-400">Current Streak</div>
-              <div className="text-base sm:text-lg font-bold text-green-400">
+            <div className="bg-gray-700/50 rounded-lg p-2 sm:p-3">
+              <div className="text-xs text-gray-400 mb-1">Current Streak</div>
+              <div className="text-sm sm:text-base font-bold text-green-400">
                 {userData.userStats.currentStreak}
               </div>
             </div>
-            <div className="bg-gray-700/50 rounded-lg p-3">
-              <div className="text-xs sm:text-sm text-gray-400">Reputation</div>
-              <div className="text-base sm:text-lg font-bold text-purple-400">
+            <div className="bg-gray-700/50 rounded-lg p-2 sm:p-3">
+              <div className="text-xs text-gray-400 mb-1">Reputation</div>
+              <div className="text-sm sm:text-base font-bold text-purple-400">
                 {userData.reputation}
               </div>
             </div>
-            <div className="bg-gray-700/50 rounded-lg p-3">
-              <div className="text-xs sm:text-sm text-gray-400">Correct Predictions</div>
-              <div className="text-base sm:text-lg font-bold text-blue-400">
+            <div className="bg-gray-700/50 rounded-lg p-2 sm:p-3">
+              <div className="text-xs text-gray-400 mb-1">Correct Predictions</div>
+              <div className="text-sm sm:text-base font-bold text-blue-400">
                 {userData.correctPredictions}
               </div>
             </div>
@@ -898,12 +898,12 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
                         </div>
                       </div>
                       
-                      {/* Prediction Details Grid */}
-                      <div className="grid grid-cols-3 gap-3">
+                      {/* Mobile-responsive Prediction Details Grid */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                         {/* User Prediction Column */}
-                        <div className="space-y-1">
+                        <div className="space-y-2">
                           <div className="text-xs text-gray-400 font-medium">Your Prediction</div>
-                          <div className="flex flex-col gap-1">
+                          <div className="space-y-2">
                             <div className="text-xs text-gray-500">
                               {getBetTypeLabel(prediction.betType)}
                             </div>
@@ -917,10 +917,10 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
                         </div>
 
                         {/* Current Result Column */}
-                        <div className="space-y-1">
+                        <div className="space-y-2">
                           <div className="text-xs text-gray-400 font-medium">Match Result</div>
                           {prediction.actualResult ? (
-                            <div className="flex flex-col gap-1">
+                            <div className="space-y-2">
                               <div className="font-medium px-2 py-1 rounded border text-xs bg-purple-500/20 text-purple-400 border-purple-500/30">
                                 {prediction.actualResult || 'Unknown'}
                               </div>
@@ -934,9 +934,9 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
                         </div>
 
                         {/* Evaluation Column */}
-                        <div className="space-y-1">
+                        <div className="space-y-2 sm:col-span-2 lg:col-span-1">
                           <div className="text-xs text-gray-400 font-medium">Evaluation</div>
-                          <div className="flex items-center gap-1">
+                          <div className="flex items-center gap-2">
                             {prediction.isCorrect === true && (
                               <>
                                 <div className="flex items-center justify-center w-6 h-6 rounded-full bg-green-500/20 border border-green-500/30">

@@ -837,7 +837,7 @@ export default function BetPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <UserIcon className="w-4 h-4 text-cyan-400" />
-                  <span className="text-sm text-gray-400">{pool.socialStats.views}</span>
+                  <span className="text-sm text-gray-400">{pool.participants || 0}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <PaperAirplaneIcon className="w-4 h-4 text-green-400" />

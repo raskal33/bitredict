@@ -103,6 +103,13 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
         
         const data = await response.json();
         console.log('✅ Match data fetched:', data);
+        console.log('🔍 Score data:', {
+          current: data.data?.score?.current,
+          home: data.data?.score?.home,
+          away: data.data?.score?.away,
+          homeTeam: data.data?.teams?.home,
+          awayTeam: data.data?.teams?.away
+        });
         
         if (data.success && data.data && Object.keys(data.data).length > 0) {
           setMatchData(data.data);
@@ -146,13 +153,29 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
     // Subscribe to goal events
     const unsubGoals = matchCenterWebSocketService.onGoalScored(currentFixtureId, (event) => {
       console.log('⚽ Goal scored via WebSocket:', event);
+      console.log('🔍 WebSocket Goal Event Debug:', {
+        player: event.player,
+        minute: event.minute,
+        team: event.team,
+        teamType: typeof event.team,
+        isHome: event.team === 'home',
+        isAway: event.team === 'away',
+        rawEvent: event
+      });
+      
       setMatchData(prev => {
         if (!prev) return null;
+        
+        // Normalize team identifier for WebSocket events too
+        const normalizedTeam = event.team === 'home' || event.team === 'away' 
+          ? event.team 
+          : 'home'; // Fallback - should be fixed in backend
+        
         const newGoals = [...(prev.goalScorers || []), {
           id: Date.now(),
           player: event.player,
           minute: event.minute,
-          team: event.team,
+          team: normalizedTeam,
           teamId: '',
           relatedPlayer: null,
           description: `${event.player} (${event.minute}')`
@@ -232,8 +255,43 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
 
   // Format goal scorers
   const goalScorers = matchData.goalScorers || [];
-  const homeGoals = goalScorers.filter((g: GoalScorer) => g.team === 'home');
-  const awayGoals = goalScorers.filter((g: GoalScorer) => g.team === 'away');
+  
+  // Helper function to normalize team identification
+  const normalizeTeam = (team: string, player: string): 'home' | 'away' => {
+    if (team === 'home' || team === 'away') {
+      return team;
+    }
+    
+    // If team is not 'home' or 'away', try to infer from context
+    // This is a fallback for when backend sends different team identifiers
+    console.warn('⚠️ Unexpected team identifier:', { team, player, homeTeam, awayTeam });
+    
+    // For now, default to 'home' - this should be fixed in backend
+    return 'home';
+  };
+  
+  console.log('🔍 Goal Scorers Debug:', {
+    totalGoals: goalScorers.length,
+    goalScorers: goalScorers.map(g => ({
+      player: g.player,
+      minute: g.minute,
+      team: g.team,
+      rawTeam: g.team,
+      normalizedTeam: normalizeTeam(g.team, g.player)
+    })),
+    homeTeam: homeTeam,
+    awayTeam: awayTeam
+  });
+  
+  const homeGoals = goalScorers.filter((g: GoalScorer) => normalizeTeam(g.team, g.player) === 'home');
+  const awayGoals = goalScorers.filter((g: GoalScorer) => normalizeTeam(g.team, g.player) === 'away');
+  
+  console.log('🔍 Goals Filtered:', {
+    homeGoals: homeGoals.length,
+    awayGoals: awayGoals.length,
+    homeGoalsList: homeGoals.map(g => ({ player: g.player, minute: g.minute, team: g.team })),
+    awayGoalsList: awayGoals.map(g => ({ player: g.player, minute: g.minute, team: g.team }))
+  });
 
   // Status badge
   const getStatusDisplay = () => {
@@ -292,7 +350,7 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
           {/* Score */}
           <div className="flex flex-col items-center gap-1">
             <div className="text-3xl sm:text-4xl font-bold text-white">
-              {score?.current || `${score?.home || 0}-${score?.away || 0}`}
+              {score?.current || `${score?.home || 0} - ${score?.away || 0}`}
             </div>
             {matchDate && (
               <p className="text-xs text-gray-400">

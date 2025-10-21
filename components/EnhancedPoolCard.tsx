@@ -17,6 +17,7 @@ import { useAccount } from "wagmi";
 import { calculatePoolFill } from "../utils/poolCalculations";
 import { getPoolStatusDisplay, getStatusBadgeProps } from "../utils/poolStatus";
 import { getPoolIcon } from "../services/crypto-icons";
+import { titleTemplatesService } from "../services/title-templates";
 
   // Enhanced Pool interface with indexed data
 export interface EnhancedPool {
@@ -215,19 +216,17 @@ export default function EnhancedPoolCard({
         
         // Generate title based on market type and predicted outcome
         if (pool.marketType && pool.predictedOutcome && pool.homeTeam && pool.awayTeam) {
-          // Import title templates service
-          const { titleTemplatesService } = await import('../services/title-templates');
-          
-          const marketData = {
-            marketType: pool.marketType,
-            homeTeam: pool.homeTeam,
-            awayTeam: pool.awayTeam,
-            predictedOutcome: pool.predictedOutcome,
-            league: pool.league,
-            category: pool.category
-          };
-          
           try {
+            
+            const marketData = {
+              marketType: pool.marketType,
+              homeTeam: pool.homeTeam,
+              awayTeam: pool.awayTeam,
+              predictedOutcome: pool.predictedOutcome,
+              league: pool.league,
+              category: pool.category
+            };
+            
             const generatedTitle = titleTemplatesService.generateTitle(marketData, { short: false });
             console.log('🏷️ Generated title:', generatedTitle, 'for market type:', pool.marketType, 'outcome:', pool.predictedOutcome);
             return generatedTitle;

@@ -154,13 +154,13 @@ export default function CycleProgress({ cycleInfo, className = "" }: CycleProgre
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="text-center p-3 bg-gray-800/30 rounded-lg">
-          <div className="text-xl font-bold text-primary mb-1">
+      {/* Mobile-responsive Stats Grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+        <div className="text-center p-2 sm:p-3 bg-gray-800/30 rounded-lg">
+          <div className="text-lg sm:text-xl font-bold text-primary mb-1">
             {formatEther(cycleInfo.prizePool)}
           </div>
-          <div className="text-xs text-gray-400">Total Prize Pool (STT)</div>
+          <div className="text-xs text-gray-400">Prize Pool (STT)</div>
           {cycleInfo.rolloverAmount && cycleInfo.rolloverAmount > 0n && (
             <div className="text-xs text-green-400 mt-1">
               +{formatEther(cycleInfo.rolloverAmount)} rollover
@@ -168,22 +168,22 @@ export default function CycleProgress({ cycleInfo, className = "" }: CycleProgre
           )}
         </div>
         
-        <div className="text-center p-3 bg-gray-800/30 rounded-lg">
-          <div className="text-xl font-bold text-secondary mb-1">
+        <div className="text-center p-2 sm:p-3 bg-gray-800/30 rounded-lg">
+          <div className="text-lg sm:text-xl font-bold text-secondary mb-1">
             {Number(cycleInfo.slipCount)}
           </div>
           <div className="text-xs text-gray-400">Total Slips</div>
         </div>
         
-        <div className="text-center p-3 bg-gray-800/30 rounded-lg">
-          <div className="text-xl font-bold text-accent mb-1">
+        <div className="text-center p-2 sm:p-3 bg-gray-800/30 rounded-lg">
+          <div className="text-lg sm:text-xl font-bold text-accent mb-1">
             {Number(cycleInfo.evaluatedSlips)}
           </div>
           <div className="text-xs text-gray-400">Evaluated</div>
         </div>
         
-        <div className="text-center p-3 bg-gray-800/30 rounded-lg">
-          <div className="text-xl font-bold text-warning mb-1">
+        <div className="text-center p-2 sm:p-3 bg-gray-800/30 rounded-lg">
+          <div className="text-lg sm:text-xl font-bold text-warning mb-1">
             {cycleInfo.rolloverAmount && cycleInfo.rolloverAmount > 0n ? 'Yes' : 'No'}
           </div>
           <div className="text-xs text-gray-400">Rollover</div>

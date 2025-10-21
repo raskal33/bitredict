@@ -56,14 +56,14 @@ export default function MySlipsPage() {
             <p className="text-sm sm:text-base text-gray-300">Track your prediction performance and history</p>
           </div>
 
-          {/* Mobile-responsive Current Cycle Info */}
+          {/* Mobile-optimized Current Cycle Info */}
           {currentCycle && (
-            <div className="mb-6">
-              <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-xl p-4 sm:p-6 border border-blue-500/30">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
-                  <h2 className="text-lg sm:text-xl font-bold text-white">Current Cycle #{currentCycle.cycleId}</h2>
+            <div className="mb-4 sm:mb-6">
+              <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 rounded-xl p-3 sm:p-4 md:p-6 border border-blue-500/30">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 sm:mb-4 gap-2">
+                  <h2 className="text-base sm:text-lg md:text-xl font-bold text-white">Current Cycle #{currentCycle.cycleId}</h2>
                   <div className="flex items-center gap-2">
-                    <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    <div className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${
                       currentCycle.state === 1 
                         ? 'bg-green-500/20 text-green-400 border border-green-500/30'
                         : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
@@ -73,22 +73,22 @@ export default function MySlipsPage() {
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-                  <div className="bg-gray-700/30 rounded-lg p-3 sm:p-4">
-                    <div className="text-xs sm:text-sm text-gray-400">Prize Pool</div>
-                    <div className="text-base sm:text-lg font-bold text-yellow-400">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 md:gap-4">
+                  <div className="bg-gray-700/30 rounded-lg p-2 sm:p-3 md:p-4">
+                    <div className="text-xs text-gray-400 mb-1">Prize Pool</div>
+                    <div className="text-sm sm:text-base md:text-lg font-bold text-yellow-400">
                       {(currentCycle.prizePool / 1e18).toFixed(2)} STT
                     </div>
                   </div>
-                  <div className="bg-gray-700/30 rounded-lg p-3 sm:p-4">
-                    <div className="text-xs sm:text-sm text-gray-400">Total Slips</div>
-                    <div className="text-base sm:text-lg font-bold text-blue-400">
+                  <div className="bg-gray-700/30 rounded-lg p-2 sm:p-3 md:p-4">
+                    <div className="text-xs text-gray-400 mb-1">Total Slips</div>
+                    <div className="text-sm sm:text-base md:text-lg font-bold text-blue-400">
                       {currentCycle.cycleSlipCount}
                     </div>
                   </div>
-                  <div className="bg-gray-700/30 rounded-lg p-3 sm:p-4">
-                    <div className="text-xs sm:text-sm text-gray-400">End Time</div>
-                    <div className="text-sm sm:text-lg font-bold text-white">
+                  <div className="bg-gray-700/30 rounded-lg p-2 sm:p-3 md:p-4">
+                    <div className="text-xs text-gray-400 mb-1">End Time</div>
+                    <div className="text-xs sm:text-sm md:text-lg font-bold text-white">
                       <span className="hidden sm:inline">{new Date(currentCycle.endTime * 1000).toLocaleString()}</span>
                       <span className="sm:hidden">{new Date(currentCycle.endTime * 1000).toLocaleDateString()}</span>
                     </div>
@@ -104,28 +104,28 @@ export default function MySlipsPage() {
             className="mb-8"
           />
 
-          {/* Mobile-responsive Platform Stats */}
+          {/* Mobile-optimized Platform Stats */}
           {cycleStats && (
-            <div className="bg-gray-800/50 rounded-xl p-4 sm:p-6">
-              <h3 className="text-lg font-bold text-white mb-4">Platform Statistics</h3>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                <div className="bg-gray-700/30 rounded-lg p-3">
-                  <div className="text-xs sm:text-sm text-gray-400">Total Slips</div>
-                  <div className="text-base sm:text-lg font-bold text-white">{cycleStats.slipCount}</div>
+            <div className="bg-gray-800/50 rounded-xl p-3 sm:p-4 md:p-6">
+              <h3 className="text-base sm:text-lg font-bold text-white mb-3 sm:mb-4">Platform Statistics</h3>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
+                <div className="bg-gray-700/30 rounded-lg p-2 sm:p-3">
+                  <div className="text-xs text-gray-400 mb-1">Total Slips</div>
+                  <div className="text-sm sm:text-base font-bold text-white">{cycleStats.slipCount}</div>
                 </div>
-                <div className="bg-gray-700/30 rounded-lg p-3">
-                  <div className="text-xs sm:text-sm text-gray-400">Total Users</div>
-                  <div className="text-base sm:text-lg font-bold text-blue-400">{cycleStats.userCount}</div>
+                <div className="bg-gray-700/30 rounded-lg p-2 sm:p-3">
+                  <div className="text-xs text-gray-400 mb-1">Total Users</div>
+                  <div className="text-sm sm:text-base font-bold text-blue-400">{cycleStats.userCount}</div>
                 </div>
-                <div className="bg-gray-700/30 rounded-lg p-3">
-                  <div className="text-xs sm:text-sm text-gray-400">Total Volume</div>
-                  <div className="text-base sm:text-lg font-bold text-green-400">
+                <div className="bg-gray-700/30 rounded-lg p-2 sm:p-3">
+                  <div className="text-xs text-gray-400 mb-1">Total Volume</div>
+                  <div className="text-sm sm:text-base font-bold text-green-400">
                     {(cycleStats.volume / 1e18).toFixed(2)} STT
                   </div>
                 </div>
-                <div className="bg-gray-700/30 rounded-lg p-3">
-                  <div className="text-xs sm:text-sm text-gray-400">Winners</div>
-                  <div className="text-base sm:text-lg font-bold text-yellow-400">{cycleStats.winnersCount}</div>
+                <div className="bg-gray-700/30 rounded-lg p-2 sm:p-3">
+                  <div className="text-xs text-gray-400 mb-1">Winners</div>
+                  <div className="text-sm sm:text-base font-bold text-yellow-400">{cycleStats.winnersCount}</div>
                 </div>
               </div>
             </div>
