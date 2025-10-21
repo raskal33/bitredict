@@ -414,6 +414,12 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
           <div className="pt-4 border-t border-gray-700/30 space-y-3">
             <p className="text-xs font-semibold text-gray-400 uppercase">Goal Scorers</p>
             
+            {/* Header with team names for clarity */}
+            <div className="grid grid-cols-2 gap-3 mb-2">
+              <div className="text-xs font-semibold text-gray-400">{homeTeam} Goals</div>
+              <div className="text-xs font-semibold text-gray-400 text-right">{awayTeam} Goals</div>
+            </div>
+            
             {/* Home vs Away side-by-side layout */}
             <div className="grid grid-cols-2 gap-3">
               {/* Home Team Goals (Left) */}
@@ -424,7 +430,7 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
                       key={`home-${idx}`}
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
-                      className="flex flex-col gap-1 px-2 py-1.5 rounded bg-green-500/10 border border-green-500/20"
+                      className="flex flex-col gap-1 px-2 py-1.5 rounded bg-green-500/10 border border-green-500/20 text-left"
                     >
                       <div className="flex items-center gap-2">
                         <span className="text-green-400 text-sm">⚽</span>
@@ -434,7 +440,7 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
                     </motion.div>
                   ))
                 ) : (
-                  <div className="text-xs text-gray-500 italic">No goals</div>
+                  <div className="text-xs text-gray-500 italic text-left">No goals</div>
                 )}
               </div>
 
@@ -456,7 +462,7 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
                     </motion.div>
                   ))
                 ) : (
-                  <div className="text-xs text-gray-500 italic">No goals</div>
+                  <div className="text-xs text-gray-500 italic text-right">No goals</div>
                 )}
               </div>
             </div>
