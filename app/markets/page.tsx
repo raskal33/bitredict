@@ -40,8 +40,8 @@ export default function MarketsPage() {
   const [sortBy, setSortBy] = useState<SortBy>("newest");
   const [searchTerm, setSearchTerm] = useState("");
   const [showFilters, setShowFilters] = useState(false);
-  const [enhancedPools, setEnhancedPools] = useState<Array<OptimizedPool & { settled?: boolean; creatorSideWon?: boolean }>>([]);
-  const [filteredPools, setFilteredPools] = useState<Array<OptimizedPool & { settled?: boolean; creatorSideWon?: boolean }>>([]);
+  const [enhancedPools, setEnhancedPools] = useState<Array<OptimizedPool & { isSettled?: boolean; creatorSideWon?: boolean }>>([]);
+  const [filteredPools, setFilteredPools] = useState<Array<OptimizedPool & { isSettled?: boolean; creatorSideWon?: boolean }>>([]);
   const [stats, setStats] = useState({
     totalVolume: "0",
     bitrVolume: "0",
@@ -55,12 +55,12 @@ export default function MarketsPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   // Convert OptimizedPool to EnhancedPool
-  const convertToEnhancedPool = (pool: OptimizedPool & { settled?: boolean; creatorSideWon?: boolean }): EnhancedPool => {
+  const convertToEnhancedPool = (pool: OptimizedPool & { isSettled?: boolean; creatorSideWon?: boolean }): EnhancedPool => {
     return {
       id: pool.id,
       creator: pool.creator.address,
       odds: pool.odds,
-      settled: pool.settled || false,
+      settled: pool.isSettled || false,
       creatorSideWon: pool.creatorSideWon || false,
       isPrivate: false, // Not supported in OptimizedPool
       usesBitr: pool.currency === 'BITR',
@@ -279,11 +279,11 @@ export default function MarketsPage() {
       filtered = filtered.filter(pool => {
         switch (activeCategory) {
           case "active":
-            return pool.status === 'active' && !pool.settled;
+            return pool.status === 'active' && !pool.isSettled;
           case "closed":
-            return pool.status === 'closed' && !pool.settled;
+            return pool.status === 'closed' && !pool.isSettled;
           case "settled":
-            return pool.settled || pool.status === 'settled';
+            return pool.isSettled || pool.status === 'settled';
           case "boosted":
             return pool.boostTier && pool.boostTier !== "NONE";
           case "trending":

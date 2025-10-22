@@ -39,17 +39,18 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<string>("");
 
-  // Convert OptimizedPool to EnhancedPool format with contract state
+  // Convert OptimizedPool to EnhancedPool format with backend settlement data
   const convertOptimizedToEnhanced = useCallback(async (pool: OptimizedPool): Promise<EnhancedPool> => {
-    // Get settlement status from contract (cached)
-    const poolState = await poolStateService.getPoolState(pool.id);
+    // Use backend settlement data instead of contract calls for better performance
+    const isSettled = pool.isSettled || false;
+    const creatorSideWon = pool.creatorSideWon || false;
     
     return {
       id: pool.id,
       creator: pool.creator.address,
       odds: pool.odds, // Already in basis points format from backend (150 = 1.50x)
-      settled: poolState.settled,
-      creatorSideWon: poolState.creatorSideWon,
+      settled: isSettled,
+      creatorSideWon: creatorSideWon,
       isPrivate: false, // Not supported in OptimizedPool
       usesBitr: pool.currency === 'BITR',
       filledAbove60: pool.fillPercentage >= 60,
