@@ -903,7 +903,7 @@ function CreateMarketPageContent() {
       score: reputationCheck.score,
       canCreateGuided: reputationCheck.canCreateGuided,
       canCreateOpen: reputationCheck.canCreateOpen,
-      isVerified: reputationCheck.isVerified,
+      canPropose: reputationCheck.canPropose,
     });
 
     setIsLoading(true);

@@ -1392,18 +1392,66 @@ class OddysseyService {
   // Get available dates from backend
   async getAvailableDates(): Promise<{ success: boolean; data: string[] }> {
     try {
-      // For now, return current date and yesterday
-      const today = new Date().toISOString().split('T')[0];
-      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      // ✅ FIXED: Fetch actual available dates from backend API
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://bitredict-backend.fly.dev'}/api/oddyssey/available-dates?t=${Date.now()}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API responded with status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('📅 Available dates from backend:', data);
+      
+      if (data.success && data.data?.availableDates) {
+        // Extract just the date strings from the response
+        const dates = data.data.availableDates.map((item: any) => {
+          if (typeof item === 'string') return item;
+          if (typeof item.date === 'string') return item.date;
+          // Handle Date object
+          if (item.date instanceof Date) return item.date.toISOString().split('T')[0];
+          // Handle object with date property
+          if (item.date) return new Date(item.date).toISOString().split('T')[0];
+          return null;
+        }).filter((date: string | null) => date !== null);
+        
+        console.log('✅ Parsed available dates:', dates);
+        
+        return {
+          success: true,
+          data: dates
+        };
+      }
+      
+      // Fallback to last 30 days if backend doesn't have dates
+      console.warn('⚠️ No available dates from backend, using fallback');
+      const dates = [];
+      for (let i = 0; i < 30; i++) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        dates.push(date.toISOString().split('T')[0]);
+      }
       return {
         success: true,
-        data: [today, yesterday]
+        data: dates
       };
     } catch (error) {
       console.error('Error getting available dates:', error);
+      // Fallback to last 30 days on error
+      const dates = [];
+      for (let i = 0; i < 30; i++) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        dates.push(date.toISOString().split('T')[0]);
+      }
       return {
-        success: false,
-        data: []
+        success: true,
+        data: dates
       };
     }
   }

@@ -129,18 +129,36 @@ export default function OddysseyResults({ className = "" }: OddysseyResultsProps
   const getOutcomeText = (outcome: string | null) => {
     if (!outcome) return 'Pending';
     
+    // ✅ FIXED: Handle normalized format (Home/Draw/Away, Over/Under) AND legacy format
     switch (outcome) {
-      case '1':
+      // New normalized format
+      case 'Home':
+      case 'home':
         return 'Home Win';
-      case 'X':
+      case 'Draw':
+      case 'draw':
         return 'Draw';
-      case '2':
+      case 'Away':
+      case 'away':
         return 'Away Win';
       case 'Over':
       case 'over':
         return 'Over 2.5';
       case 'Under':
       case 'under':
+        return 'Under 2.5';
+      // Legacy single-digit codes
+      case '1':
+        return 'Home Win';
+      case 'X':
+      case 'x':
+        return 'Draw';
+      case '2':
+        return 'Away Win';
+      // Legacy single-letter format
+      case 'O':
+        return 'Over 2.5';
+      case 'U':
         return 'Under 2.5';
       default:
         return outcome;
@@ -150,14 +168,31 @@ export default function OddysseyResults({ className = "" }: OddysseyResultsProps
   const getOutcomeColor = (outcome: string | null) => {
     if (!outcome) return 'text-text-muted';
     
+    // ✅ FIXED: Handle normalized format (Home/Draw/Away, Over/Under) AND legacy format
     switch (outcome) {
-      case '1':
-      case '2':
+      // New normalized format
+      case 'Home':
+      case 'home':
+      case 'Away':
+      case 'away':
+      case 'Over':
       case 'over':
+      case 'Under':
       case 'under':
         return 'text-green-400 font-semibold';
-      case 'X':
+      case 'Draw':
+      case 'draw':
         return 'text-primary font-semibold';
+      // Legacy format
+      case '1':
+      case '2':
+        return 'text-green-400 font-semibold';
+      case 'X':
+      case 'x':
+        return 'text-primary font-semibold';
+      case 'O':
+      case 'U':
+        return 'text-green-400 font-semibold';
       default:
         return 'text-text-secondary';
     }

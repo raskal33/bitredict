@@ -187,11 +187,16 @@ contract BitredictPoolCore is Ownable, ReentrancyGuard {
             require(_marketType != MarketType.CUSTOM);
         }
         if (address(reputationSystem) != address(0)) {
-            (, bool canCreateGuided, bool canCreateOpen,) = reputationSystem.getReputationBundle(msg.sender);
-            if (_oracleType == OracleType.OPEN) {
-                require(canCreateOpen);
-            } else {
-                require(canCreateGuided);
+            try reputationSystem.getReputationBundle(msg.sender) returns (uint256, bool canCreateGuided, bool canCreateOpen, bool) {
+                if (_oracleType == OracleType.OPEN) {
+                    require(canCreateOpen, "Insufficient reputation for open pools");
+                } else {
+                    require(canCreateGuided, "Insufficient reputation for guided pools");
+                }
+            } catch {
+                // If reputation system fails, allow creation with basic requirements
+                // This ensures functionality continues even if reputation system is down
+                require(_creatorStake >= (_useBitr ? minPoolStakeBITR * 2 : minPoolStakeSTT * 2), "Higher stake required when reputation system unavailable");
             }
         }
         if (_useBitr) {
@@ -859,8 +864,12 @@ contract BitredictPoolCore is Ownable, ReentrancyGuard {
             stats.averagePoolSize = stats.totalVolumeGenerated / stats.totalPoolsCreated;
         }
         if (address(reputationSystem) != address(0)) {
-            (uint256 reputation,,,) = reputationSystem.getReputationBundle(creator);
-            stats.reputationScore = reputation;
+            try reputationSystem.getReputationBundle(creator) returns (uint256 reputation, bool, bool, bool) {
+                stats.reputationScore = reputation;
+            } catch {
+                // If reputation system fails, keep existing score or use default
+                // This ensures analytics continue to work even if reputation system is down
+            }
         }
     }
     function _updateGlobalStats(uint256 amount, bool isNewPool) internal {

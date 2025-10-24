@@ -311,32 +311,50 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
       const outcomeStr = String(outcome);
       
       if (isOverUnder) {
-        // OverUnder codes: 1=over, 2=under
+        // ✅ FIXED: Handle normalized format (Home/Draw/Away, Over/Under) AND legacy format
         switch (outcomeStr) {
-          case '1':
-            return 'Over 2.5';
-          case '2':
-            return 'Under 2.5';
+          // New normalized format
           case 'Over':
           case 'over':
             return 'Over 2.5';
           case 'Under':
           case 'under':
             return 'Under 2.5';
+          // Legacy numeric codes: 1=over, 2=under
+          case '1':
+            return 'Over 2.5';
+          case '2':
+            return 'Under 2.5';
+          // Legacy single-letter format
+          case 'O':
+            return 'Over 2.5';
+          case 'U':
+            return 'Under 2.5';
           default:
             return outcomeStr;
         }
       } else {
-        // Moneyline codes: 1=home, 2=draw, 3=away
+        // ✅ FIXED: Handle normalized format (Home/Draw/Away) AND legacy format
         switch (outcomeStr) {
+          // New normalized format
+          case 'Home':
+          case 'home':
+            return 'Home Win';
+          case 'Draw':
+          case 'draw':
+            return 'Draw';
+          case 'Away':
+          case 'away':
+            return 'Away Win';
+          // Legacy single-digit codes: 1=home, 2=draw, 3=away
           case '1':
             return 'Home Win';
           case '2':
+          case 'X':
+          case 'x':
             return 'Draw';
           case '3':
             return 'Away Win';
-          case 'X':
-            return 'Draw';
           default:
             return outcomeStr;
         }
@@ -350,18 +368,36 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
     if (!outcome || outcome === 0 || outcome === '0') return 'text-gray-400';
     
     const outcomeStr = String(outcome);
+    // ✅ FIXED: Handle normalized format (Home/Draw/Away, Over/Under) AND legacy format
     switch (outcomeStr) {
+      // New normalized format
+      case 'Home':
+      case 'home':
+        return 'text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-full text-xs font-semibold';
+      case 'Draw':
+      case 'draw':
+        return 'text-amber-400 bg-amber-400/10 px-2 py-1 rounded-full text-xs font-semibold';
+      case 'Away':
+      case 'away':
+        return 'text-blue-400 bg-blue-400/10 px-2 py-1 rounded-full text-xs font-semibold';
+      case 'Over':
+      case 'over':
+        return 'text-cyan-400 bg-cyan-400/10 px-2 py-1 rounded-full text-xs font-semibold';
+      case 'Under':
+      case 'under':
+        return 'text-purple-400 bg-purple-400/10 px-2 py-1 rounded-full text-xs font-semibold';
+      // Legacy single-digit codes
       case '1':
         return 'text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-full text-xs font-semibold';
       case '2':
       case 'X':
+      case 'x':
         return 'text-amber-400 bg-amber-400/10 px-2 py-1 rounded-full text-xs font-semibold';
       case '3':
         return 'text-blue-400 bg-blue-400/10 px-2 py-1 rounded-full text-xs font-semibold';
-      case 'Over':
+      // Legacy single-letter format
       case 'O':
         return 'text-cyan-400 bg-cyan-400/10 px-2 py-1 rounded-full text-xs font-semibold';
-      case 'Under':
       case 'U':
         return 'text-purple-400 bg-purple-400/10 px-2 py-1 rounded-full text-xs font-semibold';
       default:
