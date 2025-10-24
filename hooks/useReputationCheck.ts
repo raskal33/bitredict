@@ -23,18 +23,19 @@ export function useReputationCheck(address?: `0x${string}`) {
         score: 0,
         canCreateGuided: false,
         canCreateOpen: false,
-        isVerified: false,
+        canPropose: false,  // ← FIXED: Was "isVerified", but contract returns "canPropose"
       };
     }
 
-    // getReputationBundle returns (uint256 score, bool canCreateGuided, bool canCreateOpen, bool isVerified)
-    const [score, canCreateGuided, canCreateOpen, isVerified] = reputationData;
+    // ✅ FIXED: getReputationBundle returns (uint256 score, bool canCreateGuided, bool canCreateOpen, bool canPropose)
+    // NOT (score, canCreateGuided, canCreateOpen, isVerified) as previously assumed
+    const [score, canCreateGuided, canCreateOpen, canPropose] = reputationData;
 
     return {
       score: Number(score || 0),
       canCreateGuided: Boolean(canCreateGuided),
       canCreateOpen: Boolean(canCreateOpen),
-      isVerified: Boolean(isVerified),
+      canPropose: Boolean(canPropose),  // ← FIXED: This is "can propose outcomes", not "is verified"
     };
   };
 
