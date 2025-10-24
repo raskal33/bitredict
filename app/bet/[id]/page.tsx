@@ -39,6 +39,7 @@ import SettlementResults from "@/components/SettlementResults";
 import MatchCenter from "@/components/MatchCenter";
 import ClaimRewards from "@/components/ClaimRewards";
 import SkeletonLoader from "@/components/SkeletonLoader";
+import { CONTRACT_ADDRESSES } from "@/contracts";
 
 export default function BetPage() {
   const { address } = useAccount();
@@ -540,7 +541,7 @@ export default function BetPage() {
         setWaitingForApproval(true);
         
         toast.loading('Approving BITR tokens...', { id: 'bet-tx' });
-        await approve("0x0000000000000000000000000000000000000000", betAmount.toString());
+        await approve(CONTRACT_ADDRESSES.POOL_CORE as `0x${string}`, betAmount.toString());
         
         // The useEffect will handle the bet placement after approval
         toast.loading('Waiting for approval confirmation...', { id: 'bet-tx' });

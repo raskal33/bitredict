@@ -13,6 +13,7 @@ import { formatTeamNamesForPool } from '@/utils/teamNameFormatter';
 export function useBitrToken() {
   const { address } = useAccount();
   const { writeContractAsync } = useWriteContract();
+  const publicClient = usePublicClient();
 
   const approve = useCallback(async (spender: `0x${string}`, amount: bigint) => {
     try {
@@ -24,14 +25,32 @@ export function useBitrToken() {
         ...getTransactionOptions(),
       });
       
-      toast.success('BITR approval transaction submitted!');
+      console.log('✅ BITR approval transaction submitted:', txHash);
+      toast.loading('Waiting for approval confirmation...', { id: 'bitr-approval-wait' });
+      
+      // Wait for the approval transaction to be confirmed before proceeding
+      if (!publicClient) {
+        throw new Error('Public client not available');
+      }
+      
+      const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
+      
+      if (receipt.status !== 'success') {
+        console.error('❌ Approval transaction failed');
+        toast.dismiss('bitr-approval-wait');
+        throw new Error('Approval transaction failed');
+      }
+      
+      console.log('✅ BITR approval confirmed on-chain');
+      toast.success('BITR tokens approved!', { id: 'bitr-approval-wait' });
       return txHash;
     } catch (error) {
       console.error('Error approving BITR:', error);
+      toast.dismiss('bitr-approval-wait');
       toast.error('Failed to approve BITR');
       throw error;
     }
-  }, [writeContractAsync]);
+  }, [writeContractAsync, publicClient]);
 
   const getAllowance = useCallback(async (owner: `0x${string}`, spender: `0x${string}`) => {
     try {

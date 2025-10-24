@@ -2,8 +2,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { useAccount } from 'wagmi';
-import { usePoolCore, usePoolFactory, useFaucet, useBitrToken } from '@/hooks/useContractInteractions';
-import { CONTRACT_ADDRESSES } from '@/contracts';
+import { usePoolCore, usePoolFactory, useFaucet } from '@/hooks/useContractInteractions';
 import { toast } from 'react-hot-toast';
 import { 
   OracleType, 
@@ -49,7 +48,6 @@ export default function CreateGuidedMarketForm({ onSuccess, onClose }: CreateGui
   const { createPool } = usePoolCore();
   const { createPoolWithBoost } = usePoolFactory();
   const { checkEligibility } = useFaucet();
-  const { approve, getAllowance, getBalance } = useBitrToken();
 
   const [isLoading, setIsLoading] = useState(false);
   // Helper function to get default timestamps
@@ -166,37 +164,12 @@ export default function CreateGuidedMarketForm({ onSuccess, onClose }: CreateGui
       // Convert form data to contract data using the helper function
       const poolData = convertFormToContractData(formData);
 
-      // Check faucet eligibility if needed
+      // Check faucet eligibility if needed (only for STT pools)
       if (!formData.useBitr) {
         const isEligible = await checkEligibility();
         if (!isEligible) {
           toast.error('You need to claim from the faucet first to create pools');
           return;
-        }
-      } else {
-        // For BITR pools, check balance and approve tokens
-        const balance = await getBalance();
-        const requiredAmount = poolData.creatorStake + BigInt(50) * BigInt(10**18); // Creator stake + 50 BITR creation fee
-        
-        if (balance < requiredAmount) {
-          toast.error(`Insufficient BITR balance. Need ${requiredAmount / BigInt(10**18)} BITR`);
-          return;
-        }
-
-        // Check current allowance
-        const currentAllowance = await getAllowance(address as `0x${string}`, CONTRACT_ADDRESSES.POOL_CORE);
-        
-        if (currentAllowance < requiredAmount) {
-          toast.loading('Approving BITR tokens...');
-          try {
-            await approve(CONTRACT_ADDRESSES.POOL_CORE, requiredAmount);
-            toast.dismiss();
-            toast.success('BITR tokens approved!');
-          } catch {
-            toast.dismiss();
-            toast.error('Failed to approve BITR tokens');
-            return;
-          }
         }
       }
 
@@ -229,7 +202,7 @@ export default function CreateGuidedMarketForm({ onSuccess, onClose }: CreateGui
     } finally {
       setIsLoading(false);
     }
-  }, [isConnected, address, validateForm, checkEligibility, createPool, createPoolWithBoost, formData, onSuccess, onClose, approve, getAllowance, getBalance]);
+  }, [isConnected, address, validateForm, checkEligibility, createPool, createPoolWithBoost, formData, onSuccess, onClose]);
 
 
   return (
