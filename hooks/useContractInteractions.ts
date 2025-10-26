@@ -200,6 +200,38 @@ export function usePoolCore() {
           }
         } else {
           console.log(`✅ Sufficient allowance already exists (${currentAllowance / BigInt(10**18)} BITR >= ${totalRequired / BigInt(10**18)} BITR)`);
+          
+          // 🚨 CRITICAL FIX: Even if allowance is "sufficient", it might be EXACTLY equal
+          // If it's exactly equal or close, we should refresh it to avoid edge cases
+          // This happens when a previous pool creation approved exactly this amount
+          if (currentAllowance === totalRequired || currentAllowance < totalRequired + BigInt(10**18)) {
+            console.log(`⚠️ Allowance is exactly equal or very close to required amount`);
+            console.log(`   This might cause issues if there's any rounding or previous consumption`);
+            console.log(`   Refreshing approval to ensure sufficient buffer...`);
+            
+            toast.loading('Refreshing BITR token approval...', { id: 'bitr-approval-refresh' });
+            try {
+              // Approve a larger amount to avoid this issue in future
+              const bufferAmount = totalRequired * 2n; // Approve 2x to cover multiple pools
+              const approvalTx = await approve(CONTRACT_ADDRESSES.POOL_CORE, bufferAmount);
+              console.log(`✅ Approval refreshed with buffer: ${bufferAmount / BigInt(10**18)} BITR`);
+              toast.dismiss('bitr-approval-refresh');
+              toast.success('BITR tokens approved!');
+              
+              // Verify the new approval
+              const newAllowance = await getAllowance(address as `0x${string}`, CONTRACT_ADDRESSES.POOL_CORE);
+              console.log(`✅ New allowance after refresh: ${newAllowance / BigInt(10**18)} BITR`);
+              
+              if (newAllowance < totalRequired) {
+                throw new Error(`Approval refresh failed: Allowance is still insufficient`);
+              }
+            } catch (refreshError) {
+              toast.dismiss('bitr-approval-refresh');
+              console.error('❌ Error refreshing approval:', refreshError);
+              toast.error('Failed to refresh BITR token approval');
+              throw refreshError;
+            }
+          }
         }
       }
 
