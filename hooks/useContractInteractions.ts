@@ -140,34 +140,66 @@ export function usePoolCore() {
       // For BITR pools, we need to ensure the contract has sufficient allowance
       // The contract will handle the token transfer internally
       if (poolData.useBitr) {
+        console.log(`💰 BITR Pool Creation Flow Started`);
+        console.log(`   Creation Fee: ${creationFeeBITR / BigInt(10**18)} BITR`);
+        console.log(`   Creator Stake: ${poolData.creatorStake / BigInt(10**18)} BITR`);
+        console.log(`   Total Required: ${totalRequired / BigInt(10**18)} BITR`);
+        
         // Check BITR balance first
         const balance = await getBalance();
-        console.log(`🔍 BITR Balance Check: ${balance}, Required: ${totalRequired}`);
+        console.log(`🔍 BITR Balance Check: ${balance / BigInt(10**18)} BITR (required: ${totalRequired / BigInt(10**18)} BITR)`);
         
         if (balance < totalRequired) {
           const shortfall = totalRequired - balance;
-          throw new Error(`Insufficient BITR balance. You have ${balance / BigInt(10**18)} BITR but need ${totalRequired / BigInt(10**18)} BITR (shortfall: ${shortfall / BigInt(10**18)} BITR)`);
+          const errorMsg = `Insufficient BITR balance. You have ${balance / BigInt(10**18)} BITR but need ${totalRequired / BigInt(10**18)} BITR (shortfall: ${shortfall / BigInt(10**18)} BITR)`;
+          console.error(`❌ ${errorMsg}`);
+          toast.error(errorMsg);
+          throw new Error(errorMsg);
         }
+        
+        console.log(`✅ Balance check passed`);
         
         // Check if we need to approve more tokens
         const currentAllowance = await getAllowance(address as `0x${string}`, CONTRACT_ADDRESSES.POOL_CORE);
-        console.log(`BITR Pool Creation - Current allowance: ${currentAllowance}, Required: ${totalRequired}`);
+        console.log(`🔍 BITR Allowance Check:`, {
+          currentAllowance: currentAllowance.toString(),
+          currentAllowanceFormatted: `${currentAllowance / BigInt(10**18)} BITR`,
+          totalRequired: totalRequired.toString(),
+          totalRequiredFormatted: `${totalRequired / BigInt(10**18)} BITR`,
+          needsApproval: currentAllowance < totalRequired,
+          shortfall: currentAllowance < totalRequired ? (totalRequired - currentAllowance).toString() : '0'
+        });
         
         if (currentAllowance < totalRequired) {
-          console.log(`Insufficient allowance. Approving ${totalRequired} BITR tokens to POOL_CORE contract...`);
-          toast.loading('Approving BITR tokens for pool creation...');
+          const shortfall = totalRequired - currentAllowance;
+          console.log(`⚠️ Insufficient allowance detected!`);
+          console.log(`   Current: ${currentAllowance / BigInt(10**18)} BITR`);
+          console.log(`   Required: ${totalRequired / BigInt(10**18)} BITR`);
+          console.log(`   Shortfall: ${shortfall / BigInt(10**18)} BITR`);
+          console.log(`🔄 Requesting approval for ${totalRequired / BigInt(10**18)} BITR tokens...`);
+          
+          toast.loading('Approving BITR tokens for pool creation...', { id: 'bitr-approval' });
           try {
-            await approve(CONTRACT_ADDRESSES.POOL_CORE, totalRequired);
-            toast.dismiss();
+            const approvalTx = await approve(CONTRACT_ADDRESSES.POOL_CORE, totalRequired);
+            console.log(`✅ Approval transaction confirmed: ${approvalTx}`);
+            toast.dismiss('bitr-approval');
             toast.success('BITR tokens approved for pool creation!');
+            
+            // 🚨 CRITICAL: Verify the approval was successful by checking allowance again
+            const newAllowance = await getAllowance(address as `0x${string}`, CONTRACT_ADDRESSES.POOL_CORE);
+            console.log(`✅ New allowance after approval: ${newAllowance.toString()}`);
+            
+            if (newAllowance < totalRequired) {
+              throw new Error(`Approval failed: Allowance is still insufficient (${newAllowance} < ${totalRequired})`);
+            }
           } catch (approveError) {
-            toast.dismiss();
-            console.error('Error approving BITR tokens:', approveError);
+            toast.dismiss('bitr-approval');
+            console.error('❌ Error approving BITR tokens:', approveError);
             toast.error('Failed to approve BITR tokens for pool creation');
             throw approveError;
           }
         } else {
-          console.log('Sufficient allowance already exists for BITR pool creation');
+          console.log(`✅ Sufficient allowance already exists (${currentAllowance / BigInt(10**18)} BITR >= ${totalRequired / BigInt(10**18)} BITR)`);
         }
       }
 
