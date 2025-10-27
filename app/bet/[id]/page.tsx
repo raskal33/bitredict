@@ -737,10 +737,11 @@ export default function BetPage() {
           poolMarketType: pool.marketType,
           shouldShowMatchCenter: pool.category === 'football'
         });
-        return pool.category === 'football' && pool.fixtureId && (
+        return pool.category === 'football' && (pool.fixtureId || pool.marketId) && (
           <div className="container mx-auto px-4 py-4">
             <MatchCenter 
               fixtureId={pool.fixtureId} 
+              marketId={pool.marketId}
               className="w-full"
             />
           </div>
