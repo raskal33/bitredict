@@ -45,12 +45,38 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [pickerMonth, setPickerMonth] = useState(new Date());
 
-  // Fetch available cycles with dates - Check last 30 days for cycles
+  // Fetch available cycles with dates using the new API
   const fetchAvailableCycles = useCallback(async () => {
     try {
-      console.log('📅 Fetching available cycles for past 30 days...');
+      console.log('📅 Fetching available cycle dates...');
       
-      // Generate last 30 days of dates to check for cycles
+      const response = await fetch(`/api/oddyssey/available-dates?t=${Date.now()}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data?.dates) {
+          console.log(`✅ Found ${data.data.dates.length} available cycle dates:`, data.data.dates);
+          
+          // Convert dates to cycle objects (we'll fetch cycle IDs when needed)
+          const cyclesFound: CycleWithDate[] = data.data.dates.map((date: string) => ({
+            cycleId: 0, // Will be filled when we fetch cycle details
+            startTime: date,
+            endTime: date
+          }));
+          
+          setAvailableCycles(cyclesFound);
+          return;
+        }
+      }
+      
+      // Fallback to last 30 days if API fails
+      console.log('⚠️ Available dates API failed, falling back to last 30 days');
       const dates = [];
       for (let i = 0; i < 30; i++) {
         const date = new Date();
@@ -59,7 +85,7 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
       }
       
       const cyclesFound: CycleWithDate[] = [];
-      const cycleIds = new Set<number>(); // Track unique cycle IDs
+      const cycleIds = new Set<number>();
       
       console.log(`📅 Checking ${dates.length} dates for available cycles...`);
       

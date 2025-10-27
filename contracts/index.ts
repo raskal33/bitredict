@@ -1,17 +1,30 @@
 import { CONTRACT_ADDRESSES } from '@/config/wagmi';
 
 // Import ABIs - Updated for Modular Architecture
-import BitredictTokenABI from './abis/BitredictToken.json';
-import BitrFaucetABI from './abis/BitrFaucet.json';
-import GuidedOracleABI from './abis/GuidedOracle.json';
-import OptimisticOracleABI from './abis/OptimisticOracle.json';
-import BitredictPoolCoreABI from './abis/BitredictPoolCore.json';
-import BitredictBoostSystemABI from './abis/BitredictBoostSystem.json';
-import BitredictComboPoolsABI from './abis/BitredictComboPools.json';
-import BitredictPoolFactoryABI from './abis/BitredictPoolFactory.json';
-import BitredictStakingABI from './abis/BitredictStaking.json';
-import ReputationSystemABI from './abis/ReputationSystem.json';
-import OddysseyABI from './abis/Oddyssey.json';
+import BitredictTokenArtifact from './abis/BitredictToken.json';
+import BitrFaucetArtifact from './abis/BitrFaucet.json';
+import GuidedOracleArtifact from './abis/GuidedOracle.json';
+import OptimisticOracleArtifact from './abis/OptimisticOracle.json';
+import BitredictPoolCoreArtifact from './abis/BitredictPoolCore.json';
+import BitredictBoostSystemArtifact from './abis/BitredictBoostSystem.json';
+import BitredictComboPoolsArtifact from './abis/BitredictComboPools.json';
+import BitredictPoolFactoryArtifact from './abis/BitredictPoolFactory.json';
+import BitredictStakingArtifact from './abis/BitredictStaking.json';
+import ReputationSystemArtifact from './abis/ReputationSystem.json';
+import OddysseyArtifact from './abis/Oddyssey.json';
+
+// Extract ABI arrays from artifacts
+const BitredictTokenABI = BitredictTokenArtifact.abi;
+const BitrFaucetABI = BitrFaucetArtifact.abi;
+const GuidedOracleABI = GuidedOracleArtifact.abi;
+const OptimisticOracleABI = OptimisticOracleArtifact.abi;
+const BitredictPoolCoreABI = BitredictPoolCoreArtifact.abi;
+const BitredictBoostSystemABI = BitredictBoostSystemArtifact.abi;
+const BitredictComboPoolsABI = BitredictComboPoolsArtifact.abi;
+const BitredictPoolFactoryABI = BitredictPoolFactoryArtifact.abi;
+const BitredictStakingABI = BitredictStakingArtifact.abi;
+const ReputationSystemABI = ReputationSystemArtifact.abi;
+const OddysseyABI = OddysseyArtifact.abi;
 
 // Contract configurations - Updated for Modular Architecture
 export const CONTRACTS = {

@@ -1133,11 +1133,11 @@ class OddysseyService {
     return { success: false, data: null };
   }
 
-  // Get matches with results from backend
+  // Get current cycle matches from backend
   async getMatches(): Promise<{ success: boolean; data: any }> {
     try {
-      // Use the new /api/oddyssey/results/all endpoint
-      const resultsResponse = await fetch(`/api/oddyssey/results/all?t=${Date.now()}`, {
+      // Use /api/oddyssey/current endpoint for active cycles
+      const currentResponse = await fetch(`/api/oddyssey/current?t=${Date.now()}`, {
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Pragma': 'no-cache',
@@ -1145,26 +1145,22 @@ class OddysseyService {
         }
       });
       
-      if (!resultsResponse.ok) {
-        throw new Error(`Results API responded with status: ${resultsResponse.status}`);
+      if (!currentResponse.ok) {
+        throw new Error(`Current cycle API responded with status: ${currentResponse.status}`);
       }
       
-      const resultsData = await resultsResponse.json();
-      console.log('🔍 Results from /api/oddyssey/results/all:', resultsData);
+      const currentData = await currentResponse.json();
+      console.log('🔍 Current cycle from /api/oddyssey/current:', currentData);
       
-      if (resultsData.success && resultsData.data?.cycles?.length > 0) {
-        // Get the latest cycle's matches
-        const latestCycle = resultsData.data.cycles[resultsData.data.cycles.length - 1];
-        const matches = latestCycle.matches || [];
-        
-        console.log('✅ Retrieved matches from results/all:', matches.length);
-        
+      if (currentData.success && currentData.data?.matches) {
+        const matches = currentData.data.matches || [];
+        console.log('✅ Retrieved current cycle matches:', matches.length);
         return {
           success: true,
           data: matches
         };
       } else {
-        // Fallback to contract matches if no results available
+        // Fallback to contract matches if no current cycle available
         const matches = await this.getCurrentCycleMatches();
         return {
           success: true,
@@ -1172,7 +1168,7 @@ class OddysseyService {
         };
       }
     } catch (error) {
-      console.error('❌ Error getting matches from results/all, falling back to contract:', error);
+      console.error('❌ Error getting current cycle matches, falling back to contract:', error);
       
       try {
         // Fallback to contract matches
@@ -1188,6 +1184,75 @@ class OddysseyService {
           data: []
         };
       }
+    }
+  }
+
+  // Get past/resolved cycles from backend
+  async getPastCycles(): Promise<{ success: boolean; data: any }> {
+    try {
+      const resultsResponse = await fetch(`/api/oddyssey/results/all?t=${Date.now()}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
+      
+      if (!resultsResponse.ok) {
+        throw new Error(`Results API responded with status: ${resultsResponse.status}`);
+      }
+      
+      const resultsData = await resultsResponse.json();
+      console.log('🔍 Past cycles from /api/oddyssey/results/all:', resultsData);
+      
+      if (resultsData.success && resultsData.data?.cycles) {
+        return {
+          success: true,
+          data: resultsData.data.cycles
+        };
+      } else {
+        return {
+          success: true,
+          data: []
+        };
+      }
+    } catch (error) {
+      console.error('❌ Error getting past cycles:', error);
+      return {
+        success: false,
+        data: []
+      };
+    }
+  }
+
+  // Get available dates for calendar picker
+  async getAvailableDates(): Promise<{ success: boolean; data: any }> {
+    try {
+      const response = await fetch(`/api/oddyssey/available-dates?t=${Date.now()}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Available dates API responded with status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('🔍 Available dates:', data);
+      
+      return {
+        success: true,
+        data: data.data || { dates: [], totalDates: 0 }
+      };
+    } catch (error) {
+      console.error('❌ Error getting available dates:', error);
+      return {
+        success: false,
+        data: { dates: [], totalDates: 0 }
+      };
     }
   }
 
@@ -1389,72 +1454,6 @@ class OddysseyService {
     }
   }
 
-  // Get available dates from backend
-  async getAvailableDates(): Promise<{ success: boolean; data: string[] }> {
-    try {
-      // ✅ FIXED: Fetch actual available dates from backend API
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://bitredict-backend.fly.dev'}/api/oddyssey/available-dates?t=${Date.now()}`, {
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`API responded with status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      console.log('📅 Available dates from backend:', data);
-      
-      if (data.success && data.data?.availableDates) {
-        // Extract just the date strings from the response
-        const dates = data.data.availableDates.map((item: any) => {
-          if (typeof item === 'string') return item;
-          if (typeof item.date === 'string') return item.date;
-          // Handle Date object
-          if (item.date instanceof Date) return item.date.toISOString().split('T')[0];
-          // Handle object with date property
-          if (item.date) return new Date(item.date).toISOString().split('T')[0];
-          return null;
-        }).filter((date: string | null) => date !== null);
-        
-        console.log('✅ Parsed available dates:', dates);
-        
-        return {
-          success: true,
-          data: dates
-        };
-      }
-      
-      // Fallback to last 30 days if backend doesn't have dates
-      console.warn('⚠️ No available dates from backend, using fallback');
-      const dates = [];
-      for (let i = 0; i < 30; i++) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        dates.push(date.toISOString().split('T')[0]);
-      }
-      return {
-        success: true,
-        data: dates
-      };
-    } catch (error) {
-      console.error('Error getting available dates:', error);
-      // Fallback to last 30 days on error
-      const dates = [];
-      for (let i = 0; i < 30; i++) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        dates.push(date.toISOString().split('T')[0]);
-      }
-      return {
-        success: true,
-        data: dates
-      };
-    }
-  }
 
   // Get results by date from backend
   async getResultsByDate(date: string): Promise<{ success: boolean; data: any }> {

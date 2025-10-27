@@ -930,24 +930,33 @@ export default function OddysseyPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [address]); // Remove apiCallInProgress to prevent infinite loops
 
-  // Fetch current cycle and match results (contract-only)
+  // Fetch current cycle and match results from backend
   const fetchCurrentCycle = useCallback(async () => {
     try {
-      console.log('🎯 Fetching current cycle...');
+      console.log('🎯 Fetching current cycle from backend...');
       
-      const cycleId = await oddysseyService.getCurrentCycle();
-      const cycleInfo = await oddysseyService.getCurrentCycleInfo();
+      // Get current cycle from backend API
+      const currentCycleResult = await oddysseyService.getMatches();
       
-      console.log('✅ Current cycle received:', { cycleId, cycleInfo });
-      
-      // Check if cycle is resolved and fetch match results if needed
-      if (Number(cycleInfo.state) === 2) { // 2 = Resolved
-        const liveMatchesResult = await oddysseyService.getMatches();
+      if (currentCycleResult.success && currentCycleResult.data) {
+        console.log('✅ Current cycle matches received:', currentCycleResult.data.length);
         
-        if (liveMatchesResult.success && liveMatchesResult.data) {
-          console.log('✅ Match results received:', liveMatchesResult.data);
-            // TODO: Implement match results display when needed
-          }
+        // Update the matches state for display
+        setMatches(currentCycleResult.data);
+        
+        // Calculate cycle info
+        const totalMatches = currentCycleResult.data.length;
+        const finishedMatches = currentCycleResult.data.filter((match: { result?: { outcome_1x2?: string; outcome_ou25?: string } }) => 
+          match.result?.outcome_1x2 && match.result?.outcome_ou25
+        ).length;
+        
+        setMatchResultsInfo({
+          isResolved: finishedMatches === totalMatches,
+          totalMatches,
+          finishedMatches
+        });
+      } else {
+        console.log('⚠️ No current cycle data available');
       }
     } catch (error) {
       console.error('❌ Error fetching current cycle:', error);

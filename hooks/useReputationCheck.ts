@@ -1,6 +1,9 @@
 import { useReadContract } from 'wagmi';
 import { CONTRACT_ADDRESSES } from '@/config/wagmi';
-import ReputationSystemABI from '@/contracts/abis/ReputationSystem.json';
+import ReputationSystemArtifact from '@/contracts/abis/ReputationSystem.json';
+
+// Extract ABI array from artifact
+const ReputationSystemABI = ReputationSystemArtifact.abi;
 
 /**
  * Hook to check user's reputation permissions before creating pools

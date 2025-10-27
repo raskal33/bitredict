@@ -1,10 +1,10 @@
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { CONTRACT_ADDRESSES } from '@/config/wagmi';
 import { parseUnits, formatUnits } from 'viem';
-import OddysseyABI from '@/contracts/abis/Oddyssey.json';
+import OddysseyArtifact from '@/contracts/abis/Oddyssey.json';
 
-// Use the full ABI from the compiled contract
-const ODDYSSEY_ABI = OddysseyABI;
+// Extract ABI array from artifact
+const ODDYSSEY_ABI = OddysseyArtifact.abi;
 
 export interface UserStats {
   totalSlips: bigint;

@@ -5,7 +5,10 @@
 
 import { readContract } from 'wagmi/actions';
 import { config } from '@/config/wagmi';
-import BitredictPoolCoreABI from '@/contracts/abis/BitredictPoolCore.json';
+import BitredictPoolCoreArtifact from '@/contracts/abis/BitredictPoolCore.json';
+
+// Extract ABI array from artifact
+const BitredictPoolCoreABI = BitredictPoolCoreArtifact.abi;
 
 interface PoolStateCache {
   [poolId: number]: {

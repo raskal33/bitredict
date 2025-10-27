@@ -4,7 +4,10 @@ import { useState, useEffect } from "react";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from "wagmi";
 import { toast } from "react-hot-toast";
 import { CONTRACT_ADDRESSES } from "@/config/wagmi";
-import BitredictPoolCoreABI from "@/contracts/abis/BitredictPoolCore.json";
+import BitredictPoolCoreArtifact from "@/contracts/abis/BitredictPoolCore.json";
+
+// Extract ABI array from artifact
+const BitredictPoolCoreABI = BitredictPoolCoreArtifact.abi;
 import { formatEther } from "viem";
 
 interface ClaimRewardsProps {
