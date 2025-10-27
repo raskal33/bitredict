@@ -77,7 +77,7 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
       
       // Fallback: Use /results/all to get actual cycles
       console.log('⚠️ Available dates API failed, using /results/all fallback');
-      const response = await fetch(`/api/oddyssey/results/all?t=${Date.now()}`, {
+      const fallbackResponse = await fetch(`/api/oddyssey/results/all?t=${Date.now()}`, {
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Pragma': 'no-cache',
@@ -85,10 +85,10 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
         }
       });
       
-      if (response.ok) {
-        const data = await response.json();
+      if (fallbackResponse.ok) {
+        const data = await fallbackResponse.json();
         if (data.success && data.data?.cycles) {
-          const cyclesFound: CycleWithDate[] = data.data.cycles.map((cycle: any) => ({
+          const cyclesFound: CycleWithDate[] = data.data.cycles.map((cycle: { cycleId: number; startTime: string; endTime: string }) => ({
             cycleId: cycle.cycleId,
             startTime: cycle.startTime,
             endTime: cycle.endTime

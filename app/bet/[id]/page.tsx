@@ -312,7 +312,9 @@ export default function BetPage() {
       setIsPoolFilled(poolFilled);
       
       // Check if betting is still allowed
-      const bettingAllowed = poolData.canBet ?? (nowTime < bettingEndTime && !eventStarted && !poolFilled);
+      // YES bets (Challenge Creator) are disabled when pool is 100% filled
+      // NO bets (Support Creator/Liquidity) are always allowed until event starts
+      const bettingAllowed = poolData.canBet ?? (nowTime < bettingEndTime && !eventStarted);
       setCanBet(bettingAllowed);
       
       
@@ -335,11 +337,8 @@ export default function BetPage() {
         : 0;
       setDefeatedCount(defeated);
       
-      // Challengers: Calculate number of YES bettors (bettor side)
-      // Estimate based on total bettor stake, assuming average bet of 500-2000 tokens
-      const challengers = totalBettorStakeNum > 0 
-        ? Math.max(1, Math.ceil(totalBettorStakeNum / 1500))
-        : 0;
+      // Challengers: Use actual participants count from backend
+      const challengers = poolData.participants || 0;
       setChallegersCount(challengers);
       
       // Total Bets: Use from backend if available, otherwise estimate
@@ -453,8 +452,8 @@ export default function BetPage() {
     if (pool && pool.eventDetails) {
     const timer = setInterval(() => {
       const now = new Date().getTime();
-        const end = pool.eventDetails!.endTime.getTime();
-        const distance = end - now;
+        const start = pool.eventDetails!.startTime.getTime();
+        const distance = start - now;
       
       if (distance > 0) {
         setTimeLeft({
@@ -463,6 +462,9 @@ export default function BetPage() {
           minutes: Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)),
           seconds: Math.floor((distance % (1000 * 60)) / 1000)
         });
+      } else {
+        // Event has started
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
       }
     }, 1000);
 
@@ -1104,8 +1106,15 @@ export default function BetPage() {
                       <div className="mt-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg">
                         <p className="text-red-400 text-sm font-medium">
                           {isEventStarted ? 'Event has started - betting closed' : 
-                           isPoolFilled ? 'Pool is 100% filled - no more bets allowed' : 
                            'Betting period has ended'}
+                        </p>
+                      </div>
+                    )}
+                    
+                    {isPoolFilled && canBet && (
+                      <div className="mt-4 p-3 bg-yellow-500/20 border border-yellow-500/30 rounded-lg">
+                        <p className="text-yellow-400 text-sm font-medium">
+                          Pool is 100% filled - YES bets (Challenge Creator) disabled, but NO bets (Support Creator/Liquidity) still allowed
                         </p>
                       </div>
                     )}
@@ -1116,13 +1125,13 @@ export default function BetPage() {
                     {/* YES - Challenge Creator */}
                     <div className={`
                       p-4 sm:p-6 rounded-xl border-2 transition-all relative overflow-hidden group
-                      ${!canBet 
+                      ${!canBet || isPoolFilled
                         ? 'bg-gray-800/50 border-gray-600/30 cursor-not-allowed opacity-50' 
                         : betType === 'yes' 
                           ? 'bg-gradient-to-br from-green-500/20 to-emerald-500/20 border-green-500/50 shadow-lg shadow-green-500/20 cursor-pointer' 
                           : 'bg-gray-700/30 border-gray-600/50 hover:border-green-500/30 hover:bg-green-500/10 cursor-pointer'
                       }
-                    `} onClick={() => canBet && setBetType('yes')}>
+                    `} onClick={() => canBet && !isPoolFilled && setBetType('yes')}>
                       {betType === 'yes' && (
                         <div className="absolute inset-0 bg-gradient-to-r from-green-500/10 to-transparent animate-pulse"></div>
                       )}
