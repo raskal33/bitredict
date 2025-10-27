@@ -75,73 +75,47 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
         }
       }
       
-      // Fallback to last 30 days if API fails
-      console.log('⚠️ Available dates API failed, falling back to last 30 days');
-      const dates = [];
-      for (let i = 0; i < 30; i++) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        dates.push(date.toISOString().split('T')[0]);
-      }
+      // Fallback: Use /results/all to get actual cycles
+      console.log('⚠️ Available dates API failed, using /results/all fallback');
+      const response = await fetch(`/api/oddyssey/results/all?t=${Date.now()}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
       
-      const cyclesFound: CycleWithDate[] = [];
-      const cycleIds = new Set<number>();
-      
-      console.log(`📅 Checking ${dates.length} dates for available cycles...`);
-      
-      // Check each date for available cycles
-      for (const date of dates) {
-        try {
-          const response = await fetch(`/api/oddyssey/results/${date}?t=${Date.now()}`, {
-            headers: {
-              'Cache-Control': 'no-cache, no-store, must-revalidate',
-              'Pragma': 'no-cache',
-              'Expires': '0'
-            }
-          });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data?.cycles) {
+          const cyclesFound: CycleWithDate[] = data.data.cycles.map((cycle: any) => ({
+            cycleId: cycle.cycleId,
+            startTime: cycle.startTime,
+            endTime: cycle.endTime
+          }));
           
-          if (response.ok) {
-            const data = await response.json();
-            if (data.success && data.data?.cycleId) {
-              const cycId = Number(data.data.cycleId);
-              // Only add if not already tracked (prevents duplicates)
-              if (!cycleIds.has(cycId)) {
-                cycleIds.add(cycId);
-                cyclesFound.push({
-                  cycleId: cycId,
-                  startTime: data.data.cycleStartTime,
-                  endTime: data.data.cycleEndTime || new Date().toISOString()
-                });
-                console.log(`✅ Found cycle ${cycId} for date ${date}`);
-              }
+          console.log(`✅ Found ${cyclesFound.length} cycles from /results/all`);
+          setAvailableCycles(cyclesFound);
+          
+          // Only set selected cycle if not already set from prop
+          if (!selectedCycle && cyclesFound.length > 0) {
+            // Prioritize the cycleId prop (current contract cycle) if available
+            if (cycleId && cyclesFound.some(c => c.cycleId === cycleId)) {
+              console.log(`✅ Setting selected cycle to prop cycleId: ${cycleId}`);
+              setSelectedCycle(cycleId);
+            } else {
+              // Fallback to the latest cycle
+              console.log(`✅ Setting selected cycle to latest: ${cyclesFound[0].cycleId}`);
+              setSelectedCycle(cyclesFound[0].cycleId);
             }
           }
-        } catch {
-          // Silently skip errors for individual dates
-          console.debug(`Debug: No cycle data for ${date}`);
+          return;
         }
       }
       
-      if (cyclesFound.length > 0) {
-        console.log(`📅 Found ${cyclesFound.length} unique cycles`);
-        // Sort by cycleId descending (newest first)
-        const sortedCycles = cyclesFound.sort((a: CycleWithDate, b: CycleWithDate) => b.cycleId - a.cycleId);
-        
-        setAvailableCycles(sortedCycles);
-        if (!selectedCycle) {
-          // Prioritize the cycleId prop (current contract cycle) if available
-          if (cycleId && sortedCycles.some(c => c.cycleId === cycleId)) {
-            console.log(`✅ Setting selected cycle to prop cycleId: ${cycleId}`);
-            setSelectedCycle(cycleId);
-          } else {
-            // Fallback to the latest cycle
-            console.log(`✅ Setting selected cycle to latest: ${sortedCycles[0].cycleId}`);
-            setSelectedCycle(sortedCycles[0].cycleId);
-          }
-        }
-      } else {
-        console.warn('⚠️ No cycles found in past 30 days');
-      }
+      // Final fallback: empty array
+      console.log('⚠️ No cycles found, using empty array');
+      setAvailableCycles([]);
     } catch (error) {
       console.error('Error fetching available cycles:', error);
       setError('Failed to load available cycles');
@@ -269,11 +243,11 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
 
   // Update selected cycle when cycleId prop changes
   useEffect(() => {
-    if (cycleId && cycleId !== selectedCycle) {
-      console.log('🔄 Updating selected cycle from prop:', cycleId);
+    if (cycleId) {
+      console.log('🔄 Setting selected cycle from prop:', cycleId);
       setSelectedCycle(cycleId);
     }
-  }, [cycleId, selectedCycle]);
+  }, [cycleId]);
 
   useEffect(() => {
     fetchResults();
