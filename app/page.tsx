@@ -91,13 +91,16 @@ export default function HomePage() {
         participantCount: pool.participants,
         fillPercentage: pool.fillPercentage,
         totalVolume: pool.totalBettorStake,
-        betCount: pool.participants,
-        avgBetSize: pool.participants > 0 ? (parseFloat(pool.totalBettorStake) / pool.participants).toString() : '0',
+        betCount: pool.totalBets || 0,
+        avgBetSize: pool.avgBet ? pool.avgBet.toString() : '0',
         creatorReputation: pool.creator.successRate,
         categoryRank: 0,
         isHot: pool.trending,
         lastActivity: new Date()
-      }
+      },
+      // Additional fields for EnhancedPoolCard
+      totalBets: pool.totalBets || 0,
+      avgBet: pool.avgBet ? pool.avgBet.toString() : '0'
     };
   }, []);
 

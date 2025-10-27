@@ -848,8 +848,8 @@ export default function EnhancedPoolCard({
         </div>
       </div>
 
-      {/* Additional Indexed Data - Total Bets, Participants, Avg Bet */}
-      <div className="grid grid-cols-3 gap-2 mb-3 text-center flex-shrink-0">
+      {/* Additional Stats - Total Bets, Avg Bet */}
+      <div className="grid grid-cols-2 gap-2 mb-3 text-center flex-shrink-0">
         <div>
           <div className="text-xs text-gray-400">Total Bets</div>
           <div className="text-xs font-bold text-white">
@@ -857,15 +857,21 @@ export default function EnhancedPoolCard({
           </div>
         </div>
         <div>
-          <div className="text-xs text-gray-400">Participants</div>
-          <div className="text-xs font-bold text-white">
-            {indexedData?.participantCount ?? 0}
-          </div>
-        </div>
-        <div>
           <div className="text-xs text-gray-400">Avg Bet</div>
           <div className="text-xs font-bold text-white">
             {(() => {
+              // Calculate average bet from total bettor stake and bet count
+              const totalBettorStake = parseFloat(pool.totalBettorStake || "0");
+              const betCount = indexedData?.betCount ?? pool.totalBets ?? 0;
+              
+              if (betCount > 0 && totalBettorStake > 0) {
+                const avgBet = totalBettorStake / betCount;
+                if (avgBet >= 1000000) return `${(avgBet / 1000000).toFixed(1)}M`;
+                if (avgBet >= 1000) return `${(avgBet / 1000).toFixed(1)}K`;
+                return avgBet.toFixed(2);
+              }
+              
+              // Fallback to indexed data or pool data
               const avgBet = indexedData?.avgBetSize ? parseFloat(indexedData.avgBetSize) : parseFloat(pool.avgBet || "0");
               if (avgBet >= 1000000) return `${(avgBet / 1000000).toFixed(1)}M`;
               if (avgBet >= 1000) return `${(avgBet / 1000).toFixed(1)}K`;

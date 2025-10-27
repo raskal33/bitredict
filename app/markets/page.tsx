@@ -98,13 +98,16 @@ export default function MarketsPage() {
         participantCount: pool.participants,
         fillPercentage: pool.fillPercentage,
         totalVolume: pool.totalBettorStake,
-        betCount: 0,
-        avgBetSize: '0',
+        betCount: pool.totalBets || 0,
+        avgBetSize: pool.avgBet ? pool.avgBet.toString() : '0',
         creatorReputation: 0,
         categoryRank: 0,
         isHot: false,
         lastActivity: new Date()
-      }
+      },
+      // Additional fields for EnhancedPoolCard
+      totalBets: pool.totalBets || 0,
+      avgBet: pool.avgBet ? pool.avgBet.toString() : '0'
     };
   };
 

@@ -48,6 +48,9 @@ export interface OptimizedPool {
   homeTeam?: string;
   awayTeam?: string;
   league?: string;
+  // Bet statistics
+  totalBets?: number;  // Total number of bets placed
+  avgBet?: number;     // Average bet size
   liquidityProviders?: Array<{
     address: string;
     stake: string;
@@ -63,8 +66,7 @@ export interface OptimizedPool {
   isSettled?: boolean;  // Whether the pool has been settled
   creatorSideWon?: boolean;  // Whether creator side won (true) or bettor side won (false)
   defeated?: number;  // 0 = creator won, 1 = bettor won
-  // Betting statistics
-  totalBets?: number;  // Total number of bets placed
+  // Additional betting statistics
   bettorCount?: number;  // Number of unique bettors (YES bettors)
   totalCreatorSideStake?: string;  // Total stake on creator side (creator + all LPs)
 }
