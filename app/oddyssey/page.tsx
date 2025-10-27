@@ -950,11 +950,8 @@ export default function OddysseyPage() {
           match.result?.outcome_1x2 && match.result?.outcome_ou25
         ).length;
         
-        setMatchResultsInfo({
-          isResolved: finishedMatches === totalMatches,
-          totalMatches,
-          finishedMatches
-        });
+        // Match results info calculated but not stored in state for now
+        console.log(`📊 Match results: ${finishedMatches}/${totalMatches} finished`);
       } else {
         console.log('⚠️ No current cycle data available');
       }
