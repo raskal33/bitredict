@@ -69,6 +69,7 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
         setError(null);
         
         // Prioritize fixtureId (SportMonks fixture ID) over marketId
+        // In our system, marketId is actually the fixture ID in the database
         const id = fixtureId || marketId;
         const isFixtureId = !!fixtureId;
         
@@ -78,7 +79,12 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
           return;
         }
         
-        console.log('🔍 MatchCenter fetching data for ID:', { id, isFixtureId, type: isFixtureId ? 'fixture' : 'market' });
+        console.log('🔍 MatchCenter fetching data for ID:', { 
+          id, 
+          isFixtureId, 
+          type: isFixtureId ? 'fixture' : 'market',
+          note: 'marketId is used as fixture ID in our database'
+        });
         
         // Use fixture endpoint if fixtureId is provided, otherwise use market endpoint
         // CRITICAL: Use absolute backend URL, not relative path which calls frontend domain
