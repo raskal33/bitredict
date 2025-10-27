@@ -18,61 +18,61 @@ export const CONTRACTS = {
   // Core Contracts
   BITR_TOKEN: {
     address: CONTRACT_ADDRESSES.BITR_TOKEN,
-    abi: BitredictTokenABI.abi,
+    abi: BitredictTokenABI,
   },
   POOL_CORE: {
     address: CONTRACT_ADDRESSES.POOL_CORE,
-    abi: BitredictPoolCoreABI.abi,
+    abi: BitredictPoolCoreABI,
   },
   BOOST_SYSTEM: {
     address: CONTRACT_ADDRESSES.BOOST_SYSTEM,
-    abi: BitredictBoostSystemABI.abi,
+    abi: BitredictBoostSystemABI,
   },
   COMBO_POOLS: {
     address: CONTRACT_ADDRESSES.COMBO_POOLS,
-    abi: BitredictComboPoolsABI.abi,
+    abi: BitredictComboPoolsABI,
   },
   FACTORY: {
     address: CONTRACT_ADDRESSES.FACTORY,
-    abi: BitredictPoolFactoryABI.abi,
+    abi: BitredictPoolFactoryABI,
   },
   
   // Oracle Contracts
   GUIDED_ORACLE: {
     address: CONTRACT_ADDRESSES.GUIDED_ORACLE,
-    abi: GuidedOracleABI.abi,
+    abi: GuidedOracleABI,
   },
   OPTIMISTIC_ORACLE: {
     address: CONTRACT_ADDRESSES.OPTIMISTIC_ORACLE,
-    abi: OptimisticOracleABI.abi,
+    abi: OptimisticOracleABI,
   },
   
   // System Contracts
   REPUTATION_SYSTEM: {
     address: CONTRACT_ADDRESSES.REPUTATION_SYSTEM,
-    abi: ReputationSystemABI.abi,
+    abi: ReputationSystemABI,
   },
   STAKING_CONTRACT: {
     address: CONTRACT_ADDRESSES.STAKING_CONTRACT,
-    abi: BitredictStakingABI.abi,
+    abi: BitredictStakingABI,
   },
   FAUCET: {
     address: CONTRACT_ADDRESSES.FAUCET,
-    abi: BitrFaucetABI.abi,
+    abi: BitrFaucetABI,
   },
   ODDYSSEY: {
     address: CONTRACT_ADDRESSES.ODDYSSEY,
-    abi: OddysseyABI.abi,
+    abi: OddysseyABI,
   },
   
   // Legacy support (for backward compatibility) - DEPRECATED: Use POOL_CORE instead
   BITREDICT_POOL: {
     address: CONTRACT_ADDRESSES.BITREDICT_POOL, // DEPRECATED: Use POOL_CORE
-    abi: BitredictPoolCoreABI.abi, // DEPRECATED: Use POOL_CORE.abi
+    abi: BitredictPoolCoreABI, // DEPRECATED: Use POOL_CORE.abi
   },
   BITREDICT_STAKING: {
     address: CONTRACT_ADDRESSES.BITREDICT_STAKING,
-    abi: BitredictStakingABI.abi,
+    abi: BitredictStakingABI,
   },
 } as const;
 

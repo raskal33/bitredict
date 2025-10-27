@@ -202,13 +202,14 @@ function CreateMarketPageContent() {
       '1X2': 0,           // MONEYLINE
       'OU25': 1,          // OVER_UNDER (2.5)
       'OU35': 1,          // OVER_UNDER (3.5)
+      'OU15': 1,          // OVER_UNDER (1.5)
       'HT_OU15': 1,       // HALF_TIME_OVER_UNDER (1.5)
-      'BTTS': 2,          // BOTH_TEAMS_SCORE
-      'HT_1X2': 3,        // HALF_TIME
-      'DC': 4,            // DOUBLE_CHANCE
-      'CS': 5,            // CORRECT_SCORE
-      'FG': 6,            // FIRST_GOAL
-      'CUSTOM': 7         // CUSTOM
+      'BTTS': 3,          // PROPOSITION (Both Teams To Score)
+      'HT_1X2': 3,        // PROPOSITION (Half Time Result)
+      'DC': 3,            // PROPOSITION (Double Chance)
+      'CS': 4,            // CORRECT_SCORE
+      'FG': 3,            // PROPOSITION (First Goal)
+      'CUSTOM': 5         // CUSTOM
     };
     
     return marketTypeMap[marketType] || 0; // Default to MONEYLINE

@@ -40,7 +40,7 @@ class PoolStateService {
       // Get pool data and extract flags
       const poolData = await readContract(config, {
         address: this.CONTRACT_ADDRESS as `0x${string}`,
-        abi: BitredictPoolCoreABI.abi,
+        abi: BitredictPoolCoreABI,
         functionName: 'getPool',
         args: [BigInt(poolId)]
       }) as any;
@@ -100,7 +100,7 @@ class PoolStateService {
         const contractCalls = uncachedIds.map(poolId => 
           readContract(config, {
             address: this.CONTRACT_ADDRESS as `0x${string}`,
-            abi: BitredictPoolCoreABI.abi,
+            abi: BitredictPoolCoreABI,
             functionName: 'getPool',
             args: [BigInt(poolId)]
           }).catch(error => {

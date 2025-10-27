@@ -5,14 +5,12 @@ export enum OracleType {
 }
 
 export enum MarketType {
-  MONEYLINE = 0,      // 1X2
-  OVER_UNDER = 1,     // Over/Under goals
-  BOTH_TEAMS_SCORE = 2, // BTTS
-  HALF_TIME = 3,      // HT result
-  DOUBLE_CHANCE = 4,  // 1X, X2, 12
-  CORRECT_SCORE = 5,  // Exact score
-  FIRST_GOAL = 6,     // First goal scorer
-  CUSTOM = 7          // Arbitrary YES/NO
+  MONEYLINE = 0,        // Winner/Outcome (1X2, Win/Lose, Above/Below)
+  OVER_UNDER = 1,       // Total points/goals/runs
+  SPREAD = 2,           // Point spread (basketball, american football)
+  PROPOSITION = 3,      // Prop bets (first scorer, BTTS, specific events)
+  CORRECT_SCORE = 4,    // Exact score/result
+  CUSTOM = 5            // Arbitrary YES/NO predictions
 }
 
 export enum BoostTier {
@@ -26,12 +24,10 @@ export enum BoostTier {
 // Market type labels for UI
 export const MARKET_TYPE_LABELS = {
   [MarketType.MONEYLINE]: '1X2 (Moneyline)',
-  [MarketType.OVER_UNDER]: 'Over/Under Goals',
-  [MarketType.BOTH_TEAMS_SCORE]: 'Both Teams to Score',
-  [MarketType.HALF_TIME]: 'Half Time Result',
-  [MarketType.DOUBLE_CHANCE]: 'Double Chance',
+  [MarketType.OVER_UNDER]: 'Over/Under',
+  [MarketType.SPREAD]: 'Point Spread',
+  [MarketType.PROPOSITION]: 'Proposition',
   [MarketType.CORRECT_SCORE]: 'Correct Score',
-  [MarketType.FIRST_GOAL]: 'First Goal Scorer',
   [MarketType.CUSTOM]: 'Custom Market',
 } as const;
 
@@ -43,44 +39,31 @@ export const MARKET_TYPE_CONFIG = {
     description: 'Predict the match result: Home win, Away win, or Draw',
     requiresTeams: true,
     commonOutcomes: ['Home Win', 'Away Win', 'Draw'],
-    oddsField: 'home_odds', // Field name in API response for odds
-    // REMOVED: defaultOdds - creators should set their own odds
+    oddsField: 'home_odds',
   },
   [MarketType.OVER_UNDER]: {
-    label: 'Over/Under Goals',
-    placeholder: 'e.g., Over 2.5 goals, Under 1.5 goals',
-    description: 'Predict total goals scored in the match',
+    label: 'Over/Under',
+    placeholder: 'e.g., Over 2.5 goals, Under 2.5 goals',
+    description: 'Predict total goals/points scored in the match',
     requiresTeams: true,
     commonOutcomes: ['Over 2.5', 'Under 2.5', 'Over 1.5', 'Under 1.5'],
-    oddsField: 'over_25_odds', // Field name in API response for odds
-    // REMOVED: defaultOdds - creators should set their own odds
+    oddsField: 'over_25_odds',
   },
-  [MarketType.BOTH_TEAMS_SCORE]: {
-    label: 'Both Teams to Score',
-    placeholder: 'e.g., Both teams score, Only one team scores',
-    description: 'Predict if both teams will score at least one goal',
+  [MarketType.SPREAD]: {
+    label: 'Point Spread',
+    placeholder: 'e.g., Home -5.5, Away +5.5',
+    description: 'Predict the winning margin (basketball, american football)',
     requiresTeams: true,
-    commonOutcomes: ['Yes', 'No'],
-    oddsField: 'btts_yes_odds', // Field name in API response for odds
-    // REMOVED: defaultOdds - creators should set their own odds
+    commonOutcomes: ['Home -5.5', 'Away +5.5', 'Home -3.5', 'Away +3.5'],
+    oddsField: null,
   },
-  [MarketType.HALF_TIME]: {
-    label: 'Half Time Result',
-    placeholder: 'e.g., Home team leads at HT, Away team leads at HT',
-    description: 'Predict the result at half-time',
+  [MarketType.PROPOSITION]: {
+    label: 'Proposition Bet',
+    placeholder: 'e.g., Both teams score, First goal scorer, Total cards',
+    description: 'Predict specific events or occurrences during the match',
     requiresTeams: true,
-    commonOutcomes: ['Home HT Win', 'Away HT Win', 'HT Draw'],
-    oddsField: 'ht_home_odds', // Field name in API response for odds
-    // REMOVED: defaultOdds - creators should set their own odds
-  },
-  [MarketType.DOUBLE_CHANCE]: {
-    label: 'Double Chance',
-    placeholder: 'e.g., Home or Draw, Away or Draw, Home or Away',
-    description: 'Predict two possible outcomes combined',
-    requiresTeams: true,
-    commonOutcomes: ['1X (Home or Draw)', 'X2 (Draw or Away)', '12 (Home or Away)'],
-    oddsField: 'home_odds', // Field name in API response for odds
-    // REMOVED: defaultOdds - creators should set their own odds
+    commonOutcomes: ['Yes', 'No', 'Over', 'Under'],
+    oddsField: 'btts_yes_odds', // Default to BTTS odds
   },
   [MarketType.CORRECT_SCORE]: {
     label: 'Correct Score',
@@ -88,17 +71,7 @@ export const MARKET_TYPE_CONFIG = {
     description: 'Predict the exact final score',
     requiresTeams: true,
     commonOutcomes: ['1-0', '2-1', '2-0', '1-1', '3-1'],
-    oddsField: null, // No specific odds field for correct score
-    // REMOVED: defaultOdds - creators should set their own odds
-  },
-  [MarketType.FIRST_GOAL]: {
-    label: 'First Goal Scorer',
-    placeholder: 'e.g., Player name scores first, No goal scorer',
-    description: 'Predict who scores the first goal',
-    requiresTeams: true,
-    commonOutcomes: ['Player Name', 'No Goal Scorer'],
-    oddsField: null, // No specific odds field for first goal scorer
-    // REMOVED: defaultOdds - creators should set their own odds
+    oddsField: null,
   },
   [MarketType.CUSTOM]: {
     label: 'Custom Market',
@@ -106,8 +79,7 @@ export const MARKET_TYPE_CONFIG = {
     description: 'Create your own prediction market',
     requiresTeams: false,
     commonOutcomes: ['Yes', 'No'],
-    oddsField: null, // No specific odds field for custom markets
-    // REMOVED: defaultOdds - creators should set their own odds
+    oddsField: null,
   },
 } as const;
 

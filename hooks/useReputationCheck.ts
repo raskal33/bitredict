@@ -9,7 +9,7 @@ export function useReputationCheck(address?: `0x${string}`) {
   // Check if reputation system exists by reading from PoolCore
   const { data: reputationData, isLoading, refetch } = useReadContract({
     address: CONTRACT_ADDRESSES.REPUTATION_SYSTEM,
-    abi: ReputationSystemABI.abi,
+    abi: ReputationSystemABI,
     functionName: 'getReputationBundle',
     args: address ? [address] : undefined,
     query: {

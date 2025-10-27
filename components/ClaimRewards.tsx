@@ -41,7 +41,7 @@ export default function ClaimRewards({ pool }: ClaimRewardsProps) {
   // Use the new getClaimInfo function from the contract
   const { data: contractClaimInfo, refetch } = useReadContract({
     address: CONTRACT_ADDRESSES.POOL_CORE,
-    abi: BitredictPoolCoreABI.abi,
+    abi: BitredictPoolCoreABI,
     functionName: 'getClaimInfo',
     args: [BigInt(pool.id), address || '0x0'],
     query: { enabled: !!address && !!pool }
@@ -88,7 +88,7 @@ export default function ClaimRewards({ pool }: ClaimRewardsProps) {
     try {
       await writeContract({
         address: CONTRACT_ADDRESSES.POOL_CORE,
-        abi: BitredictPoolCoreABI.abi,
+        abi: BitredictPoolCoreABI,
         functionName: 'claim',
         args: [BigInt(pool.id)],
       });

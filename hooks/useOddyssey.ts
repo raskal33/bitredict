@@ -86,7 +86,7 @@ export function useOddyssey() {
     ...CONTRACTS.ODDYSSEY,
     functionName: 'entryFee',
     query: {
-      select: (data) => transformContractData(data),
+      select: (data: unknown) => transformContractData(data),
     },
   });
 
@@ -94,7 +94,7 @@ export function useOddyssey() {
     ...CONTRACTS.ODDYSSEY,
     functionName: 'dailyCycleId',
     query: {
-      select: (data) => transformContractData(data),
+      select: (data: unknown) => transformContractData(data),
     },
   });
 
@@ -102,7 +102,7 @@ export function useOddyssey() {
     ...CONTRACTS.ODDYSSEY,
     functionName: 'slipCount',
     query: {
-      select: (data) => transformContractData(data),
+      select: (data: unknown) => transformContractData(data),
     },
   });
 
@@ -110,7 +110,7 @@ export function useOddyssey() {
     ...CONTRACTS.ODDYSSEY,
     functionName: 'stats',
     query: {
-      select: (data) => transformContractData(data),
+      select: (data: unknown) => transformContractData(data),
     },
   });
 
@@ -121,7 +121,7 @@ export function useOddyssey() {
     args: dailyCycleId ? [Number(dailyCycleId)] : undefined,
     query: { 
       enabled: !!dailyCycleId,
-      select: (data) => transformContractData(data),
+      select: (data: unknown) => transformContractData(data),
     }
   });
 
@@ -132,7 +132,7 @@ export function useOddyssey() {
     args: dailyCycleId ? [Number(dailyCycleId)] : undefined,
     query: { 
       enabled: !!dailyCycleId,
-      select: (data) => transformContractData(data),
+      select: (data: unknown) => transformContractData(data),
     }
   });
 
@@ -143,7 +143,7 @@ export function useOddyssey() {
     args: dailyCycleId ? [Number(dailyCycleId)] : undefined,
     query: { 
       enabled: !!dailyCycleId,
-      select: (data) => transformContractData(data),
+      select: (data: unknown) => transformContractData(data),
     }
   });
 
@@ -154,7 +154,7 @@ export function useOddyssey() {
     args: dailyCycleId ? [Number(dailyCycleId)] : undefined,
     query: { 
       enabled: !!dailyCycleId,
-      select: (data) => transformContractData(data),
+      select: (data: unknown) => transformContractData(data),
     }
   });
 
@@ -214,7 +214,7 @@ export function useOddyssey() {
     args: dailyCycleId ? [Number(dailyCycleId)] : undefined,
     query: { 
       enabled: !!dailyCycleId,
-      select: (data) => transformContractData(data),
+      select: (data: unknown) => transformContractData(data),
     }
   });
 
@@ -225,7 +225,7 @@ export function useOddyssey() {
     args: address && dailyCycleId ? [address, Number(dailyCycleId)] : undefined,
     query: { 
       enabled: !!(address && dailyCycleId),
-      select: (data) => transformContractData(data),
+      select: (data: unknown) => transformContractData(data),
     }
   });
 
@@ -236,7 +236,7 @@ export function useOddyssey() {
     args: dailyCycleId ? [Number(dailyCycleId)] : undefined,
     query: { 
       enabled: !!dailyCycleId,
-      select: (data) => transformContractData(data),
+      select: (data: unknown) => transformContractData(data),
     }
   });
 

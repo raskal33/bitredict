@@ -65,7 +65,7 @@ export function useContractAnalytics() {
   // Global stats hook
   const { data: globalStats, isLoading: globalStatsLoading } = useReadContract({
     address: CONTRACT_ADDRESSES.POOL_CORE,
-    abi: PoolCoreABI.abi,
+    abi: PoolCoreABI,
     functionName: 'getGlobalStats',
   });
 
