@@ -1318,16 +1318,18 @@ export default function OddysseyPage() {
       console.log('🎯 Submitting slip with picks:', picks);
       
       // Format predictions for contract
-      const predictions = picks.map(pick => ({
-        matchId: pick.id,
-        prediction: pick.pick === "home" ? "1" : 
-                   pick.pick === "draw" ? "X" : 
-                   pick.pick === "away" ? "2" : 
-                   pick.pick === "over" ? "Over" : "Under",
+      const predictions = picks
+        .map(pick => ({
+          matchId: pick.id,
+          prediction: pick.pick === "home" ? "1" : 
+                     pick.pick === "draw" ? "X" : 
+                     pick.pick === "away" ? "2" : 
+                     pick.pick === "over" ? "Over" : "Under",
           odds: pick.odd
-      }));
+        }))
+        .sort((a, b) => a.matchId - b.matchId); // ✅ CRITICAL: Sort by match ID to match contract order
 
-      console.log('📝 Formatted predictions:', predictions);
+      console.log('📝 Formatted predictions (sorted):', predictions);
 
       // Enhanced mobile transaction handling
       setIsPending(true);
