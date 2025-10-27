@@ -242,19 +242,15 @@ export default function BetPage() {
       // Set contract data for status banner (API provides all needed fields)
       const flags = 
         (poolData.status === 'settled' ? 1 : 0) |  // Bit 0: settled
-        (
-          poolData.creatorSideWon === true || poolData.defeated === 0
-          ? 2 : 0  // Bit 1: creatorSideWon
-        );
+        (poolData.creatorSideWon === true ? 2 : 0); // Bit 1: creatorSideWon
       
       console.log('🔍 Pool Status DEBUG:', {
         poolId: poolData.id,
         status: poolData.status,
         creatorSideWon: poolData.creatorSideWon,
-        defeated: poolData.defeated,
         flagsCalculation: {
           settled: (poolData.status === 'settled' ? 1 : 0),
-          creatorSideWon: (poolData.creatorSideWon === true || poolData.defeated === 0 ? 2 : 0),
+          creatorSideWon: (poolData.creatorSideWon === true ? 2 : 0),
           combinedFlags: flags,
           flagBits: {
             bit0_settled: (flags & 1) !== 0,
