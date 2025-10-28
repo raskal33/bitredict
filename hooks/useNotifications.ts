@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAccount } from 'wagmi';
 import { useWebSocket } from './useWebSocket';
 
@@ -20,6 +20,7 @@ export function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const isMountedRef = useRef(true);
 
   // Load notifications from localStorage on mount
   useEffect(() => {
@@ -50,26 +51,32 @@ export function useNotifications() {
 
   // Fetch notifications from backend
   const fetchNotifications = useCallback(async () => {
-    if (!address) return;
+    if (!address || !isMountedRef.current) return;
 
     try {
-      setIsLoading(true);
+      if (isMountedRef.current) {
+        setIsLoading(true);
+      }
       const response = await fetch(`${BACKEND_URL}/api/notifications?address=${address}&limit=50`);
       const data = await response.json();
 
-      if (data.success) {
+      if (data.success && isMountedRef.current) {
         setNotifications(data.notifications);
         setUnreadCount(data.unreadCount);
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
   }, [address]);
 
   // Handle WebSocket messages
   const handleMessage = useCallback((message: any) => {
+    if (!isMountedRef.current) return;
+    
     if (message.type === 'notification') {
       // Add new notification to the beginning
       setNotifications(prev => [message.notification, ...prev].slice(0, 100)); // Keep last 100
@@ -93,6 +100,13 @@ export function useNotifications() {
     onMessage: handleMessage,
     enabled: !!address
   });
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   // Mark as read
   const markAsRead = useCallback(async (notificationId: number) => {

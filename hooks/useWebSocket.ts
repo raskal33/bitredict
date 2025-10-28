@@ -13,6 +13,7 @@ export function useWebSocket({ channel, onMessage, enabled = true }: UseWebSocke
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef(0);
+  const isMountedRef = useRef(true);
   const MAX_RECONNECT_ATTEMPTS = 5;
   const RECONNECT_DELAY = 3000;
 
@@ -25,7 +26,9 @@ export function useWebSocket({ channel, onMessage, enabled = true }: UseWebSocke
 
       ws.onopen = () => {
         console.log('🔌 WebSocket connected');
-        setIsConnected(true);
+        if (isMountedRef.current) {
+          setIsConnected(true);
+        }
         reconnectAttemptsRef.current = 0;
 
         // Subscribe to channel
@@ -50,16 +53,20 @@ export function useWebSocket({ channel, onMessage, enabled = true }: UseWebSocke
 
       ws.onclose = () => {
         console.log('🔌 WebSocket disconnected');
-        setIsConnected(false);
+        if (isMountedRef.current) {
+          setIsConnected(false);
+        }
         wsRef.current = null;
 
         // Attempt reconnection
-        if (enabled && reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
+        if (enabled && reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS && isMountedRef.current) {
           reconnectAttemptsRef.current++;
           console.log(`Reconnecting... (attempt ${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})`);
           
           reconnectTimeoutRef.current = setTimeout(() => {
-            connect();
+            if (isMountedRef.current) {
+              connect();
+            }
           }, RECONNECT_DELAY);
         }
       };
@@ -81,13 +88,17 @@ export function useWebSocket({ channel, onMessage, enabled = true }: UseWebSocke
       wsRef.current = null;
     }
 
-    setIsConnected(false);
+    if (isMountedRef.current) {
+      setIsConnected(false);
+    }
   }, []);
 
   useEffect(() => {
+    isMountedRef.current = true;
     connect();
 
     return () => {
+      isMountedRef.current = false;
       disconnect();
     };
   }, [connect, disconnect]);

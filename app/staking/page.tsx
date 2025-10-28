@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { CurrencyDollarIcon as CurrencySolid } from "@heroicons/react/24/solid";
 import { useAccount } from "wagmi";
@@ -45,6 +45,7 @@ export default function StakingPage() {
   const [selectedTier, setSelectedTier] = useState(0);
   const [selectedDuration, setSelectedDuration] = useState<DurationOption>(DurationOption.THIRTY_DAYS);
   const [needsApproval, setNeedsApproval] = useState(false);
+  const isMountedRef = useRef(true);
   
   // Smart contract hooks
   const staking = useStaking();
@@ -67,9 +68,16 @@ export default function StakingPage() {
            staking.durationOptions.length > 0;
   };
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   // Check if approval is needed
   useEffect(() => {
-    if (stakeAmount && token.balance) {
+    if (stakeAmount && token.balance && isMountedRef.current) {
       const allowance = token.getAllowance(CONTRACTS.BITREDICT_STAKING.address);
       const stakeAmountWei = parseUnits(stakeAmount, 18);
       setNeedsApproval(!allowance || (allowance as bigint) < stakeAmountWei);
@@ -78,7 +86,7 @@ export default function StakingPage() {
 
   // Auto tier selection based on stake amount
   useEffect(() => {
-    if (stakeAmount && staking.tiers && staking.tiers.length > 0) {
+    if (stakeAmount && staking.tiers && staking.tiers.length > 0 && isMountedRef.current) {
       const amount = parseFloat(stakeAmount);
       if (amount > 0) {
         // Find the highest tier the user can access
@@ -100,15 +108,16 @@ export default function StakingPage() {
 
   // Refresh allowance when approval is confirmed
   useEffect(() => {
-    if (token.isConfirmed) {
+    if (token.isConfirmed && isMountedRef.current) {
       token.refetchAll();
-      toast.success("Approval confirmed!");
+      toast.success("Approval confirmed! 🎉");
+      setNeedsApproval(false);
     }
   }, [token.isConfirmed, token]);
 
   // Watch for successful transactions
   useEffect(() => {
-    if (staking.isConfirmed) {
+    if (staking.isConfirmed && isMountedRef.current) {
       // Determine which transaction was confirmed based on the transaction state
       if (staking.claimingStakeIndex !== null) {
         toast.success("Rewards claimed successfully! 🎉");
@@ -127,27 +136,20 @@ export default function StakingPage() {
     }
   }, [staking.isConfirmed, staking, token]);
 
-  useEffect(() => {
-    if (token.isConfirmed) {
-      toast.success("Approval confirmed! 🎉");
-      setNeedsApproval(false);
-    }
-  }, [token.isConfirmed]);
-
   // Handle transaction state changes
   useEffect(() => {
-    if (staking.isPending) {
+    if (staking.isPending && isMountedRef.current) {
       showInfo("Transaction Pending", "Please confirm the transaction in your wallet...");
-    } else if (staking.isConfirmed) {
+    } else if (staking.isConfirmed && isMountedRef.current) {
       showSuccess("Transaction Successful", "Transaction completed successfully!", staking.hash);
     }
   }, [staking.isPending, staking.isConfirmed, staking.hash, showInfo, showSuccess]);
 
   // Handle token approval state changes
   useEffect(() => {
-    if (token.isPending) {
+    if (token.isPending && isMountedRef.current) {
       showInfo("Approval Pending", "Please confirm the approval transaction in your wallet...");
-    } else if (token.isConfirmed) {
+    } else if (token.isConfirmed && isMountedRef.current) {
       showSuccess("Approval Successful", "Successfully approved BITR for staking", token.hash);
     }
   }, [token.isPending, token.isConfirmed, token.hash, showInfo, showSuccess]);
