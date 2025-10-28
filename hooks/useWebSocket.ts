@@ -22,7 +22,19 @@ export function useWebSocket({ channel, onMessage, enabled = true }: UseWebSocke
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
     try {
-      const ws = new WebSocket(`${WS_URL}/ws`);
+      // Build WebSocket URL - ensure we don't duplicate /ws
+      let wsUrl = WS_URL;
+      
+      // Convert http/https to ws/wss if needed
+      wsUrl = wsUrl.replace('http://', 'ws://').replace('https://', 'wss://');
+      
+      // Add /ws only if not already present
+      if (!wsUrl.endsWith('/ws')) {
+        wsUrl = `${wsUrl}/ws`;
+      }
+      
+      console.log('🔌 Connecting to WebSocket (useWebSocket hook):', wsUrl);
+      const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
         console.log('🔌 WebSocket connected');

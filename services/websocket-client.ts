@@ -19,9 +19,18 @@ class WebSocketClient {
   private reconnectDelay = 1000;
   private heartbeatInterval: NodeJS.Timeout | null = null;
   private isConnected = false;
+  private isInitialized = false;
 
+  // Lazy connection - don't auto-connect on construction
   constructor() {
-    this.connect();
+    // Connection will be established when first subscription is made
+  }
+
+  private ensureConnection() {
+    if (!this.isInitialized) {
+      this.isInitialized = true;
+      this.connect();
+    }
   }
 
   private connect() {
@@ -32,12 +41,12 @@ class WebSocketClient {
       // Convert http/https to ws/wss
       let wsUrl = baseUrl.replace('http://', 'ws://').replace('https://', 'wss://');
       
-      // Append /ws if not already present
+      // Append /ws if not already present - PREVENT DOUBLE /ws
       if (!wsUrl.endsWith('/ws')) {
         wsUrl = `${wsUrl}/ws`;
       }
       
-      console.log('🔌 Connecting to WebSocket:', wsUrl);
+      console.log('🔌 Connecting to WebSocket (websocket-client singleton):', wsUrl);
       
       this.ws = new WebSocket(wsUrl);
       
@@ -120,6 +129,9 @@ class WebSocketClient {
   }
 
   public subscribe(channel: string, callback: (data: any) => void) {
+    // Ensure connection is established
+    this.ensureConnection();
+    
     if (!this.subscriptions.has(channel)) {
       this.subscriptions.set(channel, []);
     }
