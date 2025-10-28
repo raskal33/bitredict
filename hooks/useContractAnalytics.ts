@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import contractAnalyticsService from '@/services/contractAnalyticsService';
-// import unifiedAnalyticsService from '@/services/unifiedAnalyticsService'; // Removed - using analyticsService instead
-import { analyticsService } from '@/services/analyticsService';
+import { realAnalyticsService } from '@/services/realAnalyticsService';
 
 // ============================================================================
 // CONTRACT ANALYTICS HOOKS - Real-time blockchain data
@@ -132,7 +131,38 @@ export function useUnifiedGlobalStats(
 
   return useQuery({
     queryKey: ['unified-analytics', 'global', timeframe],
-    queryFn: () => analyticsService.getPlatformAnalytics(),
+    queryFn: async () => {
+      // Get real backend data
+      const [globalStats, oddysseyStats] = await Promise.all([
+        realAnalyticsService.getGlobalStats(timeframe),
+        realAnalyticsService.getOddysseyStats(timeframe === 'all' ? '30d' : timeframe as any)
+      ]);
+
+      // Combine into unified format
+      return {
+        globalMetrics: {
+          totalVolume: globalStats.totalVolume,
+          totalPools: globalStats.totalPools,
+          totalBets: globalStats.totalBets,
+          activePools: globalStats.activePools,
+          totalUsers: oddysseyStats.uniquePlayers,
+          totalSlips: oddysseyStats.totalSlips,
+          averageWinRate: oddysseyStats.averageAccuracy,
+          cyclesCompleted: oddysseyStats.cyclesCompleted
+        },
+        engagementMetrics: {
+          dailyActiveUsers: oddysseyStats.uniquePlayers,
+          retentionRate: 0, // TODO: Calculate if needed
+          averageSessionTime: 0, // TODO: Calculate if needed
+          bounceRate: 0 // TODO: Calculate if needed
+        },
+        performanceInsights: {
+          topPerformers: [],
+          communityTrends: [],
+          platformHealth: oddysseyStats.averageAccuracy > 50 ? 'excellent' as const : 'good' as const
+        }
+      };
+    },
     enabled,
     refetchInterval,
     staleTime: 20000,
@@ -151,7 +181,7 @@ export function useUnifiedPoolAnalytics(
 
   return useQuery({
     queryKey: ['unified-analytics', 'pool', poolId],
-    queryFn: () => analyticsService.getCycleAnalytics(poolId!),
+    queryFn: () => contractAnalyticsService.getPoolAnalytics(poolId!),
     enabled: enabled && poolId !== undefined,
     refetchInterval,
     staleTime: 20000,
@@ -170,7 +200,7 @@ export function useUnifiedCreatorProfile(
 
   return useQuery({
     queryKey: ['unified-analytics', 'creator', address],
-    queryFn: () => analyticsService.getUserAnalytics(address as `0x${string}`),
+    queryFn: () => realAnalyticsService.getUserPerformance(address!),
     enabled: enabled && !!address,
     refetchInterval,
     staleTime: 30000,
@@ -189,7 +219,11 @@ export function useMarketIntelligence(
 
   return useQuery({
     queryKey: ['unified-analytics', 'market-intelligence', timeframe],
-    queryFn: () => analyticsService.getVisualizationData(1),
+    queryFn: () => {
+      // Convert 24h to 7d for backend API compatibility
+      const apiTimeframe = timeframe === '24h' ? '7d' : timeframe;
+      return realAnalyticsService.getCategoryStats(apiTimeframe);
+    },
     enabled,
     refetchInterval,
     staleTime: 120000,

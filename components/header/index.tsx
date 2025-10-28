@@ -28,6 +28,7 @@ import {
 import Button from "@/components/button";
 import { useProfileStore } from '@/stores/useProfileStore';
 import { useWalletConnection } from '@/hooks/useWalletConnection';
+import NotificationBadge from "@/components/NotificationBadge";
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
@@ -266,6 +267,9 @@ export default function Header() {
 
               {/* Right Side Actions */}
               <div className="flex items-center gap-3">
+                {/* Notification Badge */}
+                {isConnected && address && isRender && <NotificationBadge />}
+                
                 {/* Error Display */}
                 {error && (
                   <div className="hidden sm:block">

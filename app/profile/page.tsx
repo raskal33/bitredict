@@ -193,12 +193,12 @@ export default function ProfilePage() {
             <div className="mt-4">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm text-text-muted">Level: {reputation.accessLevelName}</span>
-                <span className="text-sm text-primary">{reputation.reputation}/150</span>
+                <span className="text-sm text-primary">{reputation.reputation}/500</span>
               </div>
               <div className="w-full bg-gray-700 rounded-full h-2">
                 <div 
                   className="bg-primary h-2 rounded-full transition-all"
-                  style={{ width: `${reputation.progressToNext}%` }}
+                  style={{ width: `${(reputation.reputation / 500) * 100}%` }}
                 />
               </div>
               {reputation.nextMilestone && (

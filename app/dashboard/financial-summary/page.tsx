@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { useAccount } from "wagmi";
+import { usePortfolio } from "@/hooks/usePortfolio";
+import { formatSTT, formatBITR, formatPercentage, formatShortDate } from "@/utils/formatters";
 import {
   WalletIcon,
   TrophyIcon,
@@ -11,166 +14,115 @@ import {
   ArrowTrendingDownIcon,
   CalendarDaysIcon,
   ChartBarIcon,
-  EyeIcon,
   AdjustmentsHorizontalIcon,
   PlusIcon
 } from "@heroicons/react/24/outline";
 
-// Mock portfolio data
-const mockPortfolio = [
-  {
-    id: 1,
-    title: "Bitcoin reaches $100,000 by March 2025",
-    type: "bet",
-    amount: 250,
-    outcome: "Yes",
-    odds: 1.75,
-    potential: 437.5,
-    status: "active",
-    endDate: "2025-03-31",
-    progress: 67.5,
-    theme: "cyan",
-    category: "Crypto",
-    createdAt: "2024-12-15",
-    currentValue: 320,
-    unrealizedPL: 70
-  },
-  {
-    id: 2,
-    title: "Tesla Stock Prediction Q1 2025",
-    type: "liquidity",
-    amount: 500,
-    outcome: "Against",
-    odds: 1.8,
-    potential: 720,
-    status: "active",
-    endDate: "2025-02-15",
-    progress: 23.1,
-    theme: "violet",
-    category: "Stocks",
-    createdAt: "2024-12-10",
-    currentValue: 540,
-    unrealizedPL: 40
-  },
-  {
-    id: 3,
-    title: "Manchester City wins Premier League",
-    type: "bet",
-    amount: 150,
-    outcome: "Yes",
-    odds: 2.1,
-    potential: 315,
-    status: "winning",
-    endDate: "2025-05-25",
-    progress: 78.2,
-    theme: "magenta",
-    category: "Sports",
-    createdAt: "2024-11-20",
-    currentValue: 240,
-    unrealizedPL: 90
-  },
-  {
-    id: 4,
-    title: "Fed Rate Decision Q4 2024",
-    type: "bet",
-    amount: 200,
-    outcome: "No",
-    odds: 1.6,
-    potential: 320,
-    status: "won",
-    endDate: "2024-12-18",
-    progress: 100,
-    theme: "cyan",
-    category: "Finance",
-    createdAt: "2024-11-15",
-    currentValue: 320,
-    unrealizedPL: 120
-  },
-  {
-    id: 5,
-    title: "Apple Stock Price Prediction",
-    type: "liquidity",
-    amount: 300,
-    outcome: "Against",
-    odds: 1.9,
-    potential: 570,
-    status: "losing",
-    endDate: "2024-12-30",
-    progress: 15.2,
-    theme: "violet",
-    category: "Stocks",
-    createdAt: "2024-12-01",
-    currentValue: 180,
-    unrealizedPL: -120
-  }
-];
-
-const portfolioSummary = {
-  totalValue: mockPortfolio.reduce((sum, p) => sum + p.currentValue, 0),
-  totalInvested: mockPortfolio.reduce((sum, p) => sum + p.amount, 0),
-  unrealizedPL: mockPortfolio.reduce((sum, p) => sum + p.unrealizedPL, 0),
-  activePositions: mockPortfolio.filter(p => p.status === "active").length,
-  winningPositions: mockPortfolio.filter(p => p.status === "winning" || p.status === "won").length,
-  totalPositions: mockPortfolio.length
-};
-
 export default function Page() {
-  const [filterStatus, setFilterStatus] = useState<"all" | "active" | "winning" | "losing" | "won">("all");
-  const [filterType, setFilterType] = useState<"all" | "bet" | "liquidity">("all");
-  const [sortBy, setSortBy] = useState<"date" | "amount" | "pl" | "progress">("date");
+  const { address } = useAccount();
+  const { data: portfolioData, isLoading, error } = usePortfolio();
+  
+  const [filterStatus, setFilterStatus] = useState<"all" | "active" | "won" | "lost" | "ended">("all");
+  const [filterType, setFilterType] = useState<"all" | "pool_bet" | "oddyssey">("all");
+  const [sortBy, setSortBy] = useState<"date" | "amount" | "pl" | "status">("date");
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "active": return "text-blue-400 bg-blue-500/10 border-blue-500/30";
-      case "winning": return "text-green-400 bg-green-500/10 border-green-500/30";
-      case "losing": return "text-red-400 bg-red-500/10 border-red-500/30";
       case "won": return "text-emerald-400 bg-emerald-500/10 border-emerald-500/30";
       case "lost": return "text-red-500 bg-red-600/10 border-red-600/30";
+      case "ended": return "text-yellow-400 bg-yellow-500/10 border-yellow-500/30";
+      case "pending": return "text-gray-400 bg-gray-500/10 border-gray-500/30";
       default: return "text-gray-400 bg-gray-500/10 border-gray-500/30";
     }
   };
 
-  const getCardTheme = (theme: string) => {
+  const getCardTheme = (category: string) => {
     const themes = {
-      cyan: {
+      Sports: {
         background: "bg-gradient-to-br from-cyan-500/10 via-blue-500/5 to-transparent",
         border: "border-cyan-500/20",
-        glow: "shadow-[0_0_30px_rgba(34,199,255,0.1)]",
         accent: "text-cyan-400",
         progressBg: "bg-gradient-to-r from-cyan-500 to-blue-500"
       },
-      magenta: {
+      Oddyssey: {
         background: "bg-gradient-to-br from-pink-500/10 via-rose-500/5 to-transparent",
         border: "border-pink-500/20",
-        glow: "shadow-[0_0_30px_rgba(255,0,128,0.1)]",
         accent: "text-pink-400",
         progressBg: "bg-gradient-to-r from-pink-500 to-rose-500"
       },
-      violet: {
+      Crypto: {
         background: "bg-gradient-to-br from-violet-500/10 via-purple-500/5 to-transparent",
         border: "border-violet-500/20",
-        glow: "shadow-[0_0_30px_rgba(140,0,255,0.1)]",
         accent: "text-violet-400",
         progressBg: "bg-gradient-to-r from-violet-500 to-purple-500"
       }
     };
-    return themes[theme as keyof typeof themes] || themes.cyan;
+    return themes[category as keyof typeof themes] || themes.Sports;
   };
 
-  const filteredPortfolio = mockPortfolio
+  if (!address) {
+    return (
+      <div className="space-y-8">
+        <div className="glass-card p-12 text-center">
+          <WalletIcon className="h-16 w-16 text-text-muted mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-text-primary mb-2">Connect Your Wallet</h2>
+          <p className="text-text-secondary mb-6">Please connect your wallet to view your portfolio</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-8 animate-pulse">
+        <div className="glass-card p-8">
+          <div className="h-8 bg-card-bg rounded w-1/3 mb-8"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="glass-card p-6">
+                <div className="h-12 w-12 bg-card-bg rounded-lg mb-4"></div>
+                <div className="h-8 bg-card-bg rounded mb-2"></div>
+                <div className="h-4 bg-card-bg rounded"></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !portfolioData) {
+    return (
+      <div className="glass-card p-12 text-center">
+        <h2 className="text-xl font-bold text-text-primary mb-2">Error Loading Portfolio</h2>
+        <p className="text-text-secondary">Please try again later</p>
+      </div>
+    );
+  }
+
+  const { summary, positions } = portfolioData;
+
+  const filteredPortfolio = positions
     .filter(position => filterStatus === "all" || position.status === filterStatus)
     .filter(position => filterType === "all" || position.type === filterType)
     .sort((a, b) => {
       switch (sortBy) {
-        case "amount": return b.amount - a.amount;
-        case "pl": return b.unrealizedPL - a.unrealizedPL;
-        case "progress": return b.progress - a.progress;
+        case "amount": return parseFloat(b.amount) - parseFloat(a.amount);
+        case "pl": return parseFloat(b.unrealizedPL) - parseFloat(a.unrealizedPL);
+        case "status": return a.status.localeCompare(b.status);
         case "date":
         default: return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       }
     });
 
-  const roiPercentage = ((portfolioSummary.unrealizedPL / portfolioSummary.totalInvested) * 100);
+  const roiPercentage = summary.totalInvested > 0 
+    ? ((summary.unrealizedPL / summary.totalInvested) * 100) 
+    : 0;
+
+  const winRate = summary.totalPositions > 0
+    ? ((summary.wonPositions / summary.totalPositions) * 100)
+    : 0;
 
   return (
     <div className="space-y-8">
@@ -205,7 +157,7 @@ export default function Page() {
         {[
           {
             title: "Total Value",
-            value: `${portfolioSummary.totalValue} SOL`,
+            value: formatSTT(summary.currentValue),
             change: roiPercentage >= 0 ? `+${roiPercentage.toFixed(1)}%` : `${roiPercentage.toFixed(1)}%`,
             icon: <WalletIcon className="h-6 w-6" />,
             color: "text-blue-400",
@@ -215,18 +167,18 @@ export default function Page() {
           },
           {
             title: "Unrealized P&L",
-            value: `${portfolioSummary.unrealizedPL >= 0 ? '+' : ''}${portfolioSummary.unrealizedPL} SOL`,
-            change: `${((portfolioSummary.unrealizedPL / portfolioSummary.totalInvested) * 100).toFixed(1)}%`,
+            value: formatSTT(summary.unrealizedPL),
+            change: formatPercentage(roiPercentage),
             icon: <ChartBarIcon className="h-6 w-6" />,
-            color: portfolioSummary.unrealizedPL >= 0 ? "text-green-400" : "text-red-400",
-            bgColor: portfolioSummary.unrealizedPL >= 0 ? "bg-green-500/10" : "bg-red-500/10",
-            borderColor: portfolioSummary.unrealizedPL >= 0 ? "border-green-500/20" : "border-red-500/20",
-            isPositive: portfolioSummary.unrealizedPL >= 0
+            color: summary.unrealizedPL >= 0 ? "text-green-400" : "text-red-400",
+            bgColor: summary.unrealizedPL >= 0 ? "bg-green-500/10" : "bg-red-500/10",
+            borderColor: summary.unrealizedPL >= 0 ? "border-green-500/20" : "border-red-500/20",
+            isPositive: summary.unrealizedPL >= 0
           },
           {
             title: "Active Positions",
-            value: portfolioSummary.activePositions.toString(),
-            change: `${portfolioSummary.totalPositions} total`,
+            value: summary.activePositions.toString(),
+            change: `${summary.totalPositions} total`,
             icon: <BanknotesIcon className="h-6 w-6" />,
             color: "text-purple-400",
             bgColor: "bg-purple-500/10",
@@ -235,8 +187,8 @@ export default function Page() {
           },
           {
             title: "Win Rate",
-            value: `${((portfolioSummary.winningPositions / portfolioSummary.totalPositions) * 100).toFixed(1)}%`,
-            change: `${portfolioSummary.winningPositions}/${portfolioSummary.totalPositions}`,
+            value: formatPercentage(winRate),
+            change: `${summary.wonPositions}/${summary.totalPositions}`,
             icon: <TrophyIcon className="h-6 w-6" />,
             color: "text-yellow-400",
             bgColor: "bg-yellow-500/10",
@@ -300,14 +252,14 @@ export default function Page() {
               <span className="text-sm text-text-muted">Status:</span>
               <select
                 value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value as "all" | "active" | "winning" | "losing" | "won")}
+                onChange={(e) => setFilterStatus(e.target.value as "all" | "active" | "won" | "lost" | "ended")}
                 className="bg-bg-card border border-border-card rounded-button px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-primary/50"
               >
                 <option value="all">All</option>
                 <option value="active">Active</option>
-                <option value="winning">Winning</option>
-                <option value="losing">Losing</option>
                 <option value="won">Won</option>
+                <option value="lost">Lost</option>
+                <option value="ended">Ended</option>
               </select>
             </div>
 
@@ -316,12 +268,12 @@ export default function Page() {
               <span className="text-sm text-text-muted">Type:</span>
               <select
                 value={filterType}
-                onChange={(e) => setFilterType(e.target.value as "all" | "bet" | "liquidity")}
+                onChange={(e) => setFilterType(e.target.value as "all" | "pool_bet" | "oddyssey")}
                 className="bg-bg-card border border-border-card rounded-button px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-primary/50"
               >
                 <option value="all">All</option>
-                <option value="bet">Bets</option>
-                <option value="liquidity">Liquidity</option>
+                <option value="pool_bet">Pool Bets</option>
+                <option value="oddyssey">Oddyssey</option>
               </select>
             </div>
 
@@ -330,13 +282,13 @@ export default function Page() {
               <span className="text-sm text-text-muted">Sort:</span>
               <select
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as "date" | "amount" | "pl" | "progress")}
+                onChange={(e) => setSortBy(e.target.value as "date" | "amount" | "pl" | "status")}
                 className="bg-bg-card border border-border-card rounded-button px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-primary/50"
               >
                 <option value="date">Date</option>
                 <option value="amount">Amount</option>
                 <option value="pl">P&L</option>
-                <option value="progress">Progress</option>
+                <option value="status">Status</option>
               </select>
             </div>
           </div>
@@ -354,17 +306,17 @@ export default function Page() {
           <div>
             <h3 className="text-xl font-bold text-text-primary">Your Positions</h3>
             <p className="text-sm text-text-muted">
-              Showing {filteredPortfolio.length} of {mockPortfolio.length} positions
+              Showing {filteredPortfolio.length} of {positions.length} positions
             </p>
           </div>
-          <button className="p-2 rounded-button bg-bg-card border border-border-card hover:bg-[rgba(255,255,255,0.05)] transition-all duration-200">
-            <EyeIcon className="h-4 w-4 text-text-muted" />
-          </button>
         </div>
         
         <div className="space-y-4">
           {filteredPortfolio.map((position, index) => {
-            const theme = getCardTheme(position.theme);
+            const theme = getCardTheme(position.category);
+            const formatAmount = position.token === 'BITR' ? formatBITR : formatSTT;
+            const unrealizedPL = parseFloat(position.unrealizedPL);
+            
             return (
               <motion.div
                 key={position.id}
@@ -379,65 +331,54 @@ export default function Page() {
                       {position.status.charAt(0).toUpperCase() + position.status.slice(1)}
                     </div>
                     <div className="text-sm text-text-muted">
-                      {position.type === "bet" ? "Bet" : "Liquidity"} • {position.category}
+                      {position.type === "oddyssey" ? "Oddyssey" : "Pool Bet"} • {position.category}
                     </div>
                   </div>
                   <div className="text-right">
                     <div className="text-sm font-bold text-text-primary">
-                      {position.currentValue} SOL
+                      {formatAmount(position.currentValue)}
                     </div>
-                    <div className={`text-xs font-medium ${position.unrealizedPL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      {position.unrealizedPL >= 0 ? '+' : ''}{position.unrealizedPL} SOL
+                    <div className={`text-xs font-medium ${unrealizedPL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {unrealizedPL >= 0 ? '+' : ''}{formatAmount(position.unrealizedPL)}
                     </div>
                   </div>
                 </div>
                 
-                <Link href={`/bet/${position.id}`} className="block mb-4">
+                <Link 
+                  href={position.type === "oddyssey" ? `/oddyssey` : `/bet/${position.poolId}`} 
+                  className="block mb-4"
+                >
                   <h4 className="font-semibold text-text-primary hover:text-primary transition-colors line-clamp-1">
                     {position.title}
                   </h4>
                 </Link>
                 
-                {/* Progress Bar */}
-                {position.status !== "won" && position.status !== "lost" && (
-                  <div className="mb-4">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-xs text-text-muted">Progress</span>
-                      <span className="text-xs font-medium text-text-primary">{position.progress}%</span>
-                    </div>
-                    <div className="w-full bg-bg-card rounded-full h-2 border border-border-card overflow-hidden">
-                      <motion.div 
-                        className={`h-full rounded-full ${theme.progressBg} relative overflow-hidden`}
-                        initial={{ width: 0 }}
-                        animate={{ width: `${position.progress}%` }}
-                        transition={{ duration: 1.5, ease: "easeOut", delay: 0.5 + index * 0.1 }}
-                      >
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
-                      </motion.div>
-                    </div>
-                  </div>
-                )}
-                
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
                     <span className="text-text-muted">Invested:</span>
-                    <div className="font-medium text-text-primary">{position.amount} SOL</div>
+                    <div className="font-medium text-text-primary">{formatAmount(position.amount)}</div>
                   </div>
-                  <div>
-                    <span className="text-text-muted">Outcome:</span>
-                    <div className="font-medium text-text-primary">{position.outcome}</div>
-                  </div>
-                  <div>
-                    <span className="text-text-muted">Odds:</span>
-                    <div className={`font-medium ${theme.accent}`}>{position.odds}x</div>
-                  </div>
-                  <div>
-                    <span className="text-text-muted">Ends:</span>
-                    <div className="font-medium text-text-primary flex items-center gap-1">
-                      <CalendarDaysIcon className="h-3 w-3" />
-                      {position.endDate}
+                  {position.outcome && (
+                    <div>
+                      <span className="text-text-muted">Outcome:</span>
+                      <div className="font-medium text-text-primary">{position.outcome}</div>
                     </div>
-                  </div>
+                  )}
+                  {position.score !== null && position.score !== undefined && (
+                    <div>
+                      <span className="text-text-muted">Score:</span>
+                      <div className={`font-medium ${theme.accent}`}>{position.score}/10</div>
+                    </div>
+                  )}
+                  {position.endDate && (
+                    <div>
+                      <span className="text-text-muted">Date:</span>
+                      <div className="font-medium text-text-primary flex items-center gap-1">
+                        <CalendarDaysIcon className="h-3 w-3" />
+                        {formatShortDate(position.endDate)}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             );

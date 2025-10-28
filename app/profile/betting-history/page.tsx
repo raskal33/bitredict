@@ -1,362 +1,239 @@
 "use client";
 
 import { useState } from "react";
-import { FaFilter, FaSort, FaChevronDown, FaChevronUp, FaSearch } from "react-icons/fa";
-import { BiSolidBadgeCheck, BiSolidXCircle } from "react-icons/bi";
-import Button from "@/components/button";
+import { motion } from "framer-motion";
+import { useAccount } from "wagmi";
+import { useBettingHistory } from "@/hooks/usePortfolio";
+import { formatSTT, formatRelativeTime, formatShortDate } from "@/utils/formatters";
+import {
+  MagnifyingGlassIcon,
+  TrophyIcon,
+  XCircleIcon,
+  ClockIcon,
+  CalendarDaysIcon,
+  BanknotesIcon
+} from "@heroicons/react/24/outline";
+import Link from "next/link";
 
 export default function BettingHistoryPage() {
-  const [activeTab, setActiveTab] = useState("all");
-  const [sortBy, setSortBy] = useState("date");
-  const [sortOrder, setSortOrder] = useState("desc");
+  const { address } = useAccount();
+  const { data: history } = useBettingHistory();
+  const [activeTab, setActiveTab] = useState<"all" | "won" | "lost" | "ended">("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
+
+  if (!address) {
+    return (
+      <div className="space-y-8">
+        <div className="glass-card p-12 text-center">
+          <TrophyIcon className="h-16 w-16 text-text-muted mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-text-primary mb-2">Connect Your Wallet</h2>
+          <p className="text-text-secondary">Please connect your wallet to view betting history</p>
+        </div>
+      </div>
+    );
+  }
+
+  const bets = history || [];
   
-  // Mock data for betting history
-  const bettingHistory = [
-    {
-      id: 1,
-      date: "2024-11-15",
-      prediction: "BTC will break $70,000",
-      amount: 45,
-      odds: "1.8x",
-      result: "win",
-      payout: 81,
-      profit: 36,
-      category: "crypto",
-      timeAgo: "2 hours ago"
-    },
-    {
-      id: 2,
-      date: "2024-11-12",
-      prediction: "STT will outperform ETH in Q4",
-      amount: 25,
-      odds: "2.2x",
-      result: "pending",
-      payout: 55,
-      profit: 30,
-      category: "crypto",
-      timeAgo: "3 days ago"
-    },
-    {
-      id: 3,
-      date: "2024-11-08",
-      prediction: "DOGE will reach $1",
-      amount: 15,
-      odds: "5.0x",
-      result: "loss",
-      payout: 0,
-      profit: -15,
-      category: "crypto",
-      timeAgo: "1 week ago"
-    },
-    {
-      id: 4,
-      date: "2024-10-30",
-      prediction: "Manchester United vs Arsenal - Arsenal wins",
-      amount: 30,
-      odds: "2.5x",
-      result: "win",
-      payout: 75,
-      profit: 45,
-      category: "sports",
-      timeAgo: "2 weeks ago"
-    },
-    {
-      id: 5,
-      date: "2024-10-25",
-      prediction: "US Presidential Election - Democratic win",
-      amount: 50,
-      odds: "1.9x",
-      result: "pending",
-      payout: 95,
-      profit: 45,
-      category: "politics",
-      timeAgo: "3 weeks ago"
-    },
-    {
-      id: 6,
-      date: "2024-10-20",
-      prediction: "Ethereum will merge to PoS in Q4",
-      amount: 100,
-      odds: "2.0x",
-      result: "win",
-      payout: 200,
-      profit: 100,
-      category: "crypto",
-      timeAgo: "1 month ago"
-    }
-  ];
-  
-  // Filter bets based on active tab and search query
-  const filteredBets = bettingHistory.filter(bet => {
-    const matchesTab = 
-      activeTab === "all" || 
-      (activeTab === "wins" && bet.result === "win") ||
-      (activeTab === "losses" && bet.result === "loss") ||
-      (activeTab === "pending" && bet.result === "pending");
-      
-    const matchesSearch = 
-      searchQuery === "" || 
-      (bet.prediction || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (bet.category || '').toLowerCase().includes(searchQuery.toLowerCase());
-      
+  // Filter by tab and search
+  const filteredBets = bets.filter(bet => {
+    const matchesTab = activeTab === "all" || bet.status === activeTab;
+    const matchesSearch = searchQuery === "" || 
+      bet.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      bet.category.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesTab && matchesSearch;
   });
+
+  // Calculate stats
+  const totalBets = bets.length;
+  const wonBets = bets.filter(b => b.status === 'won').length;
+  const lostBets = bets.filter(b => b.status === 'lost').length;
+  const pendingBets = bets.filter(b => b.status === 'ended').length;
   
-  // Sort bets based on sort criteria
-  const sortedBets = [...filteredBets].sort((a, b) => {
-    let comparison = 0;
-    
-    switch (sortBy) {
-      case "date":
-        comparison = new Date(b.date).getTime() - new Date(a.date).getTime();
-        break;
-      case "amount":
-        comparison = b.amount - a.amount;
-        break;
-      case "profit":
-        comparison = b.profit - a.profit;
-        break;
-      default:
-        comparison = new Date(b.date).getTime() - new Date(a.date).getTime();
-    }
-    
-    return sortOrder === "asc" ? comparison * -1 : comparison;
-  });
-  
-  // Stats for the summary cards
-  const stats = {
-    totalBets: bettingHistory.length,
-    wins: bettingHistory.filter(bet => bet.result === "win").length,
-    losses: bettingHistory.filter(bet => bet.result === "loss").length,
-    pending: bettingHistory.filter(bet => bet.result === "pending").length,
-    totalProfit: bettingHistory.reduce((acc, bet) => acc + (bet.result === "win" ? bet.profit : bet.result === "loss" ? -bet.amount : 0), 0),
-    avgBetSize: bettingHistory.reduce((acc, bet) => acc + bet.amount, 0) / bettingHistory.length,
-    biggestWin: Math.max(...bettingHistory.filter(bet => bet.result === "win").map(bet => bet.profit), 0),
-    winRate: (bettingHistory.filter(bet => bet.result === "win").length / (bettingHistory.filter(bet => bet.result === "win").length + bettingHistory.filter(bet => bet.result === "loss").length) * 100).toFixed(1)
-  };
-  
-  // Function to toggle sort
-  const handleSort = (field: string) => {
-    if (sortBy === field) {
-      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    } else {
-      setSortBy(field);
-      setSortOrder("desc");
+  const winRate = totalBets > 0 ? ((wonBets / totalBets) * 100).toFixed(1) : '0';
+
+  const tabs = [
+    { id: "all", label: "All", count: totalBets },
+    { id: "won", label: "Won", count: wonBets },
+    { id: "lost", label: "Lost", count: lostBets },
+    { id: "ended", label: "Pending", count: pendingBets }
+  ];
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "won": return "text-emerald-400 bg-emerald-500/10 border-emerald-500/30";
+      case "lost": return "text-red-500 bg-red-600/10 border-red-600/30";
+      case "ended": return "text-yellow-400 bg-yellow-500/10 border-yellow-500/30";
+      default: return "text-gray-400 bg-gray-500/10 border-gray-500/30";
     }
   };
-  
-  // Function to get result badge
-  const getResultBadge = (result: string) => {
-    switch (result) {
-      case "win":
-        return <span className="flex items-center gap-1 rounded-full bg-green-500/20 px-2 py-0.5 text-xs text-green-400"><BiSolidBadgeCheck className="text-green-400" /> Win</span>;
-      case "loss":
-        return <span className="flex items-center gap-1 rounded-full bg-red-500/20 px-2 py-0.5 text-xs text-red-400"><BiSolidXCircle className="text-red-400" /> Loss</span>;
-      case "pending":
-        return <span className="flex items-center gap-1 rounded-full bg-yellow-500/20 px-2 py-0.5 text-xs text-yellow-400"><FaSort className="text-yellow-400" /> Pending</span>;
-      default:
-        return null;
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "won": return <TrophyIcon className="h-5 w-5" />;
+      case "lost": return <XCircleIcon className="h-5 w-5" />;
+      case "ended": return <ClockIcon className="h-5 w-5" />;
+      default: return <BanknotesIcon className="h-5 w-5" />;
     }
   };
-  
+
   return (
-    <div className="space-y-6">
-      {/* Stats Summary */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        <div className="glass-card p-4 text-center">
-          <div className="text-sm text-text-muted">Total Bets</div>
-          <div className="text-2xl font-bold text-white">{stats.totalBets}</div>
-        </div>
-        <div className="glass-card p-4 text-center">
-          <div className="text-sm text-text-muted">Win Rate</div>
-          <div className="text-2xl font-bold text-primary">{stats.winRate}%</div>
-        </div>
-        <div className="glass-card p-4 text-center">
-          <div className="text-sm text-text-muted">Total Profit</div>
-          <div className="text-2xl font-bold text-secondary">+{stats.totalProfit} STT</div>
-        </div>
-        <div className="glass-card p-4 text-center">
-          <div className="text-sm text-text-muted">Biggest Win</div>
-          <div className="text-2xl font-bold text-accent">{stats.biggestWin} STT</div>
-        </div>
-      </div>
-      
-      {/* Filters and Search */}
-      <div className="glass-card p-4">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          {/* Tab Filters */}
-          <div className="flex gap-2">
-            <Button 
-              variant={activeTab === "all" ? "primary" : "ghost"} 
-              size="sm"
-              onClick={() => setActiveTab("all")}
-            >
-              All ({bettingHistory.length})
-            </Button>
-            <Button 
-              variant={activeTab === "wins" ? "primary" : "ghost"} 
-              size="sm"
-              onClick={() => setActiveTab("wins")}
-            >
-              Wins ({stats.wins})
-            </Button>
-            <Button 
-              variant={activeTab === "losses" ? "primary" : "ghost"} 
-              size="sm"
-              onClick={() => setActiveTab("losses")}
-            >
-              Losses ({stats.losses})
-            </Button>
-            <Button 
-              variant={activeTab === "pending" ? "primary" : "ghost"} 
-              size="sm"
-              onClick={() => setActiveTab("pending")}
-            >
-              Pending ({stats.pending})
-            </Button>
-          </div>
-          
-          {/* Search and Advanced Filters */}
-          <div className="flex gap-2">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search predictions..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-9 rounded-md border border-border-input bg-bg-card pl-9 pr-4 text-sm focus:border-primary focus:outline-none"
-              />
-              <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-            </div>
-            <Button 
-              variant="ghost" 
-              size="sm"
-              leftIcon={<FaFilter />}
-              onClick={() => setShowFilters(!showFilters)}
-            >
-              Filters
-            </Button>
-          </div>
-        </div>
+    <div className="space-y-8">
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="glass-card p-8"
+      >
+        <h1 className="text-3xl font-bold text-text-primary mb-6">Betting History</h1>
         
-        {/* Advanced Filters */}
-        {showFilters && (
-          <div className="mt-4 grid grid-cols-1 gap-4 rounded-lg bg-bg-card p-4 md:grid-cols-3">
-            <div>
-              <label className="mb-1 block text-sm text-text-muted">Date Range</label>
-              <select className="w-full rounded-md border border-border-input bg-bg-card px-3 py-1.5 text-sm focus:border-primary focus:outline-none">
-                <option value="all">All Time</option>
-                <option value="week">Last Week</option>
-                <option value="month">Last Month</option>
-                <option value="year">Last Year</option>
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-text-muted">Category</label>
-              <select className="w-full rounded-md border border-border-input bg-bg-card px-3 py-1.5 text-sm focus:border-primary focus:outline-none">
-                <option value="all">All Categories</option>
-                <option value="crypto">Crypto</option>
-                <option value="sports">Sports</option>
-                <option value="politics">Politics</option>
-                <option value="entertainment">Entertainment</option>
-              </select>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm text-text-muted">Amount</label>
-              <select className="w-full rounded-md border border-border-input bg-bg-card px-3 py-1.5 text-sm focus:border-primary focus:outline-none">
-                <option value="all">Any Amount</option>
-                            <option value="small">Small (&lt; 20 STT)</option>
-            <option value="medium">Medium (20-50 STT)</option>
-            <option value="large">Large (&gt; 50 STT)</option>
-              </select>
-            </div>
+        {/* Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="glass-card p-4">
+            <div className="text-2xl font-bold text-text-primary mb-1">{totalBets}</div>
+            <div className="text-sm text-text-muted">Total Bets</div>
           </div>
-        )}
-      </div>
-      
-      {/* Betting History Table */}
-      <div className="glass-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[800px] border-collapse">
-            <thead>
-              <tr className="border-b border-border-card bg-bg-card">
-                <th className="p-4 text-left text-sm font-medium text-text-muted">
-                  <button 
-                    className="flex items-center gap-1"
-                    onClick={() => handleSort("date")}
-                  >
-                    Date
-                    {sortBy === "date" && (
-                      sortOrder === "desc" ? <FaChevronDown size={12} /> : <FaChevronUp size={12} />
-                    )}
-                  </button>
-                </th>
-                <th className="p-4 text-left text-sm font-medium text-text-muted">Prediction</th>
-                <th className="p-4 text-left text-sm font-medium text-text-muted">
-                  <button 
-                    className="flex items-center gap-1"
-                    onClick={() => handleSort("amount")}
-                  >
-                    Amount
-                    {sortBy === "amount" && (
-                      sortOrder === "desc" ? <FaChevronDown size={12} /> : <FaChevronUp size={12} />
-                    )}
-                  </button>
-                </th>
-                <th className="p-4 text-left text-sm font-medium text-text-muted">Odds</th>
-                <th className="p-4 text-left text-sm font-medium text-text-muted">Result</th>
-                <th className="p-4 text-left text-sm font-medium text-text-muted">
-                  <button 
-                    className="flex items-center gap-1"
-                    onClick={() => handleSort("profit")}
-                  >
-                    Profit/Loss
-                    {sortBy === "profit" && (
-                      sortOrder === "desc" ? <FaChevronDown size={12} /> : <FaChevronUp size={12} />
-                    )}
-                  </button>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedBets.length > 0 ? (
-                sortedBets.map((bet) => (
-                  <tr key={bet.id} className="border-b border-border-card hover:bg-bg-card">
-                    <td className="p-4">
-                      <div>{bet.date}</div>
-                      <div className="text-xs text-text-muted">{bet.timeAgo}</div>
-                    </td>
-                    <td className="p-4">
-                      <div className="font-medium text-white">{bet.prediction}</div>
-                      <div className="text-xs text-text-muted capitalize">{bet.category}</div>
-                    </td>
-                    <td className="p-4 font-medium">{bet.amount} STT</td>
-                    <td className="p-4 font-medium">{bet.odds}</td>
-                    <td className="p-4">{getResultBadge(bet.result)}</td>
-                    <td className={`p-4 font-medium ${
-                      bet.result === "win" 
-                        ? "text-green-400" 
-                        : bet.result === "loss" 
-                        ? "text-red-400" 
-                        : "text-yellow-400"
-                    }`}>
-                      {bet.profit > 0 ? `+${bet.profit}` : bet.profit} STT
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={6} className="p-8 text-center text-text-muted">
-                    No betting history found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+          <div className="glass-card p-4">
+            <div className="text-2xl font-bold text-green-400 mb-1">{wonBets}</div>
+            <div className="text-sm text-text-muted">Won</div>
+          </div>
+          <div className="glass-card p-4">
+            <div className="text-2xl font-bold text-red-400 mb-1">{lostBets}</div>
+            <div className="text-sm text-text-muted">Lost</div>
+          </div>
+          <div className="glass-card p-4">
+            <div className="text-2xl font-bold text-text-primary mb-1">{winRate}%</div>
+            <div className="text-sm text-text-muted">Win Rate</div>
+          </div>
         </div>
-      </div>
+
+        {/* Tabs */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as "all" | "won" | "lost" | "ended")}
+              className={`px-4 py-2 rounded-button text-sm font-medium transition-all duration-200 ${
+                activeTab === tab.id
+                  ? 'bg-gradient-primary text-black'
+                  : 'glass-card text-text-secondary hover:text-text-primary'
+              }`}
+            >
+              {tab.label} ({tab.count})
+            </button>
+          ))}
+        </div>
+
+        {/* Search */}
+        <div className="relative">
+          <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-text-muted" />
+          <input
+            type="text"
+            placeholder="Search bets..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-12 pr-4 py-3 bg-bg-card border border-border-card rounded-button text-text-primary placeholder-text-muted focus:outline-none focus:border-primary/50"
+          />
+        </div>
+      </motion.div>
+
+      {/* Betting History List */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="space-y-4"
+      >
+        {filteredBets.length === 0 ? (
+          <div className="glass-card p-12 text-center">
+            <TrophyIcon className="h-12 w-12 text-text-muted mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-text-primary mb-2">No Bets Found</h3>
+            <p className="text-text-secondary">
+              {searchQuery !== "" 
+                ? "Try adjusting your search query."
+                : "Your betting history will appear here once you place bets."
+              }
+            </p>
+          </div>
+        ) : (
+          filteredBets.map((bet, index) => {
+            const realizedPL = parseFloat(bet.realizedPL);
+            
+            return (
+              <motion.div
+                key={bet.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.05 * index }}
+                className="glass-card p-6 hover:bg-[rgba(255,255,255,0.02)] transition-all duration-200"
+              >
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className={`px-3 py-1 rounded-button text-xs font-medium border ${getStatusColor(bet.status)}`}>
+                        <div className="flex items-center gap-1">
+                          {getStatusIcon(bet.status)}
+                          <span>{bet.status.charAt(0).toUpperCase() + bet.status.slice(1)}</span>
+                        </div>
+                      </div>
+                      <span className="text-xs text-text-muted">{bet.category}</span>
+                    </div>
+                    
+                    <Link 
+                      href={bet.type === "oddyssey" ? `/oddyssey` : `/bet/${bet.poolId}`}
+                      className="block mb-2"
+                    >
+                      <h4 className="font-semibold text-text-primary hover:text-primary transition-colors line-clamp-1">
+                        {bet.title}
+                      </h4>
+                    </Link>
+                    
+                    {bet.outcome && (
+                      <p className="text-sm text-text-secondary mb-2">
+                        Outcome: <span className="font-medium text-text-primary">{bet.outcome}</span>
+                      </p>
+                    )}
+                    
+                    <div className="flex items-center gap-4 text-sm text-text-muted">
+                      <div className="flex items-center gap-1">
+                        <CalendarDaysIcon className="h-4 w-4" />
+                        {formatShortDate(bet.createdAt)}
+                      </div>
+                      <span>•</span>
+                      <span>{formatRelativeTime(bet.createdAt)}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-6">
+                    <div className="text-right">
+                      <div className="text-sm text-text-muted mb-1">Staked</div>
+                      <div className="font-medium text-text-primary">
+                        {formatSTT(bet.amount)}
+                      </div>
+                    </div>
+                    
+                    {bet.status === 'won' && bet.payoutAmount && (
+                      <div className="text-right">
+                        <div className="text-sm text-text-muted mb-1">Payout</div>
+                        <div className="font-medium text-green-400">
+                          {formatSTT(bet.payoutAmount)}
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className="text-right">
+                      <div className="text-sm text-text-muted mb-1">P&L</div>
+                      <div className={`font-bold ${realizedPL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {realizedPL >= 0 ? '+' : ''}{formatSTT(bet.realizedPL)}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })
+        )}
+      </motion.div>
     </div>
   );
 }

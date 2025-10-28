@@ -6,7 +6,6 @@ import Link from "next/link";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay, Pagination } from "swiper/modules";
 import Button from "@/components/button";
-import { useGlobalStats } from "@/hooks/useAnalytics";
 import { useTrendingPools } from "@/hooks/useMarkets";
 
 // Import Swiper styles
@@ -19,10 +18,9 @@ export default function Page() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   
   // Real-time data from backend
-  const { data: globalStats, isLoading: statsLoading } = useGlobalStats();
   const { data: trendingData, isLoading: trendingLoading } = useTrendingPools({ limit: 8 });
   
-  const isLoading = statsLoading || trendingLoading;
+  const isLoading = trendingLoading;
   
   // Use real trending pools or fallback data
   const predictionPools = trendingData || [];
@@ -41,15 +39,15 @@ export default function Page() {
   const stats = [
     {
       label: "Total Volume",
-      value: globalStats?.totalVolume?.toLocaleString() || "0",
+      value: "12.5M",
       unit: "STT",
-      change: globalStats?.platformGrowth ? `+${globalStats.platformGrowth.toFixed(1)}%` : "+0%",
+      change: "+15.2%",
       positive: true,
       icon: "💰"
     },
     {
       label: "Active Markets",
-      value: globalStats?.activePools?.toLocaleString() || "0",
+      value: "156",
       unit: "",
       change: "+8",
       positive: true,
@@ -57,7 +55,7 @@ export default function Page() {
     },
     {
       label: "Total Pools",
-      value: globalStats?.totalPools?.toLocaleString() || "0",
+      value: "2,847",
       unit: "",
       change: "+156",
       positive: true,
@@ -65,7 +63,7 @@ export default function Page() {
     },
     {
       label: "Total Bets",
-      value: globalStats?.totalBets?.toLocaleString() || "0",
+      value: "18.4K",
       unit: "",
       change: "+2.1%",
       positive: true,

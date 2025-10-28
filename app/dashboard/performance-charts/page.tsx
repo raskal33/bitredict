@@ -2,124 +2,71 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { useAccount } from "wagmi";
+import { useUserPerformance } from "@/hooks/useAnalytics";
+import { useMyProfile } from "@/hooks/useUserProfile";
+import { formatSTT, formatPercentage } from "@/utils/formatters";
 import {
   ChartBarIcon,
   TrophyIcon,
   BanknotesIcon,
-  ArrowTrendingUpIcon,
-  LightBulbIcon,
-  HandRaisedIcon,
-  AcademicCapIcon,
-  EyeIcon,
-  PresentationChartLineIcon,
-  ChartPieIcon
+  WalletIcon,
+  SparklesIcon,
+  FireIcon
 } from "@heroicons/react/24/outline";
-import { 
-  TrophyIcon as TrophySolid,
-  FireIcon as FireSolid
-} from "@heroicons/react/24/solid";
-
-// Mock analytics data
-const performanceMetrics = {
-  creator: {
-    totalPools: 12,
-    wonPools: 9,
-    settledPools: 10,
-    totalVolume: 45600,
-    winRate: 90.0,
-    accuracy: 83.3,
-    reputation: 4.8,
-    averagePoolSize: 3800,
-    totalFees: 2280,
-    monthlyGrowth: 15.2
-  },
-  bettor: {
-    totalBets: 47,
-    wonBets: 32,
-    totalStaked: 1250,
-    totalWinnings: 1890,
-    winRate: 68.1,
-    profitLoss: 640,
-    streak: 5,
-    averageBetSize: 26.6,
-    bestWin: 340,
-    monthlyROI: 24.5
-  },
-  platform: {
-    totalPools: 2847,
-    totalVolume: 12500000,
-    totalBets: 18394,
-    activePools: 156,
-    totalUsers: 4521,
-    averagePoolSize: 4389,
-    successfulPredictions: 1891,
-    totalRewards: 8750000,
-    monthlyActiveUsers: 1247,
-    platformFees: 625000
-  }
-};
-
-const monthlyData = [
-  { month: "Jul", volume: 8500, profit: 340, pools: 8, winRate: 75 },
-  { month: "Aug", volume: 12200, profit: 580, pools: 12, winRate: 83 },
-  { month: "Sep", volume: 15800, profit: 720, pools: 15, winRate: 80 },
-  { month: "Oct", volume: 18900, profit: 890, pools: 18, winRate: 85 },
-  { month: "Nov", volume: 22400, profit: 1120, pools: 22, winRate: 88 },
-  { month: "Dec", volume: 25600, profit: 1340, pools: 25, winRate: 90 }
-];
-
-const categoryPerformance = [
-  { category: "Crypto", volume: 8500, pools: 8, winRate: 92, color: "bg-gradient-to-r from-orange-500 to-yellow-500" },
-  { category: "Sports", volume: 6200, pools: 12, winRate: 85, color: "bg-gradient-to-r from-green-500 to-emerald-500" },
-  { category: "Finance", volume: 4800, pools: 6, winRate: 88, color: "bg-gradient-to-r from-blue-500 to-cyan-500" },
-  { category: "Politics", volume: 3200, pools: 4, winRate: 78, color: "bg-gradient-to-r from-purple-500 to-violet-500" },
-  { category: "Tech", volume: 2900, pools: 5, winRate: 82, color: "bg-gradient-to-r from-pink-500 to-rose-500" }
-];
-
-const recentInsights = [
-  {
-    id: 1,
-    type: "achievement",
-    title: "New Win Streak Record",
-    description: "You've achieved a 5-game winning streak, your best performance yet!",
-    timestamp: "2 hours ago",
-    icon: <TrophySolid className="h-5 w-5" />,
-    color: "text-yellow-400 bg-yellow-500/10 border-yellow-500/30"
-  },
-  {
-    id: 2,
-    type: "insight",
-    title: "Crypto Category Performance",
-    description: "Your crypto predictions have a 92% win rate, significantly above average.",
-    timestamp: "1 day ago",
-    icon: <ChartBarIcon className="h-5 w-5" />,
-    color: "text-blue-400 bg-blue-500/10 border-blue-500/30"
-  },
-  {
-    id: 3,
-    type: "recommendation",
-    title: "Diversification Opportunity",
-    description: "Consider exploring the Finance category for better portfolio balance.",
-    timestamp: "2 days ago",
-    icon: <LightBulbIcon className="h-5 w-5" />,
-    color: "text-green-400 bg-green-500/10 border-green-500/30"
-  },
-  {
-    id: 4,
-    type: "milestone",
-    title: "Volume Milestone",
-    description: "You've crossed 25,000 SOL in total trading volume!",
-    timestamp: "3 days ago",
-    icon: <FireSolid className="h-5 w-5" />,
-    color: "text-orange-400 bg-orange-500/10 border-orange-500/30"
-  }
-];
 
 export default function Page() {
-  const [timeRange, setTimeRange] = useState<"7d" | "30d" | "90d" | "1y">("30d");
-  const [viewMode, setViewMode] = useState<"creator" | "bettor" | "combined">("combined");
+  const { address } = useAccount();
+  const [timeframe, setTimeframe] = useState<'7d' | '30d' | '90d' | 'all'>('30d');
+  const { data: performance, isLoading: perfLoading } = useUserPerformance(timeframe);
+  const { data: profile, isLoading: profileLoading } = useMyProfile();
+  
+  const isLoading = perfLoading || profileLoading;
 
+  if (!address) {
+    return (
+      <div className="space-y-8">
+        <div className="glass-card p-12 text-center">
+          <ChartBarIcon className="h-16 w-16 text-text-muted mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-text-primary mb-2">Connect Your Wallet</h2>
+          <p className="text-text-secondary">Please connect your wallet to view analytics</p>
+        </div>
+      </div>
+    );
+  }
 
+  if (isLoading) {
+    return (
+      <div className="space-y-8 animate-pulse">
+        <div className="glass-card p-8">
+          <div className="h-8 bg-card-bg rounded w-1/3 mb-8"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="glass-card p-6">
+                <div className="h-12 w-12 bg-card-bg rounded-lg mb-4"></div>
+                <div className="h-8 bg-card-bg rounded mb-2"></div>
+                <div className="h-4 bg-card-bg rounded"></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!performance) {
+    return (
+      <div className="glass-card p-12 text-center">
+        <h2 className="text-xl font-bold text-text-primary mb-2">No Analytics Data</h2>
+        <p className="text-text-secondary">Start betting or creating pools to see your analytics</p>
+      </div>
+    );
+  }
+
+  const { creator, bettor, oddyssey, combined, trends } = performance;
+  const winRate = profile?.stats?.wonBets && profile?.stats?.totalBets 
+    ? (profile.stats.wonBets / profile.stats.totalBets) * 100 
+    : 0;
 
   return (
     <div className="space-y-8">
@@ -131,80 +78,59 @@ export default function Page() {
       >
         <div>
           <h1 className="text-3xl font-bold text-text-primary mb-2">
-            Analytics
+            Performance Analytics
           </h1>
           <p className="text-text-secondary">
-            Deep insights into your prediction market performance
+            Comprehensive insights into your prediction market activity
           </p>
         </div>
         
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-text-muted">View:</span>
-            <select
-              value={viewMode}
-              onChange={(e) => setViewMode(e.target.value as "creator" | "bettor" | "combined")}
-              className="bg-bg-card border border-border-card rounded-button px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-primary/50"
+        <div className="flex items-center gap-2">
+          {['7d', '30d', '90d', 'all'].map((tf) => (
+            <button
+              key={tf}
+              onClick={() => setTimeframe(tf as '7d' | '30d' | '90d' | 'all')}
+              className={`px-4 py-2 rounded-button text-sm font-medium transition-all duration-200 ${
+                timeframe === tf
+                  ? 'bg-gradient-primary text-black'
+                  : 'glass-card text-text-secondary hover:text-text-primary'
+              }`}
             >
-              <option value="combined">Combined</option>
-              <option value="creator">Creator</option>
-              <option value="bettor">Bettor</option>
-            </select>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-text-muted">Period:</span>
-            <select
-              value={timeRange}
-              onChange={(e) => setTimeRange(e.target.value as "7d" | "30d" | "90d" | "1y")}
-              className="bg-bg-card border border-border-card rounded-button px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-primary/50"
-            >
-              <option value="7d">7 Days</option>
-              <option value="30d">30 Days</option>
-              <option value="90d">90 Days</option>
-              <option value="1y">1 Year</option>
-            </select>
-          </div>
+              {tf === 'all' ? 'All Time' : tf.toUpperCase()}
+            </button>
+          ))}
         </div>
       </motion.div>
 
-      {/* Key Performance Indicators */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Overall Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {[
           {
+            title: "Total Activity",
+            value: combined.totalActivity.toString(),
+            subtitle: "Actions Taken",
+            icon: <SparklesIcon className="h-6 w-6" />,
+            color: "text-cyan-400",
+            bgColor: "bg-cyan-500/10",
+            borderColor: "border-cyan-500/20"
+          },
+          {
             title: "Total Volume",
-            value: `${(performanceMetrics.creator.totalVolume + performanceMetrics.bettor.totalStaked).toLocaleString()} SOL`,
-            change: "+15.2%",
+            value: formatSTT(combined.totalVolume),
+            subtitle: "Across All Activities",
             icon: <BanknotesIcon className="h-6 w-6" />,
-            color: "text-blue-400",
-            bgColor: "bg-blue-500/10",
-            borderColor: "border-blue-500/20"
-          },
-          {
-            title: "Win Rate",
-            value: `${((performanceMetrics.creator.winRate + performanceMetrics.bettor.winRate) / 2).toFixed(1)}%`,
-            change: "+3.2%",
-            icon: <TrophyIcon className="h-6 w-6" />,
-            color: "text-yellow-400",
-            bgColor: "bg-yellow-500/10",
-            borderColor: "border-yellow-500/20"
-          },
-          {
-            title: "Total Profit",
-            value: `+${(performanceMetrics.bettor.profitLoss + performanceMetrics.creator.totalFees).toLocaleString()} SOL`,
-            change: "+24.5%",
-            icon: <ArrowTrendingUpIcon className="h-6 w-6" />,
             color: "text-green-400",
             bgColor: "bg-green-500/10",
             borderColor: "border-green-500/20"
           },
           {
-            title: "Reputation Score",
-            value: performanceMetrics.creator.reputation.toFixed(1),
-            change: "+0.3",
+            title: "Win Rate",
+            value: formatPercentage(winRate),
+            subtitle: "Overall Success Rate",
             icon: <TrophyIcon className="h-6 w-6" />,
-            color: "text-purple-400",
-            bgColor: "bg-purple-500/10",
-            borderColor: "border-purple-500/20"
+            color: "text-yellow-400",
+            bgColor: "bg-yellow-500/10",
+            borderColor: "border-yellow-500/20"
           }
         ].map((metric, index) => (
           <motion.div
@@ -212,137 +138,98 @@ export default function Page() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 * index }}
-            className={`glass-card p-6 relative overflow-hidden ${metric.bgColor} ${metric.borderColor}`}
+            className={`glass-card p-6 ${metric.bgColor} ${metric.borderColor} border`}
           >
-            <div className="absolute inset-0 opacity-5">
-              <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-transparent" />
+            <div className="flex items-center justify-between mb-4">
+              <div className={`p-3 rounded-xl ${metric.bgColor} ${metric.borderColor} border`}>
+                <div className={metric.color}>
+                  {metric.icon}
+                </div>
+              </div>
             </div>
-            <div className="relative z-10">
-              <div className="flex items-center justify-between mb-4">
-                <div className={`p-3 rounded-xl ${metric.bgColor} ${metric.borderColor} border`}>
-                  <div className={metric.color}>
-                    {metric.icon}
-                  </div>
-                </div>
-                <div className={`flex items-center gap-1 text-sm font-medium text-green-400`}>
-                  <ArrowTrendingUpIcon className="h-3 w-3" />
-                  {metric.change}
-                </div>
-              </div>
-              <div className="text-2xl font-bold text-text-primary mb-1">
-                {metric.value}
-              </div>
-              <div className="text-sm text-text-muted">
-                {metric.title}
-              </div>
+            <div className="text-3xl font-bold text-text-primary mb-1">
+              {metric.value}
+            </div>
+            <div className="text-sm text-text-muted">
+              {metric.title}
+            </div>
+            <div className="text-xs text-text-secondary mt-1">
+              {metric.subtitle}
             </div>
           </motion.div>
         ))}
       </div>
 
-      {/* Charts and Analytics */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Performance Chart */}
+      {/* Creator Performance */}
+      {creator.totalPools > 0 && (
         <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="lg:col-span-2 glass-card p-6"
+          className="glass-card p-6"
         >
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-primary/20 border border-primary/30">
-                <PresentationChartLineIcon className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-text-primary">Performance Trends</h3>
-                <p className="text-sm text-text-muted">Monthly volume and profit analysis</p>
-              </div>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20">
+              <SparklesIcon className="h-5 w-5 text-purple-400" />
             </div>
-            <button className="p-2 rounded-button bg-bg-card border border-border-card hover:bg-[rgba(255,255,255,0.05)] transition-all duration-200">
-              <EyeIcon className="h-4 w-4 text-text-muted" />
-            </button>
+            <h3 className="text-xl font-bold text-text-primary">Creator Performance</h3>
           </div>
           
-          {/* Mock Chart */}
-          <div className="h-80 bg-gradient-to-br from-primary/5 to-secondary/5 rounded-xl border border-border-card p-4 relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-secondary/10" />
-            <div className="relative z-10 h-full flex items-end justify-between gap-2">
-              {monthlyData.map((data, index) => (
-                <div key={data.month} className="flex-1 flex flex-col items-center gap-2">
-                  <div className="text-xs text-text-muted">{data.volume.toLocaleString()}</div>
-                  <motion.div
-                    initial={{ height: 0 }}
-                    animate={{ height: `${(data.volume / 30000) * 100}%` }}
-                    transition={{ duration: 1, delay: 0.1 * index, ease: "easeOut" }}
-                    className="w-full bg-gradient-to-t from-primary to-secondary rounded-t-lg min-h-[20px] relative overflow-hidden"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-t from-transparent via-white/20 to-transparent animate-shimmer" />
-                  </motion.div>
-                  <div className="text-sm font-medium text-text-primary">{data.month}</div>
-                </div>
-              ))}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="glass-card p-4">
+              <div className="text-2xl font-bold text-text-primary mb-1">{creator.totalPools}</div>
+              <div className="text-sm text-text-muted">Total Pools</div>
+            </div>
+            <div className="glass-card p-4">
+              <div className="text-2xl font-bold text-green-400 mb-1">{creator.settledPools}</div>
+              <div className="text-sm text-text-muted">Settled</div>
+            </div>
+            <div className="glass-card p-4">
+              <div className="text-2xl font-bold text-blue-400 mb-1">{creator.activePools}</div>
+              <div className="text-sm text-text-muted">Active</div>
+            </div>
+            <div className="glass-card p-4">
+              <div className="text-2xl font-bold text-text-primary mb-1">{formatSTT(creator.avgPoolSize)}</div>
+              <div className="text-sm text-text-muted">Avg Size</div>
             </div>
           </div>
         </motion.div>
+      )}
 
-        {/* Category Breakdown */}
+      {/* Bettor Performance */}
+      {bettor.totalBets > 0 && (
         <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
           className="glass-card p-6"
         >
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-secondary/20 border border-secondary/30">
-                <ChartPieIcon className="h-5 w-5 text-secondary" />
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-text-primary">Categories</h3>
-                <p className="text-sm text-text-muted">Performance by category</p>
-              </div>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
+              <WalletIcon className="h-5 w-5 text-blue-400" />
             </div>
+            <h3 className="text-xl font-bold text-text-primary">Betting Performance</h3>
           </div>
           
-          <div className="space-y-4">
-            {categoryPerformance.map((category, index) => (
-              <motion.div
-                key={category.category}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.1 * index }}
-                className="bg-bg-card rounded-xl border border-border-card p-4 hover:bg-[rgba(255,255,255,0.03)] transition-all duration-200"
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="font-semibold text-text-primary">{category.category}</div>
-                  <div className="text-sm font-medium text-green-400">{category.winRate}%</div>
-                </div>
-                
-                <div className="flex items-center justify-between text-sm text-text-muted mb-2">
-                  <span>Volume: {category.volume.toLocaleString()} SOL</span>
-                  <span>{category.pools} pools</span>
-                </div>
-                
-                <div className="w-full bg-bg-main rounded-full h-2 overflow-hidden">
-                  <motion.div
-                    className={`h-full rounded-full ${category.color} relative overflow-hidden`}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${category.winRate}%` }}
-                    transition={{ duration: 1.5, ease: "easeOut", delay: 0.5 + index * 0.1 }}
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer" />
-                  </motion.div>
-                </div>
-              </motion.div>
-            ))}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="glass-card p-4">
+              <div className="text-2xl font-bold text-text-primary mb-1">{bettor.totalBets}</div>
+              <div className="text-sm text-text-muted">Total Bets</div>
+            </div>
+            <div className="glass-card p-4">
+              <div className="text-2xl font-bold text-text-primary mb-1">{formatSTT(bettor.totalStaked)}</div>
+              <div className="text-sm text-text-muted">Total Staked</div>
+            </div>
+            <div className="glass-card p-4">
+              <div className="text-2xl font-bold text-text-primary mb-1">{formatSTT(bettor.avgBetSize)}</div>
+              <div className="text-sm text-text-muted">Avg Bet Size</div>
+            </div>
           </div>
         </motion.div>
-      </div>
+      )}
 
-      {/* Detailed Performance Breakdown */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Creator Analytics */}
+      {/* Oddyssey Performance */}
+      {oddyssey.totalSlips > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -350,123 +237,112 @@ export default function Page() {
           className="glass-card p-6"
         >
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 rounded-xl bg-green-500/20 border border-green-500/30">
-              <LightBulbIcon className="h-5 w-5 text-green-400" />
+            <div className="p-2 rounded-lg bg-pink-500/10 border border-pink-500/20">
+              <FireIcon className="h-5 w-5 text-pink-400" />
             </div>
-            <div>
-              <h3 className="text-xl font-bold text-text-primary">Creator Performance</h3>
-              <p className="text-sm text-text-muted">Your prediction creation metrics</p>
-            </div>
+            <h3 className="text-xl font-bold text-text-primary">Oddyssey Performance</h3>
           </div>
           
-          <div className="grid grid-cols-2 gap-6">
-            {[
-              { label: "Total Pools", value: performanceMetrics.creator.totalPools, suffix: "" },
-              { label: "Win Rate", value: performanceMetrics.creator.winRate, suffix: "%" },
-              { label: "Avg Pool Size", value: performanceMetrics.creator.averagePoolSize, suffix: " SOL" },
-              { label: "Total Fees", value: performanceMetrics.creator.totalFees, suffix: " SOL" },
-              { label: "Accuracy", value: performanceMetrics.creator.accuracy, suffix: "%" },
-              { label: "Reputation", value: performanceMetrics.creator.reputation, suffix: "/5" }
-            ].map((metric, index) => (
-              <motion.div
-                key={metric.label}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.1 * index }}
-                className="text-center"
-              >
-                <div className="text-2xl font-bold text-text-primary mb-1">
-                  {metric.value}{metric.suffix}
-                </div>
-                <div className="text-sm text-text-muted">{metric.label}</div>
-              </motion.div>
-            ))}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="glass-card p-4">
+              <div className="text-2xl font-bold text-text-primary mb-1">{oddyssey.totalSlips}</div>
+              <div className="text-sm text-text-muted">Total Slips</div>
+            </div>
+            <div className="glass-card p-4">
+              <div className="text-2xl font-bold text-yellow-400 mb-1">{oddyssey.bestScore}/10</div>
+              <div className="text-sm text-text-muted">Best Score</div>
+            </div>
+            <div className="glass-card p-4">
+              <div className="text-2xl font-bold text-text-primary mb-1">{formatPercentage(oddyssey.winRate)}</div>
+              <div className="text-sm text-text-muted">Win Rate</div>
+            </div>
+            <div className="glass-card p-4">
+              <div className={`text-2xl font-bold mb-1 ${oddyssey.profitLoss >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                {oddyssey.profitLoss >= 0 ? '+' : ''}{formatSTT(oddyssey.profitLoss)}
+              </div>
+              <div className="text-sm text-text-muted">Profit/Loss</div>
+            </div>
           </div>
         </motion.div>
+      )}
 
-        {/* Bettor Analytics */}
+      {/* Category Performance */}
+      {trends.categories.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
           className="glass-card p-6"
         >
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 rounded-xl bg-blue-500/20 border border-blue-500/30">
-              <HandRaisedIcon className="h-5 w-5 text-blue-400" />
-            </div>
-            <div>
-              <h3 className="text-xl font-bold text-text-primary">Betting Performance</h3>
-              <p className="text-sm text-text-muted">Your betting activity metrics</p>
-            </div>
-          </div>
+          <h3 className="text-xl font-bold text-text-primary mb-6">Category Performance</h3>
           
-          <div className="grid grid-cols-2 gap-6">
-            {[
-              { label: "Total Bets", value: performanceMetrics.bettor.totalBets, suffix: "" },
-              { label: "Win Rate", value: performanceMetrics.bettor.winRate, suffix: "%" },
-              { label: "Avg Bet Size", value: performanceMetrics.bettor.averageBetSize, suffix: " SOL" },
-              { label: "Best Win", value: performanceMetrics.bettor.bestWin, suffix: " SOL" },
-              { label: "Win Streak", value: performanceMetrics.bettor.streak, suffix: "" },
-              { label: "Monthly ROI", value: performanceMetrics.bettor.monthlyROI, suffix: "%" }
-            ].map((metric, index) => (
-              <motion.div
-                key={metric.label}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.1 * index }}
-                className="text-center"
-              >
-                <div className="text-2xl font-bold text-text-primary mb-1">
-                  {metric.value}{metric.suffix}
+          <div className="space-y-4">
+            {trends.categories.map((cat, index) => {
+              const maxVolume = Math.max(...trends.categories.map(c => c.volume));
+              const percentage = (cat.volume / maxVolume) * 100;
+              
+              return (
+                <div key={cat.category} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-text-primary">{cat.category}</span>
+                    <div className="text-right">
+                      <div className="text-sm font-bold text-text-primary">{formatSTT(cat.volume)}</div>
+                      <div className="text-xs text-text-muted">{cat.bets} bets</div>
+                    </div>
+                  </div>
+                  <div className="w-full bg-bg-card rounded-full h-2 overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${percentage}%` }}
+                      transition={{ delay: 0.6 + (index * 0.1), duration: 0.5 }}
+                      className="h-full bg-gradient-to-r from-cyan-500 to-blue-500"
+                    />
+                  </div>
                 </div>
-                <div className="text-sm text-text-muted">{metric.label}</div>
-              </motion.div>
-            ))}
+              );
+            })}
           </div>
         </motion.div>
-      </div>
+      )}
 
-      {/* Insights and Recommendations */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.6 }}
-        className="glass-card p-6"
-      >
-        <div className="flex items-center gap-3 mb-6">
-          <div className="p-2 rounded-xl bg-accent/20 border border-accent/30">
-            <AcademicCapIcon className="h-5 w-5 text-accent" />
-          </div>
-          <div>
-            <h3 className="text-xl font-bold text-text-primary">AI Insights</h3>
-            <p className="text-sm text-text-muted">Personalized recommendations and achievements</p>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {recentInsights.map((insight, index) => (
-            <motion.div
-              key={insight.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 * index }}
-              className={`p-4 rounded-xl border backdrop-blur-sm ${insight.color}`}
-            >
-              <div className="flex items-start gap-3">
-                <div className={`p-2 rounded-lg border ${insight.color}`}>
-                  {insight.icon}
+      {/* Monthly Trend */}
+      {trends.monthly.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+          className="glass-card p-6"
+        >
+          <h3 className="text-xl font-bold text-text-primary mb-6">Monthly Activity Trend</h3>
+          
+          <div className="space-y-4">
+            {trends.monthly.map((month, index) => {
+              const maxVolume = Math.max(...trends.monthly.map(m => m.volume));
+              const percentage = maxVolume > 0 ? (month.volume / maxVolume) * 100 : 0;
+              
+              return (
+                <div key={month.month} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-text-primary">{month.month}</span>
+                    <div className="text-right">
+                      <div className="text-sm font-bold text-text-primary">{formatSTT(month.volume)}</div>
+                      <div className="text-xs text-text-muted">{month.bets} bets</div>
+                    </div>
+                  </div>
+                  <div className="w-full bg-bg-card rounded-full h-2 overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${percentage}%` }}
+                      transition={{ delay: 0.7 + (index * 0.1), duration: 0.5 }}
+                      className="h-full bg-gradient-to-r from-green-500 to-emerald-500"
+                    />
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-semibold text-text-primary mb-1">{insight.title}</h4>
-                  <p className="text-sm text-text-secondary mb-2">{insight.description}</p>
-                  <div className="text-xs text-text-muted">{insight.timestamp}</div>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </motion.div>
+              );
+            })}
+          </div>
+        </motion.div>
+      )}
     </div>
   );
 }

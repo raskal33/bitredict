@@ -295,23 +295,19 @@ class UserService {
    */
   async getUserReputation(address: string) {
     const response = await apiRequest(`${API_CONFIG.endpoints.reputation}/user/${address}`);
-    // Ensure response is typed to avoid 'unknown' errors
-    const repResponse = response as {
-      reputation?: number;
-      accessLevel?: number;
-      accessLevelName?: string;
-      capabilities?: any;
-      joinedAt?: string;
-      lastActive?: string;
-    };
-
+    // Backend returns { success: true, data: {...} }
+    const repData = (response as any)?.data || response;
+    
     return {
-      reputation: repResponse.reputation ?? 0,
-      accessLevel: repResponse.accessLevel ?? 0,
-      accessLevelName: repResponse.accessLevelName ?? '',
-      capabilities: repResponse.capabilities ?? {},
-      joinedAt: repResponse.joinedAt ?? '',
-      lastActive: repResponse.lastActive ?? ''
+      reputation: repData.reputation ?? 40,
+      accessLevel: repData.tier ?? 'ACTIVE',
+      accessLevelName: repData.tier ?? 'ACTIVE',
+      capabilities: repData.privileges ?? [],
+      canCreateGuided: repData.canCreateGuided ?? false,
+      canCreateOpen: repData.canCreateOpen ?? false,
+      canPropose: repData.canPropose ?? false,
+      joinedAt: repData.lastUpdated ?? '',
+      lastActive: repData.lastUpdated ?? ''
     };
   }
 

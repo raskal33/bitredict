@@ -1,347 +1,250 @@
 "use client";
 
 import { useState } from "react";
-import { FaSearch, FaUsers, FaCoins } from "react-icons/fa";
-import { MdOutlineCategory } from "react-icons/md";
-import { BiSolidBadgeCheck } from "react-icons/bi";
-import Button from "@/components/button";
+import { motion } from "framer-motion";
+import { useAccount } from "wagmi";
+import { useQuery } from "@tanstack/react-query";
+import { formatSTT, formatShortDate } from "@/utils/formatters";
+import {
+  SparklesIcon,
+  MagnifyingGlassIcon,
+  PlusIcon
+} from "@heroicons/react/24/outline";
+import Link from "next/link";
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://bitredict-backend.fly.dev';
 
 export default function CreatedPredictionsPage() {
-  const [activeTab, setActiveTab] = useState("all");
-  // const [sortBy, setSortBy] = useState("date");
-  // const [sortOrder, setSortOrder] = useState("desc");
+  const { address } = useAccount();
   const [searchQuery, setSearchQuery] = useState("");
-  
-  // Mock data for created predictions
-  const createdMarkets = [
-    {
-      id: 1,
-      title: "ETH will hit $5,000 by Dec 2024",
-      category: "crypto",
-      createdAt: "2024-11-14",
-      timeAgo: "1 day ago",
-      status: "active",
-      participants: 45,
-      volume: 320,
-      resolveDate: "2024-12-31",
-      resolutionSource: "CoinGecko",
-      description: "Will Ethereum reach or exceed $5,000 before the end of 2024?",
-      creatorFee: "2%"
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "settled">("all");
+
+  // Fetch created pools
+  const { data: pools, isLoading } = useQuery({
+    queryKey: ['createdPools', address],
+    queryFn: async () => {
+      if (!address) return [];
+      const response = await fetch(`${BACKEND_URL}/api/pools?creator=${address}`);
+      if (!response.ok) throw new Error('Failed to fetch pools');
+      const data = await response.json();
+      return data.pools || [];
     },
-    {
-      id: 2,
-      title: "Bitcoin will reach $100k by EOY",
-      category: "crypto",
-      createdAt: "2024-10-10",
-      timeAgo: "1 month ago",
-      status: "active",
-      participants: 120,
-      volume: 950,
-      resolveDate: "2024-12-31",
-      resolutionSource: "CoinMarketCap",
-      description: "Will Bitcoin reach or exceed $100,000 before the end of 2024?",
-      creatorFee: "2%"
-    },
-    {
-      id: 3,
-      title: "US Presidential Election - Democratic win",
-      category: "politics",
-      createdAt: "2024-10-05",
-      timeAgo: "1 month ago",
-      status: "active",
-      participants: 85,
-      volume: 620,
-      resolveDate: "2024-11-05",
-      resolutionSource: "Official election results",
-      description: "Will the Democratic candidate win the 2024 US Presidential Election?",
-      creatorFee: "2%"
-    },
-    {
-      id: 4,
-      title: "Manchester United to win Premier League 24/25",
-      category: "sports",
-      createdAt: "2024-08-15",
-      timeAgo: "3 months ago",
-      status: "active",
-      participants: 65,
-      volume: 480,
-      resolveDate: "2025-05-30",
-      resolutionSource: "Official Premier League standings",
-      description: "Will Manchester United win the Premier League in the 2024/2025 season?",
-      creatorFee: "2%"
-    },
-    {
-      id: 5,
-      title: "STT will outperform Ethereum in Q4 2024",
-      category: "crypto",
-      createdAt: "2024-09-28",
-      timeAgo: "2 months ago",
-      status: "active",
-      participants: 72,
-      volume: 540,
-      resolveDate: "2024-12-31",
-      resolutionSource: "CoinGecko price data",
-              description: "Will STT's price performance exceed Ethereum's in Q4 2024?",
-      creatorFee: "2%"
-    },
-    {
-      id: 6,
-      title: "Apple will release AR glasses in 2024",
-      category: "technology",
-      createdAt: "2024-01-15",
-      timeAgo: "10 months ago",
-      status: "resolved",
-      participants: 110,
-      volume: 830,
-      resolveDate: "2024-09-30",
-      resolutionSource: "Apple official announcements",
-      description: "Will Apple release augmented reality glasses before the end of 2024?",
-      creatorFee: "2%",
-      resolution: "No"
-    },
-    {
-      id: 7,
-      title: "Taylor Swift album release date in 2024",
-      category: "entertainment",
-      createdAt: "2024-02-20",
-      timeAgo: "9 months ago",
-      status: "resolved",
-      participants: 55,
-      volume: 320,
-      resolveDate: "2024-06-30",
-      resolutionSource: "Official artist announcements",
-      description: "Will Taylor Swift release a new album before July 2024?",
-      creatorFee: "2%",
-      resolution: "Yes"
-    }
-  ];
-  
-  // Filter markets based on active tab and search query
-  const filteredMarkets = createdMarkets.filter(market => {
-    const matchesTab = 
-      activeTab === "all" || 
-      (activeTab === "active" && market.status === "active") ||
-      (activeTab === "resolved" && market.status === "resolved");
-      
-    const matchesSearch = 
-      searchQuery === "" || 
-      (market.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (market.category || '').toLowerCase().includes(searchQuery.toLowerCase());
-      
-    return matchesTab && matchesSearch;
+    enabled: !!address,
+    staleTime: 60000
   });
-  
-  // Sort markets based on sort criteria (currently sorting by date desc)
-  const sortedMarkets = [...filteredMarkets].sort((a, b) => {
-    // Sort by date descending (newest first)
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-  });
-  
-  // Stats for the summary cards
-  const stats = {
-    totalMarkets: createdMarkets.length,
-    activeMarkets: createdMarkets.filter(market => market.status === "active").length,
-    resolvedMarkets: createdMarkets.filter(market => market.status === "resolved").length,
-    totalVolume: createdMarkets.reduce((acc, market) => acc + market.volume, 0),
-    totalParticipants: createdMarkets.reduce((acc, market) => acc + market.participants, 0),
-    avgVolumePerMarket: Math.round(createdMarkets.reduce((acc, market) => acc + market.volume, 0) / createdMarkets.length)
-  };
-  
-  // Function to toggle sort (currently unused but kept for future use)
-  // const handleSort = (field) => {
-  //   if (sortBy === field) {
-  //     setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-  //   } else {
-  //     setSortBy(field);
-  //     setSortOrder("desc");
-  //   }
-  // };
-  
-  // Function to get category badge color
-  const getCategoryColor = (category: string) => {
-    switch (category) {
-      case "crypto":
-        return "bg-primary/20 text-primary";
-      case "sports":
-        return "bg-green-500/20 text-green-400";
-      case "politics":
-        return "bg-blue-500/20 text-blue-400";
-      case "entertainment":
-        return "bg-purple-500/20 text-purple-400";
-      case "technology":
-        return "bg-yellow-500/20 text-yellow-400";
-      default:
-        return "bg-gray-500/20 text-gray-300";
-    }
-  };
-  
-  // Function to get status badge
-  const getStatusBadge = (status: string, resolution?: string) => {
-    if (status === "active") {
-      return <span className="rounded-full bg-green-500/20 px-2 py-0.5 text-xs text-green-400">Active</span>;
-    } else if (status === "resolved") {
-      return (
-        <div className="flex items-center gap-1">
-          <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-xs text-blue-400">Resolved</span>
-          {resolution && (
-            <span className={`rounded-full px-2 py-0.5 text-xs ${resolution === "Yes" ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"}`}>
-              {resolution}
-            </span>
-          )}
+
+  if (!address) {
+    return (
+      <div className="space-y-8">
+        <div className="glass-card p-12 text-center">
+          <SparklesIcon className="h-16 w-16 text-text-muted mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-text-primary mb-2">Connect Your Wallet</h2>
+          <p className="text-text-secondary">Please connect your wallet to view created predictions</p>
         </div>
-      );
-    }
-    return null;
-  };
-  
-  return (
-    <div className="space-y-6">
-      {/* Stats Summary */}
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-        <div className="glass-card p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/20">
-              <MdOutlineCategory className="text-xl text-primary" />
-            </div>
-            <div>
-              <div className="text-sm text-text-muted">Total Markets</div>
-              <div className="text-xl font-bold text-white">{stats.totalMarkets}</div>
-            </div>
-          </div>
-        </div>
-        <div className="glass-card p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary/20">
-              <FaUsers className="text-xl text-secondary" />
-            </div>
-            <div>
-              <div className="text-sm text-text-muted">Total Participants</div>
-              <div className="text-xl font-bold text-white">{stats.totalParticipants}</div>
-            </div>
-          </div>
-        </div>
-        <div className="glass-card p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/20">
-              <FaCoins className="text-xl text-accent" />
-            </div>
-            <div>
-              <div className="text-sm text-text-muted">Total Volume</div>
-                              <div className="text-xl font-bold text-white">{stats.totalVolume} STT</div>
-            </div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-8 animate-pulse">
+        <div className="glass-card p-8">
+          <div className="h-8 bg-card-bg rounded w-1/3 mb-8"></div>
+          <div className="space-y-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="glass-card p-6">
+                <div className="h-6 bg-card-bg rounded mb-2"></div>
+                <div className="h-4 bg-card-bg rounded"></div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
-      
-      {/* Filters and Search */}
-      <div className="glass-card p-4">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          {/* Tab Filters */}
+    );
+  }
+
+  const createdPools = pools || [];
+  
+  interface Pool {
+    pool_id: string;
+    title?: string;
+    is_settled: boolean;
+    category?: string;
+    created_at: string;
+    total_bettor_stake?: string;
+    creator_stake?: string;
+  }
+  
+  // Filter pools
+  const filteredPools = createdPools.filter((pool: Pool) => {
+    const matchesStatus = statusFilter === "all" || 
+      (statusFilter === "active" && !pool.is_settled) ||
+      (statusFilter === "settled" && pool.is_settled);
+    const matchesSearch = searchQuery === "" || 
+      (pool.title && pool.title.toLowerCase().includes(searchQuery.toLowerCase()));
+    return matchesStatus && matchesSearch;
+  });
+
+  const totalPools = createdPools.length;
+  const activePools = createdPools.filter((p: Pool) => !p.is_settled).length;
+  const settledPools = createdPools.filter((p: Pool) => p.is_settled).length;
+
+  return (
+    <div className="space-y-8">
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="glass-card p-8"
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-3xl font-bold text-text-primary">Created Predictions</h1>
+          <Link 
+            href="/create-prediction"
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-primary text-black rounded-button font-semibold shadow-button hover:brightness-110 transition-all duration-200"
+          >
+            <PlusIcon className="h-4 w-4" />
+            Create New
+          </Link>
+        </div>
+        
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="glass-card p-4">
+            <div className="text-2xl font-bold text-text-primary mb-1">{totalPools}</div>
+            <div className="text-sm text-text-muted">Total Pools</div>
+          </div>
+          <div className="glass-card p-4">
+            <div className="text-2xl font-bold text-blue-400 mb-1">{activePools}</div>
+            <div className="text-sm text-text-muted">Active</div>
+          </div>
+          <div className="glass-card p-4">
+            <div className="text-2xl font-bold text-green-400 mb-1">{settledPools}</div>
+            <div className="text-sm text-text-muted">Settled</div>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="flex flex-col lg:flex-row gap-4">
           <div className="flex gap-2">
-            <Button 
-              variant={activeTab === "all" ? "primary" : "ghost"} 
-              size="sm"
-              onClick={() => setActiveTab("all")}
-            >
-              All ({createdMarkets.length})
-            </Button>
-            <Button 
-              variant={activeTab === "active" ? "primary" : "ghost"} 
-              size="sm"
-              onClick={() => setActiveTab("active")}
-            >
-              Active ({stats.activeMarkets})
-            </Button>
-            <Button 
-              variant={activeTab === "resolved" ? "primary" : "ghost"} 
-              size="sm"
-              onClick={() => setActiveTab("resolved")}
-            >
-              Resolved ({stats.resolvedMarkets})
-            </Button>
+            {['all', 'active', 'settled'].map((status) => (
+              <button
+                key={status}
+                onClick={() => setStatusFilter(status as "all" | "active" | "settled")}
+                className={`px-4 py-2 rounded-button text-sm font-medium transition-all duration-200 ${
+                  statusFilter === status
+                    ? 'bg-gradient-primary text-black'
+                    : 'glass-card text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                {status.charAt(0).toUpperCase() + status.slice(1)}
+              </button>
+            ))}
           </div>
           
-          {/* Search */}
-          <div className="relative">
+          <div className="relative flex-1">
+            <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-text-muted" />
             <input
               type="text"
-              placeholder="Search markets..."
+              placeholder="Search pools..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-9 rounded-md border border-border-input bg-bg-card pl-9 pr-4 text-sm focus:border-primary focus:outline-none"
+              className="w-full pl-12 pr-4 py-2 bg-bg-card border border-border-card rounded-button text-text-primary placeholder-text-muted focus:outline-none focus:border-primary/50"
             />
-            <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
           </div>
         </div>
-      </div>
-      
-      {/* Created Markets List */}
-      <div className="space-y-4">
-        {sortedMarkets.length > 0 ? (
-          sortedMarkets.map((market) => (
-            <div key={market.id} className="glass-card overflow-hidden">
-              <div className="flex flex-col gap-4 p-4 md:flex-row md:items-center md:justify-between">
-                <div className="flex-1">
-                  <div className="mb-2 flex flex-wrap items-center gap-2">
-                    <span className={`rounded-full px-2 py-0.5 text-xs capitalize ${getCategoryColor(market.category)}`}>
-                      {market.category}
-                    </span>
-                    {getStatusBadge(market.status, market.resolution)}
-                    <span className="text-xs text-text-muted">{market.timeAgo}</span>
+      </motion.div>
+
+      {/* Pools List */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="space-y-4"
+      >
+        {filteredPools.length === 0 ? (
+          <div className="glass-card p-12 text-center">
+            <SparklesIcon className="h-12 w-12 text-text-muted mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-text-primary mb-2">No Pools Found</h3>
+            <p className="text-text-secondary mb-4">
+              {searchQuery !== "" 
+                ? "Try adjusting your search query."
+                : "Start creating prediction pools to see them here."
+              }
+            </p>
+            <Link 
+              href="/create-prediction"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-primary text-black rounded-button font-semibold shadow-button hover:brightness-110 transition-all duration-200"
+            >
+              <PlusIcon className="h-4 w-4" />
+              Create Your First Pool
+            </Link>
+          </div>
+        ) : (
+          filteredPools.map((pool: Pool, index: number) => (
+            <motion.div
+              key={pool.pool_id}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.05 * index }}
+              className="glass-card p-6 hover:bg-[rgba(255,255,255,0.02)] transition-all duration-200"
+            >
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className={`px-3 py-1 rounded-button text-xs font-medium border ${
+                      pool.is_settled 
+                        ? 'text-green-400 bg-green-500/10 border-green-500/30'
+                        : 'text-blue-400 bg-blue-500/10 border-blue-500/30'
+                    }`}>
+                      {pool.is_settled ? 'Settled' : 'Active'}
+                    </div>
+                    {pool.category && (
+                      <span className="text-xs text-text-muted">{pool.category}</span>
+                    )}
                   </div>
                   
-                  <h3 className="mb-1 text-lg font-semibold text-white">{market.title}</h3>
-                  <p className="text-sm text-text-muted">{market.description}</p>
+                  <Link 
+                    href={`/bet/${pool.pool_id}`}
+                    className="block mb-2"
+                  >
+                    <h4 className="font-semibold text-text-primary hover:text-primary transition-colors line-clamp-1">
+                      {pool.title || `Pool #${pool.pool_id}`}
+                    </h4>
+                  </Link>
                   
-                  <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm">
-                    <div className="flex items-center gap-1">
-                      <FaUsers className="text-text-muted" />
-                      <span className="text-text-secondary">{market.participants} participants</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <FaCoins className="text-text-muted" />
-                      <span className="text-text-secondary">{market.volume} STT</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <BiSolidBadgeCheck className="text-text-muted" />
-                      <span className="text-text-secondary">{market.creatorFee} creator fee</span>
-                    </div>
+                  <div className="text-sm text-text-muted">
+                    Created {formatShortDate(pool.created_at)}
                   </div>
                 </div>
                 
-                <div className="flex gap-2">
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
+                <div className="flex items-center gap-6">
+                  <div className="text-right">
+                    <div className="text-sm text-text-muted mb-1">Total Volume</div>
+                    <div className="font-medium text-text-primary">
+                      {formatSTT((parseFloat(pool.total_bettor_stake || '0') + parseFloat(pool.creator_stake || '0')).toString())}
+                    </div>
+                  </div>
+                  
+                  <div className="text-right">
+                    <div className="text-sm text-text-muted mb-1">Your Liquidity</div>
+                    <div className="font-medium text-cyan-400">
+                      {formatSTT(pool.creator_stake || '0')}
+                    </div>
+                  </div>
+                  
+                  <Link 
+                    href={`/bet/${pool.pool_id}`}
+                    className="px-4 py-2 bg-gradient-primary text-black rounded-button font-medium hover:brightness-110 transition-all duration-200"
                   >
-                    View Market
-                  </Button>
-                  {market.status === "active" && (
-                    <Button 
-                      variant="primary" 
-                      size="sm"
-                    >
-                      Edit Market
-                    </Button>
-                  )}
+                    View Details
+                  </Link>
                 </div>
               </div>
-              
-              <div className="border-t border-border-card bg-bg-card px-4 py-2 text-xs">
-                <div className="flex flex-wrap gap-x-6 gap-y-1">
-                  <span><strong>Created:</strong> {market.createdAt}</span>
-                  <span><strong>Resolves:</strong> {market.resolveDate}</span>
-                  <span><strong>Source:</strong> {market.resolutionSource}</span>
-                </div>
-              </div>
-            </div>
+            </motion.div>
           ))
-        ) : (
-          <div className="glass-card p-8 text-center text-text-muted">
-            No markets found matching your filters.
-          </div>
         )}
-      </div>
+      </motion.div>
     </div>
   );
 }

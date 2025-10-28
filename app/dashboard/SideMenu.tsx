@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSelectedLayoutSegment } from "next/navigation";
 import { motion } from "framer-motion";
+import { useMyProfile } from "@/hooks/useUserProfile";
 import {
   ChartBarIcon,
   PresentationChartLineIcon,
@@ -26,6 +27,7 @@ import {
 
 export default function SideMenu() {
   const segment = useSelectedLayoutSegment();
+  const { data: profile } = useMyProfile();
 
   return (
     <motion.div
@@ -73,16 +75,6 @@ export default function SideMenu() {
                   </div>
                   
                   <span className="font-medium">{link.label}</span>
-                  
-                  {link.badge && (
-                    <span className={`ml-auto px-2 py-0.5 rounded-full text-xs font-semibold ${
-                      isActive 
-                        ? 'bg-black/20 text-black' 
-                        : 'bg-primary/20 text-primary'
-                    }`}>
-                      {link.badge}
-                    </span>
-                  )}
                 </Link>
               </motion.div>
             );
@@ -103,21 +95,27 @@ export default function SideMenu() {
                 <TrophySolid className="h-4 w-4 text-yellow-400" />
                 <span className="text-xs text-text-muted">Win Rate</span>
               </div>
-              <span className="text-sm font-semibold text-text-primary">68.1%</span>
+              <span className="text-sm font-semibold text-text-primary">
+                {profile?.computedStats?.winRateFormatted || "0%"}
+              </span>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <BanknotesIconSolid className="h-4 w-4 text-green-400" />
                 <span className="text-xs text-text-muted">Total P&L</span>
               </div>
-              <span className="text-sm font-semibold text-green-400">+640 SOL</span>
+              <span className="text-sm font-semibold text-green-400">
+                {profile?.computedStats?.profitLossFormatted || "0 STT"}
+              </span>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <FireSolid className="h-4 w-4 text-orange-400" />
-                <span className="text-xs text-text-muted">Active Pools</span>
+                <span className="text-xs text-text-muted">Active Bets</span>
               </div>
-              <span className="text-sm font-semibold text-text-primary">5</span>
+              <span className="text-sm font-semibold text-text-primary">
+                {profile?.stats?.totalBets || 0}
+              </span>
             </div>
           </div>
         </motion.div>
@@ -149,7 +147,6 @@ const links = [
     segment: null,
     icon: ChartBarIcon,
     iconSolid: ChartBarSolid,
-    badge: null
   },
   {
     label: "Portfolio",
@@ -157,7 +154,6 @@ const links = [
     segment: "financial-summary",
     icon: WalletIcon,
     iconSolid: WalletSolid,
-    badge: "5"
   },
   {
     label: "Analytics",
@@ -165,7 +161,6 @@ const links = [
     segment: "performance-charts",
     icon: PresentationChartLineIcon,
     iconSolid: PresentationChartLineSolid,
-    badge: null
   },
   {
     label: "Activity",
@@ -173,7 +168,6 @@ const links = [
     segment: "notifications",
     icon: BellIcon,
     iconSolid: BellSolid,
-    badge: "3"
   },
   {
     label: "Profile",
@@ -181,7 +175,6 @@ const links = [
     segment: "profile",
     icon: UserIcon,
     iconSolid: UserSolid,
-    badge: null
   },
   { 
     label: "Settings", 
@@ -189,6 +182,5 @@ const links = [
     segment: "settings",
     icon: Cog6ToothIcon,
     iconSolid: Cog6ToothSolid,
-    badge: null
   },
 ];

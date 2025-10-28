@@ -220,7 +220,9 @@ export class ReputationService {
       if (!response.ok) {
         throw new Error('Failed to fetch reputation actions');
       }
-      return await response.json();
+      const data = await response.json();
+      // Backend returns { success: true, data: { history: [...] } }
+      return data?.data?.history || [];
     } catch (error) {
       console.error('Failed to fetch reputation actions:', error);
       return [];
@@ -236,7 +238,9 @@ export class ReputationService {
       if (!response.ok) {
         throw new Error('Failed to fetch leaderboard');
       }
-      return await response.json();
+      const data = await response.json();
+      // Backend returns { success: true, data: [...] }
+      return data?.data || [];
     } catch (error) {
       console.error('Failed to fetch leaderboard:', error);
       return [];

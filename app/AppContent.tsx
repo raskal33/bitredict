@@ -2,7 +2,7 @@
 
 import App from "./App";
 import ProfileCreationModal from "@/components/ProfileCreationModal";
-// import QueryProvider from "@/providers/QueryProvider";
+import NotificationToast from "@/components/NotificationToast";
 
 export default function AppContent({
   children,
@@ -13,6 +13,7 @@ export default function AppContent({
     <>
       <App>{children}</App>
       <ProfileCreationModal />
+      <NotificationToast />
     </>
   );
 } 

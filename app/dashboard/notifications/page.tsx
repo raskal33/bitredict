@@ -1,178 +1,191 @@
 "use client";
 
-import { useState } from "react";
-import Button from "@/components/button";
-
-interface Notification {
-  id: number;
-  type: 'success' | 'info' | 'warning';
-  title: string;
-  message: string;
-  timestamp: string;
-  read: boolean;
-}
+import { motion } from "framer-motion";
+import { useAccount } from "wagmi";
+import { usePortfolio } from "@/hooks/usePortfolio";
+import { formatSTT, formatRelativeTime } from "@/utils/formatters";
+import {
+  BellIcon,
+  TrophyIcon,
+  BanknotesIcon,
+  SparklesIcon,
+  FireIcon,
+  CheckCircleIcon,
+  XCircleIcon
+} from "@heroicons/react/24/outline";
 
 export default function Page() {
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: 1,
-      type: 'success',
-      title: 'Prediction Won!',
-      message: 'Your prediction "Bitcoin reaches $100,000" has been settled. You won 250 SOL!',
-      timestamp: '2 hours ago',
-      read: false
-    },
-    {
-      id: 2,
-      type: 'info',
-      title: 'New Market Available',
-      message: 'A new prediction market "2024 US Election" is now available for betting.',
-      timestamp: '5 hours ago',
-      read: false
-    },
-    {
-      id: 3,
-      type: 'warning',
-      title: 'Market Closing Soon',
-      message: 'The "World Cup Finals" prediction market will close in 24 hours.',
-      timestamp: '1 day ago',
-      read: true
-    },
-    {
-      id: 4,
-      type: 'success',
-      title: 'Achievement Unlocked',
-      message: 'Congratulations! You&apos;ve earned the &quot;Top Predictor&quot; badge.',
-      timestamp: '2 days ago',
-      read: true
-    },
-    {
-      id: 5,
-      type: 'info',
-      title: 'Platform Update',
-      message: 'New features have been added to improve your prediction experience.',
-      timestamp: '3 days ago',
-      read: true
+  const { address } = useAccount();
+  const { data: portfolioData, isLoading } = usePortfolio();
+
+  if (!address) {
+    return (
+      <div className="space-y-8">
+        <div className="glass-card p-12 text-center">
+          <BellIcon className="h-16 w-16 text-text-muted mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-text-primary mb-2">Connect Your Wallet</h2>
+          <p className="text-text-secondary">Please connect your wallet to view activity</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-8 animate-pulse">
+        <div className="glass-card p-8">
+          <div className="h-8 bg-card-bg rounded w-1/3 mb-8"></div>
+          <div className="space-y-4">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="glass-card p-6">
+                <div className="h-6 bg-card-bg rounded mb-2"></div>
+                <div className="h-4 bg-card-bg rounded"></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const positions = portfolioData?.positions || [];
+  
+  // Convert positions to activity feed
+  const activities = positions.map(position => {
+    let activityType = 'bet_placed';
+    let icon = <BanknotesIcon className="h-5 w-5" />;
+    let color = 'blue';
+    let message = '';
+
+    if (position.status === 'won') {
+      activityType = 'position_won';
+      icon = <TrophyIcon className="h-5 w-5" />;
+      color = 'green';
+      message = `Won ${formatSTT(position.payoutAmount || position.prizeAmount || '0')} from "${position.title}"`;
+    } else if (position.status === 'lost') {
+      activityType = 'position_lost';
+      icon = <XCircleIcon className="h-5 w-5" />;
+      color = 'red';
+      message = `Position closed: "${position.title}"`;
+    } else if (position.status === 'ended') {
+      activityType = 'position_ended';
+      icon = <CheckCircleIcon className="h-5 w-5" />;
+      color = 'yellow';
+      message = `Position ready to claim: "${position.title}"`;
+    } else if (position.type === 'oddyssey') {
+      activityType = 'oddyssey_placed';
+      icon = <FireIcon className="h-5 w-5" />;
+      color = 'pink';
+      message = `Joined ${position.title}`;
+    } else {
+      activityType = 'bet_placed';
+      icon = <SparklesIcon className="h-5 w-5" />;
+      color = 'cyan';
+      message = `Placed ${formatSTT(position.amount)} on "${position.title}"`;
     }
-  ]);
 
-  const markAsRead = (id: number) => {
-    setNotifications(notifications.map(notif => 
-      notif.id === id ? { ...notif, read: true } : notif
-    ));
-  };
+    return {
+      id: position.id,
+      type: activityType,
+      message,
+      timestamp: position.createdAt,
+      icon,
+      color,
+      read: position.status !== 'ended' // Unread if needs attention
+    };
+  }).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
-  const markAllAsRead = () => {
-    setNotifications(notifications.map(notif => ({ ...notif, read: true })));
-  };
+  const unreadCount = activities.filter(a => !a.read).length;
 
-  const unreadCount = notifications.filter(n => !n.read).length;
-
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case 'success':
-        return (
-          <div className="w-8 h-8 bg-green-500/20 rounded-full flex items-center justify-center">
-            <svg className="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-            </svg>
-          </div>
-        );
-      case 'warning':
-        return (
-          <div className="w-8 h-8 bg-yellow-500/20 rounded-full flex items-center justify-center">
-            <svg className="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-            </svg>
-          </div>
-        );
-      default:
-        return (
-          <div className="w-8 h-8 bg-blue-500/20 rounded-full flex items-center justify-center">
-            <svg className="w-4 h-4 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-            </svg>
-          </div>
-        );
-    }
+  const getColorClasses = (color: string) => {
+    const colors = {
+      blue: 'bg-blue-500/10 border-blue-500/30 text-blue-400',
+      green: 'bg-green-500/10 border-green-500/30 text-green-400',
+      red: 'bg-red-500/10 border-red-500/30 text-red-400',
+      yellow: 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400',
+      pink: 'bg-pink-500/10 border-pink-500/30 text-pink-400',
+      cyan: 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400'
+    };
+    return colors[color as keyof typeof colors] || colors.blue;
   };
 
   return (
-    <div className="space-y-6">
-      <div className="glass-card p-8">
-        <div className="flex items-center justify-between mb-8">
+    <div className="space-y-8">
+      {/* Header */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="glass-card p-8"
+      >
+        <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-white mb-2">Notifications</h1>
+            <h1 className="text-3xl font-bold text-text-primary mb-2">Activity Feed</h1>
             <p className="text-text-secondary">
-              {unreadCount > 0 ? `You have ${unreadCount} unread notifications` : 'All notifications are read'}
+              {unreadCount > 0 
+                ? `${unreadCount} position${unreadCount > 1 ? 's' : ''} need${unreadCount === 1 ? 's' : ''} attention` 
+                : 'Track your prediction market activity'
+              }
             </p>
           </div>
+          
           {unreadCount > 0 && (
-            <Button variant="outline" onClick={markAllAsRead}>
-              Mark All as Read
-            </Button>
+            <div className="flex items-center gap-2 px-4 py-2 bg-yellow-500/10 border border-yellow-500/30 rounded-button">
+              <BellIcon className="h-5 w-5 text-yellow-400" />
+              <span className="text-sm font-semibold text-yellow-400">{unreadCount} Pending</span>
+            </div>
           )}
         </div>
+      </motion.div>
 
-        <div className="space-y-4">
-          {notifications.map((notification) => (
-            <div
-              key={notification.id}
-              className={`p-6 rounded-lg border transition-all cursor-pointer hover:bg-card-bg/50 ${
-                notification.read 
-                  ? 'bg-card-bg/30 border-border-color/30' 
-                  : 'bg-card-bg border-border-color'
+      {/* Activity List */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="space-y-4"
+      >
+        {activities.length === 0 ? (
+          <div className="glass-card p-12 text-center">
+            <BellIcon className="h-12 w-12 text-text-muted mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-text-primary mb-2">No Activity Yet</h3>
+            <p className="text-text-secondary">Start betting or creating pools to see your activity here</p>
+          </div>
+        ) : (
+          activities.map((activity, index) => (
+            <motion.div
+              key={activity.id}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.05 * index }}
+              className={`glass-card p-6 hover:bg-[rgba(255,255,255,0.02)] transition-all duration-200 ${
+                !activity.read ? 'border-l-4 border-l-yellow-400' : ''
               }`}
-              onClick={() => !notification.read && markAsRead(notification.id)}
             >
               <div className="flex items-start gap-4">
-                {getNotificationIcon(notification.type)}
+                <div className={`p-3 rounded-xl border ${getColorClasses(activity.color)}`}>
+                  {activity.icon}
+                </div>
+                
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-2">
-                    <h3 className={`font-semibold ${notification.read ? 'text-text-secondary' : 'text-white'}`}>
-                      {notification.title}
-                    </h3>
-                    {!notification.read && (
-                      <div className="w-2 h-2 bg-brand-cyan rounded-full"></div>
-                    )}
-                  </div>
-                  <p className={`text-sm mb-2 ${notification.read ? 'text-text-secondary/70' : 'text-text-secondary'}`}>
-                    {notification.message}
+                  <p className="text-text-primary font-medium mb-1">
+                    {activity.message}
                   </p>
-                  <div className="text-xs text-text-secondary/50">
-                    {notification.timestamp}
+                  <div className="text-sm text-text-muted">
+                    {formatRelativeTime(activity.timestamp)}
                   </div>
                 </div>
-                {!notification.read && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      markAsRead(notification.id);
-                    }}
-                    className="text-text-secondary hover:text-white transition-colors"
-                  >
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  </button>
+
+                {!activity.read && (
+                  <div className="flex items-center gap-2 px-3 py-1 bg-yellow-500/10 border border-yellow-500/30 rounded-button">
+                    <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                    <span className="text-xs font-medium text-yellow-400">Action Required</span>
+                  </div>
                 )}
               </div>
-            </div>
-          ))}
-        </div>
-
-        {notifications.length === 0 && (
-          <div className="glass-card p-12 text-center">
-            <div className="w-16 h-16 bg-card-bg rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-text-secondary" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold text-white mb-2">No Notifications</h3>
-            <p className="text-text-secondary">You&apos;re all caught up! New notifications will appear here.</p>
-          </div>
+            </motion.div>
+          ))
         )}
-      </div>
+      </motion.div>
     </div>
   );
 }
