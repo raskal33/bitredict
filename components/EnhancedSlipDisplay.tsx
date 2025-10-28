@@ -159,21 +159,53 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
   }, [slips]);
 
   // Helper function to calculate prediction correctness
-  const calculatePredictionCorrectness = (prediction: { betType: number; selection: string }, matchResult: { result: { moneyline: number; overUnder: number } }): boolean => {
+  const calculatePredictionCorrectness = (prediction: { betType: number; selection: string }, matchResult: { result?: { outcome_1x2?: string; outcome_ou25?: string; moneyline?: number; overUnder?: number } }): boolean => {
     if (!matchResult || !matchResult.result) {
       return false; // No result available
     }
 
     const { betType, selection } = prediction;
-    const { moneyline, overUnder } = matchResult.result;
+    const result = matchResult.result;
 
-    if (betType === 0) { // MONEYLINE
-      if (selection === "1" && moneyline === 1) return true; // HomeWin
-      if (selection === "X" && moneyline === 2) return true; // Draw
-      if (selection === "2" && moneyline === 3) return true; // AwayWin
+    // FIXED: Handle both string outcomes (outcome_1x2, outcome_ou25) and numeric (moneyline, overUnder)
+    if (betType === 0) { // MONEYLINE (1X2)
+      // Check if we have outcome_1x2 (string format: "Home", "Draw", "Away")
+      if (result.outcome_1x2) {
+        const normalizedSelection = selection === "1" ? "home" : selection === "X" ? "draw" : selection === "2" ? "away" : selection.toLowerCase();
+        const normalizedOutcome = result.outcome_1x2.toLowerCase();
+        return normalizedSelection === normalizedOutcome;
+      }
+      
+      // Fallback to numeric moneyline format
+      if (typeof result.moneyline === 'number') {
+        if (selection === "1" && result.moneyline === 1) return true; // Home win
+        if (selection === "X" && result.moneyline === 2) return true; // Draw
+        if (selection === "2" && result.moneyline === 3) return true; // Away win
+        
+        // Also handle text format: "home", "draw", "away"
+        const normalizedSelection = selection.toLowerCase();
+        if (normalizedSelection === "home" && result.moneyline === 1) return true;
+        if (normalizedSelection === "draw" && result.moneyline === 2) return true;
+        if (normalizedSelection === "away" && result.moneyline === 3) return true;
+      }
     } else if (betType === 1) { // OVER_UNDER
-      if (selection === "Over" && overUnder === 1) return true; // Over
-      if (selection === "Under" && overUnder === 2) return true; // Under
+      // Check if we have outcome_ou25 (string format: "Over", "Under")
+      if (result.outcome_ou25) {
+        const normalizedSelection = selection.toLowerCase();
+        const normalizedOutcome = result.outcome_ou25.toLowerCase();
+        return normalizedSelection === normalizedOutcome;
+      }
+      
+      // Fallback to numeric overUnder format  
+      if (typeof result.overUnder === 'number') {
+        if (selection === "Over" && result.overUnder === 1) return true; // Over
+        if (selection === "Under" && result.overUnder === 2) return true; // Under
+        
+        // Also handle lowercase
+        const normalizedSelection = selection.toLowerCase();
+        if (normalizedSelection === "over" && result.overUnder === 1) return true;
+        if (normalizedSelection === "under" && result.overUnder === 2) return true;
+      }
     }
 
     return false;
