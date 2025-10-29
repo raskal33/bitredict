@@ -1323,19 +1323,37 @@ export default function OddysseyPage() {
 
       console.log('🎯 Submitting slip with picks:', picks);
       
-      // Format predictions for contract
-      const predictions = picks
-        .map(pick => ({
+      // ✅ CRITICAL FIX: Match predictions to contract match order
+      // Contract expects predictions in the EXACT order matches appear on-chain
+      // Do NOT sort by matchId - maintain contract order
+      
+      // First, validate all picks have corresponding matches
+      const matchMap = new Map(currentMatches.map(m => [Number(m.id), m]));
+      const invalidPicks = picks.filter(pick => !matchMap.has(pick.id));
+      
+      if (invalidPicks.length > 0) {
+        showError("Invalid Matches", "Some selected matches are no longer available. Please refresh and reselect.");
+        return;
+      }
+      
+      // Create predictions array in contract match order
+      const predictions = currentMatches.map(match => {
+        const pick = picks.find(p => p.id === Number(match.id));
+        if (!pick) {
+          throw new Error(`Missing prediction for match ${match.id}`);
+        }
+        
+        return {
           matchId: pick.id,
           prediction: pick.pick === "home" ? "1" : 
                      pick.pick === "draw" ? "X" : 
                      pick.pick === "away" ? "2" : 
                      pick.pick === "over" ? "Over" : "Under",
-          odds: pick.odd
-        }))
-        .sort((a, b) => a.matchId - b.matchId); // ✅ CRITICAL: Sort by match ID to match contract order
+          odds: pick.odd // Odds are already in contract format (scaled by 1000)
+        };
+      });
 
-      console.log('📝 Formatted predictions (sorted):', predictions);
+      console.log('📝 Formatted predictions (contract order):', predictions);
 
       // Enhanced mobile transaction handling
       setIsPending(true);

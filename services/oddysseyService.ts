@@ -13,7 +13,7 @@ import {
   type WalletClient
 } from 'viem';
 
-// Define Somnia Testnet chain
+// Define Somnia Testnet chain with fallback RPCs
 const somniaTestnet = defineChain({
   id: 50312,
   name: 'Somnia Testnet',
@@ -24,7 +24,10 @@ const somniaTestnet = defineChain({
   },
   rpcUrls: {
     default: {
-      http: ['https://dream-rpc.somnia.network/'],
+      http: [
+        'https://dream-rpc.somnia.network/',
+        'https://rpc.ankr.com/somnia_testnet/c8e336679a7fe85909f310fbbdd5fbb18d3b7560b1d3eca7aa97874b0bb81e97'
+      ],
     },
   },
   blockExplorers: {
@@ -459,16 +462,19 @@ class OddysseyService {
       // Convert predictions to contract format
       // ⚠️ IMPORTANT: Only include fields that exist in contract's UserPrediction struct
       // Contract struct: {matchId, betType, selection, selectedOdd}
-      const contractPredictions = predictions.map(pred => {
-        // Convert odds: if pred.odds is already scaled (e.g., 1500 for 1.5x), keep it
-        // If it's decimal format (e.g., 1.5), scale it by 1000
+      const contractPredictions = predictions.map((pred, index) => {
+        // ✅ FIX: Odds are already in contract format (scaled by 1000) from the UI
+        // The UI gets odds from contract matches which are already scaled
+        // e.g., contract returns 2750 for 2.75x, UI stores 2750, we send 2750
         let scaledOdds = pred.odds;
-        if (scaledOdds < 100) {
-          // Likely decimal format (e.g., 1.5, 2.3), scale by 1000
+        
+        // Validation: odds should be >= 1000 (representing 1.0x minimum)
+        if (scaledOdds < 1000) {
+          console.warn(`⚠️ Prediction ${index + 1}: Odds ${scaledOdds} seems too low, expected >= 1000. Assuming decimal format and scaling...`);
           scaledOdds = Math.floor(scaledOdds * 1000);
         }
         
-        console.log(`🔢 Odds conversion: ${pred.odds} -> ${scaledOdds}`);
+        console.log(`🔢 Match ${pred.matchId}: Odds ${pred.odds} -> ${scaledOdds}`);
         
         return {
           matchId: BigInt(pred.matchId),
