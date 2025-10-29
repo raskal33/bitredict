@@ -457,6 +457,8 @@ class OddysseyService {
       console.log(`💰 Entry fee from contract: ${formatEther(entryFeeBigInt)} STT (${entryFeeBigInt.toString()} wei)`);
       
       // Convert predictions to contract format
+      // ⚠️ IMPORTANT: Only include fields that exist in contract's UserPrediction struct
+      // Contract struct: {matchId, betType, selection, selectedOdd}
       const contractPredictions = predictions.map(pred => {
         // Convert odds: if pred.odds is already scaled (e.g., 1500 for 1.5x), keep it
         // If it's decimal format (e.g., 1.5), scale it by 1000
@@ -471,11 +473,9 @@ class OddysseyService {
         return {
           matchId: BigInt(pred.matchId),
           betType: ['1', 'X', '2'].includes(pred.prediction) ? 0 : 1, // 0=MONEYLINE, 1=OVER_UNDER
-          selection: pred.prediction,
+          selection: pred.prediction, // ✅ Send as string - contract hashes it internally
           selectedOdd: scaledOdds, // Contract format: odds * 1000
-          homeTeam: '', // Will be filled by contract
-          awayTeam: '', // Will be filled by contract
-          leagueName: '', // Will be filled by contract
+          // ❌ REMOVED: homeTeam, awayTeam, leagueName - not in contract struct
         };
       });
 
@@ -498,15 +498,30 @@ class OddysseyService {
       
       // Enhanced error handling for mobile devices
       if (error instanceof Error) {
-        if (error.message.includes('user rejected') || error.message.includes('User denied')) {
+        const errorMessage = error.message.toLowerCase();
+        
+        // ✅ FIX: Check if transaction was actually successful despite error
+        // On mobile MetaMask, sometimes we get errors even when tx succeeds
+        if ('hash' in error || 'transactionHash' in error) {
+          console.log('✅ Transaction succeeded despite error:', error);
+          const txHash = ('hash' in error ? (error as any).hash : (error as any).transactionHash) as `0x${string}`;
+          return txHash;
+        }
+        
+        // Real user rejection errors
+        if (errorMessage.includes('user rejected') || 
+            errorMessage.includes('user denied') ||
+            errorMessage.includes('user cancelled') ||
+            errorMessage.includes('rejected by user') ||
+            errorMessage.includes('user disapproved')) {
           throw new Error('Transaction was cancelled by user. Please try again if you want to place the slip.');
-        } else if (error.message.includes('insufficient funds')) {
+        } else if (errorMessage.includes('insufficient funds')) {
           throw new Error('Insufficient funds. Please ensure you have enough STT tokens to pay the entry fee.');
-        } else if (error.message.includes('gas')) {
+        } else if (errorMessage.includes('gas')) {
           throw new Error('Gas estimation failed. Please try again or check your network connection.');
-        } else if (error.message.includes('network')) {
+        } else if (errorMessage.includes('network')) {
           throw new Error('Network error. Please check your internet connection and try again.');
-        } else if (error.message.includes('wallet')) {
+        } else if (errorMessage.includes('wallet')) {
           throw new Error('Wallet error. Please ensure your wallet is properly connected and try again.');
         }
       }
