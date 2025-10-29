@@ -805,7 +805,7 @@ export default function OddysseyPage() {
         setCurrentPrizePool({
           cycleId: Number(cycleInfo.cycleId),
           prizePool: formatEther(cycleInfo.prizePool),
-          formattedPrizePool: `${formatEther(cycleInfo.prizePool)} STT`,
+          formattedPrizePool: `${parseFloat(formatEther(cycleInfo.prizePool)).toFixed(2)} STT`,
           matchesCount: 10,
           isActive: cycleInfo.state === 1
         });
@@ -851,7 +851,7 @@ export default function OddysseyPage() {
           totalPlayers: globalStatsResult.data.totalPlayers || 0,
           prizePool: `${formattedAvgPrizePool} STT`,
           completedSlips: globalStatsResult.data.totalSlips?.toLocaleString() || "0",
-          averageOdds: `${globalStatsResult.data.avgCorrect || 0}x`,
+          averageOdds: `${(globalStatsResult.data.avgCorrect || 0).toFixed(2)}x`,
           totalCycles: globalStatsResult.data.totalCycles || 0,
           activeCycles: globalStatsResult.data.activeCycles || 0,
           avgPrizePool: parseFloat(formattedAvgPrizePool),
@@ -1677,7 +1677,7 @@ export default function OddysseyPage() {
                 className="glass-card text-center p-4"
               >
               <CurrencyDollarIcon className="h-12 w-12 mx-auto mb-4 text-primary" />
-              <h3 className="text-2xl font-bold text-white mb-1">{stats.prizePool}</h3>
+              <h3 className="text-2xl font-bold text-white mb-1">{parseFloat(stats.prizePool || '0').toFixed(2)} STT</h3>
               <p className="text-lg font-semibold text-text-secondary mb-1">Average Prize Pool</p>
               <p className="text-sm text-text-muted">Current cycle</p>
               </motion.div>
@@ -1697,7 +1697,7 @@ export default function OddysseyPage() {
               className="glass-card text-center p-4"
             >
               <TrophyIcon className="h-12 w-12 mx-auto mb-4 text-accent" />
-                              <h3 className="text-2xl font-bold text-white mb-1">{(stats.winRate || 0).toFixed(1)}%</h3>
+                              <h3 className="text-2xl font-bold text-white mb-1">{(stats.winRate || 0).toFixed(2)}%</h3>
               <p className="text-lg font-semibold text-text-secondary mb-1">Win Rate</p>
               <p className="text-sm text-text-muted">Current cycle</p>
             </motion.div>
@@ -1707,7 +1707,7 @@ export default function OddysseyPage() {
               className="glass-card text-center p-4"
             >
               <EyeIcon className="h-12 w-12 mx-auto mb-4 text-green-400" />
-              <h3 className="text-2xl font-bold text-white mb-1">{stats.avgCorrect}x</h3>
+              <h3 className="text-2xl font-bold text-white mb-1">{(typeof stats.avgCorrect === 'number' ? stats.avgCorrect : parseFloat(stats.avgCorrect || '0')).toFixed(2)}x</h3>
               <p className="text-lg font-semibold text-text-secondary mb-1">Average Odds</p>
               <p className="text-sm text-text-muted">Current cycle</p>
             </motion.div>
@@ -2641,7 +2641,7 @@ export default function OddysseyPage() {
                               <FireIcon className="w-5 h-5 text-orange-400" />
                               <span className="text-sm font-medium text-gray-300">Win Rate</span>
                             </div>
-                            <span className="text-2xl font-bold text-orange-400">{(stats.winRate || 0).toFixed(1)}%</span>
+                            <span className="text-2xl font-bold text-orange-400">{(stats.winRate || 0).toFixed(2)}%</span>
                           </div>
                           <div className="w-full bg-gray-700/50 rounded-full h-2">
                             <motion.div
@@ -2665,7 +2665,7 @@ export default function OddysseyPage() {
                               <CheckCircleIcon className="w-5 h-5 text-blue-400" />
                               <span className="text-sm font-medium text-gray-300">Evaluation Progress</span>
                             </div>
-                            <span className="text-2xl font-bold text-blue-400">{(stats.evaluationProgress || 0).toFixed(1)}%</span>
+                            <span className="text-2xl font-bold text-blue-400">{(stats.evaluationProgress || 0).toFixed(2)}%</span>
                           </div>
                           <div className="w-full bg-gray-700/50 rounded-full h-2">
                             <motion.div
@@ -2719,7 +2719,7 @@ export default function OddysseyPage() {
                           className="text-center p-3 bg-gray-800/30 rounded-lg border border-gray-700/50 hover:border-gray-600 transition-all"
                         >
                           <div className="text-sm text-gray-400 mb-2">Avg Accuracy</div>
-                          <div className="text-xl font-bold text-cyan-400">{(stats.avgCorrect || 0).toFixed(1)}</div>
+                          <div className="text-xl font-bold text-cyan-400">{(stats.avgCorrect || 0).toFixed(2)}</div>
                         </motion.div>
 
                         {/* Correct Predictions */}

@@ -63,11 +63,11 @@ export default function OddysseyMatchResults({ cycleId, className = '' }: Oddyss
         if (data.success && data.data?.dates) {
           console.log(`✅ Found ${data.data.dates.length} available cycle dates:`, data.data.dates);
           
-          // Convert dates to cycle objects (we'll fetch cycle IDs when needed)
-          const cyclesFound: CycleWithDate[] = data.data.dates.map((date: string) => ({
-            cycleId: 0, // Will be filled when we fetch cycle details
-            startTime: date,
-            endTime: date
+          // ✅ FIXED: Use actual cycle data from backend (includes cycleId)
+          const cyclesFound: CycleWithDate[] = data.data.dates.map((dateItem: { date: string, cycleId: number, isResolved: boolean }) => ({
+            cycleId: dateItem.cycleId, // Use actual cycleId from backend
+            startTime: dateItem.date,
+            endTime: dateItem.date
           }));
           
           setAvailableCycles(cyclesFound);
