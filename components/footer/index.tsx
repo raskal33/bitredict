@@ -57,8 +57,8 @@ export default function Footer() {
                   <Image 
                     src="/logo.png" 
                     alt="BitRedict" 
-                    width={180} 
-                    height={45}
+                    width={220} 
+                    height={55}
                     className="h-auto"
                   />
                 </Link>

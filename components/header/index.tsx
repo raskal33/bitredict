@@ -114,8 +114,8 @@ export default function Header() {
                   <Image 
                     src="/logo.png" 
                     alt="BitRedict Logo" 
-                    width={140} 
-                    height={140} 
+                    width={200} 
+                    height={200} 
                     className="logo-color-shift"
                     priority 
                   />
@@ -411,8 +411,8 @@ export default function Header() {
                       <Image 
                         src="/logo.png" 
                         alt="BitRedict Logo" 
-                        width={100} 
-                        height={100} 
+                        width={160} 
+                        height={160} 
                         className="logo-color-shift"
                         priority 
                       />
