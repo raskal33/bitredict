@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import { useSelectedLayoutSegment } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   Bars3Icon, 
   XMarkIcon,
@@ -38,6 +38,21 @@ export default function Header() {
   const [{ y }] = useWindowScroll();
   const segment = useSelectedLayoutSegment();
   const [isRender, setIsRender] = useState<boolean>(false);
+  
+  // Refs for dropdown positioning
+  const bitredictorButtonRef = useRef<HTMLButtonElement>(null);
+  const marketsButtonRef = useRef<HTMLButtonElement>(null);
+  const walletButtonRef = useRef<HTMLButtonElement>(null);
+  
+  // Get dropdown positions for fixed positioning
+  const getDropdownPosition = (buttonRef: React.RefObject<HTMLButtonElement | null>) => {
+    if (!buttonRef.current) return { top: 0, left: 0 };
+    const rect = buttonRef.current.getBoundingClientRect();
+    return {
+      top: rect.bottom + 8,
+      left: rect.left,
+    };
+  };
   
   // Custom wallet connection hook
   const {
@@ -98,6 +113,18 @@ export default function Header() {
     }
   }, [isBitredictorOpen, isMarketsOpen, isWalletDropdownOpen]);
 
+  // Close dropdowns on scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsBitredictorOpen(false);
+      setIsMarketsOpen(false);
+      setIsWalletDropdownOpen(false);
+    };
+
+    window.addEventListener('scroll', handleScroll, true);
+    return () => window.removeEventListener('scroll', handleScroll, true);
+  }, []);
+
   if (segment !== "/_not-found") {
     return (
       <>
@@ -128,6 +155,7 @@ export default function Header() {
                 {/* Bitredictor Dropdown */}
                 <div className="relative hidden lg:block" style={{ zIndex: 1000 }}>
                   <motion.button
+                    ref={bitredictorButtonRef}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleBitredictorToggle();
@@ -146,16 +174,22 @@ export default function Header() {
                   </motion.button>
 
                   <AnimatePresence>
-                    {isBitredictorOpen && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                        transition={{ duration: 0.2, ease: "easeOut" }}
-                        className="absolute top-full left-0 mt-2 w-52 bg-[rgba(5,5,15,0.95)] backdrop-blur-xl border border-border-card/50 rounded-2xl shadow-2xl overflow-hidden"
-                        style={{ zIndex: 1001 }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
+                    {isBitredictorOpen && (() => {
+                      const position = getDropdownPosition(bitredictorButtonRef);
+                      return (
+                        <motion.div
+                          initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                          transition={{ duration: 0.2, ease: "easeOut" }}
+                          className="fixed w-52 bg-[rgba(5,5,15,0.95)] backdrop-blur-xl border border-border-card/50 rounded-2xl shadow-2xl overflow-hidden"
+                          style={{ 
+                            zIndex: 1001,
+                            top: `${position.top}px`,
+                            left: `${position.left}px`
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                         <div className="py-3 px-2">
                           {bitredictorLinks.map((link) => (
                             <Link
@@ -181,8 +215,9 @@ export default function Header() {
                         
                         {/* Bottom gradient accent */}
                         <div className="h-0.5 bg-gradient-to-r from-primary via-secondary to-accent" />
-                      </motion.div>
-                    )}
+                        </motion.div>
+                      );
+                    })()}
                   </AnimatePresence>
                 </div>
               </div>
@@ -192,6 +227,7 @@ export default function Header() {
                 {/* Markets Dropdown */}
                 <div className="relative" style={{ zIndex: 1000 }}>
                   <motion.button
+                    ref={marketsButtonRef}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleMarketsToggle();
@@ -214,16 +250,22 @@ export default function Header() {
                   </motion.button>
 
                   <AnimatePresence>
-                    {isMarketsOpen && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                        transition={{ duration: 0.2, ease: "easeOut" }}
-                        className="absolute top-full left-0 mt-2 w-56 bg-[rgba(5,5,15,0.95)] backdrop-blur-xl border border-border-card/50 rounded-2xl shadow-2xl overflow-hidden"
-                        style={{ zIndex: 1001 }}
-                        onClick={(e) => e.stopPropagation()}
-                      >
+                    {isMarketsOpen && (() => {
+                      const position = getDropdownPosition(marketsButtonRef);
+                      return (
+                        <motion.div
+                          initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                          transition={{ duration: 0.2, ease: "easeOut" }}
+                          className="fixed w-56 bg-[rgba(5,5,15,0.95)] backdrop-blur-xl border border-border-card/50 rounded-2xl shadow-2xl overflow-hidden"
+                          style={{ 
+                            zIndex: 1001,
+                            top: `${position.top}px`,
+                            left: `${position.left}px`
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
                         <div className="py-3 px-2">
                           {marketsLinks.map((link) => (
                             <Link
@@ -249,8 +291,9 @@ export default function Header() {
                         
                         {/* Bottom gradient accent */}
                         <div className="h-0.5 bg-gradient-to-r from-primary via-secondary to-accent" />
-                      </motion.div>
-                    )}
+                        </motion.div>
+                      );
+                    })()}
                   </AnimatePresence>
                 </div>
 
@@ -290,6 +333,7 @@ export default function Header() {
                     {isConnected && address ? (
                       <div className="relative" style={{ zIndex: 1000 }}>
                         <motion.button
+                          ref={walletButtonRef}
                           onClick={(e) => {
                             e.stopPropagation();
                             handleWalletDropdownToggle();
@@ -310,16 +354,23 @@ export default function Header() {
                         </motion.button>
 
                         <AnimatePresence>
-                          {isWalletDropdownOpen && (
-                            <motion.div
-                              initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                              animate={{ opacity: 1, y: 0, scale: 1 }}
-                              exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                              transition={{ duration: 0.2, ease: "easeOut" }}
-                              className="absolute top-full right-0 mt-2 w-48 bg-[rgba(5,5,15,0.95)] backdrop-blur-xl border border-border-card/50 rounded-2xl shadow-2xl overflow-hidden"
-                              style={{ zIndex: 1001 }}
-                              onClick={(e) => e.stopPropagation()}
-                            >
+                          {isWalletDropdownOpen && (() => {
+                            if (!walletButtonRef.current || typeof window === 'undefined') return null;
+                            const rect = walletButtonRef.current.getBoundingClientRect();
+                            return (
+                              <motion.div
+                                initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                                transition={{ duration: 0.2, ease: "easeOut" }}
+                                className="fixed w-48 bg-[rgba(5,5,15,0.95)] backdrop-blur-xl border border-border-card/50 rounded-2xl shadow-2xl overflow-hidden"
+                                style={{ 
+                                  zIndex: 1001,
+                                  top: `${rect.bottom + 8}px`,
+                                  right: `${window.innerWidth - rect.right}px`
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                              >
                               <div className="py-2 px-1">
                                 {!isOnSomnia && (
                                   <button
@@ -346,7 +397,8 @@ export default function Header() {
                               </div>
                               <div className="h-0.5 bg-gradient-to-r from-primary via-secondary to-accent" />
                             </motion.div>
-                          )}
+                            );
+                          })()}
                         </AnimatePresence>
                       </div>
                     ) : (
