@@ -106,7 +106,7 @@ export default function Header() {
             isScrolled ? "fixed shadow-card" : "relative"
           } inset-x-0 top-0 z-50 border-b border-border-card transition-all duration-300 nav-glass`}
         >
-          <div className="container-nav overflow-x-hidden">
+          <div className="container-nav overflow-x-hidden overflow-y-visible">
             <div className="flex items-center justify-between py-1.5 min-w-0 gap-2">
               {/* Left Side - Logo */}
               <div className="flex items-center gap-8 flex-shrink-0">
@@ -122,7 +122,7 @@ export default function Header() {
                 </Link>
 
                 {/* Bitredictor Dropdown */}
-                <div className="relative hidden lg:block">
+                <div className="relative hidden lg:block z-[100]">
                   <motion.button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -148,7 +148,7 @@ export default function Header() {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -10, scale: 0.95 }}
                         transition={{ duration: 0.2, ease: "easeOut" }}
-                        className="absolute top-full left-0 mt-2 w-52 bg-[rgba(5,5,15,0.95)] backdrop-blur-xl border border-border-card/50 rounded-2xl shadow-2xl z-50 overflow-hidden"
+                        className="absolute top-full left-0 mt-2 w-52 bg-[rgba(5,5,15,0.95)] backdrop-blur-xl border border-border-card/50 rounded-2xl shadow-2xl z-[100] overflow-hidden"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="py-3 px-2">
@@ -185,7 +185,7 @@ export default function Header() {
               {/* Center - Desktop Navigation */}
               <nav className="hidden lg:flex items-center space-x-1 min-w-0">
                 {/* Markets Dropdown */}
-                <div className="relative">
+                <div className="relative z-[100]">
                   <motion.button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -215,7 +215,7 @@ export default function Header() {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -10, scale: 0.95 }}
                         transition={{ duration: 0.2, ease: "easeOut" }}
-                        className="absolute top-full left-0 mt-2 w-56 bg-[rgba(5,5,15,0.95)] backdrop-blur-xl border border-border-card/50 rounded-2xl shadow-2xl z-50 overflow-hidden"
+                        className="absolute top-full left-0 mt-2 w-56 bg-[rgba(5,5,15,0.95)] backdrop-blur-xl border border-border-card/50 rounded-2xl shadow-2xl z-[100] overflow-hidden"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="py-3 px-2">
