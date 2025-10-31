@@ -77,12 +77,30 @@ export function useNotifications() {
   const handleMessage = useCallback((message: any) => {
     if (!isMountedRef.current) return;
     
-    if (message.type === 'notification') {
-      // Add new notification to the beginning
-      setNotifications(prev => [message.notification, ...prev].slice(0, 100)); // Keep last 100
+    // ✅ FIX: Backend wraps messages in { type: 'update', channel, data, timestamp }
+    // Check message.data.type for notification type
+    if (message.type === 'update' && message.data) {
+      if (message.data.type === 'notification') {
+        // Add new notification to the beginning
+        setNotifications(prev => [message.data.notification, ...prev].slice(0, 100)); // Keep last 100
+        setUnreadCount(prev => prev + 1);
+        
+        // Show browser notification if permission granted
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+          new Notification(message.data.notification.title, {
+            body: message.data.notification.message,
+            icon: '/logo.png'
+          });
+        }
+      } else if (message.data.type === 'notification:unread_count') {
+        setUnreadCount(message.data.unreadCount);
+      }
+    }
+    // ✅ Also handle direct notification messages (backward compatibility)
+    else if (message.type === 'notification') {
+      setNotifications(prev => [message.notification, ...prev].slice(0, 100));
       setUnreadCount(prev => prev + 1);
       
-      // Show browser notification if permission granted
       if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
         new Notification(message.notification.title, {
           body: message.notification.message,

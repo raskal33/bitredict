@@ -18,6 +18,7 @@ import { calculatePoolFill } from "../utils/poolCalculations";
 import { getPoolStatusDisplay, getStatusBadgeProps } from "../utils/poolStatus";
 import { getPoolIcon } from "../services/crypto-icons";
 import { titleTemplatesService } from "../services/title-templates";
+import PlaceBetModal from "./PlaceBetModal";
 
   // Enhanced Pool interface with indexed data
 export interface EnhancedPool {
@@ -121,6 +122,7 @@ export default function EnhancedPoolCard({
   const { address } = useAccount();
   const [indexedData] = useState(pool.indexedData);
   const [showBoostModal, setShowBoostModal] = useState(false);
+  const [showBetModal, setShowBetModal] = useState(false);
 
   const getDifficultyColor = (odds: number) => {
     if (odds >= 500) return 'text-purple-400'; // Legendary
@@ -755,12 +757,20 @@ export default function EnhancedPoolCard({
               </div>
             </div>
             
-            {/* Challenging Option */}
+            {/* Challenge Button - Orange marked area */}
             <div className="text-center">
-              <div className="text-xs text-gray-400">Challenge</div>
-              <div className="px-3 py-1 rounded text-xs font-medium bg-success/20 border border-success/30 text-success">
-                YES
-              </div>
+              <div className="text-xs text-gray-400 mb-2">Challenge</div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation(); // Prevent card navigation
+                  setShowBetModal(true);
+                }}
+                disabled={pool.settled || (pool.bettingEndTime ? Date.now() / 1000 > pool.bettingEndTime : false)}
+                className="px-6 py-2 rounded-lg text-sm font-bold bg-gradient-to-r from-primary to-secondary text-black hover:from-primary/90 hover:to-secondary/90 transition-all transform hover:scale-105 shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center gap-2"
+              >
+                <BoltIcon className="w-4 h-4" />
+                Challenge
+              </button>
             </div>
           </div>
         </div>
@@ -977,6 +987,13 @@ export default function EnhancedPoolCard({
           </motion.div>
         </div>
       )}
+      
+      {/* Place Bet Modal */}
+      <PlaceBetModal
+        pool={pool}
+        isOpen={showBetModal}
+        onClose={() => setShowBetModal(false)}
+      />
     </motion.div>
   );
 } 
