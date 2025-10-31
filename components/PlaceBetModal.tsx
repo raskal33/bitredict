@@ -12,7 +12,6 @@ import {
 import { useAccount } from "wagmi";
 import { useRouter } from "next/navigation";
 import { usePools } from "@/hooks/usePools";
-import { parseUnits } from "viem";
 import { toast } from "react-hot-toast";
 import { EnhancedPool } from "./EnhancedPoolCard";
 
@@ -84,15 +83,14 @@ export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalPr
     try {
       setIsPlacing(true);
       
-      // Convert amount to wei using viem's parseUnits (consistent with usePools)
-      const amountInWei = parseUnits(betAmountNum.toString(), 18);
-      
       // Show initial loading toast
       toast.loading("Preparing transaction...", { id: 'bet-tx' });
       
-      // Call placeBet - for BITR pools, this may return early if approval is needed
+      // Call placeBet - it expects human-readable amount string (e.g., "50"), NOT wei
+      // The placeBet function in usePools will convert to wei internally using parseUnits
+      // For BITR pools, this may return early if approval is needed
       // The usePools hook handles approval flow and transaction feedback automatically
-      await placeBet(pool.id, amountInWei.toString(), pool.usesBitr);
+      await placeBet(pool.id, betAmountNum.toString(), pool.usesBitr);
       
       // If we get here and it's a BITR pool, check if we're waiting for approval
       // For BITR pools with insufficient allowance, placeBet returns early
