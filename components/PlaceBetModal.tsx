@@ -176,7 +176,10 @@ export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalPr
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
-            onClick={handleClose}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleClose();
+            }}
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
           />
           
@@ -190,6 +193,7 @@ export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalPr
               damping: 30,
               stiffness: 300
             }}
+            onClick={(e) => e.stopPropagation()}
             className="fixed inset-x-0 bottom-0 z-50 bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 border-t-2 border-primary/30 rounded-t-3xl shadow-2xl max-h-[90vh] overflow-hidden"
           >
             {/* Drag Handle */}
@@ -210,7 +214,10 @@ export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalPr
                   </p>
                 </div>
                 <button
-                  onClick={handleClose}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleClose();
+                  }}
                   disabled={isPlacing || waitingForApproval}
                   className="p-2 rounded-lg hover:bg-gray-700/50 transition-colors disabled:opacity-50"
                 >
@@ -237,7 +244,7 @@ export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalPr
                       onClose();
                       router.push(`/bet/${pool.id}`);
                     }}
-                    className="ml-4 px-3 py-1.5 text-xs font-medium bg-gray-700/50 hover:bg-gray-700 border border-gray-600 rounded-lg text-gray-300 hover:text-white transition-all whitespace-nowrap"
+                    className="ml-4 px-4 py-2 text-xs font-bold bg-gradient-to-r from-primary to-secondary text-black hover:from-primary/90 hover:to-secondary/90 rounded-lg transition-all transform hover:scale-105 shadow-lg shadow-primary/20 whitespace-nowrap"
                   >
                     View More
                   </button>
@@ -269,6 +276,8 @@ export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalPr
                     type="number"
                     value={betAmount}
                     onChange={(e) => setBetAmount(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    onFocus={(e) => e.stopPropagation()}
                     placeholder="0.00"
                     disabled={isPlacing || !isBettingOpen}
                     className="w-full px-4 py-4 text-2xl font-bold text-white bg-gray-800/50 border-2 border-gray-700 rounded-xl focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
@@ -283,7 +292,10 @@ export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalPr
                   {quickAmounts.map((amount) => (
                     <button
                       key={amount}
-                      onClick={() => handleQuickAmount(amount)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleQuickAmount(amount);
+                      }}
                       disabled={isPlacing || !isBettingOpen || amount > remainingCapacity}
                       className="px-2 py-2 text-xs font-medium bg-gray-800/50 hover:bg-gray-700/50 border border-gray-700 rounded-lg text-gray-300 hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                       title={`${amount} ${pool.usesBitr ? 'BITR' : 'STT'}`}
@@ -384,7 +396,10 @@ export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalPr
             {/* Footer / Action Button */}
             <div className="px-6 py-4 border-t border-gray-700/50 bg-gray-900/50">
               <button
-                onClick={handlePlaceBet}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handlePlaceBet();
+                }}
                 disabled={!canPlaceBet || !address || !isBettingOpen || isPlacing || waitingForApproval}
                 className="w-full py-4 bg-gradient-to-r from-primary to-secondary text-black font-bold text-lg rounded-xl hover:from-primary/90 hover:to-secondary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
               >
