@@ -585,6 +585,75 @@ w3m-modal {
 /* Logo color shifting animation */
 .logo-color-shift {
   animation: somnia-color-cycle 8s linear infinite;
+  width: 200px !important;
+  height: 200px !important;
+  min-width: 200px !important;
+  min-height: 200px !important;
+  max-width: 200px !important;
+  max-height: 200px !important;
+  object-fit: contain !important;
+}
+
+/* Next.js Image wrapper for logo - target parent container */
+a[href="/"]:has(.logo-color-shift),
+a[href="/"]:has(span[class*="logo"]) {
+  display: inline-flex !important;
+  width: auto !important;
+  height: auto !important;
+}
+
+a[href="/"]:has(.logo-color-shift) > span,
+a[href="/"]:has(.logo-color-shift) span {
+  width: 200px !important;
+  height: 200px !important;
+  min-width: 200px !important;
+  min-height: 200px !important;
+  max-width: 200px !important;
+  max-height: 200px !important;
+  display: inline-block !important;
+}
+
+.logo-color-shift,
+.logo-color-shift img {
+  width: 200px !important;
+  height: 200px !important;
+  min-width: 200px !important;
+  min-height: 200px !important;
+  max-width: 200px !important;
+  max-height: 200px !important;
+  object-fit: contain !important;
+}
+
+/* Mobile logo size override */
+@media (max-width: 1024px) {
+  .logo-color-shift {
+    width: 160px !important;
+    height: 160px !important;
+    min-width: 160px !important;
+    min-height: 160px !important;
+    max-width: 160px !important;
+    max-height: 160px !important;
+  }
+  
+  a[href="/"]:has(.logo-color-shift) > span,
+  a[href="/"]:has(.logo-color-shift) span {
+    width: 160px !important;
+    height: 160px !important;
+    min-width: 160px !important;
+    min-height: 160px !important;
+    max-width: 160px !important;
+    max-height: 160px !important;
+  }
+  
+  .logo-color-shift,
+  .logo-color-shift img {
+    width: 160px !important;
+    height: 160px !important;
+    min-width: 160px !important;
+    min-height: 160px !important;
+    max-width: 160px !important;
+    max-height: 160px !important;
+  }
 }
 
 @keyframes somnia-color-cycle {
