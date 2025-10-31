@@ -582,15 +582,15 @@ w3m-modal {
   background-color: rgba(10, 10, 26, 0.8);
 }
 
-/* Logo color shifting animation */
+/* Logo color shifting animation - Default (footer/larger contexts) */
 .logo-color-shift {
   animation: somnia-color-cycle 8s linear infinite;
-  width: 200px !important;
-  height: 200px !important;
-  min-width: 200px !important;
-  min-height: 200px !important;
-  max-width: 200px !important;
-  max-height: 200px !important;
+  width: 160px !important;
+  height: 160px !important;
+  min-width: 160px !important;
+  min-height: 160px !important;
+  max-width: 160px !important;
+  max-height: 160px !important;
   object-fit: contain !important;
 }
 
@@ -604,56 +604,37 @@ a[href="/"]:has(span[class*="logo"]) {
 
 a[href="/"]:has(.logo-color-shift) > span,
 a[href="/"]:has(.logo-color-shift) span {
-  width: 200px !important;
-  height: 200px !important;
-  min-width: 200px !important;
-  min-height: 200px !important;
-  max-width: 200px !important;
-  max-height: 200px !important;
+  width: 160px !important;
+  height: 160px !important;
+  min-width: 160px !important;
+  min-height: 160px !important;
+  max-width: 160px !important;
+  max-height: 160px !important;
   display: inline-block !important;
 }
 
 .logo-color-shift,
 .logo-color-shift img {
-  width: 200px !important;
-  height: 200px !important;
-  min-width: 200px !important;
-  min-height: 200px !important;
-  max-width: 200px !important;
-  max-height: 200px !important;
+  width: 160px !important;
+  height: 160px !important;
+  min-width: 160px !important;
+  min-height: 160px !important;
+  max-width: 160px !important;
+  max-height: 160px !important;
   object-fit: contain !important;
 }
 
-/* Mobile logo size override */
-@media (max-width: 1024px) {
-  .logo-color-shift {
-    width: 160px !important;
-    height: 160px !important;
-    min-width: 160px !important;
-    min-height: 160px !important;
-    max-width: 160px !important;
-    max-height: 160px !important;
-  }
-  
-  a[href="/"]:has(.logo-color-shift) > span,
-  a[href="/"]:has(.logo-color-shift) span {
-    width: 160px !important;
-    height: 160px !important;
-    min-width: 160px !important;
-    min-height: 160px !important;
-    max-width: 160px !important;
-    max-height: 160px !important;
-  }
-  
-  .logo-color-shift,
-  .logo-color-shift img {
-    width: 160px !important;
-    height: 160px !important;
-    min-width: 160px !important;
-    min-height: 160px !important;
-    max-width: 160px !important;
-    max-height: 160px !important;
-  }
+/* Footer logo - larger size */
+footer .logo-color-shift,
+footer .logo-color-shift img,
+footer a[href="/"]:has(.logo-color-shift) > span,
+footer a[href="/"]:has(.logo-color-shift) span {
+  width: 220px !important;
+  height: 55px !important;
+  min-width: 220px !important;
+  min-height: 55px !important;
+  max-width: 220px !important;
+  max-height: 55px !important;
 }
 
 @keyframes somnia-color-cycle {

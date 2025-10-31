@@ -106,16 +106,16 @@ export default function Header() {
             isScrolled ? "fixed shadow-card" : "relative"
           } inset-x-0 top-0 z-50 border-b border-border-card transition-all duration-300 nav-glass`}
         >
-          <div className="container-nav">
-            <div className="flex items-center justify-between py-4">
+          <div className="container-nav overflow-x-hidden">
+            <div className="flex items-center justify-between py-2 min-w-0 gap-2">
               {/* Left Side - Logo */}
-              <div className="flex items-center gap-8">
+              <div className="flex items-center gap-8 flex-shrink-0">
                 <Link href="/" className="flex items-center gap-3">
                   <Image 
                     src="/logo.png" 
                     alt="BitRedict Logo" 
-                    width={200} 
-                    height={200} 
+                    width={160} 
+                    height={160} 
                     className="logo-color-shift"
                     priority 
                   />
@@ -183,7 +183,7 @@ export default function Header() {
               </div>
 
               {/* Center - Desktop Navigation */}
-              <nav className="hidden lg:flex items-center space-x-1">
+              <nav className="hidden lg:flex items-center space-x-1 min-w-0">
                 {/* Markets Dropdown */}
                 <div className="relative">
                   <motion.button
@@ -266,7 +266,7 @@ export default function Header() {
               </nav>
 
               {/* Right Side Actions */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 flex-shrink-0">
                 {/* Notification Badge */}
                 {isConnected && address && isRender && <NotificationBadge />}
                 
@@ -282,9 +282,9 @@ export default function Header() {
                 {isRender && (
                   <div className="hidden sm:block">
                     {isConnected && address ? (
-                      <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-2 px-3 py-2 rounded-button bg-bg-card border border-border-input text-sm">
-                          <div className={`w-2 h-2 rounded-full ${isOnSomnia ? 'bg-green-500' : 'bg-orange-500'}`}></div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-button bg-bg-card border border-border-input text-xs">
+                          <div className={`w-1.5 h-1.5 rounded-full ${isOnSomnia ? 'bg-green-500' : 'bg-orange-500'}`}></div>
                           <span className="text-text-secondary font-mono">
                             {address.slice(0, 6)}...{address.slice(-4)}
                           </span>
@@ -292,15 +292,15 @@ export default function Header() {
                         {!isOnSomnia && (
                           <button
                             onClick={switchToSomnia}
-                            className="px-3 py-2 rounded-button text-sm font-medium text-orange-400 hover:text-orange-300 hover:bg-bg-card border border-orange-500 transition-colors duration-200"
+                            className="px-2.5 py-1.5 rounded-button text-xs font-medium text-orange-400 hover:text-orange-300 hover:bg-bg-card border border-orange-500 transition-colors duration-200 whitespace-nowrap"
                             title="Switch to Somnia Testnet"
                           >
-                            Switch Network
+                            Switch
                           </button>
                         )}
                         <button
                           onClick={disconnectWallet}
-                          className="px-3 py-2 rounded-button text-sm font-medium text-text-muted hover:text-text-secondary hover:bg-bg-card border border-border-input transition-colors duration-200"
+                          className="px-2.5 py-1.5 rounded-button text-xs font-medium text-text-muted hover:text-text-secondary hover:bg-bg-card border border-border-input transition-colors duration-200 whitespace-nowrap"
                         >
                           Disconnect
                         </button>
@@ -331,8 +331,8 @@ export default function Header() {
                 )}
 
                 {/* Create Market Button */}
-                <Link href="/create-prediction" className="hidden md:block">
-                  <Button size="sm" variant="primary">
+                <Link href="/create-prediction" className="hidden md:block flex-shrink-0">
+                  <Button size="sm" variant="primary" className="whitespace-nowrap">
                     Create Market
                   </Button>
                 </Link>
