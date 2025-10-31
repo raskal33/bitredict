@@ -161,7 +161,7 @@ export default function Header() {
                       handleBitredictorToggle();
                     }}
                     whileHover={{ scale: 1.01 }}
-                    className="flex items-center gap-2 px-4 py-2 rounded-button text-sm font-medium transition-all duration-200 text-text-secondary hover:text-text-primary hover:bg-bg-card"
+                    className="flex items-center gap-2 px-4 py-2 rounded-button text-xs font-medium transition-all duration-200 text-text-secondary hover:text-text-primary hover:bg-bg-card"
                   >
                     <CubeTransparentIcon className="h-4 w-4 text-primary" />
                     <span className="font-semibold">Bitredictor</span>
@@ -196,7 +196,7 @@ export default function Header() {
                               key={link.href}
                               href={link.href}
                               onClick={handleBitredictorClose}
-                              className={`flex items-center gap-3 px-3 py-2.5 mx-1 text-sm font-medium transition-all duration-200 rounded-xl group ${
+                              className={`flex items-center gap-3 px-3 py-2.5 mx-1 text-xs font-medium transition-all duration-200 rounded-xl group ${
                                 segment === link.segment
                                   ? "bg-gradient-primary text-black shadow-lg"
                                   : "text-text-secondary hover:text-text-primary hover:bg-[rgba(255,255,255,0.08)]"
@@ -233,7 +233,7 @@ export default function Header() {
                       handleMarketsToggle();
                     }}
                     whileHover={{ scale: 1.01 }}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-button text-sm font-medium transition-all duration-200 ${
+                    className={`flex items-center gap-2 px-4 py-2 rounded-button text-xs font-medium transition-all duration-200 ${
                       segment?.startsWith('markets') || segment === 'markets'
                         ? "bg-gradient-primary text-black shadow-button"
                         : "text-text-secondary hover:text-text-primary hover:bg-bg-card"
@@ -272,7 +272,7 @@ export default function Header() {
                               key={link.href}
                               href={link.href}
                               onClick={handleMarketsClose}
-                              className={`flex items-center gap-3 px-3 py-2.5 mx-1 text-sm font-medium transition-all duration-200 rounded-xl group ${
+                              className={`flex items-center gap-3 px-3 py-2.5 mx-1 text-xs font-medium transition-all duration-200 rounded-xl group ${
                                 segment === link.segment
                                   ? "bg-gradient-primary text-black shadow-lg"
                                   : "text-text-secondary hover:text-text-primary hover:bg-[rgba(255,255,255,0.08)]"
@@ -302,7 +302,7 @@ export default function Header() {
                   <Link
                     key={link.href}
                     href={link.href}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-button text-sm font-medium transition-all duration-200 ${
+                    className={`flex items-center gap-2 px-4 py-2 rounded-button text-xs font-medium transition-all duration-200 ${
                       segment === link.segment
                         ? "bg-gradient-primary text-black shadow-button"
                         : "text-text-secondary hover:text-text-primary hover:bg-bg-card"

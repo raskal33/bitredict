@@ -17,6 +17,7 @@ import {
 export default function NotificationBadge() {
   const [isOpen, setIsOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const {
     notifications,
     unreadCount,
@@ -29,7 +30,8 @@ export default function NotificationBadge() {
   // Close panel when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
+      if (panelRef.current && !panelRef.current.contains(event.target as Node) &&
+          buttonRef.current && !buttonRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
     };
@@ -37,6 +39,18 @@ export default function NotificationBadge() {
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isOpen]);
+
+  // Close panel on scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsOpen(false);
+    };
+
+    if (isOpen) {
+      window.addEventListener('scroll', handleScroll, true);
+      return () => window.removeEventListener('scroll', handleScroll, true);
     }
   }, [isOpen]);
 
@@ -77,6 +91,7 @@ export default function NotificationBadge() {
     <div className="relative" ref={panelRef}>
       {/* Bell Icon with Badge */}
       <button
+        ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
         className="relative p-2 rounded-lg hover:bg-bg-card transition-colors"
       >
@@ -101,14 +116,22 @@ export default function NotificationBadge() {
 
       {/* Notification Panel */}
       <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: 10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            transition={{ duration: 0.2 }}
-            className="absolute right-0 mt-2 w-96 max-h-[32rem] glass-card shadow-2xl overflow-hidden z-50"
-          >
+        {isOpen && (() => {
+          if (!buttonRef.current || typeof window === 'undefined') return null;
+          const rect = buttonRef.current.getBoundingClientRect();
+          return (
+            <motion.div
+              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.95 }}
+              transition={{ duration: 0.2 }}
+              className="fixed w-96 max-h-[32rem] glass-card shadow-2xl overflow-hidden"
+              style={{ 
+                zIndex: 1001,
+                top: `${rect.bottom + 8}px`,
+                right: `${window.innerWidth - rect.right}px`
+              }}
+            >
             {/* Header */}
             <div className="p-4 border-b border-border-card flex items-center justify-between">
               <div>
@@ -198,8 +221,9 @@ export default function NotificationBadge() {
                 </div>
               )}
             </div>
-          </motion.div>
-        )}
+            </motion.div>
+          );
+        })()}
       </AnimatePresence>
     </div>
   );
