@@ -1591,7 +1591,7 @@ export default function OddysseyPage() {
               >
                 <FireIcon className="h-12 w-12 text-primary" />
               </motion.div>
-              <h1 className="text-5xl md:text-6xl font-bold gradient-text">
+              <h1 className="text-4xl md:text-5xl font-bold gradient-text">
                 ODDYSSEY
               </h1>
               <motion.div

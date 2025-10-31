@@ -361,7 +361,7 @@ export default function HomePage() {
           transition={{ duration: 0.8 }}
           className="mb-12"
         >
-          <h1 className="text-4xl md:text-6xl font-bold text-white mb-6">
+          <h1 className="text-3xl md:text-4xl font-bold text-white mb-6">
             <span className="bg-gradient-to-r from-somnia-cyan via-somnia-blue to-somnia-violet bg-clip-text text-transparent">
               Challenge The Future
               </span>
@@ -444,7 +444,7 @@ export default function HomePage() {
               viewport={{ once: true }}
               className="text-center mb-12"
             >
-              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+              <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
                 <span className="bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
                   Why Choose Bitredict?
                 </span>
@@ -488,7 +488,7 @@ export default function HomePage() {
               viewport={{ once: true }}
             className="text-center mb-12"
           >
-              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+              <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
                 <span className="bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
                   Featured Predictions
                 </span>
@@ -592,7 +592,7 @@ export default function HomePage() {
               viewport={{ once: true }}
               className="text-center mb-12"
             >
-              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+              <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
                 <span className="bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">
                   Live Platform Analytics
                 </span>
@@ -703,7 +703,7 @@ export default function HomePage() {
               viewport={{ once: true }}
               className="text-center max-w-4xl mx-auto"
             >
-              <h2 className="text-3xl md:text-5xl font-bold text-white mb-4">
+              <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
                 <span className="bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">
                   Ready to Challenge
                 </span>

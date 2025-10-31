@@ -107,16 +107,16 @@ export default function Header() {
           } inset-x-0 top-0 z-50 border-b border-border-card transition-all duration-300 nav-glass`}
         >
           <div className="container-nav overflow-x-hidden">
-            <div className="flex items-center justify-between py-2 min-w-0 gap-2">
+            <div className="flex items-center justify-between py-1.5 min-w-0 gap-2">
               {/* Left Side - Logo */}
               <div className="flex items-center gap-8 flex-shrink-0">
                 <Link href="/" className="flex items-center gap-3">
                   <Image 
                     src="/logo.png" 
                     alt="BitRedict Logo" 
-                    width={160} 
-                    height={160} 
-                    className="logo-color-shift"
+                    width={140} 
+                    height={50} 
+                    className="logo-color-shift navbar-logo"
                     priority 
                   />
                 </Link>

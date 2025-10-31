@@ -71,6 +71,8 @@ body {
   background: var(--gradient-main);
   min-height: 100vh;
   color: var(--text-secondary);
+  font-size: 16px; /* Standard body font size */
+  line-height: 1.5; /* Standard line height */
 }
 
 /* Component Base Classes */
@@ -591,6 +593,21 @@ w3m-modal {
   min-height: 160px !important;
   max-width: 160px !important;
   max-height: 160px !important;
+  object-fit: contain !important;
+}
+
+/* Navbar logo - smaller height, maintain width */
+header .logo-color-shift.navbar-logo,
+header .navbar-logo,
+header .navbar-logo img,
+header a[href="/"]:has(.navbar-logo) > span,
+header a[href="/"]:has(.navbar-logo) span {
+  width: 140px !important;
+  height: 50px !important;
+  min-width: 140px !important;
+  min-height: 50px !important;
+  max-width: 140px !important;
+  max-height: 50px !important;
   object-fit: contain !important;
 }
 

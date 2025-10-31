@@ -114,7 +114,7 @@ export default function Page() {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.2 }}
-                className="text-3xl lg:text-4xl xl:text-5xl font-bold text-white"
+                className="text-3xl lg:text-4xl font-bold text-white"
               >
                 Welcome to <span className="bg-gradient-to-r from-brand-cyan to-brand-blue bg-clip-text text-transparent">BitRedict</span>
               </motion.h1>
