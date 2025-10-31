@@ -34,6 +34,7 @@ export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const [isBitredictorOpen, setIsBitredictorOpen] = useState<boolean>(false);
   const [isMarketsOpen, setIsMarketsOpen] = useState<boolean>(false);
+  const [isWalletDropdownOpen, setIsWalletDropdownOpen] = useState<boolean>(false);
   const [{ y }] = useWindowScroll();
   const segment = useSelectedLayoutSegment();
   const [isRender, setIsRender] = useState<boolean>(false);
@@ -78,6 +79,8 @@ export default function Header() {
   const handleBitredictorClose = () => setIsBitredictorOpen(false);
   const handleMarketsToggle = () => setIsMarketsOpen(!isMarketsOpen);
   const handleMarketsClose = () => setIsMarketsOpen(false);
+  const handleWalletDropdownToggle = () => setIsWalletDropdownOpen(!isWalletDropdownOpen);
+  const handleWalletDropdownClose = () => setIsWalletDropdownOpen(false);
 
 
 
@@ -86,13 +89,14 @@ export default function Header() {
     const handleClickOutside = () => {
       setIsBitredictorOpen(false);
       setIsMarketsOpen(false);
+      setIsWalletDropdownOpen(false);
     };
 
-    if (isBitredictorOpen || isMarketsOpen) {
+    if (isBitredictorOpen || isMarketsOpen || isWalletDropdownOpen) {
       document.addEventListener('click', handleClickOutside);
       return () => document.removeEventListener('click', handleClickOutside);
     }
-  }, [isBitredictorOpen, isMarketsOpen]);
+  }, [isBitredictorOpen, isMarketsOpen, isWalletDropdownOpen]);
 
   if (segment !== "/_not-found") {
     return (
@@ -104,7 +108,7 @@ export default function Header() {
           }}
           className={`${
             isScrolled ? "fixed shadow-card" : "relative"
-          } inset-x-0 top-0 z-50 border-b border-border-card transition-all duration-300 nav-glass`}
+          } inset-x-0 top-0 z-[100] border-b border-border-card transition-all duration-300 nav-glass`}
         >
           <div className="container-nav overflow-x-hidden overflow-y-visible">
             <div className="flex items-center justify-between py-1.5 min-w-0 gap-2">
@@ -122,7 +126,7 @@ export default function Header() {
                 </Link>
 
                 {/* Bitredictor Dropdown */}
-                <div className="relative hidden lg:block z-[100]">
+                <div className="relative hidden lg:block" style={{ zIndex: 1000 }}>
                   <motion.button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -148,7 +152,8 @@ export default function Header() {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -10, scale: 0.95 }}
                         transition={{ duration: 0.2, ease: "easeOut" }}
-                        className="absolute top-full left-0 mt-2 w-52 bg-[rgba(5,5,15,0.95)] backdrop-blur-xl border border-border-card/50 rounded-2xl shadow-2xl z-[100] overflow-hidden"
+                        className="absolute top-full left-0 mt-2 w-52 bg-[rgba(5,5,15,0.95)] backdrop-blur-xl border border-border-card/50 rounded-2xl shadow-2xl overflow-hidden"
+                        style={{ zIndex: 1001 }}
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="py-3 px-2">
@@ -185,7 +190,7 @@ export default function Header() {
               {/* Center - Desktop Navigation */}
               <nav className="hidden lg:flex items-center space-x-1 min-w-0">
                 {/* Markets Dropdown */}
-                <div className="relative z-[100]">
+                <div className="relative" style={{ zIndex: 1000 }}>
                   <motion.button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -215,7 +220,8 @@ export default function Header() {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -10, scale: 0.95 }}
                         transition={{ duration: 0.2, ease: "easeOut" }}
-                        className="absolute top-full left-0 mt-2 w-56 bg-[rgba(5,5,15,0.95)] backdrop-blur-xl border border-border-card/50 rounded-2xl shadow-2xl z-[100] overflow-hidden"
+                        className="absolute top-full left-0 mt-2 w-56 bg-[rgba(5,5,15,0.95)] backdrop-blur-xl border border-border-card/50 rounded-2xl shadow-2xl overflow-hidden"
+                        style={{ zIndex: 1001 }}
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="py-3 px-2">
@@ -282,28 +288,66 @@ export default function Header() {
                 {isRender && (
                   <div className="hidden sm:block">
                     {isConnected && address ? (
-                      <div className="flex items-center gap-1.5">
-                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-button bg-bg-card border border-border-input text-xs">
+                      <div className="relative" style={{ zIndex: 1000 }}>
+                        <motion.button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleWalletDropdownToggle();
+                          }}
+                          whileHover={{ scale: 1.01 }}
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-button bg-bg-card border border-border-input text-xs hover:bg-bg-card-hover transition-colors duration-200"
+                        >
                           <div className={`w-1.5 h-1.5 rounded-full ${isOnSomnia ? 'bg-green-500' : 'bg-orange-500'}`}></div>
                           <span className="text-text-secondary font-mono">
                             {address.slice(0, 6)}...{address.slice(-4)}
                           </span>
-                        </div>
-                        {!isOnSomnia && (
-                          <button
-                            onClick={switchToSomnia}
-                            className="px-2.5 py-1.5 rounded-button text-xs font-medium text-orange-400 hover:text-orange-300 hover:bg-bg-card border border-orange-500 transition-colors duration-200 whitespace-nowrap"
-                            title="Switch to Somnia Testnet"
+                          <motion.div
+                            animate={{ rotate: isWalletDropdownOpen ? 180 : 0 }}
+                            transition={{ duration: 0.2 }}
                           >
-                            Switch
-                          </button>
-                        )}
-                        <button
-                          onClick={disconnectWallet}
-                          className="px-2.5 py-1.5 rounded-button text-xs font-medium text-text-muted hover:text-text-secondary hover:bg-bg-card border border-border-input transition-colors duration-200 whitespace-nowrap"
-                        >
-                          Disconnect
-                        </button>
+                            <ChevronDownIcon className="h-3 w-3 text-text-muted" />
+                          </motion.div>
+                        </motion.button>
+
+                        <AnimatePresence>
+                          {isWalletDropdownOpen && (
+                            <motion.div
+                              initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                              transition={{ duration: 0.2, ease: "easeOut" }}
+                              className="absolute top-full right-0 mt-2 w-48 bg-[rgba(5,5,15,0.95)] backdrop-blur-xl border border-border-card/50 rounded-2xl shadow-2xl overflow-hidden"
+                              style={{ zIndex: 1001 }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <div className="py-2 px-1">
+                                {!isOnSomnia && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      switchToSomnia();
+                                      handleWalletDropdownClose();
+                                    }}
+                                    className="w-full flex items-center gap-2 px-3 py-2 mx-1 text-sm font-medium transition-all duration-200 rounded-xl text-orange-400 hover:text-orange-300 hover:bg-[rgba(255,255,255,0.08)]"
+                                  >
+                                    <span>Switch to Somnia</span>
+                                  </button>
+                                )}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    disconnectWallet();
+                                    handleWalletDropdownClose();
+                                  }}
+                                  className="w-full flex items-center gap-2 px-3 py-2 mx-1 text-sm font-medium transition-all duration-200 rounded-xl text-text-secondary hover:text-text-primary hover:bg-[rgba(255,255,255,0.08)]"
+                                >
+                                  <span>Disconnect</span>
+                                </button>
+                              </div>
+                              <div className="h-0.5 bg-gradient-to-r from-primary via-secondary to-accent" />
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                       </div>
                     ) : (
                       <div className="flex flex-col items-end gap-1">

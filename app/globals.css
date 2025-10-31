@@ -584,6 +584,23 @@ w3m-modal {
   background-color: rgba(10, 10, 26, 0.8);
 }
 
+/* Ensure dropdowns appear above all content */
+header [style*="zIndex"] {
+  position: relative;
+}
+
+header [style*="zIndex"] > div[class*="absolute"] {
+  position: absolute !important;
+  z-index: 1001 !important;
+}
+
+/* Ensure main content doesn't interfere with dropdowns */
+main,
+section {
+  position: relative;
+  z-index: 1;
+}
+
 /* Logo color shifting animation - Default (footer/larger contexts) */
 .logo-color-shift {
   animation: somnia-color-cycle 8s linear infinite;
