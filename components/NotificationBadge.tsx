@@ -247,7 +247,7 @@ export default function NotificationBadge() {
                           
                           <div className="flex items-center justify-between mt-2">
                             <span className="text-xs text-text-muted">
-                              {formatRelativeTime(notification.createdAt)}
+                              {formatRelativeTime(notification.createdAt || new Date())}
                             </span>
                             
                             <button
