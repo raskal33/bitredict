@@ -119,18 +119,64 @@ export default function NotificationBadge() {
         {isOpen && (() => {
           if (!buttonRef.current || typeof window === 'undefined') return null;
           const rect = buttonRef.current.getBoundingClientRect();
+          const isMobile = window.innerWidth < 640; // sm breakpoint
+          
+          // Calculate responsive positioning
+          const panelStyle: React.CSSProperties = {
+            zIndex: 1001,
+          };
+          
+          if (isMobile) {
+            // On mobile: full width minus padding, positioned from top
+            panelStyle.width = `${window.innerWidth - 16}px`;
+            panelStyle.left = '8px';
+            panelStyle.right = 'auto';
+            // Position below button, but if it would overflow, position from bottom
+            const spaceBelow = window.innerHeight - rect.bottom - 8;
+            const maxHeight = Math.min(512, window.innerHeight - 100); // Max 32rem or viewport - 100px
+            if (spaceBelow < maxHeight) {
+              // Not enough space below, position from bottom
+              panelStyle.bottom = '8px';
+              panelStyle.top = 'auto';
+              panelStyle.maxHeight = `${maxHeight}px`;
+            } else {
+              panelStyle.top = `${rect.bottom + 8}px`;
+              panelStyle.maxHeight = `${maxHeight}px`;
+            }
+          } else {
+            // On desktop: 384px width, positioned to the right
+            const rightPosition = window.innerWidth - rect.right;
+            
+            // Ensure panel doesn't overflow viewport horizontally
+            if (rightPosition < 0) {
+              panelStyle.left = '8px';
+              panelStyle.right = 'auto';
+            } else {
+              panelStyle.right = `${rightPosition}px`;
+            }
+            
+            // Ensure panel doesn't overflow viewport vertically
+            const spaceBelow = window.innerHeight - rect.bottom - 8;
+            const maxHeight = Math.min(512, window.innerHeight - 100); // Max 32rem or viewport - 100px
+            if (spaceBelow < maxHeight) {
+              // Not enough space below, position from bottom
+              panelStyle.bottom = '8px';
+              panelStyle.top = 'auto';
+              panelStyle.maxHeight = `${maxHeight}px`;
+            } else {
+              panelStyle.top = `${rect.bottom + 8}px`;
+              panelStyle.maxHeight = `${maxHeight}px`;
+            }
+          }
+          
           return (
             <motion.div
               initial={{ opacity: 0, y: 10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.95 }}
               transition={{ duration: 0.2 }}
-              className="fixed w-96 max-h-[32rem] glass-card shadow-2xl overflow-hidden"
-              style={{ 
-                zIndex: 1001,
-                top: `${rect.bottom + 8}px`,
-                right: `${window.innerWidth - rect.right}px`
-              }}
+              className={`fixed ${isMobile ? 'w-[calc(100vw-2rem)]' : 'w-96'} glass-card shadow-2xl overflow-hidden`}
+              style={panelStyle}
             >
             {/* Header */}
             <div className="p-4 border-b border-border-card flex items-center justify-between">
@@ -155,7 +201,7 @@ export default function NotificationBadge() {
             </div>
 
             {/* Notification List */}
-            <div className="overflow-y-auto max-h-96">
+            <div className="overflow-y-auto" style={{ maxHeight: isMobile ? 'calc(100vh - 200px)' : '24rem' }}>
               {notifications.length === 0 ? (
                 <div className="p-8 text-center">
                   <BellIcon className="h-12 w-12 text-text-muted mx-auto mb-3" />

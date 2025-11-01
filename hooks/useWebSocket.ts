@@ -4,7 +4,7 @@ const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'wss://bitredict-backend.fly.de
 
 interface UseWebSocketOptions {
   channel: string | null;
-  onMessage?: (message: any) => void;
+  onMessage?: (message: Record<string, unknown>) => void;
   enabled?: boolean;
 }
 
@@ -37,17 +37,22 @@ export function useWebSocket({ channel, onMessage, enabled = true }: UseWebSocke
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
-        console.log('🔌 WebSocket connected');
+        console.log('✅ WebSocket connected successfully');
         if (isMountedRef.current) {
           setIsConnected(true);
         }
         reconnectAttemptsRef.current = 0;
 
-        // Subscribe to channel
-        ws.send(JSON.stringify({
-          type: 'subscribe',
-          channel
-        }));
+        // Subscribe to channel immediately after connection
+        if (channel) {
+          console.log(`📡 Subscribing to channel: ${channel}`);
+          ws.send(JSON.stringify({
+            type: 'subscribe',
+            channel
+          }));
+        } else {
+          console.warn('⚠️ No channel provided for WebSocket subscription');
+        }
       };
 
       ws.onmessage = (event) => {
@@ -63,23 +68,25 @@ export function useWebSocket({ channel, onMessage, enabled = true }: UseWebSocke
         console.error('WebSocket error:', error);
       };
 
-      ws.onclose = () => {
-        console.log('🔌 WebSocket disconnected');
+      ws.onclose = (event) => {
+        console.log('🔌 WebSocket disconnected', event.code, event.reason || 'No reason');
         if (isMountedRef.current) {
           setIsConnected(false);
         }
         wsRef.current = null;
 
-        // Attempt reconnection
-        if (enabled && reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS && isMountedRef.current) {
+        // Attempt reconnection (unless it was a clean close)
+        if (enabled && event.code !== 1000 && reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS && isMountedRef.current) {
           reconnectAttemptsRef.current++;
-          console.log(`Reconnecting... (attempt ${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})`);
+          console.log(`🔄 Reconnecting... (attempt ${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})`);
           
           reconnectTimeoutRef.current = setTimeout(() => {
-            if (isMountedRef.current) {
+            if (isMountedRef.current && channel) {
               connect();
             }
           }, RECONNECT_DELAY);
+        } else if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
+          console.error('❌ Max reconnection attempts reached. WebSocket will not reconnect.');
         }
       };
 
