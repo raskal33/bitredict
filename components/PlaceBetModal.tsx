@@ -29,6 +29,68 @@ export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalPr
   const [isPlacing, setIsPlacing] = useState(false);
   const [waitingForApproval, setWaitingForApproval] = useState(false);
   const [betSuccess, setBetSuccess] = useState(false);
+  const [initialStake, setInitialStake] = useState<number | null>(null);
+  
+  // ✅ FIX: Poll for transaction success since usePools doesn't expose hash directly
+  useEffect(() => {
+    if (!isPlacing || betSuccess || initialStake === null) return;
+    
+    const betAmountNum = parseFloat(betAmount) || 0;
+    if (betAmountNum === 0) return;
+    
+    // Poll for transaction completion every 2 seconds
+    const pollInterval = setInterval(async () => {
+      try {
+        // Refetch pool data to check if bet was placed
+        // If totalBettorStake increased by at least our bet amount, transaction succeeded
+        const response = await fetch(`/api/optimized-pools/pools/${pool.id}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            const newTotalBettorStake = parseFloat(data.data.pool.totalBettorStake || "0");
+            
+            // If bet stake increased by at least our bet amount (with small tolerance), transaction succeeded
+            const stakeIncrease = newTotalBettorStake - initialStake;
+            if (stakeIncrease >= betAmountNum * 0.95) { // Allow 5% tolerance for rounding
+              setBetSuccess(true);
+              setIsPlacing(false);
+              setWaitingForApproval(false);
+              toast.success("Bet placed successfully! 🎉", { id: 'bet-tx' });
+              
+              clearInterval(pollInterval);
+              
+              // Close after success animation
+              setTimeout(() => {
+                onClose();
+                setBetAmount("");
+                setBetSuccess(false);
+                setInitialStake(null);
+              }, 2500);
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Error polling for bet confirmation:', error);
+      }
+    }, 2000);
+    
+    // Stop polling after 60 seconds (timeout)
+    const timeout = setTimeout(() => {
+      clearInterval(pollInterval);
+      if (isPlacing && !betSuccess) {
+        // Still waiting - don't error, just stop polling
+        // The usePools hook will show error if transaction failed
+        setIsPlacing(false);
+        setWaitingForApproval(false);
+        setInitialStake(null);
+      }
+    }, 60000);
+    
+    return () => {
+      clearInterval(pollInterval);
+      clearTimeout(timeout);
+    };
+  }, [isPlacing, betSuccess, pool.id, initialStake, betAmount, onClose]);
   
   // Currency-sensitive quick amounts
   const quickAmounts = pool.usesBitr 
@@ -81,6 +143,10 @@ export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalPr
     }
     
     try {
+      // Store initial stake before placing bet
+      const currentStake = parseFloat(pool.totalBettorStake || "0");
+      setInitialStake(currentStake);
+      
       setIsPlacing(true);
       
       // Show initial loading toast
@@ -92,41 +158,25 @@ export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalPr
       // The usePools hook handles approval flow and transaction feedback automatically
       await placeBet(pool.id, betAmountNum.toString(), pool.usesBitr);
       
-      // If we get here and it's a BITR pool, check if we're waiting for approval
-      // For BITR pools with insufficient allowance, placeBet returns early
-      // and approval is handled automatically by usePools
+      // ✅ FIX: For both BITR and STT pools, poll for transaction success
+      // The useEffect above will detect when the bet is placed by checking pool progress
       if (pool.usesBitr) {
-        // Check if approval might be needed - placeBet handles this internally
-        // We'll show a waiting state and let the approval flow complete
+        // For BITR pools, might need approval - wait for approval confirmation
         setWaitingForApproval(true);
         toast.loading("Approval may be required. Please confirm in your wallet...", { id: 'bet-tx' });
-        
-        // Don't close immediately - wait for transaction to complete
-        // The usePools hook will show success/error feedback
-        // We'll reset after a delay to allow transaction to process
-        setTimeout(() => {
-          setWaitingForApproval(false);
-          setIsPlacing(false);
-        }, 5000);
       } else {
-        // For STT pools, show success animation
-        setIsPlacing(false);
-        setBetSuccess(true);
-        toast.success("Bet placed successfully! 🎉", { id: 'bet-tx' });
-        
-        // Close after success animation
-        setTimeout(() => {
-          onClose();
-          setBetAmount("");
-          setBetSuccess(false);
-        }, 2500);
+        // For STT pools, transaction should be immediate
+        // Poll for success via useEffect above
+        toast.loading("Waiting for transaction confirmation...", { id: 'bet-tx' });
       }
+      
     } catch (error: unknown) {
       console.error("Error placing bet:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to place bet";
       toast.error(errorMessage, { id: 'bet-tx' });
       setIsPlacing(false);
       setWaitingForApproval(false);
+      setInitialStake(null);
     }
   };
   

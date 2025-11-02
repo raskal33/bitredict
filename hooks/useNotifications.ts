@@ -77,20 +77,47 @@ export function useNotifications() {
   const handleMessage = useCallback((message: any) => {
     if (!isMountedRef.current) return;
     
-    // ✅ FIX: Backend wraps messages in { type: 'update', channel, data, timestamp }
+    // ✅ CRITICAL FIX: Deduplicate notifications by ID to prevent showing the same event multiple times
+    // Backend wraps messages in { type: 'update', channel, data, timestamp }
     // Check message.data.type for notification type
     if (message.type === 'update' && message.data) {
       if (message.data.type === 'notification') {
-        // Add new notification to the beginning
-        setNotifications(prev => [message.data.notification, ...prev].slice(0, 100)); // Keep last 100
-        setUnreadCount(prev => prev + 1);
+        const newNotification = message.data.notification;
         
-        // Show browser notification if permission granted
-        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-          new Notification(message.data.notification.title, {
-            body: message.data.notification.message,
-            icon: '/logo.png'
+        // ✅ DEDUPLICATION: Check if notification with this ID already exists
+        setNotifications(prev => {
+          const exists = prev.some(n => n.id === newNotification.id);
+          if (exists) {
+            console.warn(`⚠️ Duplicate notification detected: ${newNotification.id} - ignoring`);
+            return prev; // Don't add duplicate
+          }
+          
+          // Add new notification to the beginning
+          return [newNotification, ...prev].slice(0, 100); // Keep last 100
+        });
+        
+        setUnreadCount(prev => {
+          // Check if we already counted this one
+          setNotifications(current => {
+            const count = current.filter(n => !n.read).length;
+            setUnreadCount(count); // Sync unread count based on actual notifications
+            return current;
           });
+          return prev;
+        });
+        
+        // Show browser notification if permission granted (only once per ID)
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+          const notificationId = `browser_notif_${newNotification.id}`;
+          const shownNotifications = sessionStorage.getItem('shown_notifications') || '';
+          if (!shownNotifications.includes(notificationId)) {
+            new Notification(newNotification.title, {
+              body: newNotification.message,
+              icon: '/logo.png'
+            });
+            // Mark as shown to prevent duplicates
+            sessionStorage.setItem('shown_notifications', `${shownNotifications},${notificationId}`);
+          }
         }
       } else if (message.data.type === 'notification:unread_count') {
         setUnreadCount(message.data.unreadCount);
@@ -98,12 +125,23 @@ export function useNotifications() {
     }
     // ✅ Also handle direct notification messages (backward compatibility)
     else if (message.type === 'notification') {
-      setNotifications(prev => [message.notification, ...prev].slice(0, 100));
+      const newNotification = message.notification;
+      
+      // ✅ DEDUPLICATION: Check if notification with this ID already exists
+      setNotifications(prev => {
+        const exists = prev.some(n => n.id === newNotification.id);
+        if (exists) {
+          console.warn(`⚠️ Duplicate notification detected: ${newNotification.id} - ignoring`);
+          return prev;
+        }
+        return [newNotification, ...prev].slice(0, 100);
+      });
+      
       setUnreadCount(prev => prev + 1);
       
       if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-        new Notification(message.notification.title, {
-          body: message.notification.message,
+        new Notification(newNotification.title, {
+          body: newNotification.message,
           icon: '/logo.png'
         });
       }

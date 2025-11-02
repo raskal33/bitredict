@@ -66,7 +66,7 @@ export default function BetPage() {
   
   const [loading, setLoading] = useState(true);
   const [pool, setPool] = useState<Pool | null>(null);
-  const [comments] = useState<Comment[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [betType, setBetType] = useState<'yes' | 'no' | null>(null);
   const [poolExplanation, setPoolExplanation] = useState<PoolExplanation | null>(null);
   
@@ -107,6 +107,48 @@ export default function BetPage() {
 
 
 
+
+  // ✅ FIX: Add function to fetch comments
+  const fetchComments = useCallback(async () => {
+    if (!poolId) return;
+    
+    try {
+      const response = await fetch(`/api/social/pools/${poolId}/comments`, {
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data) {
+          // Transform API comments to Comment type
+          const transformedComments: Comment[] = data.data.map((c: any) => ({
+            id: c.id.toString(),
+            content: c.content || '',
+            author: {
+              username: c.user_address?.slice(0, 6) + '...' + c.user_address?.slice(-4) || 'Anonymous',
+              avatar: '/logo.png',
+              reputation: c.reputation || 0,
+              badges: c.user_badge ? [c.user_badge] : []
+            },
+            likes: c.likes_count || 0,
+            dislikes: 0,
+            replies: [],
+            isVerifiedBetter: hasUserBet, // Could check user's bet status
+            hasUserLiked: false, // Would need to check if user liked this comment
+            hasUserDisliked: false,
+            sentiment: c.sentiment || 'neutral',
+            confidence: c.confidence || 75,
+            createdAt: c.created_at || new Date().toISOString()
+          }));
+          setComments(transformedComments);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching comments:', error);
+    }
+  }, [poolId, hasUserBet]);
 
   const fetchPoolData = useCallback(async () => {
     // Rate limiting check
@@ -309,8 +351,8 @@ export default function BetPage() {
       const eventStarted = poolData.isEventStarted || nowTime >= eventStartTime;
       setIsEventStarted(eventStarted);
       
-      // Check if pool is filled (100% or more)
-      const poolFilled = poolData.isPoolFilled || poolData.fillPercentage >= 100;
+      // ✅ FIX: Check if pool is filled (99% or more) - lock YES bets at 99%
+      const poolFilled = poolData.isPoolFilled || poolData.fillPercentage >= 99;
       setIsPoolFilled(poolFilled);
       
       // Check if betting is still allowed
@@ -388,7 +430,11 @@ export default function BetPage() {
       
       if (data.success && data.data.hasBet) {
         setHasUserBet(true);
-        setUserBetAmount(data.data.betAmount);
+        // ✅ FIX: Convert betAmount from wei to readable format (divide by 1e18 if it's in wei)
+        const betAmount = data.data.betAmount;
+        // Check if betAmount is in wei format (very large number > 1e15)
+        const formattedAmount = betAmount > 1e15 ? betAmount / 1e18 : betAmount;
+        setUserBetAmount(formattedAmount);
       }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
@@ -402,6 +448,7 @@ export default function BetPage() {
   useEffect(() => {
     fetchPoolData();
     checkUserBetStatus();
+    fetchComments(); // ✅ FIX: Fetch comments when pool loads
     // eslint-disable-next-line react-hooks/exhaustive-deps
    }, [poolId]); // Only run when poolId changes
   
@@ -475,12 +522,13 @@ export default function BetPage() {
   }, [pool]);
 
   const handleAddComment = async () => {
-    if (!comment.trim() || !hasUserBet || submittingComment) return;
+    if (!comment.trim() || submittingComment) return; // ✅ FIX: Removed hasUserBet check - allow all users to comment
     
     setSubmittingComment(true);
     
     try {
-      const response = await fetch(`/api/pools/${poolId}/comments`, {
+      // ✅ FIX: Use correct API endpoint /api/social/pools instead of /api/pools
+      const response = await fetch(`/api/social/pools/${poolId}/comments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -500,7 +548,7 @@ export default function BetPage() {
         setCommentSentiment('neutral');
         setCommentConfidence(75);
         setShowCommentBox(false);
-        fetchPoolData(); // Refresh comments
+        fetchComments(); // ✅ FIX: Refresh comments after posting
       }
     } catch (error: unknown) {
       console.error('Error adding comment:', error);
@@ -513,7 +561,8 @@ export default function BetPage() {
     if (!address) return;
     
     try {
-      const response = await fetch(`/api/pools/${poolId}/comments/${commentId}/like`, {
+      // ✅ FIX: Use correct API endpoint /api/social/pools instead of /api/pools
+      const response = await fetch(`/api/social/pools/${poolId}/comments/${commentId}/like`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -522,7 +571,7 @@ export default function BetPage() {
       });
       
       if (response.ok) {
-        fetchPoolData(); // Refresh comments
+        fetchComments(); // ✅ FIX: Refresh comments after liking
       }
     } catch (error: unknown) {
       console.error('Error liking comment:', error);
@@ -1117,7 +1166,7 @@ export default function BetPage() {
                     {isPoolFilled && canBet && (
                       <div className="mt-4 p-3 bg-yellow-500/20 border border-yellow-500/30 rounded-lg">
                         <p className="text-yellow-400 text-sm font-medium">
-                          Pool is 100% filled - YES bets (Challenge Creator) disabled, but NO bets (Support Creator/Liquidity) still allowed
+                          Pool is 99%+ filled - YES bets (Challenge Creator) disabled, but NO bets (Support Creator/Liquidity) still allowed
                         </p>
                       </div>
                     )}
@@ -1526,13 +1575,13 @@ export default function BetPage() {
           <div className="flex items-center justify-between">
             <h3 className="text-xl font-bold text-white">Discussion</h3>
             <div className="text-sm text-gray-400">
-              {hasUserBet ? 'You can comment after betting' : 'Bet to join the discussion'}
+              {hasUserBet ? 'Share your thoughts' : 'Join the discussion'}
                 </div>
           </div>
 
           {/* Add Comment */}
-          {hasUserBet && (
-                <div className="space-y-4">
+          {/* ✅ FIX: Allow all users to comment, not just bettors */}
+          <div className="space-y-4">
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setShowCommentBox(!showCommentBox)}
@@ -1543,7 +1592,17 @@ export default function BetPage() {
                 </button>
                 {userBetAmount > 0 && (
                   <div className="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-sm">
-                    Verified Better • {userBetAmount} {pool.currency}
+                    Verified Better • {(() => {
+                      // ✅ FIX: Format bet amount properly to avoid scientific notation
+                      const amount = userBetAmount;
+                      if (amount >= 1000000) {
+                        return `${(amount / 1000000).toFixed(2)}M`;
+                      } else if (amount >= 1000) {
+                        return `${(amount / 1000).toFixed(2)}K`;
+                      } else {
+                        return amount.toLocaleString('en-US', { maximumFractionDigits: 2 });
+                      }
+                    })()} {pool.currency}
                     </div>
                 )}
                     </div>
@@ -1608,8 +1667,7 @@ export default function BetPage() {
                     </div>
                     </div>
               )}
-                  </div>
-          )}
+          </div>
 
           {/* Comments List */}
           <div className="space-y-4">

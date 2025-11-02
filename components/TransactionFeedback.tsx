@@ -336,7 +336,18 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
             </div>
 
             {/* Footer */}
-            <div className="px-6 py-4 border-t border-border-card/30 bg-bg-overlay/20">
+            <div className="px-6 py-4 border-t border-border-card/30 bg-bg-overlay/20 space-y-2">
+              {status.hash && status.type === 'success' && (
+                <a
+                  href={`https://sepolia.etherscan.io/tx/${status.hash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full px-4 py-3 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl block"
+                >
+                  <FaExternalLinkAlt className="h-4 w-4" />
+                  View on Etherscan
+                </a>
+              )}
               <button
                 onClick={handleClose}
                 className="w-full px-4 py-3 text-sm font-medium text-text-primary bg-bg-overlay/50 hover:bg-bg-overlay/70 rounded-lg transition-all duration-200 border border-border-card/30 hover:border-border-card/50"

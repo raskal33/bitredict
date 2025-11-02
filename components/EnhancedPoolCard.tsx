@@ -8,10 +8,13 @@ import {
   ChartBarIcon,
   ClockIcon,
   CurrencyDollarIcon,
-  SparklesIcon
+  SparklesIcon,
+  HeartIcon,
+  ChatBubbleLeftIcon,
+  EyeIcon
 } from "@heroicons/react/24/outline";
 import { formatEther } from "viem";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
 import { calculatePoolFill } from "../utils/poolCalculations";
@@ -120,9 +123,51 @@ export default function EnhancedPoolCard({
 }: EnhancedPoolCardProps) {
   const router = useRouter();
   const { address } = useAccount();
-  const [indexedData] = useState(pool.indexedData);
+  const [indexedData, setIndexedData] = useState(pool.indexedData);
   const [showBoostModal, setShowBoostModal] = useState(false);
   const [showBetModal, setShowBetModal] = useState(false);
+  
+  // ✅ FIX: Poll for pool progress updates (especially for crypto pools)
+  useEffect(() => {
+    // Only poll if pool is not settled and we don't have indexedData or need updates
+    if (pool.settled) return;
+    
+    let intervalId: NodeJS.Timeout | null = null;
+    
+    // Poll every 10 seconds for active pools
+    const pollProgress = async () => {
+      try {
+        const response = await fetch(`/api/optimized-pools/pools/${pool.id}/progress`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            setIndexedData(prev => ({
+              participantCount: data.data.participants ?? prev?.participantCount ?? 0,
+              fillPercentage: data.data.fillPercentage ?? prev?.fillPercentage ?? 0,
+              totalVolume: data.data.totalBettorStake?.toString() ?? prev?.totalVolume ?? '0',
+              betCount: data.data.participants ?? prev?.betCount ?? 0,
+              timeToFill: data.data.timeToFill ?? prev?.timeToFill,
+              avgBetSize: prev?.avgBetSize ?? '0',
+              creatorReputation: prev?.creatorReputation ?? 0,
+              categoryRank: prev?.categoryRank ?? 0,
+              isHot: prev?.isHot ?? false,
+              lastActivity: prev?.lastActivity ?? new Date()
+            }));
+          }
+        }
+      } catch (error) {
+        console.warn(`Failed to poll progress for pool ${pool.id}:`, error);
+      }
+    };
+    
+    // Poll immediately on mount, then every 10 seconds
+    pollProgress();
+    intervalId = setInterval(pollProgress, 10000);
+    
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [pool.id, pool.settled]);
 
   const getDifficultyColor = (odds: number) => {
     if (odds >= 500) return 'text-purple-400'; // Legendary
@@ -896,15 +941,15 @@ export default function EnhancedPoolCard({
         <div className="flex items-center justify-between pt-3 border-t border-gray-700/20 mt-auto">
           <div className="flex items-center gap-3 text-xs text-gray-400">
             <div className="flex items-center gap-1">
-              <BoltIcon className="w-3 h-3" />
+              <HeartIcon className="w-3 h-3" />
               {pool.socialStats.likes}
             </div>
             <div className="flex items-center gap-1">
-              <BoltIcon className="w-3 h-3" />
+              <ChatBubbleLeftIcon className="w-3 h-3" />
               {pool.socialStats.comments}
             </div>
             <div className="flex items-center gap-1">
-              <BoltIcon className="w-3 h-3" />
+              <EyeIcon className="w-3 h-3" />
               {pool.socialStats.views}
             </div>
           </div>
