@@ -193,9 +193,21 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
     const eventStart = new Date(now.getTime() + (60 * 60 * 1000)); // 1 hour from now (default)
     const eventEnd = new Date(eventStart.getTime() + (hours * 60 * 60 * 1000)); // Event Start + Timeframe
     
+    // ✅ FIX: Convert UTC dates to local datetime-local format
+    // toISOString() gives UTC, but datetime-local expects local time
+    // Format: "YYYY-MM-DDTHH:mm" in LOCAL timezone
+    const formatDateTimeLocal = (date: Date): string => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
+    };
+    
     return {
-      eventStartTime: eventStart.toISOString().slice(0, 16), // Format for datetime-local input
-      eventEndTime: eventEnd.toISOString().slice(0, 16)
+      eventStartTime: formatDateTimeLocal(eventStart), // Local time format for datetime-local input
+      eventEndTime: formatDateTimeLocal(eventEnd) // Local time format for datetime-local input
     };
   }, []);
 
@@ -283,12 +295,35 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
       const marketIdString = `${formData.cryptoAsset.toLowerCase()}_${formData.targetPrice}_${Date.now()}`;
       const marketIdHash = keccak256(toHex(marketIdString));
 
+      // ✅ FIX: Properly handle timezone conversion for datetime-local inputs
+      // datetime-local inputs are in user's local timezone, but we need UTC timestamps
+      // The string format is "YYYY-MM-DDTHH:mm" without timezone
+      // We need to interpret it as local time and convert to UTC
+      const parseDateTimeLocal = (dateTimeLocal: string): number => {
+        // datetime-local format: "2025-11-02T23:00" (no timezone info)
+        // JavaScript Date interprets this as LOCAL time, then we get UTC timestamp
+        const localDate = new Date(dateTimeLocal);
+        // Get UTC timestamp in seconds
+        return Math.floor(localDate.getTime() / 1000);
+      };
+      
+      // Validate that eventEndTime is eventStartTime + timeframe
+      const eventStartTimestamp = parseDateTimeLocal(formData.eventStartTime);
+      const eventEndTimestamp = parseDateTimeLocal(formData.eventEndTime);
+      const timeframeHours = getTimeframeHours(formData.timeFrame);
+      const expectedEndTimestamp = eventStartTimestamp + (timeframeHours * 3600);
+      
+      // Warn if there's a mismatch (user manually changed times)
+      if (Math.abs(eventEndTimestamp - expectedEndTimestamp) > 60) {
+        console.warn(`⚠️ Event end time (${eventEndTimestamp}) doesn't match timeframe (${timeframeHours}h from start ${eventStartTimestamp}). Expected: ${expectedEndTimestamp}`);
+      }
+      
       // Prepare pool data with all required contract parameters
       const poolData = {
         predictedOutcome,
         odds: BigInt(Math.floor(parseFloat(formData.odds) * 100)), // Convert to basis points
-        eventStartTime: BigInt(Math.floor(new Date(formData.eventStartTime).getTime() / 1000)),
-        eventEndTime: BigInt(Math.floor(new Date(formData.eventEndTime).getTime() / 1000)),
+        eventStartTime: BigInt(eventStartTimestamp),
+        eventEndTime: BigInt(eventEndTimestamp),
         league: formData.league,
         category: formData.category,
         useBitr: formData.useBitr,
@@ -606,9 +641,29 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
               <input
                 type="datetime-local"
                 value={formData.eventStartTime}
-                onChange={(e) => handleInputChange('eventStartTime', e.target.value)}
+                onChange={(e) => {
+                  handleInputChange('eventStartTime', e.target.value);
+                  // ✅ FIX: Recalculate event end time when start time changes (preserve timeframe)
+                  if (e.target.value) {
+                    const startDate = new Date(e.target.value);
+                    const timeframeHours = getTimeframeHours(formData.timeFrame);
+                    const endDate = new Date(startDate.getTime() + (timeframeHours * 60 * 60 * 1000));
+                    const formatDateTimeLocal = (date: Date): string => {
+                      const year = date.getFullYear();
+                      const month = String(date.getMonth() + 1).padStart(2, '0');
+                      const day = String(date.getDate()).padStart(2, '0');
+                      const hours = String(date.getHours()).padStart(2, '0');
+                      const minutes = String(date.getMinutes()).padStart(2, '0');
+                      return `${year}-${month}-${day}T${hours}:${minutes}`;
+                    };
+                    handleInputChange('eventEndTime', formatDateTimeLocal(endDate));
+                  }
+                }}
                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+              <p className="text-xs text-gray-400 mt-1">
+                ⚠️ Time is in your local timezone. Will be converted to UTC on submit.
+              </p>
               {errors.eventStartTime && (
                 <p className="text-red-500 text-sm mt-1">{errors.eventStartTime}</p>
               )}

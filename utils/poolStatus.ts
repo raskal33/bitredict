@@ -141,16 +141,19 @@ export function getPoolStatus(pool: PoolData): PoolStatusInfo {
         };
       }
     } else {
+      // ✅ FIX: Event has started, show countdown to event end (timeframe remaining)
+      const timeRemaining = eventEndTime - now;
       return {
         status: 'event_started',
         label: 'Event Started',
-        description: 'Event is in progress, no more bets',
+        description: 'Event is in progress, counting down to end',
         color: 'text-yellow-400',
         bgColor: 'bg-yellow-500/20',
         icon: '🏃',
         canBet: false,
         canClaim: false,
-        canRefund: false
+        canRefund: false,
+        timeRemaining // ✅ FIX: Include time remaining until event end
       };
     }
   }

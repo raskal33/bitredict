@@ -524,27 +524,46 @@ export default function BetPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
    }, [isApproveConfirmed, waitingForApproval, pendingBetData, address, poolId, placeBet, pool?.currency]); // Exclude functions to prevent loops
 
+  // ✅ FIX: Countdown timer that shows timeframe after event starts
   useEffect(() => {
     if (pool && pool.eventDetails) {
-    const timer = setInterval(() => {
-      const now = new Date().getTime();
+      const timer = setInterval(() => {
+        const now = new Date().getTime();
         const start = pool.eventDetails!.startTime.getTime();
-        const distance = start - now;
-      
-      if (distance > 0) {
-        setTimeLeft({
-          days: Math.floor(distance / (1000 * 60 * 60 * 24)),
-          hours: Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
-          minutes: Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)),
-          seconds: Math.floor((distance % (1000 * 60)) / 1000)
-        });
-      } else {
-        // Event has started
-        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-      }
-    }, 1000);
+        const end = pool.eventDetails!.endTime?.getTime() || null;
+        
+        // ✅ FIX: If event has started, countdown to event end (timeframe)
+        // If event hasn't started, countdown to event start
+        if (now >= start && end) {
+          // Event started - countdown to event end (timeframe remaining)
+          const distance = end - now;
+          if (distance > 0) {
+            setTimeLeft({
+              days: Math.floor(distance / (1000 * 60 * 60 * 24)),
+              hours: Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+              minutes: Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)),
+              seconds: Math.floor((distance % (1000 * 60)) / 1000)
+            });
+          } else {
+            // Event ended
+            setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+          }
+        } else if (now < start) {
+          // Event not started - countdown to event start
+          const distance = start - now;
+          setTimeLeft({
+            days: Math.floor(distance / (1000 * 60 * 60 * 24)),
+            hours: Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+            minutes: Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)),
+            seconds: Math.floor((distance % (1000 * 60)) / 1000)
+          });
+        } else {
+          // Event ended but no end time available
+          setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+        }
+      }, 1000);
 
-    return () => clearInterval(timer);
+      return () => clearInterval(timer);
     }
   }, [pool]);
 

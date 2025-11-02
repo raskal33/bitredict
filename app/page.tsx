@@ -19,7 +19,6 @@ import {
   ShieldCheckIcon as ShieldSolid
 } from "@heroicons/react/24/solid";
 import { optimizedPoolService, type OptimizedPool } from "@/services/optimizedPoolService";
-import { poolStateService } from "@/services/poolStateService";
 import { frontendCache } from "@/services/frontendCache";
 import EnhancedPoolCard, { EnhancedPool } from "@/components/EnhancedPoolCard";
 import RecentBetsLane from "@/components/RecentBetsLane";
@@ -41,9 +40,21 @@ export default function HomePage() {
 
   // Convert OptimizedPool to EnhancedPool format with backend settlement data
   const convertOptimizedToEnhanced = useCallback(async (pool: OptimizedPool): Promise<EnhancedPool> => {
-    // Use backend settlement data instead of contract calls for better performance
-    const isSettled = pool.isSettled || false;
-    const creatorSideWon = pool.creatorSideWon || false;
+    // ✅ FIX: Use backend API values (already verified against contract in backend)
+    // Backend API verifies settlement status against contract before returning data
+    // isSettled and creatorSideWon are the source of truth from backend
+    const isSettled = pool.isSettled ?? false;
+    const creatorSideWon = pool.creatorSideWon ?? false;
+    
+    // Debug logging to verify values
+    if (pool.id === 8) {
+      console.log('🔍 Pool 8 conversion:', {
+        isSettled: pool.isSettled,
+        creatorSideWon: pool.creatorSideWon,
+        finalSettled: isSettled,
+        finalCreatorSideWon: creatorSideWon
+      });
+    }
     
     return {
       id: pool.id,
@@ -148,19 +159,13 @@ export default function HomePage() {
         })
       );
       
-      // Convert pools to enhanced format with contract states (batch call for efficiency)
-      const poolIds = poolsData.pools.map(p => p.id);
-      const poolStates = await poolStateService.getBatchPoolStates(poolIds);
-      
+      // Convert pools to enhanced format (API already verifies against contract)
+      // No need to override with contract calls - backend API is source of truth
       const enhanced = await Promise.all(
         poolsData.pools.map(async (pool) => {
-          const state = poolStates[pool.id];
           const enhancedPool = await convertOptimizedToEnhanced(pool);
-          return {
-            ...enhancedPool,
-            settled: state.settled,
-            creatorSideWon: state.creatorSideWon
-          };
+          // Use API values directly (already verified against contract in backend)
+          return enhancedPool;
         })
       );
       
