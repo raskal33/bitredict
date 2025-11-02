@@ -245,8 +245,9 @@ export class GuidedMarketWalletService {
   private static hashStringParameters(parameters: any[]): any[] {
     // The createPool function expects these parameters in order:
     // [predictedOutcome, odds, creatorStake, eventStartTime, eventEndTime, 
-    //  leagueHash, categoryHash, regionHash, homeTeamHash, awayTeamHash, titleHash,
+    //  leagueHash, categoryHash, homeTeamHash, awayTeamHash, titleHash,
     //  isPrivate, maxBetPerUser, useBitr, oracleType, marketType, marketId]
+    // Note: Contract signature is: createPool(..., bytes32 _league, bytes32 _category, bytes32 _homeTeam, bytes32 _awayTeam, bytes32 _title, bool _isPrivate, uint256 _maxBetPerUser, bool _useBitr, OracleType _oracleType, MarketType _marketType, string memory _marketId)
     
     if (parameters.length < 17) {
       console.warn('⚠️ Expected 17 parameters for createPool, got:', parameters.length);
@@ -274,8 +275,9 @@ export class GuidedMarketWalletService {
       }
     }
     
-    // 🔧 CRITICAL FIX: Ensure marketId (index 16) is always a string, not hex
-    const marketIdIndex = 16;
+    // 🔧 CRITICAL FIX: Ensure marketId (index 15) is always a string, not hex
+    // Parameter order: ...oracleType (13), marketType (14), marketId (15)
+    const marketIdIndex = 15;
     if (hashedParameters.length > marketIdIndex) {
       const marketId = hashedParameters[marketIdIndex];
       console.log(`🔍 MarketId before final check: ${marketId} (type: ${typeof marketId})`);
