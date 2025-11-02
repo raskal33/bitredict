@@ -239,18 +239,25 @@ export default function BetPage() {
       
       setPool(transformedPool);
       
-      // Set contract data for status banner (API provides all needed fields)
+      // ✅ CRITICAL: Use verified API data directly (API verifies against contract for settled pools)
+      // This ensures EnhancedPoolCard and Bet Page always see the same status
+      const isSettled = poolData.isSettled || poolData.status === 'settled';
+      const creatorSideWon = poolData.creatorSideWon; // Already verified against contract in API
+      
+      // Set contract data for status banner using verified API data
       const flags = 
-        (poolData.status === 'settled' ? 1 : 0) |  // Bit 0: settled
-        (poolData.creatorSideWon === true ? 2 : 0); // Bit 1: creatorSideWon
+        (isSettled ? 1 : 0) |  // Bit 0: settled
+        (creatorSideWon === true ? 2 : 0); // Bit 1: creatorSideWon
       
       console.log('🔍 Pool Status DEBUG:', {
         poolId: poolData.id,
         status: poolData.status,
-        creatorSideWon: poolData.creatorSideWon,
+        isSettled,
+        creatorSideWon: creatorSideWon, // Verified against contract
+        source: 'API (verified against contract)',
         flagsCalculation: {
-          settled: (poolData.status === 'settled' ? 1 : 0),
-          creatorSideWon: (poolData.creatorSideWon === true ? 2 : 0),
+          settled: (isSettled ? 1 : 0),
+          creatorSideWon: (creatorSideWon === true ? 2 : 0),
           combinedFlags: flags,
           flagBits: {
             bit0_settled: (flags & 1) !== 0,
@@ -271,9 +278,8 @@ export default function BetPage() {
         marketId: poolData.marketId || ''
       });
         
-      // Determine pool status type using local flags (not async state)
-      const settled = (flags & 1) !== 0; // Bit 0: settled
-      const creatorSideWon = (flags & 2) !== 0; // Bit 1: creatorSideWon
+      // Determine pool status type using verified API data (source of truth)
+      const settled = isSettled; // Use verified API data
       
       if (settled) {
         if (creatorSideWon) {
