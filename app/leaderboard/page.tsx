@@ -231,7 +231,7 @@ export default function PoolLeaderboardPage() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gradient-to-r from-bg-card/80 via-bg-card/60 to-bg-card/80 backdrop-blur-sm border-b-2 border-primary/30">
+                <thead className="bg-gradient-to-r from-cyan-500/20 via-blue-500/20 to-violet-500/20 backdrop-blur-sm border-b-2 border-primary/30">
                   <tr>
                     <th className="px-6 py-5 text-left text-sm font-bold text-text-primary uppercase tracking-wider">
                       Rank
@@ -422,7 +422,7 @@ export default function PoolLeaderboardPage() {
 
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm text-text-secondary font-mono bg-bg-card/50 px-3 py-1 rounded-lg border border-border-card/50">
+                          <span className="text-sm text-text-primary font-mono bg-gradient-to-r from-cyan-500/20 via-blue-500/20 to-violet-500/20 px-3 py-1 rounded-lg border border-primary/30 backdrop-blur-sm">
                             {entry.address.slice(0, 6)}...{entry.address.slice(-4)}
                           </span>
                           {entry.rank <= 3 && (
@@ -439,22 +439,22 @@ export default function PoolLeaderboardPage() {
 
           {/* Pagination */}
           {pagination.total > 0 && (
-            <div className="px-6 py-5 border-t border-border-card/50 bg-bg-card/30 flex items-center justify-between backdrop-blur-sm">
-              <div className="text-sm text-text-secondary font-medium">
+            <div className="px-6 py-5 border-t border-primary/30 bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-violet-500/10 flex items-center justify-between backdrop-blur-sm">
+              <div className="text-sm font-medium bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">
                 Showing <span className="text-text-primary font-bold">{pagination.offset + 1}</span> - <span className="text-text-primary font-bold">{Math.min(pagination.offset + pagination.limit, pagination.total)}</span> of <span className="text-text-primary font-bold">{pagination.total}</span>
               </div>
               <div className="flex gap-2">
                 <button
                   onClick={() => setPagination(prev => ({ ...prev, offset: Math.max(0, prev.offset - prev.limit) }))}
                   disabled={pagination.offset === 0}
-                  className="px-5 py-2 rounded-lg bg-bg-card border border-border-card text-text-secondary disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/10 hover:border-primary/50 hover:text-primary transition-all duration-200 font-medium"
+                  className="px-5 py-2 rounded-lg bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-primary/30 text-text-primary disabled:opacity-50 disabled:cursor-not-allowed hover:from-cyan-500/30 hover:to-blue-500/30 hover:border-primary/50 transition-all duration-200 font-medium backdrop-blur-sm"
                 >
                   Previous
                 </button>
                 <button
                   onClick={() => setPagination(prev => ({ ...prev, offset: prev.offset + prev.limit }))}
                   disabled={!pagination.hasMore}
-                  className="px-5 py-2 rounded-lg bg-bg-card border border-border-card text-text-secondary disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/10 hover:border-primary/50 hover:text-primary transition-all duration-200 font-medium"
+                  className="px-5 py-2 rounded-lg bg-gradient-to-r from-blue-500/20 to-violet-500/20 border border-primary/30 text-text-primary disabled:opacity-50 disabled:cursor-not-allowed hover:from-blue-500/30 hover:to-violet-500/30 hover:border-primary/50 transition-all duration-200 font-medium backdrop-blur-sm"
                 >
                   Next
                 </button>
