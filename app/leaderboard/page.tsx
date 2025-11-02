@@ -143,7 +143,7 @@ export default function PoolLeaderboardPage() {
 
   const getRankIcon = (rank: number) => {
     if (rank === 1) return <TrophyIconSolid className="w-5 h-5 text-yellow-400" />;
-    if (rank === 2) return <TrophyIconSolid className="w-5 h-5 text-gray-400" />;
+    if (rank === 2) return <TrophyIconSolid className="w-5 h-5 text-slate-400" />;
     if (rank === 3) return <TrophyIconSolid className="w-5 h-5 text-amber-600" />;
     return null;
   };
@@ -353,7 +353,7 @@ export default function PoolLeaderboardPage() {
                           {getRankIcon(entry.rank)}
                           <span className={`text-sm font-bold ${
                             entry.rank === 1 ? 'text-yellow-400' :
-                            entry.rank === 2 ? 'text-gray-400' :
+                            entry.rank === 2 ? 'text-slate-400' :
                             entry.rank === 3 ? 'text-amber-600' :
                             'text-text-primary'
                           }`}>
