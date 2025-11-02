@@ -15,6 +15,15 @@ export interface UserInfo {
   claimTime: bigint;
 }
 
+// Wagmi returns tuple functions as arrays: [bool, string, uint256]
+export type EligibilityTuple = [boolean, string, bigint] | undefined;
+
+export interface EligibilityInfo {
+  eligible: boolean;
+  reason: string;
+  oddysseySlips: bigint;
+}
+
 export function useFaucet() {
   const { address } = useAccount();
   const { writeContract, data: hash, isPending } = useWriteContract();
@@ -26,6 +35,11 @@ export function useFaucet() {
     functionName: 'FAUCET_AMOUNT',
   });
 
+  const { data: minOddysseySlips } = useReadContract({
+    ...CONTRACTS.FAUCET,
+    functionName: 'MIN_ODDYSSEY_SLIPS',
+  });
+
   const { data: faucetStats, refetch: refetchStats } = useReadContract({
     ...CONTRACTS.FAUCET,
     functionName: 'getFaucetStats',
@@ -34,6 +48,23 @@ export function useFaucet() {
   const { data: userInfo, refetch: refetchUserInfo } = useReadContract({
     ...CONTRACTS.FAUCET,
     functionName: 'getUserInfo',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address }
+  });
+
+  // ✅ CRITICAL: Check eligibility (includes Oddyssey slips check)
+  // Returns tuple: [eligible: bool, reason: string, oddysseySlips: uint256]
+  const { data: eligibilityTuple, refetch: refetchEligibility } = useReadContract({
+    ...CONTRACTS.FAUCET,
+    functionName: 'checkEligibility',
+    args: address ? [address] : undefined,
+    query: { enabled: !!address }
+  }) as { data: EligibilityTuple; refetch: () => void };
+
+  // ✅ Get user's Oddyssey slip count directly from Oddyssey contract
+  const { data: oddysseySlipCount, refetch: refetchOddysseySlips } = useReadContract({
+    ...CONTRACTS.ODDYSSEY,
+    functionName: 'getUserSlipCount',
     args: address ? [address] : undefined,
     query: { enabled: !!address }
   });
@@ -67,10 +98,25 @@ export function useFaucet() {
     return new Date(Number(timestamp) * 1000).toLocaleDateString();
   };
 
+  // Parse eligibility tuple into object
+  const eligibilityInfo: EligibilityInfo | undefined = eligibilityTuple && Array.isArray(eligibilityTuple)
+    ? {
+        eligible: eligibilityTuple[0] as boolean,
+        reason: eligibilityTuple[1] as string,
+        oddysseySlips: eligibilityTuple[2] as bigint,
+      }
+    : undefined;
+
   const canClaim = (): boolean => {
     const stats = faucetStats as FaucetStats;
     const info = userInfo as UserInfo;
     
+    // Use contract's checkEligibility result as source of truth
+    if (eligibilityInfo) {
+      return eligibilityInfo.eligible;
+    }
+    
+    // Fallback to manual checks if eligibility not available
     return !!(
       stats?.active &&
       !info?.claimed &&
@@ -79,6 +125,11 @@ export function useFaucet() {
   };
 
   const getClaimStatus = (): string => {
+    // Use contract's eligibility check result if available
+    if (eligibilityInfo && !eligibilityInfo.eligible) {
+      return eligibilityInfo.reason;
+    }
+    
     const stats = faucetStats as FaucetStats;
     const info = userInfo as UserInfo;
     
@@ -91,13 +142,26 @@ export function useFaucet() {
   const refetchAll = () => {
     refetchStats();
     refetchUserInfo();
+    refetchEligibility();
+    refetchOddysseySlips();
   };
+
+  // Extract eligibility data
+  // Prefer eligibilityInfo.oddysseySlips (from checkEligibility) if available, otherwise use direct getUserSlipCount
+  const currentSlipCount = eligibilityInfo 
+    ? Number(eligibilityInfo.oddysseySlips || 0)
+    : Number(oddysseySlipCount || 0);
+  const requiredSlips = Number(minOddysseySlips || 2);
+  const hasEnoughSlips = currentSlipCount >= requiredSlips;
 
   return {
     // Contract data
     faucetAmount: formatAmount(faucetAmount as bigint),
+    minOddysseySlips: requiredSlips,
     faucetStats: faucetStats as FaucetStats,
     userInfo: userInfo as UserInfo,
+    eligibilityInfo: eligibilityInfo,
+    oddysseySlipCount: currentSlipCount,
     hasSufficientBalance: hasSufficientBalance as boolean,
     maxPossibleClaims: Number(maxPossibleClaims || 0),
     
@@ -110,6 +174,11 @@ export function useFaucet() {
     claimDate: formatDate((userInfo as UserInfo)?.claimTime || BigInt(0)),
     canClaim: canClaim(),
     claimStatus: getClaimStatus(),
+    
+    // Eligibility details
+    isEligible: eligibilityInfo?.eligible || false,
+    eligibilityReason: eligibilityInfo?.reason || '',
+    hasEnoughSlips,
     
     // Actions
     claimBitr,

@@ -285,6 +285,115 @@ export default function FaucetPage() {
                 </div>
               </div>
 
+              {/* ✅ Eligibility Conditions */}
+              <div className="bg-black/20 rounded-xl p-6 mb-8">
+                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                  <FaShieldAlt className="h-5 w-5 text-blue-400" />
+                  Eligibility Requirements
+                </h3>
+                <div className="space-y-3">
+                  {/* Condition 1: Faucet Active */}
+                  <div className="flex items-center justify-between p-3 bg-black/20 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      {faucet.isActive ? (
+                        <FaCheckCircle className="h-5 w-5 text-green-400" />
+                      ) : (
+                        <FaTimesCircle className="h-5 w-5 text-red-400" />
+                      )}
+                      <span className="text-white">Faucet is Active</span>
+                    </div>
+                    <span className={`text-sm font-medium ${faucet.isActive ? 'text-green-400' : 'text-red-400'}`}>
+                      {faucet.isActive ? '✓ Active' : '✗ Inactive'}
+                    </span>
+                  </div>
+
+                  {/* Condition 2: Not Already Claimed */}
+                  <div className="flex items-center justify-between p-3 bg-black/20 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      {!faucet.hasClaimed ? (
+                        <FaCheckCircle className="h-5 w-5 text-green-400" />
+                      ) : (
+                        <FaTimesCircle className="h-5 w-5 text-red-400" />
+                      )}
+                      <span className="text-white">Not Already Claimed</span>
+                    </div>
+                    <span className={`text-sm font-medium ${!faucet.hasClaimed ? 'text-green-400' : 'text-red-400'}`}>
+                      {!faucet.hasClaimed ? '✓ Eligible' : '✗ Already Claimed'}
+                    </span>
+                  </div>
+
+                  {/* Condition 3: Faucet Has Balance */}
+                  <div className="flex items-center justify-between p-3 bg-black/20 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      {faucet.hasSufficientBalance ? (
+                        <FaCheckCircle className="h-5 w-5 text-green-400" />
+                      ) : (
+                        <FaTimesCircle className="h-5 w-5 text-red-400" />
+                      )}
+                      <span className="text-white">Faucet Has Sufficient Balance</span>
+                    </div>
+                    <span className={`text-sm font-medium ${faucet.hasSufficientBalance ? 'text-green-400' : 'text-red-400'}`}>
+                      {faucet.hasSufficientBalance ? '✓ Available' : '✗ Empty'}
+                    </span>
+                  </div>
+
+                  {/* Condition 4: Oddyssey Slips Requirement (CRITICAL) */}
+                  <div className="flex items-center justify-between p-3 bg-black/20 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      {faucet.hasEnoughSlips ? (
+                        <FaCheckCircle className="h-5 w-5 text-green-400" />
+                      ) : (
+                        <FaTimesCircle className="h-5 w-5 text-red-400" />
+                      )}
+                      <div className="flex flex-col">
+                        <span className="text-white">Minimum {faucet.minOddysseySlips || 2} Oddyssey Slips</span>
+                        <span className="text-gray-400 text-xs">
+                          You have: <span className={faucet.hasEnoughSlips ? 'text-green-400' : 'text-yellow-400'}>{faucet.oddysseySlipCount || 0} slips</span>
+                        </span>
+                      </div>
+                    </div>
+                    <span className={`text-sm font-medium ${faucet.hasEnoughSlips ? 'text-green-400' : 'text-yellow-400'}`}>
+                      {faucet.hasEnoughSlips ? '✓ Met' : `✗ Need ${(faucet.minOddysseySlips || 2) - (faucet.oddysseySlipCount || 0)} more`}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Eligibility Status Summary */}
+                {faucet.eligibilityReason && (
+                  <div className={`mt-4 p-4 rounded-lg ${
+                    faucet.isEligible 
+                      ? 'bg-green-500/20 border border-green-500/50' 
+                      : 'bg-yellow-500/20 border border-yellow-500/50'
+                  }`}>
+                    <div className="flex items-start gap-3">
+                      {faucet.isEligible ? (
+                        <FaCheckCircle className="h-5 w-5 text-green-400 mt-0.5" />
+                      ) : (
+                        <FaExclamationTriangle className="h-5 w-5 text-yellow-400 mt-0.5" />
+                      )}
+                      <div className="flex-1">
+                        <p className={`font-medium ${faucet.isEligible ? 'text-green-300' : 'text-yellow-300'}`}>
+                          {faucet.isEligible ? 'All Requirements Met!' : 'Eligibility Status'}
+                        </p>
+                        <p className="text-gray-300 text-sm mt-1">
+                          {faucet.eligibilityReason}
+                        </p>
+                        {!faucet.hasEnoughSlips && (
+                          <div className="mt-2 p-2 bg-black/20 rounded">
+                            <p className="text-xs text-gray-300">
+                              💡 <strong>Tip:</strong> Participate in Oddyssey daily predictions to earn slips! 
+                              <a href="/oddyssey" className="text-blue-400 hover:text-blue-300 ml-1 underline">
+                                Go to Oddyssey →
+                              </a>
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Claim Button */}
               <div className="text-center">
                 {faucet.hasClaimed ? (
