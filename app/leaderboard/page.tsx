@@ -8,8 +8,13 @@ import {
   StarIcon,
   ArrowUpIcon,
   ArrowDownIcon,
-  ArrowsUpDownIcon
+  ArrowsUpDownIcon,
+  SparklesIcon
 } from '@heroicons/react/24/outline';
+import { 
+  TrophyIcon as TrophyIconSolid,
+  SparklesIcon as SparklesIconSolid
+} from '@heroicons/react/24/solid';
 
 type TabType = 'creators' | 'challengers' | 'reputation';
 
@@ -129,11 +134,18 @@ export default function PoolLeaderboardPage() {
 
   const getSortIcon = (column: SortColumn) => {
     if (sortBy !== column) {
-      return <ArrowsUpDownIcon className="w-4 h-4" />;
+      return <ArrowsUpDownIcon className="w-4 h-4 opacity-50" />;
     }
     return sortOrder === 'asc' 
-      ? <ArrowUpIcon className="w-4 h-4" />
-      : <ArrowDownIcon className="w-4 h-4" />;
+      ? <ArrowUpIcon className="w-4 h-4 text-primary" />
+      : <ArrowDownIcon className="w-4 h-4 text-primary" />;
+  };
+
+  const getRankIcon = (rank: number) => {
+    if (rank === 1) return <TrophyIconSolid className="w-5 h-5 text-yellow-400" />;
+    if (rank === 2) return <TrophyIconSolid className="w-5 h-5 text-gray-400" />;
+    if (rank === 3) return <TrophyIconSolid className="w-5 h-5 text-amber-600" />;
+    return null;
   };
 
   const tabs = [
@@ -164,9 +176,13 @@ export default function PoolLeaderboardPage() {
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-8"
         >
-          <h1 className="text-4xl md:text-5xl font-bold gradient-text mb-4">
-            Pool Leaderboard
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <SparklesIconSolid className="w-10 h-10 text-primary animate-pulse" />
+            <h1 className="text-4xl md:text-5xl font-bold gradient-text">
+              Pool Leaderboard
           </h1>
+            <SparklesIconSolid className="w-10 h-10 text-primary animate-pulse" />
+          </div>
           <p className="text-text-secondary text-lg max-w-2xl mx-auto">
             Top performers across creators, challengers, and reputation rankings
           </p>
@@ -177,107 +193,107 @@ export default function PoolLeaderboardPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="flex flex-wrap justify-center gap-2 mb-8"
+          className="flex flex-wrap justify-center gap-3 mb-8"
         >
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-6 py-3 rounded-button font-medium transition-all duration-200 ${
+              className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
                 activeTab === tab.id
-                  ? 'bg-gradient-primary text-black shadow-button'
-                  : 'text-text-secondary hover:text-text-primary hover:bg-bg-card border border-border-card'
+                  ? 'bg-gradient-primary text-black shadow-lg shadow-primary/50 scale-105'
+                  : 'text-text-secondary hover:text-text-primary hover:bg-bg-card border border-border-card backdrop-blur-sm'
               }`}
             >
-              <tab.icon className="h-4 w-4" />
+              <tab.icon className={`h-5 w-5 ${activeTab === tab.id ? 'text-black' : ''}`} />
               {tab.label}
             </button>
           ))}
         </motion.div>
 
         {/* Leaderboard Table */}
-        <motion.div
+            <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="glass-card overflow-hidden"
+          className="glass-card overflow-hidden border border-border-card/50 shadow-2xl"
         >
           {loading ? (
-            <div className="p-8 text-center text-text-secondary">
-              Loading leaderboard...
-            </div>
+            <div className="p-12 text-center">
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent mb-4"></div>
+              <p className="text-text-secondary text-lg">Loading leaderboard...</p>
+                </div>
           ) : error ? (
-            <div className="p-8 text-center text-red-400">
-              {error}
-            </div>
+            <div className="p-12 text-center">
+              <div className="text-red-400 text-xl mb-2">⚠️</div>
+              <p className="text-red-400">{error}</p>
+              </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-bg-card/50 border-b border-border-card">
+                <thead className="bg-gradient-to-r from-bg-card/80 via-bg-card/60 to-bg-card/80 backdrop-blur-sm border-b-2 border-primary/30">
                   <tr>
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-text-secondary">Rank</th>
+                    <th className="px-6 py-5 text-left text-sm font-bold text-text-primary uppercase tracking-wider">
+                      Rank
+                    </th>
                     
                     {activeTab === 'creators' && (
-                      <>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-text-secondary">
-                          <button
-                            onClick={() => handleSort('pools_created')}
-                            className="flex items-center gap-2 hover:text-text-primary transition-colors"
-                          >
-                            Pools Created
-                            {getSortIcon('pools_created')}
-                          </button>
-                        </th>
-                      </>
+                      <th className="px-6 py-5 text-left text-sm font-bold text-text-primary uppercase tracking-wider">
+                        <button
+                          onClick={() => handleSort('pools_created')}
+                          className="flex items-center gap-2 hover:text-primary transition-colors group"
+                        >
+                          Pools Created
+                          {getSortIcon('pools_created')}
+                        </button>
+                      </th>
                     )}
                     
                     {activeTab === 'challengers' && (
-                      <>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-text-secondary">
-                          <button
-                            onClick={() => handleSort('pools_challenged')}
-                            className="flex items-center gap-2 hover:text-text-primary transition-colors"
-                          >
-                            Pools Challenged
-                            {getSortIcon('pools_challenged')}
-                          </button>
-                        </th>
-                      </>
+                      <th className="px-6 py-5 text-left text-sm font-bold text-text-primary uppercase tracking-wider">
+                        <button
+                          onClick={() => handleSort('pools_challenged')}
+                          className="flex items-center gap-2 hover:text-primary transition-colors group"
+                        >
+                          Pools Challenged
+                          {getSortIcon('pools_challenged')}
+                        </button>
+                      </th>
                     )}
 
                     {(activeTab === 'creators' || activeTab === 'challengers') && (
                       <>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-text-secondary">
+                        <th className="px-6 py-5 text-left text-sm font-bold text-text-primary uppercase tracking-wider">
                           <button
                             onClick={() => handleSort('volume')}
-                            className="flex items-center gap-2 hover:text-text-primary transition-colors"
+                            className="flex items-center gap-2 hover:text-primary transition-colors group"
                           >
                             Volume
                             {getSortIcon('volume')}
                           </button>
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-text-secondary">
+                        <th className="px-6 py-5 text-left text-sm font-bold text-text-primary uppercase tracking-wider">
                           <button
                             onClick={() => handleSort('wins')}
-                            className="flex items-center gap-2 hover:text-text-primary transition-colors"
+                            className="flex items-center gap-2 hover:text-green-400 transition-colors group"
                           >
                             Wins
                             {getSortIcon('wins')}
                           </button>
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-text-secondary">
+                        <th className="px-6 py-5 text-left text-sm font-bold text-text-primary uppercase tracking-wider">
                           <button
                             onClick={() => handleSort('losses')}
-                            className="flex items-center gap-2 hover:text-text-primary transition-colors"
+                            className="flex items-center gap-2 hover:text-red-400 transition-colors group"
                           >
                             Losses
                             {getSortIcon('losses')}
                           </button>
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-text-secondary">
+                        <th className="px-6 py-5 text-left text-sm font-bold text-text-primary uppercase tracking-wider">
                           <button
                             onClick={() => handleSort('pnl')}
-                            className="flex items-center gap-2 hover:text-text-primary transition-colors"
+                            className="flex items-center gap-2 hover:text-primary transition-colors group"
                           >
                             PnL
                             {getSortIcon('pnl')}
@@ -288,28 +304,28 @@ export default function PoolLeaderboardPage() {
 
                     {activeTab === 'reputation' && (
                       <>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-text-secondary">
+                        <th className="px-6 py-5 text-left text-sm font-bold text-text-primary uppercase tracking-wider">
                           <button
                             onClick={() => handleSort('reputation')}
-                            className="flex items-center gap-2 hover:text-text-primary transition-colors"
+                            className="flex items-center gap-2 hover:text-primary transition-colors group"
                           >
                             Reputation
                             {getSortIcon('reputation')}
                           </button>
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-text-secondary">
+                        <th className="px-6 py-5 text-left text-sm font-bold text-text-primary uppercase tracking-wider">
                           <button
                             onClick={() => handleSort('total_pools')}
-                            className="flex items-center gap-2 hover:text-text-primary transition-colors"
+                            className="flex items-center gap-2 hover:text-primary transition-colors group"
                           >
                             Total Pools
                             {getSortIcon('total_pools')}
                           </button>
                         </th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-text-secondary">
-                          <button
+                        <th className="px-6 py-5 text-left text-sm font-bold text-text-primary uppercase tracking-wider">
+                    <button
                             onClick={() => handleSort('total_bets')}
-                            className="flex items-center gap-2 hover:text-text-primary transition-colors"
+                            className="flex items-center gap-2 hover:text-primary transition-colors group"
                           >
                             Total Bets
                             {getSortIcon('total_bets')}
@@ -318,105 +334,127 @@ export default function PoolLeaderboardPage() {
                       </>
                     )}
 
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-text-secondary">Address</th>
+                    <th className="px-6 py-5 text-left text-sm font-bold text-text-primary uppercase tracking-wider">Address</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border-card">
-                  {data.map((entry) => (
-                    <tr
+                <tbody className="divide-y divide-border-card/30">
+                  {data.map((entry, index) => (
+                    <motion.tr
                       key={entry.address}
-                      className="hover:bg-bg-card/30 transition-colors"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.02 }}
+                      className={`hover:bg-gradient-to-r hover:from-primary/5 hover:to-secondary/5 transition-all duration-200 ${
+                        entry.rank <= 3 ? 'bg-gradient-to-r from-primary/10 via-secondary/5 to-primary/10' : ''
+                      }`}
                     >
-                      <td className="px-6 py-4 text-sm text-text-primary font-medium">
-                        #{entry.rank}
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          {getRankIcon(entry.rank)}
+                          <span className={`text-sm font-bold ${
+                            entry.rank === 1 ? 'text-yellow-400' :
+                            entry.rank === 2 ? 'text-gray-400' :
+                            entry.rank === 3 ? 'text-amber-600' :
+                            'text-text-primary'
+                          }`}>
+                            #{entry.rank}
+                          </span>
+                        </div>
                       </td>
 
                       {activeTab === 'creators' && (
                         <>
-                          <td className="px-6 py-4 text-sm text-text-secondary">
+                          <td className="px-6 py-4 text-sm text-text-secondary font-medium">
                             {entry.poolsCreated || 0}
                           </td>
-                          <td className="px-6 py-4 text-sm text-text-secondary">
-                            {formatCurrency(entry.volume)} STT
+                          <td className="px-6 py-4 text-sm text-text-secondary font-medium">
+                            {formatCurrency(entry.volume)} <span className="text-text-muted">STT</span>
                           </td>
-                          <td className="px-6 py-4 text-sm text-green-400">
+                          <td className="px-6 py-4 text-sm text-green-400 font-semibold">
                             {entry.wins || 0}
                           </td>
-                          <td className="px-6 py-4 text-sm text-red-400">
+                          <td className="px-6 py-4 text-sm text-red-400 font-semibold">
                             {entry.losses || 0}
                           </td>
-                          <td className={`px-6 py-4 text-sm font-medium ${
+                          <td className={`px-6 py-4 text-sm font-bold ${
                             (entry.pnl || 0) >= 0 ? 'text-green-400' : 'text-red-400'
                           }`}>
-                            {formatCurrency(entry.pnl)} STT
+                            {(entry.pnl || 0) >= 0 ? '+' : ''}{formatCurrency(entry.pnl)} <span className="text-text-muted">STT</span>
                           </td>
                         </>
                       )}
 
                       {activeTab === 'challengers' && (
                         <>
-                          <td className="px-6 py-4 text-sm text-text-secondary">
+                          <td className="px-6 py-4 text-sm text-text-secondary font-medium">
                             {entry.poolsChallenged || 0}
                           </td>
-                          <td className="px-6 py-4 text-sm text-text-secondary">
-                            {formatCurrency(entry.volume)} STT
+                          <td className="px-6 py-4 text-sm text-text-secondary font-medium">
+                            {formatCurrency(entry.volume)} <span className="text-text-muted">STT</span>
                           </td>
-                          <td className="px-6 py-4 text-sm text-green-400">
+                          <td className="px-6 py-4 text-sm text-green-400 font-semibold">
                             {entry.wins || 0}
                           </td>
-                          <td className="px-6 py-4 text-sm text-red-400">
+                          <td className="px-6 py-4 text-sm text-red-400 font-semibold">
                             {entry.losses || 0}
                           </td>
-                          <td className={`px-6 py-4 text-sm font-medium ${
+                          <td className={`px-6 py-4 text-sm font-bold ${
                             (entry.pnl || 0) >= 0 ? 'text-green-400' : 'text-red-400'
                           }`}>
-                            {formatCurrency(entry.pnl)} STT
+                            {(entry.pnl || 0) >= 0 ? '+' : ''}{formatCurrency(entry.pnl)} <span className="text-text-muted">STT</span>
                           </td>
                         </>
                       )}
 
                       {activeTab === 'reputation' && (
                         <>
-                          <td className="px-6 py-4 text-sm text-text-primary font-medium">
+                          <td className="px-6 py-4 text-sm text-text-primary font-bold text-lg">
                             {entry.reputation || 40}
                           </td>
-                          <td className="px-6 py-4 text-sm text-text-secondary">
+                          <td className="px-6 py-4 text-sm text-text-secondary font-medium">
                             {entry.totalPools || 0}
                           </td>
-                          <td className="px-6 py-4 text-sm text-text-secondary">
+                          <td className="px-6 py-4 text-sm text-text-secondary font-medium">
                             {entry.totalBets || 0}
                           </td>
                         </>
                       )}
 
-                      <td className="px-6 py-4 text-sm text-text-secondary font-mono">
-                        {entry.address.slice(0, 6)}...{entry.address.slice(-4)}
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-text-secondary font-mono bg-bg-card/50 px-3 py-1 rounded-lg border border-border-card/50">
+                            {entry.address.slice(0, 6)}...{entry.address.slice(-4)}
+                          </span>
+                          {entry.rank <= 3 && (
+                            <SparklesIcon className="w-4 h-4 text-primary animate-pulse" />
+                          )}
+                        </div>
                       </td>
-                    </tr>
+                    </motion.tr>
                   ))}
                 </tbody>
               </table>
-            </div>
-          )}
+                </div>
+              )}
 
           {/* Pagination */}
           {pagination.total > 0 && (
-            <div className="px-6 py-4 border-t border-border-card flex items-center justify-between">
-              <div className="text-sm text-text-secondary">
-                Showing {pagination.offset + 1} - {Math.min(pagination.offset + pagination.limit, pagination.total)} of {pagination.total}
+            <div className="px-6 py-5 border-t border-border-card/50 bg-bg-card/30 flex items-center justify-between backdrop-blur-sm">
+              <div className="text-sm text-text-secondary font-medium">
+                Showing <span className="text-text-primary font-bold">{pagination.offset + 1}</span> - <span className="text-text-primary font-bold">{Math.min(pagination.offset + pagination.limit, pagination.total)}</span> of <span className="text-text-primary font-bold">{pagination.total}</span>
               </div>
               <div className="flex gap-2">
                 <button
                   onClick={() => setPagination(prev => ({ ...prev, offset: Math.max(0, prev.offset - prev.limit) }))}
                   disabled={pagination.offset === 0}
-                  className="px-4 py-2 rounded-button bg-bg-card border border-border-card text-text-secondary disabled:opacity-50 disabled:cursor-not-allowed hover:bg-bg-card/50 transition-colors"
+                  className="px-5 py-2 rounded-lg bg-bg-card border border-border-card text-text-secondary disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/10 hover:border-primary/50 hover:text-primary transition-all duration-200 font-medium"
                 >
                   Previous
                 </button>
                 <button
                   onClick={() => setPagination(prev => ({ ...prev, offset: prev.offset + prev.limit }))}
                   disabled={!pagination.hasMore}
-                  className="px-4 py-2 rounded-button bg-bg-card border border-border-card text-text-secondary disabled:opacity-50 disabled:cursor-not-allowed hover:bg-bg-card/50 transition-colors"
+                  className="px-5 py-2 rounded-lg bg-bg-card border border-border-card text-text-secondary disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/10 hover:border-primary/50 hover:text-primary transition-all duration-200 font-medium"
                 >
                   Next
                 </button>
