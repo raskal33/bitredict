@@ -147,10 +147,10 @@ export function useFaucet() {
   };
 
   // Extract eligibility data
-  // Prefer eligibilityInfo.oddysseySlips (from checkEligibility) if available, otherwise use direct getUserSlipCount
-  const currentSlipCount = eligibilityInfo 
-    ? Number(eligibilityInfo.oddysseySlips || 0)
-    : Number(oddysseySlipCount || 0);
+  // ✅ CRITICAL FIX: Always use direct getUserSlipCount (not eligibilityInfo.oddysseySlips)
+  // because checkEligibility returns 0 for oddysseySlips when user has already claimed
+  // This ensures we always show the actual slip count, even after claiming
+  const currentSlipCount = Number(oddysseySlipCount || 0);
   const requiredSlips = Number(minOddysseySlips || 2);
   const hasEnoughSlips = currentSlipCount >= requiredSlips;
 

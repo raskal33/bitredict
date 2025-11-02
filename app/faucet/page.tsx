@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useCallback, useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { useAccount } from "wagmi";
 import { toast } from "react-hot-toast";
@@ -10,6 +10,7 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 import { useFaucet } from "@/hooks/useFaucet";
 import { useBITRToken } from "@/hooks/useBITRToken";
 import { FaucetService, FaucetStatistics } from "@/services/faucetService";
+import { TransactionFeedback, useTransactionFeedback } from "@/components/TransactionFeedback";
 import { 
   formatAddress 
 } from "@/services/airdropService";
@@ -43,6 +44,13 @@ export default function FaucetPage() {
 
   // Backend fallback state
   const [backendFaucetData, setBackendFaucetData] = useState<FaucetStatistics | null>(null);
+
+  // Transaction feedback
+  const { transactionStatus, showPending, showConfirming, showSuccess, showError, clearStatus } = useTransactionFeedback();
+  
+  // Track if we've already shown the success toast to prevent loops
+  const successToastShownRef = useRef(false);
+  const lastConfirmedHashRef = useRef<string | null>(null);
 
   const fetchFaucetData = useCallback(async () => {
     if (!address) return;
@@ -99,21 +107,69 @@ export default function FaucetPage() {
     if (!address || !faucet.canClaim) return;
     
     try {
+      // Show pending status
+      showPending("Claiming BITR", "Please confirm the transaction in your wallet...");
+      
       await faucet.claimBitr();
-      toast.success("Faucet claim transaction submitted!");
+      
+      // Transaction submitted - show confirming status
+      if (faucet.hash) {
+        showConfirming(
+          "Transaction Submitted", 
+          "Your claim transaction has been submitted. Waiting for confirmation...",
+          faucet.hash
+        );
+      }
     } catch (error: unknown) {
       console.error("Error claiming faucet:", error);
-      toast.error((error as Error).message || "Failed to claim faucet");
+      const errorMessage = (error as Error).message || "Failed to claim faucet";
+      showError("Claim Failed", errorMessage);
     }
   };
 
-  // Watch for successful transaction
+  // Watch for transaction state changes
   useEffect(() => {
-    if (faucet.isConfirmed) {
-      toast.success("Faucet claimed successfully! 🎉");
-      fetchFaucetData(); // Refresh data
+    // Handle pending state
+    if (faucet.isPending && transactionStatus?.type !== 'pending') {
+      showPending("Claiming BITR", "Please confirm the transaction in your wallet...");
     }
-  }, [faucet.isConfirmed, fetchFaucetData]);
+    
+    // Handle confirming state
+    if (faucet.isConfirming && !faucet.isPending && faucet.hash) {
+      if (transactionStatus?.type !== 'confirming' || transactionStatus?.hash !== faucet.hash) {
+        showConfirming(
+          "Transaction Confirming", 
+          "Your claim transaction is being confirmed on the blockchain...",
+          faucet.hash
+        );
+      }
+    }
+    
+    // Handle successful confirmation (only once per transaction)
+    if (faucet.isConfirmed && faucet.hash) {
+      // Check if we've already shown success for this transaction
+      if (!successToastShownRef.current || lastConfirmedHashRef.current !== faucet.hash) {
+        successToastShownRef.current = true;
+        lastConfirmedHashRef.current = faucet.hash;
+        
+        // Show success modal
+        showSuccess(
+          "Claim Successful! 🎉",
+          `You have successfully claimed ${faucet.faucetAmount} BITR tokens from the faucet.`,
+          faucet.hash,
+          undefined,
+          undefined,
+          undefined
+        );
+        
+        // Refresh data after a short delay
+        setTimeout(() => {
+          fetchFaucetData();
+          faucet.refetchAll();
+        }, 2000);
+      }
+    }
+  }, [faucet.isPending, faucet.isConfirming, faucet.isConfirmed, faucet.hash, transactionStatus, fetchFaucetData, faucet, showPending, showConfirming, showSuccess]);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -347,25 +403,27 @@ export default function FaucetPage() {
                     );
                   })()}
 
-                  {/* Condition 4: Oddyssey Slips Requirement (CRITICAL) */}
-                  <div className="flex items-center justify-between p-3 bg-black/20 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      {faucet.hasEnoughSlips ? (
-                        <FaCheckCircle className="h-5 w-5 text-green-400" />
-                      ) : (
-                        <FaTimesCircle className="h-5 w-5 text-red-400" />
-                      )}
-                      <div className="flex flex-col">
-                        <span className="text-white">Minimum {faucet.minOddysseySlips || 2} Oddyssey Slips</span>
-                        <span className="text-gray-400 text-xs">
-                          You have: <span className={faucet.hasEnoughSlips ? 'text-green-400' : 'text-yellow-400'}>{faucet.oddysseySlipCount || 0} slips</span>
-                        </span>
+                  {/* Condition 4: Oddyssey Slips Requirement (CRITICAL) - Only show if not already claimed */}
+                  {!faucet.hasClaimed && (
+                    <div className="flex items-center justify-between p-3 bg-black/20 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        {faucet.hasEnoughSlips ? (
+                          <FaCheckCircle className="h-5 w-5 text-green-400" />
+                        ) : (
+                          <FaTimesCircle className="h-5 w-5 text-red-400" />
+                        )}
+                        <div className="flex flex-col">
+                          <span className="text-white">Minimum {faucet.minOddysseySlips || 2} Oddyssey Slips</span>
+                          <span className="text-gray-400 text-xs">
+                            You have: <span className={faucet.hasEnoughSlips ? 'text-green-400' : 'text-yellow-400'}>{faucet.oddysseySlipCount || 0} slips</span>
+                          </span>
+                        </div>
                       </div>
+                      <span className={`text-sm font-medium ${faucet.hasEnoughSlips ? 'text-green-400' : 'text-yellow-400'}`}>
+                        {faucet.hasEnoughSlips ? '✓ Met' : `✗ Need ${(faucet.minOddysseySlips || 2) - (faucet.oddysseySlipCount || 0)} more`}
+                      </span>
                     </div>
-                    <span className={`text-sm font-medium ${faucet.hasEnoughSlips ? 'text-green-400' : 'text-yellow-400'}`}>
-                      {faucet.hasEnoughSlips ? '✓ Met' : `✗ Need ${(faucet.minOddysseySlips || 2) - (faucet.oddysseySlipCount || 0)} more`}
-                    </span>
-                  </div>
+                  )}
                 </div>
 
                 {/* Eligibility Status Summary */}
@@ -373,22 +431,45 @@ export default function FaucetPage() {
                   <div className={`mt-4 p-4 rounded-lg ${
                     faucet.isEligible 
                       ? 'bg-green-500/20 border border-green-500/50' 
+                      : faucet.hasClaimed
+                      ? 'bg-blue-500/20 border border-blue-500/50'
                       : 'bg-yellow-500/20 border border-yellow-500/50'
                   }`}>
                     <div className="flex items-start gap-3">
                       {faucet.isEligible ? (
                         <FaCheckCircle className="h-5 w-5 text-green-400 mt-0.5" />
+                      ) : faucet.hasClaimed ? (
+                        <FaCheckCircle className="h-5 w-5 text-blue-400 mt-0.5" />
                       ) : (
                         <FaExclamationTriangle className="h-5 w-5 text-yellow-400 mt-0.5" />
                       )}
                       <div className="flex-1">
-                        <p className={`font-medium ${faucet.isEligible ? 'text-green-300' : 'text-yellow-300'}`}>
-                          {faucet.isEligible ? 'All Requirements Met!' : 'Eligibility Status'}
+                        <p className={`font-medium ${faucet.isEligible ? 'text-green-300' : faucet.hasClaimed ? 'text-blue-300' : 'text-yellow-300'}`}>
+                          {faucet.isEligible ? 'All Requirements Met!' : faucet.hasClaimed ? 'Already Claimed' : 'Eligibility Status'}
                         </p>
                         <p className="text-gray-300 text-sm mt-1">
                           {faucet.eligibilityReason}
                         </p>
-                        {!faucet.hasEnoughSlips && (
+                        {faucet.hasClaimed ? (
+                          <div className="mt-2 p-2 bg-black/20 rounded">
+                            <p className="text-xs text-gray-300">
+                              🎉 <strong>Congratulations!</strong> You&apos;ve claimed your BITR tokens. Now you can:
+                            </p>
+                            <ul className="text-xs text-gray-300 mt-2 ml-4 list-disc space-y-1">
+                              <li>Create prediction pools using your BITR tokens</li>
+                              <li>Stake your BITR to earn APY rewards and revenue sharing</li>
+                              <li>Participate in more Oddyssey predictions</li>
+                            </ul>
+                            <div className="flex gap-2 mt-3">
+                              <a href="/markets" className="text-xs px-3 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/50 rounded-lg text-blue-400 transition-colors">
+                                Create Pool →
+                              </a>
+                              <a href="/staking" className="text-xs px-3 py-1.5 bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/50 rounded-lg text-purple-400 transition-colors">
+                                Start Staking →
+                              </a>
+                            </div>
+                          </div>
+                        ) : !faucet.hasEnoughSlips && (
                           <div className="mt-2 p-2 bg-black/20 rounded">
                             <p className="text-xs text-gray-300">
                               💡 <strong>Tip:</strong> Participate in Oddyssey daily predictions to earn slips! 
@@ -618,6 +699,14 @@ export default function FaucetPage() {
             </motion.div>
           </div>
         </div>
+
+      {/* Transaction Feedback Modal */}
+      <TransactionFeedback
+        status={transactionStatus}
+        onClose={clearStatus}
+        autoClose={transactionStatus?.type === 'success'}
+        autoCloseDelay={5000}
+      />
     </motion.div>
   );
 }
