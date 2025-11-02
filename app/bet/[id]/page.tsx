@@ -121,7 +121,7 @@ export default function BetPage() {
 
 
 
-  // ✅ FIX: Add function to fetch comments
+  // ✅ FIX: Add function to fetch comments - includes author address for creator check
   const fetchComments = useCallback(async () => {
     if (!poolId) return;
     
@@ -141,6 +141,7 @@ export default function BetPage() {
             content: c.content || '',
             author: {
               username: c.user_address?.slice(0, 6) + '...' + c.user_address?.slice(-4) || 'Anonymous',
+              address: c.user_address || '', // ✅ FIX: Include address for creator check
               avatar: '/logo.png',
               reputation: c.reputation || 0,
               badges: c.user_badge ? [c.user_badge] : []
@@ -246,6 +247,7 @@ export default function BetPage() {
         category: poolData.category || "sports",
         homeTeam: poolData.homeTeam || '',
         awayTeam: poolData.awayTeam || '',
+        creatorAddress: poolData.creator.address, // ✅ FIX: Store creator address for creator check in comments
         creator: {
           address: poolData.creator.address,
           username: poolData.creator.username,
@@ -535,7 +537,11 @@ export default function BetPage() {
   }, [pool]);
 
   const handleAddComment = async () => {
-    if (!comment.trim() || submittingComment) return; // ✅ FIX: Removed hasUserBet check - allow all users to comment
+    if (!address) {
+      toast.error('Please connect your wallet to post comments');
+      return;
+    }
+    if (!comment.trim() || submittingComment) return; // ✅ FIX: Removed hasUserBet check - allow all users (including creators) to comment
     
     setSubmittingComment(true);
     
@@ -547,31 +553,38 @@ export default function BetPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          userAddress: address, // ✅ FIX: API expects userAddress (not user_address)
           content: comment,
           sentiment: commentSentiment,
-          confidence: commentConfidence,
-          userAddress: address
+          // Note: API doesn't accept confidence field, but we keep it for future use
         })
       });
       
       const data = await response.json();
       
       if (data.success) {
+        toast.success('Comment posted successfully!');
         setComment("");
         setCommentSentiment('neutral');
         setCommentConfidence(75);
         setShowCommentBox(false);
         fetchComments(); // ✅ FIX: Refresh comments after posting
+      } else {
+        toast.error(data.error || 'Failed to post comment');
       }
     } catch (error: unknown) {
       console.error('Error adding comment:', error);
+      toast.error('Failed to post comment. Please try again.');
     } finally {
       setSubmittingComment(false);
     }
   };
 
   const handleLikeComment = async (commentId: string) => {
-    if (!address) return;
+    if (!address) {
+      toast.error('Please connect your wallet to like comments');
+      return;
+    }
     
     try {
       // ✅ FIX: Use correct API endpoint /api/social/pools instead of /api/pools
@@ -584,10 +597,18 @@ export default function BetPage() {
       });
       
       if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          toast.success('Comment liked!');
+        }
         fetchComments(); // ✅ FIX: Refresh comments after liking
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.error || 'Failed to like comment');
       }
     } catch (error: unknown) {
       console.error('Error liking comment:', error);
+      toast.error('Failed to like comment. Please try again.');
     }
   };
 
@@ -690,83 +711,99 @@ export default function BetPage() {
   };
 
   const renderComment = (comment: Comment): React.JSX.Element => {
+  const isCreator = pool?.creatorAddress && comment.author.address?.toLowerCase() === pool.creatorAddress.toLowerCase();
+  
   return (
-      <div key={comment.id} className="p-4 bg-gray-800/30 rounded-lg border border-gray-700/30">
-        <div className="flex items-start gap-3">
-          <div className="w-8 h-8 bg-gradient-to-br from-cyan-500/20 to-blue-500/20 rounded-full flex items-center justify-center">
-            <span className="text-xs font-bold text-cyan-400">
-              {(comment.author.username || 'U').charAt(0).toUpperCase()}
+      <div key={comment.id} className="p-5 bg-gray-900/70 backdrop-blur-md rounded-xl border border-gray-700/50 shadow-lg hover:border-gray-600/50 transition-all duration-200">
+        <div className="flex items-start gap-4">
+          <div className={`w-10 h-10 ${isCreator ? 'bg-gradient-to-br from-purple-500/30 to-pink-500/30 border-2 border-purple-500/50' : 'bg-gradient-to-br from-cyan-500/30 to-blue-500/30 border border-cyan-500/50'} rounded-full flex items-center justify-center shadow-md`}>
+            <span className={`text-sm font-bold ${isCreator ? 'text-purple-300' : 'text-cyan-300'}`}>
+              {(comment.author.username || comment.author.address?.slice(0, 2) || 'U').toUpperCase()}
             </span>
           </div>
           
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="font-semibold text-white">{comment.author.username}</span>
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <span className={`font-semibold ${isCreator ? 'text-purple-300' : 'text-white'}`}>
+                {comment.author.username || comment.author.address?.slice(0, 6) + '...' || 'Anonymous'}
+              </span>
+              
+              {isCreator && (
+                <div className="px-2 py-1 bg-gradient-to-r from-purple-500/30 to-pink-500/30 text-purple-300 rounded-full text-xs font-semibold border border-purple-500/50 shadow-md">
+                  Pool Creator
+                </div>
+              )}
               
               {comment.isVerifiedBetter && (
-                <div className="px-2 py-1 bg-green-500/20 text-green-400 rounded-full text-xs">
-                  Verified Better
-            </div>
+                <div className="px-2 py-1 bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 rounded-full text-xs font-semibold border border-green-500/30 shadow-md">
+                  Verified Bettor
+                </div>
               )}
 
-              {comment.author.badges.map((badge: string, index: number) => (
-                <div key={index} className={`px-2 py-1 rounded-full text-xs font-bold text-black ${getBadgeColor(badge)}`}>
+              {comment.author.badges && comment.author.badges.length > 0 && comment.author.badges.map((badge: string, index: number) => (
+                <div key={index} className={`px-2 py-1 rounded-full text-xs font-bold text-black ${getBadgeColor(badge)} shadow-md`}>
                   {badge.replace('_', ' ')}
                 </div>
               ))}
               
               {comment.sentiment && (
-                <div className={`flex items-center gap-1 text-xs ${getSentimentColor(comment.sentiment)}`}>
+                <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getSentimentColor(comment.sentiment)} bg-gray-800/50 border border-gray-700/50`}>
                   {getSentimentIcon(comment.sentiment)}
-                  {comment.sentiment}
+                  {comment.sentiment.charAt(0).toUpperCase() + comment.sentiment.slice(1)}
                 </div>
               )}
 
               {comment.confidence && (
-                <span className="text-xs text-gray-400">{comment.confidence}% confident</span>
+                <span className="text-xs text-gray-300 font-medium px-2 py-1 bg-gray-800/50 rounded-full border border-gray-700/50">
+                  {comment.confidence}% confident
+                </span>
               )}
-              <span className="text-xs text-gray-400">
-                {new Date(comment.createdAt).toLocaleDateString()}
+              <span className="text-xs text-gray-400 font-medium">
+                {new Date(comment.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
               </span>
             </div>
 
-            <p className="text-gray-300 mb-3">{comment.content}</p>
+            <p className="text-gray-200 mb-4 leading-relaxed whitespace-pre-wrap break-words">{comment.content}</p>
             
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 pt-3 border-t border-gray-700/50">
               <button
-                onClick={() => handleLikeComment(comment.id)}
-                className={`flex items-center gap-1 text-sm ${
-                  comment.hasUserLiked ? 'text-green-400' : 'text-gray-400 hover:text-green-400'
+                onClick={() => handleLikeComment(comment.id.toString())}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  comment.hasUserLiked 
+                    ? 'text-green-400 bg-green-500/20 border border-green-500/30 shadow-md' 
+                    : 'text-gray-300 hover:text-green-400 hover:bg-green-500/10 border border-transparent hover:border-green-500/20'
                 }`}
               >
                 <ThumbUpSolid className="w-4 h-4" />
-                {comment.likes}
+                <span className="font-semibold">{comment.likes || 0}</span>
               </button>
               
               <button
-                className={`flex items-center gap-1 text-sm ${
-                  comment.hasUserDisliked ? 'text-red-400' : 'text-gray-400 hover:text-red-400'
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                  comment.hasUserDisliked 
+                    ? 'text-red-400 bg-red-500/20 border border-red-500/30 shadow-md' 
+                    : 'text-gray-300 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20'
                 }`}
               >
                 <ThumbDownSolid className="w-4 h-4" />
-                {comment.dislikes}
+                <span className="font-semibold">{comment.dislikes || 0}</span>
               </button>
               
-              <button className="flex items-center gap-1 text-sm text-gray-400 hover:text-white">
+              <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-gray-300 hover:text-white hover:bg-gray-800/50 border border-transparent hover:border-gray-700/50 transition-all duration-200">
                 <ChatBubbleLeftRightIcon className="w-4 h-4" />
-                Reply
+                <span>Reply</span>
               </button>
             </div>
             
             {/* Replies */}
-            {comment.replies.length > 0 && (
-              <div className="mt-4 space-y-3 pl-4 border-l-2 border-gray-700/30">
+            {comment.replies && comment.replies.length > 0 && (
+              <div className="mt-4 space-y-3 pl-6 border-l-2 border-gray-700/50">
                 {comment.replies.map((reply) => renderComment(reply))}
               </div>
             )}
-                    </div>
-                  </div>
-                </div>
+          </div>
+        </div>
+      </div>
     );
   };
 
@@ -1583,115 +1620,121 @@ export default function BetPage() {
 
 
 
-        {/* Comments Section */}
-        <div className="glass-card space-y-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xl font-bold text-white">Discussion</h3>
-            <div className="text-sm text-gray-400">
-              {hasUserBet ? 'Share your thoughts' : 'Join the discussion'}
-                </div>
+        {/* Comments Section - Dark Glassmorphism Style */}
+        <div className="bg-gradient-to-br from-gray-900/80 via-gray-800/80 to-gray-900/80 backdrop-blur-xl rounded-2xl border border-gray-700/50 shadow-2xl shadow-black/30 p-6 space-y-6">
+          <div className="flex items-center justify-between border-b border-gray-700/50 pb-4">
+            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+              <ChatBubbleLeftRightIcon className="w-6 h-6 text-cyan-400" />
+              Discussion
+            </h3>
+            <div className="text-sm text-gray-300">
+              {address ? 'Share your thoughts' : 'Join the discussion'}
+            </div>
           </div>
 
-          {/* Add Comment */}
-          {/* ✅ FIX: Allow all users to comment, not just bettors */}
+          {/* Add Comment - ✅ FIX: Allow all users (including creators) to comment */}
           <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setShowCommentBox(!showCommentBox)}
-                  className="flex items-center gap-2 px-4 py-2 bg-cyan-500/20 text-cyan-400 rounded-lg hover:bg-cyan-500/30 transition-colors"
-                >
-                  <ChatBubbleOvalLeftIcon className="w-4 h-4" />
-                  Add Comment
-                </button>
-                {userBetAmount > 0 && (
-                  <div className="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-sm">
-                    Verified Better • {(() => {
-                      // ✅ FIX: Format bet amount properly to avoid scientific notation
-                      const amount = userBetAmount;
-                      if (amount >= 1000000) {
-                        return `${(amount / 1000000).toFixed(2)}M`;
-                      } else if (amount >= 1000) {
-                        return `${(amount / 1000).toFixed(2)}K`;
-                      } else {
-                        return amount.toLocaleString('en-US', { maximumFractionDigits: 2 });
-                      }
-                    })()} {pool.currency}
-                    </div>
-                )}
-                    </div>
-
-              {showCommentBox && (
-                <div className="p-4 bg-bg-card/50 rounded-lg border border-border-card/30 space-y-4 backdrop-blur-sm">
-                  <textarea
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    placeholder="Share your analysis and reasoning..."
-                    className="w-full px-4 py-3 bg-bg-card border border-border-input rounded-lg text-white focus:outline-none focus:border-primary/50 resize-none backdrop-blur-sm"
-                    rows={3}
-                  />
-
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-400">Sentiment:</span>
-                      <select
-                        value={commentSentiment}
-                        onChange={(e) => setCommentSentiment(e.target.value as 'bullish' | 'bearish' | 'neutral')}
-                        className="px-3 py-1 bg-bg-card border border-border-input rounded text-white text-sm backdrop-blur-sm"
-                      >
-                        <option value="bullish">Bullish</option>
-                        <option value="neutral">Neutral</option>
-                        <option value="bearish">Bearish</option>
-                      </select>
-                  </div>
-
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-400">Confidence:</span>
-                    <input
-                        type="range"
-                        min="1"
-                        max="100"
-                        value={commentConfidence}
-                        onChange={(e) => setCommentConfidence(parseInt(e.target.value))}
-                        className="w-20"
-                      />
-                      <span className="text-sm text-white">{commentConfidence}%</span>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end gap-2">
-                    <button
-                      onClick={() => setShowCommentBox(false)}
-                      className="px-4 py-2 text-gray-400 hover:text-white"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleAddComment}
-                      disabled={!comment.trim() || submittingComment}
-                      className="px-4 py-2 bg-primary text-black rounded-lg hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                    >
-                      {submittingComment ? (
-                        <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-                      ) : (
-                        <PaperAirplaneIcon className="w-4 h-4" />
-                      )}
-                      Post Comment
-                    </button>
-                    </div>
-                    </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowCommentBox(!showCommentBox)}
+                className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 text-cyan-400 rounded-lg transition-all duration-200 border border-cyan-500/30 hover:border-cyan-500/50 shadow-lg shadow-cyan-500/10"
+              >
+                <ChatBubbleOvalLeftIcon className="w-5 h-5" />
+                Add Comment
+              </button>
+              {userBetAmount > 0 && (
+                <div className="px-3 py-1.5 bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-400 rounded-full text-sm font-semibold border border-green-500/30 shadow-md">
+                  Verified Bettor • {(() => {
+                    const amount = userBetAmount;
+                    if (amount >= 1000000) {
+                      return `${(amount / 1000000).toFixed(2)}M`;
+                    } else if (amount >= 1000) {
+                      return `${(amount / 1000).toFixed(2)}K`;
+                    } else {
+                      return amount.toLocaleString('en-US', { maximumFractionDigits: 2 });
+                    }
+                  })()} {pool.currency}
+                </div>
               )}
+              {address && pool?.creatorAddress && address.toLowerCase() === pool.creatorAddress.toLowerCase() && (
+                <div className="px-3 py-1.5 bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-400 rounded-full text-sm font-semibold border border-purple-500/30 shadow-md">
+                  Pool Creator
+                </div>
+              )}
+            </div>
+
+            {showCommentBox && (
+              <div className="p-5 bg-gray-900/60 backdrop-blur-md rounded-xl border border-gray-700/50 space-y-4 shadow-inner">
+                <textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder="Share your analysis and reasoning..."
+                  className="w-full px-4 py-3 bg-gray-900/80 border border-gray-700/50 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 resize-none backdrop-blur-sm transition-all duration-200"
+                  rows={4}
+                />
+
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-300 font-medium">Sentiment:</span>
+                    <select
+                      value={commentSentiment}
+                      onChange={(e) => setCommentSentiment(e.target.value as 'bullish' | 'bearish' | 'neutral')}
+                      className="px-3 py-2 bg-gray-900/80 border border-gray-700/50 rounded-lg text-white text-sm backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 transition-all duration-200"
+                    >
+                      <option value="bullish" className="bg-gray-800">Bullish</option>
+                      <option value="neutral" className="bg-gray-800">Neutral</option>
+                      <option value="bearish" className="bg-gray-800">Bearish</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-300 font-medium">Confidence:</span>
+                    <input
+                      type="range"
+                      min="1"
+                      max="100"
+                      value={commentConfidence}
+                      onChange={(e) => setCommentConfidence(parseInt(e.target.value))}
+                      className="w-24 accent-cyan-500"
+                    />
+                    <span className="text-sm text-white font-semibold min-w-[3rem]">{commentConfidence}%</span>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={() => setShowCommentBox(false)}
+                    className="px-4 py-2 text-gray-400 hover:text-white transition-colors duration-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleAddComment}
+                    disabled={!comment.trim() || submittingComment}
+                    className="px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white rounded-lg hover:shadow-lg hover:shadow-cyan-500/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 transition-all duration-200 font-semibold"
+                  >
+                    {submittingComment ? (
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <PaperAirplaneIcon className="w-4 h-4" />
+                    )}
+                    Post Comment
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Comments List */}
           <div className="space-y-4">
             {comments.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">
-                <ChatBubbleOvalLeftIcon className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <p>No comments yet. Be the first to share your analysis!</p>
-                </div>
+              <div className="text-center py-12 text-gray-400">
+                <ChatBubbleOvalLeftIcon className="w-12 h-12 mx-auto mb-3 opacity-50 text-gray-600" />
+                <p className="text-gray-500">No comments yet. Be the first to share your analysis!</p>
+              </div>
             ) : (
               comments.map(renderComment)
-              )}
+            )}
           </div>
         </div>
         </div>

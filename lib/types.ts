@@ -26,6 +26,7 @@ export interface Pool {
   category: string;
   homeTeam?: string;
   awayTeam?: string;
+  creatorAddress?: string; // ✅ FIX: Store creator address for creator check in comments
   creator: Creator;
   challengeScore: number;
   qualityScore?: number;
@@ -89,6 +90,7 @@ export interface CommentAuthor {
   username: string;
   badges: string[];
   avatar?: string;
+  reputation?: number; // ✅ FIX: Add reputation field for API response
 }
 
 export interface Comment {
