@@ -292,20 +292,25 @@ export default function FaucetPage() {
                   Eligibility Requirements
                 </h3>
                 <div className="space-y-3">
-                  {/* Condition 1: Faucet Active */}
-                  <div className="flex items-center justify-between p-3 bg-black/20 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      {faucet.isActive ? (
-                        <FaCheckCircle className="h-5 w-5 text-green-400" />
-                      ) : (
-                        <FaTimesCircle className="h-5 w-5 text-red-400" />
-                      )}
-                      <span className="text-white">Faucet is Active</span>
-                    </div>
-                    <span className={`text-sm font-medium ${faucet.isActive ? 'text-green-400' : 'text-red-400'}`}>
-                      {faucet.isActive ? '✓ Active' : '✗ Inactive'}
-                    </span>
-                  </div>
+                  {/* Condition 1: Faucet Active - Use fallback logic like other sections */}
+                  {(() => {
+                    const isActive = faucet.isActive || backendFaucetData?.faucet?.active;
+                    return (
+                      <div className="flex items-center justify-between p-3 bg-black/20 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          {isActive ? (
+                            <FaCheckCircle className="h-5 w-5 text-green-400" />
+                          ) : (
+                            <FaTimesCircle className="h-5 w-5 text-red-400" />
+                          )}
+                          <span className="text-white">Faucet is Active</span>
+                        </div>
+                        <span className={`text-sm font-medium ${isActive ? 'text-green-400' : 'text-red-400'}`}>
+                          {isActive ? '✓ Active' : '✗ Inactive'}
+                        </span>
+                      </div>
+                    );
+                  })()}
 
                   {/* Condition 2: Not Already Claimed */}
                   <div className="flex items-center justify-between p-3 bg-black/20 rounded-lg">
@@ -322,20 +327,25 @@ export default function FaucetPage() {
                     </span>
                   </div>
 
-                  {/* Condition 3: Faucet Has Balance */}
-                  <div className="flex items-center justify-between p-3 bg-black/20 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      {faucet.hasSufficientBalance ? (
-                        <FaCheckCircle className="h-5 w-5 text-green-400" />
-                      ) : (
-                        <FaTimesCircle className="h-5 w-5 text-red-400" />
-                      )}
-                      <span className="text-white">Faucet Has Sufficient Balance</span>
-                    </div>
-                    <span className={`text-sm font-medium ${faucet.hasSufficientBalance ? 'text-green-400' : 'text-red-400'}`}>
-                      {faucet.hasSufficientBalance ? '✓ Available' : '✗ Empty'}
-                    </span>
-                  </div>
+                  {/* Condition 3: Faucet Has Balance - Use fallback logic */}
+                  {(() => {
+                    const hasBalance = faucet.hasSufficientBalance || backendFaucetData?.faucet?.hasSufficientBalance;
+                    return (
+                      <div className="flex items-center justify-between p-3 bg-black/20 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          {hasBalance ? (
+                            <FaCheckCircle className="h-5 w-5 text-green-400" />
+                          ) : (
+                            <FaTimesCircle className="h-5 w-5 text-red-400" />
+                          )}
+                          <span className="text-white">Faucet Has Sufficient Balance</span>
+                        </div>
+                        <span className={`text-sm font-medium ${hasBalance ? 'text-green-400' : 'text-red-400'}`}>
+                          {hasBalance ? '✓ Available' : '✗ Empty'}
+                        </span>
+                      </div>
+                    );
+                  })()}
 
                   {/* Condition 4: Oddyssey Slips Requirement (CRITICAL) */}
                   <div className="flex items-center justify-between p-3 bg-black/20 rounded-lg">
