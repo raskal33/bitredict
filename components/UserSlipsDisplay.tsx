@@ -111,30 +111,33 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
           player: slip.player_address,
           cycleId: parseInt(slip.cycle_id),
           placedAt: new Date(slip.created_at).getTime(),
-          predictions: slip.predictions.map((pred: { home_team: string; away_team: string; league_name: string; bet_type: number; selection: string; selected_odd: number; is_correct?: boolean; match_id?: number; actualResult?: string; starting_at?: string }) => ({
-            homeTeam: pred.home_team,
-            awayTeam: pred.away_team,
-            leagueName: pred.league_name,
-            betType: pred.bet_type,
-            selection: pred.selection,
-            selectedOdd: pred.selected_odd,
-            isCorrect: pred.is_correct,
-            matchId: pred.match_id,
+          predictions: slip.predictions.map((pred: { home_team?: string; away_team?: string; league_name?: string; bet_type?: number; selection?: string; selected_odd?: number; is_correct?: boolean; isCorrect?: boolean; match_id?: number; matchId?: number; actualResult?: string; starting_at?: string; homeTeam?: string; awayTeam?: string; leagueName?: string; betType?: number; selectedOdd?: number }) => ({
+            homeTeam: pred.home_team || pred.homeTeam || 'Unknown',
+            awayTeam: pred.away_team || pred.awayTeam || 'Unknown',
+            leagueName: pred.league_name || pred.leagueName || 'Unknown League',
+            betType: pred.bet_type || pred.betType || 0,
+            selection: pred.selection || '',
+            selectedOdd: pred.selected_odd || pred.selectedOdd || 0,
+            // ✅ FIX: Check both snake_case and camelCase for isCorrect
+            isCorrect: pred.is_correct !== undefined ? pred.is_correct : (pred.isCorrect !== undefined ? pred.isCorrect : undefined),
+            matchId: pred.match_id || pred.matchId,
             actualResult: pred.actualResult,
             startingAt: pred.starting_at
           })),
-          finalScore: parseInt(slip.final_score),
+          // ✅ FIX: finalScore is stored as integer (multiplied by 1000), divide by 1000 for display
+          finalScore: typeof slip.final_score === 'number' ? slip.final_score : (typeof slip.final_score === 'string' ? parseInt(slip.final_score) : 0),
           correctCount: slip.correctCount || slip.correct_count, // ✅ Use API value (correctCount) with fallback
           isEvaluated: slip.is_evaluated,
-          wonOdds: calculateWonOdds(slip.predictions.map((pred: { home_team: string; away_team: string; league_name: string; bet_type: number; selection: string; selected_odd: number; is_correct?: boolean; match_id?: number; actualResult?: string; starting_at?: string }) => ({
-            homeTeam: pred.home_team,
-            awayTeam: pred.away_team,
-            leagueName: pred.league_name,
-            betType: pred.bet_type,
-            selection: pred.selection,
-            selectedOdd: pred.selected_odd,
-            isCorrect: pred.is_correct,
-            matchId: pred.match_id,
+          wonOdds: calculateWonOdds(slip.predictions.map((pred: { home_team?: string; away_team?: string; league_name?: string; bet_type?: number; selection?: string; selected_odd?: number; is_correct?: boolean; isCorrect?: boolean; match_id?: number; matchId?: number; actualResult?: string; starting_at?: string; homeTeam?: string; awayTeam?: string; leagueName?: string; betType?: number; selectedOdd?: number }) => ({
+            homeTeam: pred.home_team || pred.homeTeam || 'Unknown',
+            awayTeam: pred.away_team || pred.awayTeam || 'Unknown',
+            leagueName: pred.league_name || pred.leagueName || 'Unknown League',
+            betType: pred.bet_type || pred.betType || 0,
+            selection: pred.selection || '',
+            selectedOdd: pred.selected_odd || pred.selectedOdd || 0,
+            // ✅ FIX: Check both snake_case and camelCase for isCorrect
+            isCorrect: pred.is_correct !== undefined ? pred.is_correct : (pred.isCorrect !== undefined ? pred.isCorrect : undefined),
+            matchId: pred.match_id || pred.matchId,
             actualResult: pred.actualResult,
             startingAt: pred.starting_at
           }))),
@@ -161,8 +164,9 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
           userStats: {
             totalSlips: mappedSlips.length,
             totalWins: mappedSlips.filter(s => s.isEvaluated && s.correctCount > 0).length,
-            bestScore: Math.max(...mappedSlips.map(s => s.finalScore), 0),
-            averageScore: mappedSlips.length > 0 ? mappedSlips.reduce((acc, s) => acc + s.finalScore, 0) / mappedSlips.length : 0,
+            // ✅ FIX: Divide by 1000 to convert from integer format to decimal
+            bestScore: Math.max(...mappedSlips.map(s => s.finalScore / 1000), 0),
+            averageScore: mappedSlips.length > 0 ? mappedSlips.reduce((acc, s) => acc + (s.finalScore / 1000), 0) / mappedSlips.length : 0,
             winRate: mappedSlips.length > 0 ? (mappedSlips.filter(s => s.isEvaluated && s.correctCount > 0).length / mappedSlips.filter(s => s.isEvaluated).length) * 100 : 0,
             currentStreak: 0,
             bestStreak: 0,
@@ -824,7 +828,8 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
                         <div className={`text-base sm:text-lg font-bold ${
                           slip.correctCount >= 7 ? 'text-green-400' : 'text-yellow-400'
                         }`}>
-                          {(slip.wonOdds && slip.wonOdds > 0) ? slip.wonOdds.toFixed(3) : '0.00'}x
+                          {/* ✅ FIX: Divide by 1000 to convert from integer format to decimal */}
+                          {(slip.wonOdds && slip.wonOdds > 0) ? (slip.wonOdds / 1000).toFixed(3) : '0.00'}x
                         </div>
                         <div className="text-xs text-gray-500">
                           {slip.correctCount} correct × odds

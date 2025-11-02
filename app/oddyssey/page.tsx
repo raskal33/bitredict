@@ -276,6 +276,8 @@ export default function OddysseyPage() {
             };
           }),
           finalScore: slip.finalScore,
+          // ✅ FIX: Divide by 1000 to convert from integer format to decimal for display
+          finalScoreDisplay: typeof slip.finalScore === 'number' ? (slip.finalScore / 1000).toFixed(2) : '0.00',
           correctCount: slip.correctCount,
           isEvaluated: slip.isEvaluated,
           status: slip.isEvaluated ? (slip.correctCount >= 7 ? 'won' : 'lost') : 'pending' as 'pending' | 'evaluated' | 'won' | 'lost',

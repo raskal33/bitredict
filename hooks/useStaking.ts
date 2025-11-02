@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { CONTRACTS } from '@/contracts';
 import { formatUnits, parseUnits } from 'viem';
@@ -86,14 +86,14 @@ export function useStaking() {
     ...CONTRACTS.BITREDICT_STAKING,
     functionName: 'pendingRevenueBITR',
     args: address ? [address] : undefined,
-    query: { enabled: !!address }
+    query: { enabled: !!address, refetchInterval: 30000 } // ✅ FIX: Add polling for revenue share
   });
 
   const { data: pendingRevenueSTT, refetch: refetchRevenueSTT } = useReadContract({
     ...CONTRACTS.BITREDICT_STAKING,
     functionName: 'pendingRevenueSTT',
     args: address ? [address] : undefined,
-    query: { enabled: !!address }
+    query: { enabled: !!address, refetchInterval: 30000 } // ✅ FIX: Add polling for revenue share
   });
 
   // Calculate pending rewards for a specific stake
@@ -167,6 +167,14 @@ export function useStaking() {
 
   // Write contract functions
   const stake = async (amount: string, tierId: number, durationOption: DurationOption) => {
+    // ✅ FIX: Validate inputs before proceeding
+    if (!amount || parseFloat(amount) <= 0) {
+      throw new Error('Invalid stake amount');
+    }
+    if (typeof tierId !== 'number' || tierId < 0) {
+      throw new Error('Invalid tier ID');
+    }
+    
     setIsStaking(true);
     try {
       const stakeAmount = parseUnits(amount, 18);
@@ -176,12 +184,18 @@ export function useStaking() {
         args: [stakeAmount, BigInt(tierId), BigInt(durationOption)],
       });
     } catch (error) {
+      console.error('Error in stake:', error);
       setIsStaking(false);
       throw error;
     }
   };
 
   const claimStakeRewards = async (stakeIndex: number) => {
+    // ✅ FIX: Validate stake index before proceeding
+    if (typeof stakeIndex !== 'number' || stakeIndex < 0) {
+      throw new Error('Invalid stake index');
+    }
+    
     setClaimingStakeIndex(stakeIndex);
     
     try {
@@ -200,6 +214,11 @@ export function useStaking() {
   };
 
   const unstakeSpecific = async (stakeIndex: number) => {
+    // ✅ FIX: Validate stake index before proceeding
+    if (typeof stakeIndex !== 'number' || stakeIndex < 0) {
+      throw new Error('Invalid stake index');
+    }
+    
     setUnstakingStakeIndex(stakeIndex);
     try {
       writeContract({
@@ -208,6 +227,7 @@ export function useStaking() {
         args: [BigInt(stakeIndex)],
       });
     } catch (error) {
+      console.error('Error in unstakeSpecific:', error);
       setUnstakingStakeIndex(null);
       throw error;
     }
@@ -218,10 +238,11 @@ export function useStaking() {
     try {
       writeContract({
         ...CONTRACTS.BITREDICT_STAKING,
-        functionName: 'claimRevenueShare',
+        functionName: 'claimRevenue', // ✅ FIX: Contract function is 'claimRevenue', not 'claimRevenueShare'
         args: [],
       });
     } catch (error) {
+      console.error('Error in claimRevenueShare:', error);
       setIsClaimingRevenue(false);
       throw error;
     }
@@ -490,24 +511,41 @@ export function useStaking() {
     return amountWei >= tier.minStake;
   };
 
-  // Reset transaction states when transaction completes
+  // ✅ FIX: Use useCallback to make refetchAll stable and prevent infinite loops
+  const refetchAll = useCallback(() => {
+    try {
+      refetchTotalStaked();
+      refetchTiers();
+      refetchUserStakes();
+      refetchRevenueBITR();
+      refetchRevenueSTT();
+    } catch (error) {
+      console.error('Error in refetchAll:', error);
+    }
+  }, [refetchTotalStaked, refetchTiers, refetchUserStakes, refetchRevenueBITR, refetchRevenueSTT]);
+
+  // ✅ FIX: Reset transaction states when transaction completes with proper cleanup
   useEffect(() => {
     if (isConfirmed) {
+      // Reset state flags first
       setClaimingStakeIndex(null);
       setUnstakingStakeIndex(null);
       setIsClaimingRevenue(false);
       setIsStaking(false);
-      refetchAll();
+      
+      // ✅ FIX: Delay refetch to avoid React error #185 (hydration mismatch)
+      // This prevents state updates during render cycle
+      const timeoutId = setTimeout(() => {
+        try {
+          refetchAll();
+        } catch (error) {
+          console.error('Error refetching staking data:', error);
+        }
+      }, 100); // Small delay to allow React to finish current render cycle
+      
+      return () => clearTimeout(timeoutId);
     }
-  }, [isConfirmed]);
-
-  const refetchAll = () => {
-    refetchTotalStaked();
-    refetchTiers();
-    refetchUserStakes();
-    refetchRevenueBITR();
-    refetchRevenueSTT();
-  };
+  }, [isConfirmed, refetchAll]);
 
   return {
     // Contract data
@@ -528,7 +566,11 @@ export function useStaking() {
     
     // Revenue sharing
     pendingRevenueBITR: formatReward(pendingRevenueBITR as bigint),
-          pendingRevenueSTT: formatReward(pendingRevenueSTT as bigint),
+    pendingRevenueSTT: formatReward(pendingRevenueSTT as bigint),
+    
+    // ✅ FIX: Add raw values for debugging
+    pendingRevenueBITR_raw: pendingRevenueBITR as bigint | undefined,
+    pendingRevenueSTT_raw: pendingRevenueSTT as bigint | undefined,
     
     // Actions
     stake,

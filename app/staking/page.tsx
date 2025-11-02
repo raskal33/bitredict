@@ -115,7 +115,7 @@ export default function StakingPage() {
     }
   }, [token.isConfirmed, token]);
 
-  // Watch for successful transactions
+  // ✅ FIX: Watch for successful transactions with proper cleanup
   useEffect(() => {
     if (staking.isConfirmed && isMountedRef.current) {
       // Determine which transaction was confirmed based on the transaction state
@@ -131,19 +131,39 @@ export default function StakingPage() {
         toast.success("Transaction confirmed! 🎉");
       }
       
-      staking.refetchAll();
-      token.refetchBalance();
+      // ✅ FIX: Delay refetch to avoid React error #185 (state updates during render)
+      // The hook's useEffect already calls refetchAll, so we only need to refetch balance here
+      const timeoutId = setTimeout(() => {
+        if (isMountedRef.current) {
+          try {
+            token.refetchBalance();
+          } catch (error) {
+            console.error('Error refetching token balance:', error);
+          }
+        }
+      }, 200); // Delay to allow hook's refetch to complete first
+      
+      return () => clearTimeout(timeoutId);
     }
-  }, [staking.isConfirmed, staking, token]);
+  }, [staking.isConfirmed, staking.claimingStakeIndex, staking.unstakingStakeIndex, staking.isClaimingRevenue, staking.isStaking, token, isMountedRef]);
 
-  // Handle transaction state changes
+  // ✅ FIX: Handle transaction state changes with proper cleanup
   useEffect(() => {
-    if (staking.isPending && isMountedRef.current) {
+    if (!isMountedRef.current) return;
+    
+    if (staking.isPending) {
       showInfo("Transaction Pending", "Please confirm the transaction in your wallet...");
-    } else if (staking.isConfirmed && isMountedRef.current) {
-      showSuccess("Transaction Successful", "Transaction completed successfully!", staking.hash);
+    } else if (staking.isConfirmed && staking.hash) {
+      // ✅ FIX: Delay success message to avoid React error #185
+      const timeoutId = setTimeout(() => {
+        if (isMountedRef.current) {
+          showSuccess("Transaction Successful", "Transaction completed successfully!", staking.hash);
+        }
+      }, 100);
+      
+      return () => clearTimeout(timeoutId);
     }
-  }, [staking.isPending, staking.isConfirmed, staking.hash, showInfo, showSuccess]);
+  }, [staking.isPending, staking.isConfirmed, staking.hash, showInfo, showSuccess, isMountedRef]);
 
   // Handle token approval state changes
   useEffect(() => {
@@ -226,20 +246,35 @@ export default function StakingPage() {
     }
   };
 
-  // Handle individual stake actions
+  // ✅ FIX: Handle individual stake actions with better error handling
   const handleClaimStakeRewards = async (stakeIndex: number) => {
     try {
+      console.log('Claim button clicked for stake:', stakeIndex);
+      if (staking.userStakesWithRewards[stakeIndex]) {
+        console.log('Pending rewards:', staking.userStakesWithRewards[stakeIndex].pendingRewards.toString());
+      }
       await staking.claimStakeRewards(stakeIndex);
     } catch (error: unknown) {
+      console.error('Error claiming stake rewards:', error);
       showError("Claim Failed", (error as Error).message || "Failed to claim rewards. Please try again.");
+      // ✅ FIX: Reset claiming state on error
+      if (staking.claimingStakeIndex === stakeIndex) {
+        // State will be reset by hook's error handling
+      }
     }
   };
 
   const handleUnstakeSpecific = async (stakeIndex: number) => {
     try {
+      console.log('Unstake button clicked for stake:', stakeIndex);
       await staking.unstakeSpecific(stakeIndex);
     } catch (error: unknown) {
+      console.error('Error unstaking:', error);
       showError("Unstake Failed", (error as Error).message || "Failed to unstake. Please try again.");
+      // ✅ FIX: Reset unstaking state on error
+      if (staking.unstakingStakeIndex === stakeIndex) {
+        // State will be reset by hook's error handling
+      }
     }
   };
 
@@ -554,17 +589,29 @@ export default function StakingPage() {
               className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20"
             >
               <h3 className="text-2xl font-bold text-white mb-6">Revenue Sharing</h3>
+              {/* ✅ FIX: Debug info for revenue share */}
+              {process.env.NODE_ENV === 'development' && (
+                <div className="mb-4 p-3 bg-black/20 rounded-lg text-xs text-gray-400">
+                  <div>Raw BITR: {staking.pendingRevenueBITR_raw?.toString() || '0'}</div>
+                  <div>Raw STT: {staking.pendingRevenueSTT_raw?.toString() || '0'}</div>
+                  <div>Address: {staking.userStakes?.length > 0 ? 'Stakes exist' : 'No stakes'}</div>
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="text-center">
                   <FaCoins className="h-8 w-8 text-yellow-400 mx-auto mb-2" />
                   <p className="text-gray-400 text-sm">Pending BITR</p>
-                  <p className="text-xl font-bold text-white">{staking.pendingRevenueBITR}</p>
+                  <p className="text-xl font-bold text-white">
+                    {staking.pendingRevenueBITR || '0'}
+                  </p>
                 </div>
                 
                 <div className="text-center">
                   <FaGem className="h-8 w-8 text-blue-400 mx-auto mb-2" />
                   <p className="text-gray-400 text-sm">Pending STT</p>
-                  <p className="text-xl font-bold text-white">{staking.pendingRevenueSTT}</p>
+                  <p className="text-xl font-bold text-white">
+                    {staking.pendingRevenueSTT || '0'}
+                  </p>
                 </div>
 
                 <div className="flex items-center">

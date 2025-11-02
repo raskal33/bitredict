@@ -528,7 +528,7 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
                           {slip.correctCount}/{slip.predictions.length} correct
                         </div>
                         <div className="text-xs text-gray-400">
-                          Score: {slip.finalScore}
+                          Score: {(slip.finalScore / 1000).toFixed(2)}x
                         </div>
                       </div>
                       
@@ -685,8 +685,8 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
                                   <div className="text-xs text-gray-400 font-medium">Evaluation</div>
                                   <div className="space-y-2">
                                     {(() => {
-                                      // FIXED: Check if slip is already evaluated first
-                                      // If evaluated, use isCorrect from prediction directly
+                                      // ✅ FIX: For evaluated slips, use isCorrect from prediction directly
+                                      // Backend API returns isCorrect in enriched predictions
                                       if (slip.isEvaluated && prediction.isCorrect !== undefined && prediction.isCorrect !== null) {
                                         console.log(`✅ Using evaluated data for slip ${slip.id}, prediction isCorrect=${prediction.isCorrect}`);
                                         return (
@@ -715,7 +715,7 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
                                         const livePred = livePreds.find((p) => String(p.matchId) === String(prediction.matchId));
                                         
                                         if (livePred) {
-                                          // Check if match has finished
+                                          // ✅ FIX: Check if match has finished - use isCorrect from live evaluation
                                           if (livePred.status === 'FINISHED' && livePred.isCorrect !== null && livePred.isCorrect !== undefined) {
                                             isCorrect = livePred.isCorrect;
                                             matchStatus = 'finished';
@@ -725,6 +725,12 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
                                             matchStatus = 'pending';
                                           }
                                         }
+                                      }
+                                      
+                                      // ✅ FIX: Also check if prediction already has isCorrect set (from backend API)
+                                      if (isCorrect === undefined && prediction.isCorrect !== undefined && prediction.isCorrect !== null) {
+                                        isCorrect = prediction.isCorrect;
+                                        matchStatus = 'finished';
                                       }
                                       
                                       // Show evaluation based on match status
@@ -752,7 +758,7 @@ const EnhancedSlipDisplay: React.FC<EnhancedSlipDisplayProps> = ({ slips }) => {
                                           </div>
                                         );
                                       } else {
-                                        // Pending or not started
+                                        // Pending or not started - don't show as wrong!
                                         return (
                                           <div className="flex items-center gap-1 px-2 py-1 rounded border text-xs bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
                                             <ClockIcon className="w-3 h-3" />
