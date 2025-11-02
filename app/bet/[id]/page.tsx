@@ -41,6 +41,19 @@ import ClaimRewards from "@/components/ClaimRewards";
 import SkeletonLoader from "@/components/SkeletonLoader";
 import { CONTRACT_ADDRESSES } from "@/contracts";
 
+interface ApiComment {
+  id: number;
+  content: string;
+  user_address?: string;
+  reputation?: number;
+  user_badge?: string;
+  created_at?: string;
+  likes_count?: number;
+  dislikes_count?: number;
+  sentiment?: string;
+  confidence?: number;
+}
+
 export default function BetPage() {
   const { address } = useAccount();
   const params = useParams();
@@ -123,7 +136,7 @@ export default function BetPage() {
         const data = await response.json();
         if (data.success && data.data) {
           // Transform API comments to Comment type
-          const transformedComments: Comment[] = data.data.map((c: any) => ({
+          const transformedComments: Comment[] = data.data.map((c: ApiComment) => ({
             id: c.id.toString(),
             content: c.content || '',
             author: {
