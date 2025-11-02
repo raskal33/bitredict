@@ -22,6 +22,8 @@ import { getPoolStatusDisplay, getStatusBadgeProps } from "../utils/poolStatus";
 import { getPoolIcon } from "../services/crypto-icons";
 import { titleTemplatesService } from "../services/title-templates";
 import PlaceBetModal from "./PlaceBetModal";
+import { usePoolSocialStats } from "../hooks/usePoolSocialStats";
+import { HeartIcon as HeartIconSolid } from "@heroicons/react/24/solid";
 
   // Enhanced Pool interface with indexed data
 export interface EnhancedPool {
@@ -126,6 +128,29 @@ export default function EnhancedPoolCard({
   const [indexedData, setIndexedData] = useState(pool.indexedData);
   const [showBoostModal, setShowBoostModal] = useState(false);
   const [showBetModal, setShowBetModal] = useState(false);
+  
+  // ✅ Social stats hook
+  const { socialStats, isLiked, isLoading, trackView, toggleLike, fetchStats } = usePoolSocialStats(pool.id);
+  
+  // Track view when card is mounted
+  useEffect(() => {
+    trackView();
+    fetchStats();
+  }, [trackView, fetchStats]);
+  
+  // Update local social stats when pool data changes
+  const [localSocialStats, setLocalSocialStats] = useState(pool.socialStats || {
+    likes: 0,
+    comments: 0,
+    views: 0,
+    shares: 0
+  });
+  
+  useEffect(() => {
+    if (socialStats && (socialStats.likes > 0 || socialStats.comments > 0 || socialStats.views > 0)) {
+      setLocalSocialStats(socialStats);
+    }
+  }, [socialStats]);
   
   // ✅ FIX: Poll for pool progress updates (especially for crypto pools)
   useEffect(() => {
@@ -937,20 +962,39 @@ export default function EnhancedPoolCard({
       </div>
       
       {/* Social Stats - pushed to bottom */}
-      {showSocialStats && pool.socialStats && (
+      {showSocialStats && (
         <div className="flex items-center justify-between pt-3 border-t border-gray-700/20 mt-auto">
           <div className="flex items-center gap-3 text-xs text-gray-400">
-            <div className="flex items-center gap-1">
-              <HeartIcon className="w-3 h-3" />
-              {pool.socialStats.likes}
-            </div>
-            <div className="flex items-center gap-1">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleLike();
+              }}
+              disabled={isLoading}
+              className={`flex items-center gap-1 transition-colors hover:text-pink-400 disabled:opacity-50 disabled:cursor-not-allowed ${
+                isLiked ? 'text-pink-400' : ''
+              }`}
+            >
+              {isLiked ? (
+                <HeartIconSolid className="w-3 h-3" />
+              ) : (
+                <HeartIcon className="w-3 h-3" />
+              )}
+              {localSocialStats.likes}
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                router.push(`/bet/${pool.id}#comments`);
+              }}
+              className="flex items-center gap-1 hover:text-blue-400 transition-colors cursor-pointer"
+            >
               <ChatBubbleLeftIcon className="w-3 h-3" />
-              {pool.socialStats.comments}
-            </div>
+              {localSocialStats.comments}
+            </button>
             <div className="flex items-center gap-1">
               <EyeIcon className="w-3 h-3" />
-              {pool.socialStats.views}
+              {localSocialStats.views}
             </div>
           </div>
           {pool.change24h !== undefined && (

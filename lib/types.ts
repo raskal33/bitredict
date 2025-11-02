@@ -122,6 +122,9 @@ export interface User {
   createdAt: string;
   bio?: string;
   avatar?: string;
+  followerCount?: number;
+  followingCount?: number;
+  isFollowing?: boolean;
 }
 
 export interface BetSide {

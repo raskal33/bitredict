@@ -164,6 +164,18 @@ export default function BetPage() {
     }
   }, [poolId, hasUserBet]);
 
+  // Track view when page loads
+  useEffect(() => {
+    if (poolId) {
+      // Track view
+      fetch(`/api/social/pools/${poolId}/view`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userAddress: address || null })
+      }).catch(err => console.warn('Failed to track view:', err));
+    }
+  }, [poolId, address]);
+
   const fetchPoolData = useCallback(async () => {
     // Rate limiting check
     const now = Date.now();
@@ -932,14 +944,47 @@ export default function BetPage() {
             {/* Community Stats - Moved to top */}
             <div className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-800/30 to-gray-700/30 rounded-lg border border-gray-600/30">
               <div className="flex items-center gap-6">
-                <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    // Scroll to comments section
+                    const commentsSection = document.getElementById('comments');
+                    if (commentsSection) {
+                      commentsSection.scrollIntoView({ behavior: 'smooth' });
+                    }
+                  }}
+                  className="flex items-center gap-2 hover:text-blue-400 transition-colors cursor-pointer"
+                >
                   <ChatBubbleLeftRightIcon className="w-4 h-4 text-blue-400" />
                   <span className="text-sm text-gray-400">{pool.socialStats.comments}</span>
-                </div>
-                <div className="flex items-center gap-2">
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!address) {
+                      toast.error('Please connect your wallet to like pools');
+                      return;
+                    }
+                    try {
+                      const response = await fetch(`/api/social/pools/${poolId}/like`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ userAddress: address })
+                      });
+                      const data = await response.json();
+                      if (data.success) {
+                        toast.success(data.data.message);
+                        // Refresh pool data
+                        fetchPoolData();
+                      }
+                    } catch (err) {
+                      console.error('Failed to like pool:', err);
+                      toast.error('Failed to like pool');
+                    }
+                  }}
+                  className="flex items-center gap-2 hover:text-pink-400 transition-colors cursor-pointer"
+                >
                   <ThumbUpSolid className="w-4 h-4 text-pink-400" />
                   <span className="text-sm text-gray-400">{pool.socialStats.likes}</span>
-                </div>
+                </button>
                 <div className="flex items-center gap-2">
                   <UserIcon className="w-4 h-4 text-cyan-400" />
                   <span className="text-sm text-gray-400">{pool.participants || 0}</span>
@@ -1620,8 +1665,8 @@ export default function BetPage() {
 
 
 
-        {/* Comments Section - Dark Glassmorphism Style */}
-        <div className="bg-gradient-to-br from-gray-900/80 via-gray-800/80 to-gray-900/80 backdrop-blur-xl rounded-2xl border border-gray-700/50 shadow-2xl shadow-black/30 p-6 space-y-6">
+          {/* Comments Section - Dark Glassmorphism Style */}
+          <div id="comments" className="bg-gradient-to-br from-gray-900/80 via-gray-800/80 to-gray-900/80 backdrop-blur-xl rounded-2xl border border-gray-700/50 shadow-2xl shadow-black/30 p-6 space-y-6">
           <div className="flex items-center justify-between border-b border-gray-700/50 pb-4">
             <h3 className="text-xl font-bold text-white flex items-center gap-2">
               <ChatBubbleLeftRightIcon className="w-6 h-6 text-cyan-400" />
