@@ -1,65 +1,159 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import { 
   TrophyIcon, 
   UserIcon, 
-  MagnifyingGlassIcon,
-  ChartBarIcon,
   StarIcon,
-  CurrencyDollarIcon,
-  ArrowTrendingUpIcon
+  ArrowUpIcon,
+  ArrowDownIcon,
+  ArrowsUpDownIcon
 } from '@heroicons/react/24/outline';
-import { useLeaderboard } from '@/hooks/useLeaderboard';
-import { LeaderboardTable, UserStatsCard } from '@/components/leaderboard';
 
-export default function LeaderboardPage() {
-  const [activeTab, setActiveTab] = useState<'prediction' | 'reputation' | 'personal'>('prediction');
-  const [activeMetric, setActiveMetric] = useState<'total_staked' | 'total_won' | 'success_rate' | 'volume_generated'>('total_staked');
-  const [searchAddress, setSearchAddress] = useState('');
-  
-  const {
-    leaderboardData,
-    userStats,
-    userRank,
-    loading,
-    searching,
-    error,
-    loadLeaderboard,
-    searchUser,
-  } = useLeaderboard({
-    metric: activeMetric,
-    limit: 50,
-    useCache: true,
-    autoRefresh: true,
-    refreshInterval: 300000 // 5 minutes
+type TabType = 'creators' | 'challengers' | 'reputation';
+
+type SortColumn = 
+  | 'pools_created' | 'volume' | 'wins' | 'losses' | 'pnl' // Creators
+  | 'pools_challenged' // Challengers
+  | 'reputation' | 'total_pools' | 'total_bets'; // Reputation
+
+type SortOrder = 'asc' | 'desc';
+
+interface LeaderboardEntry {
+  rank: number;
+  address: string;
+  // Creators
+  poolsCreated?: number;
+  // Challengers
+  poolsChallenged?: number;
+  // Both
+  volume?: number;
+  wins?: number;
+  losses?: number;
+  pnl?: number;
+  reputation?: number;
+  // Reputation
+  totalPools?: number;
+  totalBets?: number;
+  wonBets?: number;
+  totalVolume?: number;
+  profitLoss?: number;
+}
+
+interface LeaderboardResponse {
+  success: boolean;
+  data: LeaderboardEntry[];
+  pagination: {
+    total: number;
+    limit: number;
+    offset: number;
+    hasMore: boolean;
+  };
+}
+
+export default function PoolLeaderboardPage() {
+  const [activeTab, setActiveTab] = useState<TabType>('creators');
+  const [sortBy, setSortBy] = useState<SortColumn>('volume');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+  const [data, setData] = useState<LeaderboardEntry[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pagination, setPagination] = useState({
+    total: 0,
+    limit: 100,
+    offset: 0,
+    hasMore: false
   });
 
-  // Load leaderboard data when tab or metric changes
-  useEffect(() => {
-    if (activeTab !== 'personal') {
-      loadLeaderboard(activeTab);
-    }
-  }, [activeTab, activeMetric, loadLeaderboard]);
+  const fetchLeaderboard = useCallback(async () => {
+    setLoading(true);
+    setError(null);
 
-  const handleSearch = async () => {
-    if (!searchAddress.trim()) return;
-    await searchUser(searchAddress);
+    try {
+      let endpoint = '';
+      let sortParam = sortBy;
+
+      if (activeTab === 'creators') {
+        endpoint = '/api/leaderboards/pools/creators';
+      } else if (activeTab === 'challengers') {
+        endpoint = '/api/leaderboards/pools/challengers';
+        // Map sortBy for challengers
+        if (sortBy === 'pools_created') {
+          sortParam = 'pools_challenged';
+        }
+      } else {
+        endpoint = '/api/leaderboards/pools/reputation';
+      }
+
+      const params = new URLSearchParams({
+        sortBy: sortParam,
+        sortOrder,
+        limit: pagination.limit.toString(),
+        offset: pagination.offset.toString()
+      });
+
+      const response = await fetch(`${endpoint}?${params}`);
+      const result: LeaderboardResponse = await response.json();
+
+      if (result.success) {
+        setData(result.data);
+        setPagination(result.pagination);
+      } else {
+        setError('Failed to fetch leaderboard data');
+      }
+    } catch (err) {
+      console.error('Error fetching leaderboard:', err);
+      setError('Failed to fetch leaderboard data');
+    } finally {
+      setLoading(false);
+    }
+  }, [activeTab, sortBy, sortOrder, pagination.limit, pagination.offset]);
+
+  useEffect(() => {
+    setPagination(prev => ({ ...prev, offset: 0 }));
+  }, [activeTab, sortBy, sortOrder]);
+
+  useEffect(() => {
+    fetchLeaderboard();
+  }, [fetchLeaderboard]);
+
+  const handleSort = (column: SortColumn) => {
+    if (sortBy === column) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(column);
+      setSortOrder('desc');
+    }
+  };
+
+  const getSortIcon = (column: SortColumn) => {
+    if (sortBy !== column) {
+      return <ArrowsUpDownIcon className="w-4 h-4" />;
+    }
+    return sortOrder === 'asc' 
+      ? <ArrowUpIcon className="w-4 h-4" />
+      : <ArrowDownIcon className="w-4 h-4" />;
   };
 
   const tabs = [
-    { id: 'prediction', label: 'Prediction Market', icon: ChartBarIcon },
-    { id: 'reputation', label: 'Reputation', icon: StarIcon },
-    { id: 'personal', label: 'Personal Data', icon: UserIcon }
+    { id: 'creators' as TabType, label: 'Creators', icon: TrophyIcon },
+    { id: 'challengers' as TabType, label: 'Challengers', icon: UserIcon },
+    { id: 'reputation' as TabType, label: 'Reputation', icon: StarIcon }
   ];
 
-  const predictionMetrics = [
-    { id: 'total_staked', label: 'Total Staked', icon: CurrencyDollarIcon },
-    { id: 'total_won', label: 'Total Won', icon: TrophyIcon },
-    { id: 'success_rate', label: 'Success Rate', icon: ArrowTrendingUpIcon },
-    { id: 'volume_generated', label: 'Volume Generated', icon: ChartBarIcon }
-  ];
+  const formatNumber = (num: number | undefined) => {
+    if (num === undefined || num === null) return '0';
+    if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
+    if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
+    if (num >= 1e3) return (num / 1e3).toFixed(2) + 'K';
+    return num.toFixed(2);
+  };
+
+  const formatCurrency = (num: number | undefined) => {
+    if (num === undefined || num === null) return '0.00';
+    return formatNumber(num);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-main">
@@ -71,10 +165,10 @@ export default function LeaderboardPage() {
           className="text-center mb-8"
         >
           <h1 className="text-4xl md:text-5xl font-bold gradient-text mb-4">
-            Leaderboard
+            Pool Leaderboard
           </h1>
           <p className="text-text-secondary text-lg max-w-2xl mx-auto">
-            Discover the top performers in prediction markets and reputation rankings
+            Top performers across creators, challengers, and reputation rankings
           </p>
         </motion.div>
 
@@ -88,7 +182,7 @@ export default function LeaderboardPage() {
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as 'prediction' | 'reputation' | 'personal')}
+              onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 px-6 py-3 rounded-button font-medium transition-all duration-200 ${
                 activeTab === tab.id
                   ? 'bg-gradient-primary text-black shadow-button'
@@ -101,86 +195,235 @@ export default function LeaderboardPage() {
           ))}
         </motion.div>
 
-        {/* Content */}
-        <AnimatePresence mode="wait">
-          {activeTab === 'personal' ? (
-            <motion.div
-              key="personal"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="max-w-4xl mx-auto"
-            >
-              {/* Search Section */}
-              <div className="glass-card p-6 mb-8">
-                <h2 className="text-2xl font-bold text-text-primary mb-4 flex items-center gap-2">
-                  <MagnifyingGlassIcon className="h-6 w-6 text-primary" />
-                  User Lookup
-                </h2>
-                <div className="flex gap-4">
-                  <input
-                    type="text"
-                    placeholder="Enter wallet address (0x...)"
-                    value={searchAddress}
-                    onChange={(e) => setSearchAddress(e.target.value)}
-                    className="flex-1 px-4 py-3 rounded-button bg-bg-card border border-border-input text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                  />
-                  <button
-                    onClick={handleSearch}
-                    disabled={searching || !searchAddress.trim()}
-                    className="px-6 py-3 rounded-button bg-gradient-primary text-black font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-button transition-all duration-200"
-                  >
-                    {searching ? 'Searching...' : 'Search'}
-                  </button>
-                </div>
-              </div>
-
-              {/* User Stats */}
-              <UserStatsCard 
-                userStats={userStats}
-                userRank={userRank}
-                loading={searching}
-                error={error}
-              />
-            </motion.div>
+        {/* Leaderboard Table */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="glass-card overflow-hidden"
+        >
+          {loading ? (
+            <div className="p-8 text-center text-text-secondary">
+              Loading leaderboard...
+            </div>
+          ) : error ? (
+            <div className="p-8 text-center text-red-400">
+              {error}
+            </div>
           ) : (
-            <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="max-w-6xl mx-auto"
-            >
-              {/* Metric Selector for Prediction Market */}
-              {activeTab === 'prediction' && (
-                <div className="flex flex-wrap justify-center gap-2 mb-8">
-                  {predictionMetrics.map((metric) => (
-                    <button
-                      key={metric.id}
-                      onClick={() => setActiveMetric(metric.id as 'total_staked' | 'total_won' | 'success_rate' | 'volume_generated')}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-button font-medium transition-all duration-200 ${
-                        activeMetric === metric.id
-                          ? 'bg-gradient-primary text-black shadow-button'
-                          : 'text-text-secondary hover:text-text-primary hover:bg-bg-card border border-border-card'
-                      }`}
-                    >
-                      <metric.icon className="h-4 w-4" />
-                      {metric.label}
-                    </button>
-                  ))}
-                </div>
-              )}
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-bg-card/50 border-b border-border-card">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-text-secondary">Rank</th>
+                    
+                    {activeTab === 'creators' && (
+                      <>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-text-secondary">
+                          <button
+                            onClick={() => handleSort('pools_created')}
+                            className="flex items-center gap-2 hover:text-text-primary transition-colors"
+                          >
+                            Pools Created
+                            {getSortIcon('pools_created')}
+                          </button>
+                        </th>
+                      </>
+                    )}
+                    
+                    {activeTab === 'challengers' && (
+                      <>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-text-secondary">
+                          <button
+                            onClick={() => handleSort('pools_challenged')}
+                            className="flex items-center gap-2 hover:text-text-primary transition-colors"
+                          >
+                            Pools Challenged
+                            {getSortIcon('pools_challenged')}
+                          </button>
+                        </th>
+                      </>
+                    )}
 
-              {/* Leaderboard Table */}
-              <LeaderboardTable 
-                data={leaderboardData}
-                type={activeTab}
-                loading={loading}
-                error={error}
-              />
-            </motion.div>
+                    {(activeTab === 'creators' || activeTab === 'challengers') && (
+                      <>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-text-secondary">
+                          <button
+                            onClick={() => handleSort('volume')}
+                            className="flex items-center gap-2 hover:text-text-primary transition-colors"
+                          >
+                            Volume
+                            {getSortIcon('volume')}
+                          </button>
+                        </th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-text-secondary">
+                          <button
+                            onClick={() => handleSort('wins')}
+                            className="flex items-center gap-2 hover:text-text-primary transition-colors"
+                          >
+                            Wins
+                            {getSortIcon('wins')}
+                          </button>
+                        </th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-text-secondary">
+                          <button
+                            onClick={() => handleSort('losses')}
+                            className="flex items-center gap-2 hover:text-text-primary transition-colors"
+                          >
+                            Losses
+                            {getSortIcon('losses')}
+                          </button>
+                        </th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-text-secondary">
+                          <button
+                            onClick={() => handleSort('pnl')}
+                            className="flex items-center gap-2 hover:text-text-primary transition-colors"
+                          >
+                            PnL
+                            {getSortIcon('pnl')}
+                          </button>
+                        </th>
+                      </>
+                    )}
+
+                    {activeTab === 'reputation' && (
+                      <>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-text-secondary">
+                          <button
+                            onClick={() => handleSort('reputation')}
+                            className="flex items-center gap-2 hover:text-text-primary transition-colors"
+                          >
+                            Reputation
+                            {getSortIcon('reputation')}
+                          </button>
+                        </th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-text-secondary">
+                          <button
+                            onClick={() => handleSort('total_pools')}
+                            className="flex items-center gap-2 hover:text-text-primary transition-colors"
+                          >
+                            Total Pools
+                            {getSortIcon('total_pools')}
+                          </button>
+                        </th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-text-secondary">
+                          <button
+                            onClick={() => handleSort('total_bets')}
+                            className="flex items-center gap-2 hover:text-text-primary transition-colors"
+                          >
+                            Total Bets
+                            {getSortIcon('total_bets')}
+                          </button>
+                        </th>
+                      </>
+                    )}
+
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-text-secondary">Address</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border-card">
+                  {data.map((entry) => (
+                    <tr
+                      key={entry.address}
+                      className="hover:bg-bg-card/30 transition-colors"
+                    >
+                      <td className="px-6 py-4 text-sm text-text-primary font-medium">
+                        #{entry.rank}
+                      </td>
+
+                      {activeTab === 'creators' && (
+                        <>
+                          <td className="px-6 py-4 text-sm text-text-secondary">
+                            {entry.poolsCreated || 0}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-text-secondary">
+                            {formatCurrency(entry.volume)} STT
+                          </td>
+                          <td className="px-6 py-4 text-sm text-green-400">
+                            {entry.wins || 0}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-red-400">
+                            {entry.losses || 0}
+                          </td>
+                          <td className={`px-6 py-4 text-sm font-medium ${
+                            (entry.pnl || 0) >= 0 ? 'text-green-400' : 'text-red-400'
+                          }`}>
+                            {formatCurrency(entry.pnl)} STT
+                          </td>
+                        </>
+                      )}
+
+                      {activeTab === 'challengers' && (
+                        <>
+                          <td className="px-6 py-4 text-sm text-text-secondary">
+                            {entry.poolsChallenged || 0}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-text-secondary">
+                            {formatCurrency(entry.volume)} STT
+                          </td>
+                          <td className="px-6 py-4 text-sm text-green-400">
+                            {entry.wins || 0}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-red-400">
+                            {entry.losses || 0}
+                          </td>
+                          <td className={`px-6 py-4 text-sm font-medium ${
+                            (entry.pnl || 0) >= 0 ? 'text-green-400' : 'text-red-400'
+                          }`}>
+                            {formatCurrency(entry.pnl)} STT
+                          </td>
+                        </>
+                      )}
+
+                      {activeTab === 'reputation' && (
+                        <>
+                          <td className="px-6 py-4 text-sm text-text-primary font-medium">
+                            {entry.reputation || 40}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-text-secondary">
+                            {entry.totalPools || 0}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-text-secondary">
+                            {entry.totalBets || 0}
+                          </td>
+                        </>
+                      )}
+
+                      <td className="px-6 py-4 text-sm text-text-secondary font-mono">
+                        {entry.address.slice(0, 6)}...{entry.address.slice(-4)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
-        </AnimatePresence>
+
+          {/* Pagination */}
+          {pagination.total > 0 && (
+            <div className="px-6 py-4 border-t border-border-card flex items-center justify-between">
+              <div className="text-sm text-text-secondary">
+                Showing {pagination.offset + 1} - {Math.min(pagination.offset + pagination.limit, pagination.total)} of {pagination.total}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPagination(prev => ({ ...prev, offset: Math.max(0, prev.offset - prev.limit) }))}
+                  disabled={pagination.offset === 0}
+                  className="px-4 py-2 rounded-button bg-bg-card border border-border-card text-text-secondary disabled:opacity-50 disabled:cursor-not-allowed hover:bg-bg-card/50 transition-colors"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setPagination(prev => ({ ...prev, offset: prev.offset + prev.limit }))}
+                  disabled={!pagination.hasMore}
+                  className="px-4 py-2 rounded-button bg-bg-card border border-border-card text-text-secondary disabled:opacity-50 disabled:cursor-not-allowed hover:bg-bg-card/50 transition-colors"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </motion.div>
       </div>
     </div>
   );

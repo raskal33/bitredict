@@ -238,20 +238,118 @@ export class LeaderboardService {
   }
 
   /**
-   * Health check for leaderboard service
+   * Get pool creators leaderboard
    */
-  async healthCheck(): Promise<{ success: boolean; data: any }> {
+  async getPoolCreatorsLeaderboard(
+    sortBy: 'pools_created' | 'volume' | 'wins' | 'losses' | 'pnl' = 'volume',
+    sortOrder: 'asc' | 'desc' = 'desc',
+    limit: number = 100,
+    offset: number = 0
+  ): Promise<LeaderboardResponse> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/leaderboards/health`);
+      const params = new URLSearchParams({
+        sortBy,
+        sortOrder,
+        limit: limit.toString(),
+        offset: offset.toString()
+      });
+
+      const response = await fetch(`${this.baseUrl}/api/leaderboards/pools/creators?${params}`);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
-      return data;
+      return {
+        success: data.success,
+        data: {
+          leaderboard: data.data,
+          limit: data.pagination.limit,
+          total: data.pagination.total,
+          timestamp: data.timestamp
+        }
+      };
     } catch (error) {
-      console.error('Error checking leaderboard health:', error);
+      console.error('Error fetching pool creators leaderboard:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get pool challengers leaderboard
+   */
+  async getPoolChallengersLeaderboard(
+    sortBy: 'pools_challenged' | 'volume' | 'wins' | 'losses' | 'pnl' = 'volume',
+    sortOrder: 'asc' | 'desc' = 'desc',
+    limit: number = 100,
+    offset: number = 0
+  ): Promise<LeaderboardResponse> {
+    try {
+      const params = new URLSearchParams({
+        sortBy,
+        sortOrder,
+        limit: limit.toString(),
+        offset: offset.toString()
+      });
+
+      const response = await fetch(`${this.baseUrl}/api/leaderboards/pools/challengers?${params}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return {
+        success: data.success,
+        data: {
+          leaderboard: data.data,
+          limit: data.pagination.limit,
+          total: data.pagination.total,
+          timestamp: data.timestamp
+        }
+      };
+    } catch (error) {
+      console.error('Error fetching pool challengers leaderboard:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get pool reputation leaderboard
+   */
+  async getPoolReputationLeaderboard(
+    sortBy: 'reputation' | 'total_pools' | 'total_bets' = 'reputation',
+    sortOrder: 'asc' | 'desc' = 'desc',
+    limit: number = 100,
+    offset: number = 0
+  ): Promise<LeaderboardResponse> {
+    try {
+      const params = new URLSearchParams({
+        sortBy,
+        sortOrder,
+        limit: limit.toString(),
+        offset: offset.toString()
+      });
+
+      const response = await fetch(`${this.baseUrl}/api/leaderboards/pools/reputation?${params}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return {
+        success: data.success,
+        data: {
+          leaderboard: data.data,
+          limit: data.pagination.limit,
+          total: data.pagination.total,
+          timestamp: data.timestamp
+        }
+      };
+    } catch (error) {
+      console.error('Error fetching pool reputation leaderboard:', error);
       throw error;
     }
   }
