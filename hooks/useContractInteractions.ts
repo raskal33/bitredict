@@ -117,6 +117,7 @@ export function usePoolCore() {
     homeTeam?: string;
     awayTeam?: string;
     title?: string;
+    boostTier?: 'NONE' | 'BRONZE' | 'SILVER' | 'GOLD'; // ✅ FIX: Add boost tier support
   }) => {
     try {
       // Convert predictedOutcome to bytes32 string (not hash) for proper storage and retrieval
@@ -130,12 +131,37 @@ export function usePoolCore() {
         ? poolData.marketId // Use original SportMonks fixture ID directly
         : poolData.marketId; // For custom markets, use as-is
 
-      // Calculate total required amount (creation fee + creator stake)
-      const creationFeeBITR = 50n * 10n**18n; // 50 BITR in wei
+      // Calculate total required amount (creation fee + creator stake + boost cost)
+      // ✅ FIX: Match contract values - BITR = 70e18, STT = 1e18
+      const creationFeeBITR = 70n * 10n**18n; // 70 BITR in wei (contract uses 70e18, not 50e18!)
       const creationFeeSTT = 1n * 10n**18n; // 1 STT in wei
+      
+      // ✅ FIX: Calculate boost cost (always in STT, even for BITR pools)
+      // Boost costs: BRONZE = 2 STT, SILVER = 3 STT, GOLD = 5 STT
+      let boostCost = 0n;
+      const hasBoost = poolData.boostTier && poolData.boostTier !== 'NONE';
+      if (hasBoost) {
+        if (poolData.boostTier === 'BRONZE') {
+          boostCost = 2n * 10n**18n; // 2 STT
+        } else if (poolData.boostTier === 'SILVER') {
+          boostCost = 3n * 10n**18n; // 3 STT
+        } else if (poolData.boostTier === 'GOLD') {
+          boostCost = 5n * 10n**18n; // 5 STT
+        }
+      }
+      
+      // ✅ FIX: For BITR pools, totalRequired does NOT include boostCost (boost is paid in STT separately)
+      // For STT pools, totalRequired includes everything (creation fee + stake + boost cost)
       const totalRequired = poolData.useBitr 
-        ? poolData.creatorStake + creationFeeBITR  // 3000 + 50 = 3050 BITR
-        : poolData.creatorStake + creationFeeSTT;   // stake + 1 STT
+        ? poolData.creatorStake + creationFeeBITR  // Only creation fee + stake in BITR (boost is in STT)
+        : poolData.creatorStake + creationFeeSTT + boostCost;   // Everything in STT: stake + creation fee + boost cost
+      
+      // ✅ FIX: Transaction value for msg.value
+      // BITR pools: only send boost cost (in STT) as msg.value (creation fee + stake are transferred as BITR tokens)
+      // STT pools: send everything (creation fee + stake + boost cost) as msg.value
+      const transactionValue = poolData.useBitr 
+        ? boostCost  // BITR pools: only boost cost in STT via msg.value
+        : totalRequired; // STT pools: everything in STT via msg.value
 
       // For BITR pools, we need to ensure the contract has sufficient allowance
       // The contract will handle the token transfer internally
@@ -144,10 +170,14 @@ export function usePoolCore() {
         console.log(`   Creation Fee: ${creationFeeBITR / BigInt(10**18)} BITR`);
         console.log(`   Creator Stake: ${poolData.creatorStake / BigInt(10**18)} BITR`);
         console.log(`   Total Required: ${totalRequired / BigInt(10**18)} BITR`);
+        if (boostCost > 0n) {
+          console.log(`   Boost Cost: ${boostCost / BigInt(10**18)} STT (paid in native STT)`);
+        }
         
-        // Check BITR balance first
+        // Check BITR balance first (for creation fee + creator stake only, NOT boost cost)
         const balance = await getBalance();
         console.log(`🔍 BITR Balance Check: ${balance / BigInt(10**18)} BITR (required: ${totalRequired / BigInt(10**18)} BITR)`);
+        console.log(`   Note: Boost cost (${boostCost / BigInt(10**18)} STT) is paid separately in native STT`);
         
         if (balance < totalRequired) {
           const shortfall = totalRequired - balance;
@@ -157,10 +187,24 @@ export function usePoolCore() {
           throw new Error(errorMsg);
         }
         
+        // ✅ FIX: For BITR pools with boost, check STT balance for boost payment
+        if (boostCost > 0n && address) {
+          const sttBalance = await publicClient?.getBalance({ address });
+          if (!sttBalance || sttBalance < boostCost) {
+            const errorMsg = `Insufficient STT balance for boost. You need ${boostCost / BigInt(10**18)} STT but have ${sttBalance ? sttBalance / BigInt(10**18) : 0} STT`;
+            console.error(`❌ ${errorMsg}`);
+            toast.error(errorMsg);
+            throw new Error(errorMsg);
+          }
+          console.log(`✅ STT balance check passed for boost: ${sttBalance / BigInt(10**18)} STT >= ${boostCost / BigInt(10**18)} STT`);
+        }
+        
         console.log(`✅ Balance check passed`);
         
         // Check if we need to approve more tokens
-        const currentAllowance = await getAllowance(address as `0x${string}`, CONTRACT_ADDRESSES.POOL_CORE);
+        // ✅ FIX: For boosted pools, approve FACTORY (not POOL_CORE) since we're calling createPoolWithBoost
+        const approvalTarget = hasBoost ? CONTRACT_ADDRESSES.FACTORY : CONTRACT_ADDRESSES.POOL_CORE;
+        const currentAllowance = await getAllowance(address as `0x${string}`, approvalTarget);
         console.log(`🔍 BITR Allowance Check:`, {
           currentAllowance: currentAllowance.toString(),
           currentAllowanceFormatted: `${currentAllowance / BigInt(10**18)} BITR`,
@@ -180,7 +224,7 @@ export function usePoolCore() {
           
           toast.loading('Approving BITR tokens for pool creation...', { id: 'bitr-approval' });
           try {
-            const approvalTx = await approve(CONTRACT_ADDRESSES.POOL_CORE, totalRequired);
+            const approvalTx = await approve(approvalTarget, totalRequired);
             console.log(`✅ Approval transaction confirmed: ${approvalTx}`);
             toast.dismiss('bitr-approval');
             toast.success('BITR tokens approved for pool creation!');
@@ -316,8 +360,17 @@ export function usePoolCore() {
         isGuidedMarket: poolData.oracleType === 0
       });
 
-      // 🚀 GAS OPTIMIZATION: Use createPool for gas efficiency
-      console.log(`⛽ Using createPool function`);
+      // ✅ FIX: Convert boost tier string to enum number (0=NONE, 1=BRONZE, 2=SILVER, 3=GOLD)
+      let boostTierEnum = 0; // NONE
+      if (hasBoost) {
+        if (poolData.boostTier === 'BRONZE') {
+          boostTierEnum = 1;
+        } else if (poolData.boostTier === 'SILVER') {
+          boostTierEnum = 2;
+        } else if (poolData.boostTier === 'GOLD') {
+          boostTierEnum = 3;
+        }
+      }
 
       // Log critical validation info before sending transaction
       console.log('🔍 Pre-transaction validation:', {
@@ -325,37 +378,74 @@ export function usePoolCore() {
         useBitr: poolData.useBitr,
         creatorStake: poolData.creatorStake.toString(),
         totalRequired: totalRequired.toString(),
+        boostCost: boostCost.toString(),
+        transactionValue: transactionValue.toString(),
+        boostTier: poolData.boostTier,
+        boostTierEnum,
+        hasBoost,
+        usingFactory: hasBoost,
         oracleType: poolData.oracleType,
         marketType: poolData.marketType,
         eventStartTime: new Date(Number(poolData.eventStartTime) * 1000).toISOString(),
         gracePeriodBuffer: Number(poolData.eventStartTime) - Math.floor(Date.now() / 1000),
       });
 
-      const txHash = await writeContractAsync({
-        address: CONTRACT_ADDRESSES.POOL_CORE,
-        abi: CONTRACTS.POOL_CORE.abi,
-        functionName: 'createPool', // ✅ Use main createPool function
-        args: [
-          predictedOutcomeBytes32,
-          poolData.odds,
-          poolData.creatorStake,
-          poolData.eventStartTime,
-          poolData.eventEndTime,
-          leagueBytes32, // 🎯 bytes32 encoded league
-          categoryBytes32, // 🎯 bytes32 encoded category
-          homeTeamBytes32, // 🎯 bytes32 encoded home team
-          awayTeamBytes32, // 🎯 bytes32 encoded away team
-          titleBytes32, // 🎯 bytes32 encoded title
-          poolData.isPrivate,
-          poolData.maxBetPerUser,
-          poolData.useBitr,
-          poolData.oracleType,
-          poolData.marketType,
-          marketIdString, // 🎯 Market ID: keccak256(fixtureId) for guided, raw string for custom
-        ],
-        value: poolData.useBitr ? 0n : totalRequired, // For BITR pools, value is 0 (token transfer handles it)
-        gas: BigInt(10000000), // ✅ Reduced gas limit for lightweight function (10M instead of 14M)
-      });
+      // ✅ FIX: Use FACTORY.createPoolWithBoost if boost is selected, otherwise use POOL_CORE.createPool
+      const txHash = hasBoost
+        ? await writeContractAsync({
+            address: CONTRACT_ADDRESSES.FACTORY,
+            abi: CONTRACTS.FACTORY.abi,
+            functionName: 'createPoolWithBoost', // ✅ Use factory's createPoolWithBoost
+            args: [
+              predictedOutcomeBytes32,
+              poolData.odds,
+              poolData.creatorStake,
+              poolData.eventStartTime,
+              poolData.eventEndTime,
+              leagueBytes32,
+              categoryBytes32,
+              ethers.encodeBytes32String(''), // region (empty for now)
+              homeTeamBytes32,
+              awayTeamBytes32,
+              titleBytes32,
+              poolData.isPrivate,
+              poolData.maxBetPerUser,
+              poolData.useBitr,
+              poolData.oracleType,
+              marketIdString,
+              poolData.marketType,
+              boostTierEnum, // ✅ Boost tier enum (0=NONE, 1=BRONZE, 2=SILVER, 3=GOLD)
+            ],
+            value: transactionValue, // ✅ Includes boost cost for both BITR and STT pools
+            // For BITR pools: value = boostCost (in STT)
+            // For STT pools: value = totalRequired + boostCost
+            gas: BigInt(12000000), // Slightly higher gas for factory function
+          })
+        : await writeContractAsync({
+            address: CONTRACT_ADDRESSES.POOL_CORE,
+            abi: CONTRACTS.POOL_CORE.abi,
+            functionName: 'createPool', // ✅ Use main createPool function when no boost
+            args: [
+              predictedOutcomeBytes32,
+              poolData.odds,
+              poolData.creatorStake,
+              poolData.eventStartTime,
+              poolData.eventEndTime,
+              leagueBytes32, // 🎯 bytes32 encoded league
+              categoryBytes32, // 🎯 bytes32 encoded category
+              homeTeamBytes32, // 🎯 bytes32 encoded home team
+              awayTeamBytes32, // 🎯 bytes32 encoded away team
+              titleBytes32, // 🎯 bytes32 encoded title
+              poolData.isPrivate,
+              poolData.maxBetPerUser,
+              poolData.useBitr,
+              poolData.oracleType,
+              poolData.marketType,
+              marketIdString, // 🎯 Market ID: keccak256(fixtureId) for guided, raw string for custom
+            ],
+            value: poolData.useBitr ? 0n : totalRequired, // For BITR pools, value is 0 (token transfer handles it)
+            gas: BigInt(10000000), // ✅ Reduced gas limit for lightweight function (10M instead of 14M)
+          });
       
       console.log('Pool creation transaction submitted:', txHash);
       toast.loading('Waiting for transaction confirmation...', { id: 'pool-creation' });

@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { useAccount } from 'wagmi';
-import { usePoolCore, usePoolFactory, useFaucet } from '@/hooks/useContractInteractions';
+import { usePoolCore, useFaucet } from '@/hooks/useContractInteractions'; // ✅ FIX: Removed usePoolFactory - not needed
 import { toast } from 'react-hot-toast';
 import { 
   OracleType, 
@@ -46,7 +46,7 @@ const LEAGUES = [
 export default function CreateGuidedMarketForm({ onSuccess, onClose }: CreateGuidedMarketFormProps) {
   const { address, isConnected } = useAccount();
   const { createPool } = usePoolCore();
-  const { createPoolWithBoost } = usePoolFactory();
+  // ✅ FIX: Removed usePoolFactory - createPool now handles boost internally
   const { checkEligibility } = useFaucet();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -173,18 +173,24 @@ export default function CreateGuidedMarketForm({ onSuccess, onClose }: CreateGui
         }
       }
 
-      let txHash: `0x${string}`;
-
-      if (formData.enableBoost && formData.boostTier && formData.boostTier > 0) {
-        // Create pool with boost using factory
-        txHash = await createPoolWithBoost({
-          ...poolData,
-          boostTier: formData.boostTier,
-        });
-      } else {
-        // Create regular pool
-        txHash = await createPool(poolData);
+      // ✅ FIX: Convert BoostTier enum to string and pass to createPool
+      // BoostTier enum: NONE=0, BRONZE=1, SILVER=2, GOLD=3
+      let boostTierString: 'NONE' | 'BRONZE' | 'SILVER' | 'GOLD' = 'NONE';
+      if (formData.enableBoost && formData.boostTier !== undefined && formData.boostTier !== BoostTier.NONE) {
+        if (formData.boostTier === BoostTier.BRONZE) {
+          boostTierString = 'BRONZE';
+        } else if (formData.boostTier === BoostTier.SILVER) {
+          boostTierString = 'SILVER';
+        } else if (formData.boostTier === BoostTier.GOLD) {
+          boostTierString = 'GOLD';
+        }
       }
+
+      // ✅ FIX: Use createPool with boostTier parameter (it handles factory call internally)
+      const txHash = await createPool({
+        ...poolData,
+        boostTier: boostTierString,
+      });
 
       toast.success('Market creation transaction submitted!');
       
@@ -202,7 +208,7 @@ export default function CreateGuidedMarketForm({ onSuccess, onClose }: CreateGui
     } finally {
       setIsLoading(false);
     }
-  }, [isConnected, address, validateForm, checkEligibility, createPool, createPoolWithBoost, formData, onSuccess, onClose]);
+  }, [isConnected, address, validateForm, checkEligibility, createPool, formData, onSuccess, onClose]); // ✅ FIX: Removed createPoolWithBoost from deps
 
 
   return (

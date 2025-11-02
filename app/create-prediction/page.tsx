@@ -959,7 +959,8 @@ function CreateMarketPageContent() {
           marketType: data.marketType || 0, // Use selected market type or default to MONEYLINE
           homeTeam: data.selectedFixture.homeTeam.name,
           awayTeam: data.selectedFixture.awayTeam.name,
-          title: `${data.selectedFixture.homeTeam.name} vs ${data.selectedFixture.awayTeam.name}`
+          title: `${data.selectedFixture.homeTeam.name} vs ${data.selectedFixture.awayTeam.name}`,
+          boostTier: data.boostTier || 'NONE' // ✅ FIX: Pass boost tier to createPool
         };
 
         console.log('🔍 Pool Creation Debug:', {
@@ -990,10 +991,11 @@ function CreateMarketPageContent() {
         
         if (txHash) {
           // Calculate total cost for display
-          const creationFee = useBitr ? '50 BITR' : '1 STT';
-          const boostCost = data.boostTier && data.boostTier !== 'NONE' 
-            ? `${data.boostTier === 'BRONZE' ? '2' : data.boostTier === 'SILVER' ? '5' : '10'} ${useBitr ? 'BITR' : 'STT'}`
-            : '0';
+          const creationFee = useBitr ? '70 BITR' : '1 STT'; // ✅ FIX: Contract uses 70 BITR, not 50
+        // ✅ FIX: Boost cost is always in STT (not BITR), regardless of pool currency
+        const boostCost = data.boostTier && data.boostTier !== 'NONE' 
+          ? `${data.boostTier === 'BRONZE' ? '2' : data.boostTier === 'SILVER' ? '3' : '5'} STT`
+          : '0';
           const totalCost = data.boostTier && data.boostTier !== 'NONE' 
             ? `${boostCost} + ${creationFee}`
             : creationFee;
@@ -1073,7 +1075,8 @@ function CreateMarketPageContent() {
           marketType: 0, // MONEYLINE for crypto price direction
           homeTeam: data.selectedCrypto.symbol,
           awayTeam: 'USD',
-          title: `${data.selectedCrypto.symbol} Price Prediction`
+          title: `${data.selectedCrypto.symbol} Price Prediction`,
+          boostTier: data.boostTier || 'NONE' // ✅ FIX: Pass boost tier to createPool
         };
 
         console.log('🔍 Crypto Pool Creation Debug:', {
@@ -1093,8 +1096,9 @@ function CreateMarketPageContent() {
         if (txHash) {
         // Calculate total cost for display
         const creationFee = useBitr ? '50 BITR' : '1 STT';
+        // ✅ FIX: Boost cost is always in STT (not BITR), regardless of pool currency
         const boostCost = data.boostTier && data.boostTier !== 'NONE' 
-          ? `${data.boostTier === 'BRONZE' ? '2' : data.boostTier === 'SILVER' ? '5' : '10'} ${useBitr ? 'BITR' : 'STT'}`
+          ? `${data.boostTier === 'BRONZE' ? '2' : data.boostTier === 'SILVER' ? '3' : '5'} STT`
           : '0';
         const totalCost = data.boostTier && data.boostTier !== 'NONE' 
           ? `${boostCost} + ${creationFee}`
@@ -1798,10 +1802,10 @@ function CreateMarketPageContent() {
                 <div className="text-right">
                   <div className="text-lg font-bold text-white">
                     {data.boostTier === 'BRONZE' && '2'}
-                    {data.boostTier === 'SILVER' && '5'}
-                    {data.boostTier === 'GOLD' && '10'}
+                    {data.boostTier === 'SILVER' && '3'}
+                    {data.boostTier === 'GOLD' && '5'}
                     <span className="text-sm text-gray-400 ml-1">
-                      {useBitr ? 'BITR' : 'STT'}
+                      STT {/* ✅ FIX: Boost is always paid in STT, not BITR */}
                     </span>
                   </div>
                   <div className="text-xs text-gray-400">
@@ -2067,7 +2071,7 @@ function CreateMarketPageContent() {
                 <div className="flex justify-between">
                   <span className="text-gray-300">Boost Fee ({data.boostTier}):</span>
                   <span className="text-white">
-                    {data.boostTier === 'BRONZE' ? '2' : data.boostTier === 'SILVER' ? '5' : '10'} {useBitr ? 'BITR' : 'STT'}
+                    {data.boostTier === 'BRONZE' ? '2' : data.boostTier === 'SILVER' ? '3' : '5'} STT
                   </span>
                 </div>
               )}
@@ -2075,8 +2079,13 @@ function CreateMarketPageContent() {
                 <span className="text-gray-300 font-semibold">Total Cost:</span>
                 <span className="text-white font-bold">
                   {data.boostTier && data.boostTier !== 'NONE' 
-                    ? `${data.boostTier === 'BRONZE' ? '2' : data.boostTier === 'SILVER' ? '5' : '10'} + ${useBitr ? '50' : '1'} = ${data.boostTier === 'BRONZE' ? '52' : data.boostTier === 'SILVER' ? '55' : '60'} ${useBitr ? 'BITR' : 'STT'}`
-                    : `${useBitr ? '50 BITR' : '1 STT'}`}
+                    ? `${(() => {
+                        const boostAmount = data.boostTier === 'BRONZE' ? 2 : data.boostTier === 'SILVER' ? 3 : 5;
+                        const creationAmount = useBitr ? 70 : 1;
+                        const total = boostAmount + creationAmount;
+                        return `${boostAmount} STT + ${creationAmount} ${useBitr ? 'BITR' : 'STT'} = ${useBitr ? `${creationAmount} BITR + ${boostAmount} STT` : `${total} STT`}`;
+                      })()}`
+                    : `${useBitr ? '70 BITR' : '1 STT'}`}
                 </span>
               </div>
             </div>
