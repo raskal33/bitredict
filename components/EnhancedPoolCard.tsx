@@ -429,7 +429,7 @@ export default function EnhancedPoolCard({
         glass-card ${theme.glow} ${theme.hoverGlow}
         ${pool.boostTier && pool.boostTier !== 'NONE' ? getBoostGlow(pool.boostTier) : ''}
         transition-all duration-500 backdrop-blur-card
-        w-full max-w-sm sm:max-w-md
+        w-full
         ${className}
       `}
     >
