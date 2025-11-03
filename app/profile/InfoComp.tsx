@@ -169,9 +169,6 @@ export default function InfoComp({ targetAddress }: { targetAddress?: string }) 
     fileInputRef.current?.click();
   };
 
-  // Check if current user is viewing their own profile
-  const isOwnProfile = address && currentProfile && address.toLowerCase() === currentProfile.address.toLowerCase();
-
   const handleSaveProfile = async () => {
     if (!currentProfile) return;
     
