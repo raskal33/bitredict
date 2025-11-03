@@ -526,7 +526,7 @@ export default function EnhancedPoolCard({
       </div>
 
       {/* Header */}
-      <div className="flex items-center gap-2 mb-2 sm:mb-3 mt-12 sm:mt-16 px-4 sm:px-5">
+      <div className="flex items-center gap-2 mb-2 sm:mb-3 mt-12 sm:mt-16 px-5 sm:px-6">
         <div className="text-xl sm:text-2xl">{getCategoryIcon(pool.category)}</div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 sm:gap-2 mb-1 flex-wrap">
@@ -557,13 +557,13 @@ export default function EnhancedPoolCard({
       </div>
 
       {/* Professional Title */}
-      <h3 className="text-sm sm:text-base font-bold text-white line-clamp-2 mb-2 sm:mb-3 group-hover:text-primary transition-colors flex-shrink-0 px-4 sm:px-5">
+      <h3 className="text-sm sm:text-base font-bold text-white line-clamp-2 mb-2 sm:mb-3 group-hover:text-primary transition-colors flex-shrink-0 px-5 sm:px-6">
         {displayTitle}
       </h3>
 
       {/* Team Names Display */}
       {pool.homeTeam && pool.awayTeam && (
-        <div className="mb-2 sm:mb-3 flex-shrink-0 px-4 sm:px-5">
+        <div className="mb-2 sm:mb-3 flex-shrink-0 px-5 sm:px-6">
           <div className="flex items-center justify-center gap-2 text-xs sm:text-sm text-gray-300">
             <span className="font-semibold text-white truncate max-w-[40%]">{pool.homeTeam}</span>
             <span className="text-gray-400 flex-shrink-0">vs</span>
@@ -573,7 +573,7 @@ export default function EnhancedPoolCard({
       )}
 
       {/* Progress Bar - Always show with fallback */}
-        <div className="mb-2 sm:mb-3 flex-shrink-0 px-4 sm:px-5">
+        <div className="mb-2 sm:mb-3 flex-shrink-0 px-5 sm:px-6">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs text-gray-400">Pool Progress</span>
           <span className="text-xs text-white font-medium">
@@ -739,7 +739,7 @@ export default function EnhancedPoolCard({
 
       {/* Creator Prediction Section or Combo Pool Section */}
       {pool.isComboPool ? (
-        <div className="mb-2 sm:mb-3 p-3 sm:p-4 glass-card bg-gradient-to-br from-purple-800/40 to-indigo-900/40 rounded-lg border border-purple-600/30 flex-shrink-0 backdrop-blur-md shadow-lg mx-4 sm:mx-5">
+        <div className="mb-2 sm:mb-3 p-3 sm:p-4 glass-card bg-gradient-to-br from-purple-800/40 to-indigo-900/40 rounded-lg border border-purple-600/30 flex-shrink-0 backdrop-blur-md shadow-lg mx-5 sm:mx-6">
           <div className="mb-2">
             <div className="text-xs text-purple-400 mb-1 flex items-center gap-1">
               <SparklesIcon className="w-3 h-3" />
@@ -772,7 +772,7 @@ export default function EnhancedPoolCard({
           </div>
         </div>
       ) : (
-        <div className="mb-2 sm:mb-3 p-3 sm:p-4 glass-card bg-gradient-to-br from-gray-800/40 to-gray-900/40 rounded-lg border border-gray-600/30 flex-shrink-0 backdrop-blur-md shadow-lg mx-4 sm:mx-5">
+        <div className="mb-2 sm:mb-3 p-3 sm:p-4 glass-card bg-gradient-to-br from-gray-800/40 to-gray-900/40 rounded-lg border border-gray-600/30 flex-shrink-0 backdrop-blur-md shadow-lg mx-5 sm:mx-6">
           <div className="mb-2">
             <div className="text-xs text-warning mb-1 flex items-center gap-1">
               <BoltIcon className="w-3 h-3" />
@@ -849,7 +849,7 @@ export default function EnhancedPoolCard({
       )}
 
       {/* Enhanced Stats with Indexed Data */}
-      <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-2 sm:mb-3 text-center flex-shrink-0 px-4 sm:px-5">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-2 sm:mb-3 text-center flex-shrink-0 px-5 sm:px-6">
         <div>
           <div className="text-xs text-gray-400 flex items-center justify-center gap-1">
             <CurrencyDollarIcon className="w-3 h-3" />
@@ -931,7 +931,7 @@ export default function EnhancedPoolCard({
       </div>
 
       {/* Additional Stats - Total Bets, Avg Bet */}
-      <div className="grid grid-cols-2 gap-2 sm:gap-2 mb-2 sm:mb-3 text-center flex-shrink-0 px-4 sm:px-5">
+      <div className="grid grid-cols-2 gap-2 sm:gap-2 mb-2 sm:mb-3 text-center flex-shrink-0 px-5 sm:px-6">
         <div>
           <div className="text-xs text-gray-400">Total Bets</div>
           <div className="text-xs font-bold text-white">
@@ -965,7 +965,7 @@ export default function EnhancedPoolCard({
       
       {/* Social Stats - pushed to bottom */}
       {showSocialStats && (
-        <div className="flex items-center justify-between pt-2 sm:pt-3 px-4 sm:px-5 pb-3 sm:pb-4 border-t border-gray-700/20 mt-auto">
+        <div className="flex items-center justify-between pt-2 sm:pt-3 px-5 sm:px-6 pb-3 sm:pb-4 border-t border-gray-700/20 mt-auto">
           <div className="flex items-center gap-3 text-xs text-gray-400">
             <button
               onClick={(e) => {

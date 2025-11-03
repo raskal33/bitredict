@@ -490,113 +490,109 @@ export default function HomePage() {
         </div>
       </section>
 
-        {/* Featured Pools - Simplified */}
-        <section className="py-12 px-4 relative">
-          <div className="container mx-auto">
+        {/* Featured Pools - Simplified - Same width as Live Platform Stats */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+          viewport={{ once: true }}
+          className="text-center mb-12"
+        >
+          <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
+            <span className="bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
+              Featured Predictions
+            </span>
+          </h2>
+          <p className="text-lg text-gray-400 max-w-2xl mx-auto mb-8">
+            Discover the most exciting prediction markets and challenge the best creators
+          </p>
+
+          {/* Simplified Category Filter */}
+          <div className="flex flex-wrap justify-center gap-3 mb-12">
+            {categories.map((category) => (
+              <motion.button
+                key={category}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => handleSetCategory(category)}
+                className={`px-6 py-3 rounded-xl font-medium transition-all ${
+                  (activeCategory === "" && category === "All") || activeCategory === category
+                    ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/25"
+                    : "bg-gray-800/50 text-gray-400 hover:text-white hover:bg-gray-700/50 border border-gray-700/30"
+                }`}
+              >
+                {category === "All" ? "All Markets" : category.charAt(0).toUpperCase() + category.slice(1)}
+              </motion.button>
+            ))}
+          </div>
+        </motion.div>
+
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[...Array(6)].map((_, i) => (
+              <motion.div 
+                key={i}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5, delay: i * 0.1 }}
+                className="bg-gray-800/30 rounded-2xl p-6 animate-pulse border border-gray-700/30"
+              >
+                <div className="h-64 bg-gray-700/50 rounded-lg"></div>
+              </motion.div>
+            ))}
+          </div>
+        ) : filteredPools.length === 0 ? (
+          <div className="text-center py-12">
+            <div className="text-6xl mb-4">🎯</div>
+            <h3 className="text-xl font-bold text-white mb-2">No Markets Found</h3>
+            <p className="text-gray-400 mb-6">
+              {activeCategory === "" ? "No prediction markets available at the moment." : `No ${activeCategory} markets available.`}
+            </p>
+            <Link href="/create-prediction">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-6 py-3 rounded-xl font-bold"
+              >
+                Create First Market
+              </motion.button>
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-16">
+            <AnimatePresence>
+              {filteredPools.slice(0, 6).map((pool, index) => (
+                <EnhancedPoolCard 
+                  key={pool.id} 
+                  pool={pool} 
+                  index={index}
+                />
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
+        
+        {/* View All Markets Button */}
+        {filteredPools.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-              viewport={{ once: true }}
-            className="text-center mb-12"
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            viewport={{ once: true }}
+            className="text-center mt-12"
           >
-              <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
-                <span className="bg-gradient-to-r from-yellow-400 to-orange-500 bg-clip-text text-transparent">
-                  Featured Predictions
-                </span>
-              </h2>
-              <p className="text-lg text-gray-400 max-w-2xl mx-auto mb-8">
-                Discover the most exciting prediction markets and challenge the best creators
-            </p>
-
-              {/* Simplified Category Filter */}
-              <div className="flex flex-wrap justify-center gap-3 mb-12">
-              {categories.map((category) => (
-                  <motion.button
-                  key={category}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  onClick={() => handleSetCategory(category)}
-                    className={`px-6 py-3 rounded-xl font-medium transition-all ${
-                      (activeCategory === "" && category === "All") || activeCategory === category
-                        ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/25"
-                        : "bg-gray-800/50 text-gray-400 hover:text-white hover:bg-gray-700/50 border border-gray-700/30"
-                  }`}
-                >
-                    {category === "All" ? "All Markets" : category.charAt(0).toUpperCase() + category.slice(1)}
-                  </motion.button>
-              ))}
-            </div>
+            <Link href="/markets">
+              <motion.button
+                whileHover={{ scale: 1.05, y: -2 }}
+                whileTap={{ scale: 0.95 }}
+                className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-4 rounded-2xl font-bold text-lg shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all duration-300 flex items-center gap-2 mx-auto"
+              >
+                View All Markets
+                <BoltIcon className="w-5 h-5" />
+              </motion.button>
+            </Link>
           </motion.div>
-
-            {loading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {[...Array(6)].map((_, i) => (
-                  <motion.div 
-                    key={i}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.5, delay: i * 0.1 }}
-                    className="bg-gray-800/30 rounded-2xl p-6 animate-pulse border border-gray-700/30"
-                  >
-                    <div className="h-64 bg-gray-700/50 rounded-lg"></div>
-                  </motion.div>
-                ))}
-              </div>
-            ) : filteredPools.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="text-6xl mb-4">🎯</div>
-                <h3 className="text-xl font-bold text-white mb-2">No Markets Found</h3>
-                <p className="text-gray-400 mb-6">
-                  {activeCategory === "" ? "No prediction markets available at the moment." : `No ${activeCategory} markets available.`}
-                </p>
-                <Link href="/create-prediction">
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-6 py-3 rounded-xl font-bold"
-                  >
-                    Create First Market
-                  </motion.button>
-                </Link>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6 max-w-[1400px] mx-auto px-4 sm:px-6">
-                <AnimatePresence>
-                  {filteredPools.slice(0, 6).map((pool, index) => (
-                    <EnhancedPoolCard 
-                      key={pool.id} 
-                      pool={pool} 
-                      index={index}
-                    />
-                  ))}
-                </AnimatePresence>
-              </div>
-            )}
-            
-            {/* View All Markets Button */}
-            {filteredPools.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-              viewport={{ once: true }}
-              className="text-center mt-12"
-            >
-              <Link href="/markets">
-                <motion.button
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-4 rounded-2xl font-bold text-lg shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all duration-300 flex items-center gap-2 mx-auto"
-                >
-                  View All Markets
-                  <BoltIcon className="w-5 h-5" />
-                </motion.button>
-              </Link>
-            </motion.div>
-            )}
-          </div>
-        </section>
+        )}
 
         {/* Live Analytics Dashboard */}
         <section className="py-12 px-4 relative">
