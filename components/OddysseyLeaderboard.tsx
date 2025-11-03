@@ -10,6 +10,7 @@ import {
   ChartBarIcon,
   CurrencyDollarIcon
 } from '@heroicons/react/24/outline';
+import { oddysseyService } from '@/services/oddysseyService';
 import UserAddressLink from "./UserAddressLink";
 
 interface LeaderboardEntry {
