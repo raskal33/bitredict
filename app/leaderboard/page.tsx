@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import UserAddressLink from "@/components/UserAddressLink";
 import { 
   TrophyIcon, 
   UserIcon, 
@@ -16,6 +15,7 @@ import {
   TrophyIcon as TrophyIconSolid,
   SparklesIcon as SparklesIconSolid
 } from '@heroicons/react/24/solid';
+import UserAddressLink from "@/components/UserAddressLink";
 
 type TabType = 'creators' | 'challengers' | 'reputation';
 
@@ -424,11 +424,9 @@ export default function PoolLeaderboardPage() {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <UserAddressLink 
-                            address={entry.address}
-                            className="text-sm text-text-primary font-mono bg-gradient-to-r from-cyan-500/20 via-blue-500/20 to-violet-500/20 px-3 py-1 rounded-lg border border-primary/30 backdrop-blur-sm hover:border-primary/50"
-                          >
-                            {entry.address.slice(0, 6)}...{entry.address.slice(-4)}
-                          </UserAddressLink>
+                            address={entry.address} 
+                            className="text-sm text-text-primary font-mono bg-gradient-to-r from-cyan-500/20 via-blue-500/20 to-violet-500/20 px-3 py-1 rounded-lg border border-primary/30 backdrop-blur-sm hover:text-primary transition-colors"
+                          />
                           {entry.rank <= 3 && (
                             <SparklesIcon className="w-4 h-4 text-primary animate-pulse" />
                           )}

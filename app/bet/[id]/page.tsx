@@ -38,9 +38,9 @@ import BetDisplay from "@/components/BetDisplay";
 import SettlementResults from "@/components/SettlementResults";
 import MatchCenter from "@/components/MatchCenter";
 import ClaimRewards from "@/components/ClaimRewards";
+import { CONTRACT_ADDRESSES } from "@/contracts";
 import SkeletonLoader from "@/components/SkeletonLoader";
 import UserAddressLink from "@/components/UserAddressLink";
-import { CONTRACT_ADDRESSES } from "@/contracts";
 
 interface ApiComment {
   id: number;
@@ -758,11 +758,9 @@ export default function BetPage() {
             <div className="flex flex-wrap items-center gap-2 mb-3">
               {comment.author.address ? (
                 <UserAddressLink 
-                  address={comment.author.address}
-                  className={`font-semibold ${isCreator ? 'text-purple-300 hover:text-purple-200' : 'text-white hover:text-primary'}`}
-                >
-                  {comment.author.username || comment.author.address.slice(0, 6) + '...' || 'Anonymous'}
-                </UserAddressLink>
+                  address={comment.author.address} 
+                  className={`font-semibold ${isCreator ? 'text-purple-300' : 'text-white'} hover:underline`}
+                />
               ) : (
                 <span className={`font-semibold ${isCreator ? 'text-purple-300' : 'text-white'}`}>
                   {comment.author.username || 'Anonymous'}
@@ -1665,7 +1663,10 @@ export default function BetPage() {
                             </div>
                             <div>
                               <div className="text-sm font-medium text-white">
-                                {lp.address.slice(0, 6)}...{lp.address.slice(-4)}
+                                <UserAddressLink 
+                                  address={lp.address} 
+                                  className="hover:text-primary transition-colors"
+                                />
                               </div>
                               <div className="text-xs text-gray-400">
                                 {new Date(lp.timestamp * 1000).toLocaleString()}

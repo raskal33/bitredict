@@ -11,7 +11,6 @@ import {
   CurrencyDollarIcon
 } from '@heroicons/react/24/outline';
 import { oddysseyService } from '@/services/oddysseyService';
-import UserAddressLink from "./UserAddressLink";
 
 interface LeaderboardEntry {
   rank: number;
@@ -188,12 +187,9 @@ export default function OddysseyLeaderboard({ cycleId, className = '' }: Oddysse
               <div className="md:col-span-4">
                 <div className="flex items-center gap-2">
                   <UserIcon className="h-4 w-4 text-text-muted" />
-                  <UserAddressLink 
-                    address={entry.playerAddress}
-                    className="font-mono text-sm text-white hover:text-primary"
-                  >
+                  <span className="font-mono text-sm text-white">
                     {formatAddress(entry.playerAddress)}
-                  </UserAddressLink>
+                  </span>
                 </div>
                 <div className="text-xs text-text-muted mt-1">
                   Slip #{entry.slipId}

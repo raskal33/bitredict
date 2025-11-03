@@ -1,38 +1,39 @@
 "use client";
 
-import Link from "next/link";
-import { formatAddress } from "@/utils/formatters";
+import Link from 'next/link';
+import { useAccount } from 'wagmi';
 
 interface UserAddressLinkProps {
   address: string;
-  children?: React.ReactNode;
   className?: string;
-  startChars?: number;
-  endChars?: number;
+  showFull?: boolean;
+  truncateLength?: number;
 }
 
-/**
- * Reusable component for clickable wallet addresses/usernames
- * Navigates to public profile page
- */
 export default function UserAddressLink({ 
   address, 
-  children, 
-  className = "",
-  startChars = 6,
-  endChars = 4
+  className = "text-gray-400 hover:text-primary transition-colors",
+  showFull = false,
+  truncateLength = 6
 }: UserAddressLinkProps) {
-  if (!address) return null;
+  const { address: connectedAddress } = useAccount();
+  const isOwnProfile = connectedAddress && address && 
+    connectedAddress.toLowerCase() === address.toLowerCase();
 
-  const displayText = children || formatAddress(address, startChars, endChars);
+  const displayAddress = showFull 
+    ? address 
+    : `${address.slice(0, truncateLength)}...${address.slice(-4)}`;
+
+  // If viewing own profile, link to /profile, otherwise to /user/[address]
+  const href = isOwnProfile ? '/profile' : `/user/${address}`;
 
   return (
-    <Link
-      href={`/profile/${address}`}
-      className={`hover:text-primary transition-colors ${className}`}
-      onClick={(e) => e.stopPropagation()} // Prevent parent click handlers
+    <Link 
+      href={href} 
+      className={className}
+      onClick={(e) => e.stopPropagation()} // Prevent event bubbling
     >
-      {displayText}
+      {displayAddress}
     </Link>
   );
 }
