@@ -95,6 +95,14 @@ export interface RecentBet {
   icon?: string; // Icon for event type
   odds?: number; // Odds that user took
   currency?: string; // Currency used
+  // Settlement fields from backend
+  isSettled?: boolean;
+  creatorSideWon?: boolean;
+  homeTeam?: string;
+  awayTeam?: string;
+  totalBettorStake?: string;
+  totalCreatorSideStake?: string;
+  creatorStake?: string;
 }
 
 export interface PoolAnalytics {
