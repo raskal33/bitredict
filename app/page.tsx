@@ -561,12 +561,17 @@ export default function HomePage() {
                 </Link>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                                  <AnimatePresence>
-                    {filteredPools.slice(0, 6).map((pool, index) => (
-                    <EnhancedPoolCard key={pool.id} pool={pool} index={index} />
-                    ))}
-                  </AnimatePresence>
+              <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6 max-w-7xl mx-auto px-4 sm:px-6">
+                <AnimatePresence>
+                  {filteredPools.slice(0, 6).map((pool, index) => (
+                    <EnhancedPoolCard 
+                      key={pool.id} 
+                      pool={pool} 
+                      index={index}
+                      className="max-w-md mx-auto w-full"
+                    />
+                  ))}
+                </AnimatePresence>
               </div>
             )}
             

@@ -429,13 +429,14 @@ export default function EnhancedPoolCard({
         glass-card ${theme.glow} ${theme.hoverGlow}
         ${pool.boostTier && pool.boostTier !== 'NONE' ? getBoostGlow(pool.boostTier) : ''}
         transition-all duration-500 backdrop-blur-card
+        w-full max-w-sm sm:max-w-md
         ${className}
       `}
     >
       {/* Badge Container - Organized and Clean */}
-      <div className="absolute top-3 left-3 right-3 z-10 flex justify-between items-start pointer-events-none">
+      <div className="absolute top-2 left-2 right-2 sm:top-3 sm:left-3 sm:right-3 z-10 flex justify-between items-start pointer-events-none">
         {/* Left side badges */}
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-1.5 sm:gap-2">
           {/* Primary Status Badge */}
           {(() => {
             const statusInfo = getPoolStatusDisplay({
@@ -452,25 +453,26 @@ export default function EnhancedPoolCard({
             const badgeProps = getStatusBadgeProps(statusInfo);
             
             return (
-              <div className="flex gap-2 items-center">
-                <div className={`${badgeProps.className} pointer-events-auto`}>
+              <div className="flex flex-wrap gap-1.5 sm:gap-2 items-center">
+                <div className={`${badgeProps.className} pointer-events-auto text-xs sm:text-xs`}>
                   <span className="mr-1">{badgeProps.icon}</span>
-                  {badgeProps.label}
+                  <span className="hidden sm:inline">{badgeProps.label}</span>
+                  <span className="sm:hidden">{badgeProps.label.split(' ')[0]}</span>
                 </div>
                 
                 {/* Trending Badge - next to status */}
                 {pool.trending && (
-                  <div className="bg-gradient-to-r from-red-500/90 to-pink-500/90 backdrop-blur-sm text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 pointer-events-auto">
-                    <BoltIcon className="w-3 h-3" />
-                    TRENDING
+                  <div className="bg-gradient-to-r from-red-500/90 to-pink-500/90 backdrop-blur-sm text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold flex items-center gap-1 pointer-events-auto">
+                    <BoltIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                    <span className="hidden sm:inline">TRENDING</span>
                   </div>
                 )}
                 
                 {/* Hot Badge - next to status and trending */}
                 {indexedData?.isHot && (
-                  <div className="bg-gradient-to-r from-orange-500/90 to-red-500/90 backdrop-blur-sm text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 pointer-events-auto">
-                    <ChartBarIcon className="w-3 h-3" />
-                    HOT
+                  <div className="bg-gradient-to-r from-orange-500/90 to-red-500/90 backdrop-blur-sm text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold flex items-center gap-1 pointer-events-auto">
+                    <ChartBarIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                    <span className="hidden sm:inline">HOT</span>
                   </div>
                 )}
               </div>
@@ -480,33 +482,33 @@ export default function EnhancedPoolCard({
         </div>
 
         {/* Right side badges */}
-        <div className="flex flex-col gap-2 items-end">
+        <div className="flex flex-col gap-1.5 sm:gap-2 items-end">
         {/* Boost Badge */}
         {pool.boostTier && pool.boostTier !== 'NONE' && (
           <div className={`
-              px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 backdrop-blur-sm pointer-events-auto
+              px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold flex items-center gap-1 backdrop-blur-sm pointer-events-auto
               ${pool.boostTier === 'GOLD' ? 'bg-gradient-to-r from-yellow-500/90 to-yellow-600/90 text-black' :
                 pool.boostTier === 'SILVER' ? 'bg-gradient-to-r from-gray-400/90 to-gray-500/90 text-black' :
                 'bg-gradient-to-r from-orange-600/90 to-orange-700/90 text-white'}
           `}>
-            <BoltIcon className="w-3 h-3" />
+            <BoltIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
             {pool.boostTier}
           </div>
         )}
 
         {/* Private Badge */}
         {pool.isPrivate && (
-            <div className="bg-gradient-to-r from-purple-500/90 to-pink-500/90 backdrop-blur-sm text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 pointer-events-auto">
-            <UserIcon className="w-3 h-3" />
-            PRIVATE
+            <div className="bg-gradient-to-r from-purple-500/90 to-pink-500/90 backdrop-blur-sm text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold flex items-center gap-1 pointer-events-auto">
+            <UserIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+            <span className="hidden sm:inline">PRIVATE</span>
           </div>
         )}
 
         {/* Combo Pool Badge */}
         {pool.isComboPool && (
-            <div className="bg-gradient-to-r from-purple-500/90 to-indigo-500/90 backdrop-blur-sm text-white px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 pointer-events-auto">
-            <SparklesIcon className="w-3 h-3" />
-            COMBO
+            <div className="bg-gradient-to-r from-purple-500/90 to-indigo-500/90 backdrop-blur-sm text-white px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold flex items-center gap-1 pointer-events-auto">
+            <SparklesIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+            <span className="hidden sm:inline">COMBO</span>
           </div>
         )}
 
@@ -514,64 +516,64 @@ export default function EnhancedPoolCard({
         {showBoostButton && canBoost && (
           <button
             onClick={handleBoostClick}
-              className="px-2 py-1 rounded-full text-xs font-bold flex items-center gap-1 bg-gradient-to-r from-yellow-500/90 to-orange-500/90 backdrop-blur-sm text-black hover:from-yellow-400 hover:to-orange-400 transition-all transform hover:scale-105 pointer-events-auto"
+              className="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold flex items-center gap-1 bg-gradient-to-r from-yellow-500/90 to-orange-500/90 backdrop-blur-sm text-black hover:from-yellow-400 hover:to-orange-400 transition-all transform hover:scale-105 pointer-events-auto"
           >
-            <BoltIcon className="w-3 h-3" />
-            BOOST
+            <BoltIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+            <span className="hidden sm:inline">BOOST</span>
           </button>
         )}
         </div>
       </div>
 
       {/* Header */}
-      <div className="flex items-center gap-2 mb-3 mt-4">
-        <div className="text-2xl">{getCategoryIcon(pool.category)}</div>
+      <div className="flex items-center gap-2 mb-2 sm:mb-3 mt-12 sm:mt-16 px-3 sm:px-4">
+        <div className="text-xl sm:text-2xl">{getCategoryIcon(pool.category)}</div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-1.5 sm:gap-2 mb-1 flex-wrap">
             {(() => {
               const badgeProps = getCategoryBadgeProps(pool.category);
               return (
-                <span className={`text-xs px-2 py-1 rounded-full font-medium border ${badgeProps.color} ${badgeProps.bgColor} border-current/30`}>
+                <span className={`text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full font-medium border ${badgeProps.color} ${badgeProps.bgColor} border-current/30`}>
                   {badgeProps.label}
             </span>
               );
             })()}
-            <div className={`flex items-center gap-1 text-xs ${difficultyColor}`}>
-              <StarIcon className="w-3 h-3 flex-shrink-0" />
+            <div className={`flex items-center gap-1 text-[10px] sm:text-xs ${difficultyColor}`}>
+              <StarIcon className="w-2.5 h-2.5 sm:w-3 sm:h-3 flex-shrink-0" />
               <span className="truncate">{difficultyTier}</span>
             </div>
           </div>
-          <div className="text-xs text-gray-400 truncate">
+          <div className="text-[10px] sm:text-xs text-gray-400 truncate">
             by {formatAddress(pool.creator)} • {pool.oracleType} Oracle
-            {indexedData?.creatorReputation && ` • ${indexedData.creatorReputation} rep`}
+            {indexedData?.creatorReputation && <span className="hidden sm:inline"> • {indexedData.creatorReputation} rep</span>}
           </div>
         </div>
         <div className="text-right flex-shrink-0">
-          <div className="text-xs text-gray-400">Pool ID</div>
-          <div className={`text-lg font-bold ${theme.accent}`}>
+          <div className="text-[10px] sm:text-xs text-gray-400">Pool ID</div>
+          <div className={`text-base sm:text-lg font-bold ${theme.accent}`}>
             #{pool.id}
           </div>
         </div>
       </div>
 
       {/* Professional Title */}
-      <h3 className="text-base font-bold text-white line-clamp-2 mb-3 group-hover:text-primary transition-colors flex-shrink-0" style={{ minHeight: '2.5rem' }}>
+      <h3 className="text-sm sm:text-base font-bold text-white line-clamp-2 mb-2 sm:mb-3 group-hover:text-primary transition-colors flex-shrink-0 px-3 sm:px-4" style={{ minHeight: '2.5rem' }}>
         {displayTitle}
       </h3>
 
       {/* Team Names Display */}
       {pool.homeTeam && pool.awayTeam && (
-        <div className="mb-3 flex-shrink-0">
-          <div className="flex items-center justify-center gap-2 text-sm text-gray-300">
-            <span className="font-semibold text-white">{pool.homeTeam}</span>
-            <span className="text-gray-400">vs</span>
-            <span className="font-semibold text-white">{pool.awayTeam}</span>
+        <div className="mb-2 sm:mb-3 flex-shrink-0 px-3 sm:px-4">
+          <div className="flex items-center justify-center gap-2 text-xs sm:text-sm text-gray-300">
+            <span className="font-semibold text-white truncate max-w-[40%]">{pool.homeTeam}</span>
+            <span className="text-gray-400 flex-shrink-0">vs</span>
+            <span className="font-semibold text-white truncate max-w-[40%]">{pool.awayTeam}</span>
           </div>
         </div>
       )}
 
       {/* Progress Bar - Always show with fallback */}
-        <div className="mb-3 flex-shrink-0">
+        <div className="mb-2 sm:mb-3 flex-shrink-0 px-3 sm:px-4">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs text-gray-400">Pool Progress</span>
           <span className="text-xs text-white font-medium">
@@ -737,7 +739,7 @@ export default function EnhancedPoolCard({
 
       {/* Creator Prediction Section or Combo Pool Section */}
       {pool.isComboPool ? (
-        <div className="mb-3 p-3 glass-card bg-gradient-to-br from-purple-800/40 to-indigo-900/40 rounded-lg border border-purple-600/30 flex-shrink-0 backdrop-blur-md shadow-lg">
+        <div className="mb-2 sm:mb-3 p-2.5 sm:p-3 glass-card bg-gradient-to-br from-purple-800/40 to-indigo-900/40 rounded-lg border border-purple-600/30 flex-shrink-0 backdrop-blur-md shadow-lg mx-3 sm:mx-4">
           <div className="mb-2">
             <div className="text-xs text-purple-400 mb-1 flex items-center gap-1">
               <SparklesIcon className="w-3 h-3" />
@@ -770,7 +772,7 @@ export default function EnhancedPoolCard({
           </div>
         </div>
       ) : (
-        <div className="mb-3 p-3 glass-card bg-gradient-to-br from-gray-800/40 to-gray-900/40 rounded-lg border border-gray-600/30 flex-shrink-0 backdrop-blur-md shadow-lg">
+        <div className="mb-2 sm:mb-3 p-2.5 sm:p-3 glass-card bg-gradient-to-br from-gray-800/40 to-gray-900/40 rounded-lg border border-gray-600/30 flex-shrink-0 backdrop-blur-md shadow-lg mx-3 sm:mx-4">
           <div className="mb-2">
             <div className="text-xs text-warning mb-1 flex items-center gap-1">
               <BoltIcon className="w-3 h-3" />
@@ -847,7 +849,7 @@ export default function EnhancedPoolCard({
       )}
 
       {/* Enhanced Stats with Indexed Data */}
-      <div className="grid grid-cols-3 gap-3 mb-3 text-center flex-shrink-0">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-2 sm:mb-3 text-center flex-shrink-0 px-3 sm:px-4">
         <div>
           <div className="text-xs text-gray-400 flex items-center justify-center gap-1">
             <CurrencyDollarIcon className="w-3 h-3" />
@@ -929,7 +931,7 @@ export default function EnhancedPoolCard({
       </div>
 
       {/* Additional Stats - Total Bets, Avg Bet */}
-      <div className="grid grid-cols-2 gap-2 mb-3 text-center flex-shrink-0">
+      <div className="grid grid-cols-2 gap-2 sm:gap-2 mb-2 sm:mb-3 text-center flex-shrink-0 px-3 sm:px-4">
         <div>
           <div className="text-xs text-gray-400">Total Bets</div>
           <div className="text-xs font-bold text-white">
@@ -963,7 +965,7 @@ export default function EnhancedPoolCard({
       
       {/* Social Stats - pushed to bottom */}
       {showSocialStats && (
-        <div className="flex items-center justify-between pt-3 border-t border-gray-700/20 mt-auto">
+        <div className="flex items-center justify-between pt-2 sm:pt-3 px-3 sm:px-4 pb-3 sm:pb-4 border-t border-gray-700/20 mt-auto">
           <div className="flex items-center gap-3 text-xs text-gray-400">
             <button
               onClick={(e) => {
@@ -971,14 +973,14 @@ export default function EnhancedPoolCard({
                 toggleLike();
               }}
               disabled={isLoading}
-              className={`flex items-center gap-1 transition-colors hover:text-pink-400 disabled:opacity-50 disabled:cursor-not-allowed ${
+              className={`flex items-center gap-1 transition-colors hover:text-pink-400 disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm ${
                 isLiked ? 'text-pink-400' : ''
               }`}
             >
               {isLiked ? (
-                <HeartIconSolid className="w-3 h-3" />
+                <HeartIconSolid className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               ) : (
-                <HeartIcon className="w-3 h-3" />
+                <HeartIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               )}
               {localSocialStats.likes}
             </button>
@@ -987,13 +989,13 @@ export default function EnhancedPoolCard({
                 e.stopPropagation();
                 router.push(`/bet/${pool.id}#comments`);
               }}
-              className="flex items-center gap-1 hover:text-blue-400 transition-colors cursor-pointer"
+              className="flex items-center gap-1 hover:text-blue-400 transition-colors cursor-pointer text-xs sm:text-sm"
             >
-              <ChatBubbleLeftIcon className="w-3 h-3" />
+              <ChatBubbleLeftIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               {localSocialStats.comments}
             </button>
-            <div className="flex items-center gap-1">
-              <EyeIcon className="w-3 h-3" />
+            <div className="flex items-center gap-1 text-xs sm:text-sm">
+              <EyeIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               {localSocialStats.views}
             </div>
           </div>
