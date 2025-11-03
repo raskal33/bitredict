@@ -44,8 +44,12 @@ export default function HomePage() {
     // Backend API verifies settlement status against contract before returning data
     // isSettled and creatorSideWon are the source of truth from backend
     // ✅ FIX: Explicitly convert to boolean to handle string "true"/"false" from API
-    const isSettled = pool.isSettled === true || pool.isSettled === 'true' || pool.isSettled === 1;
-    const creatorSideWon = pool.creatorSideWon === true || pool.creatorSideWon === 'true' || pool.creatorSideWon === 1;
+    const isSettled = pool.isSettled === true || 
+                     (typeof pool.isSettled === 'string' && pool.isSettled === 'true') || 
+                     (typeof pool.isSettled === 'number' && pool.isSettled === 1);
+    const creatorSideWon = pool.creatorSideWon === true || 
+                           (typeof pool.creatorSideWon === 'string' && pool.creatorSideWon === 'true') || 
+                           (typeof pool.creatorSideWon === 'number' && pool.creatorSideWon === 1);
     
     // Debug logging to verify values
     if (pool.id === 8) {
