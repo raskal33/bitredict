@@ -39,6 +39,7 @@ import SettlementResults from "@/components/SettlementResults";
 import MatchCenter from "@/components/MatchCenter";
 import ClaimRewards from "@/components/ClaimRewards";
 import SkeletonLoader from "@/components/SkeletonLoader";
+import UserAddressLink from "@/components/UserAddressLink";
 import { CONTRACT_ADDRESSES } from "@/contracts";
 
 interface ApiComment {
@@ -755,9 +756,18 @@ export default function BetPage() {
           
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2 mb-3">
-              <span className={`font-semibold ${isCreator ? 'text-purple-300' : 'text-white'}`}>
-                {comment.author.username || comment.author.address?.slice(0, 6) + '...' || 'Anonymous'}
-              </span>
+              {comment.author.address ? (
+                <UserAddressLink 
+                  address={comment.author.address}
+                  className={`font-semibold ${isCreator ? 'text-purple-300 hover:text-purple-200' : 'text-white hover:text-primary'}`}
+                >
+                  {comment.author.username || comment.author.address.slice(0, 6) + '...' || 'Anonymous'}
+                </UserAddressLink>
+              ) : (
+                <span className={`font-semibold ${isCreator ? 'text-purple-300' : 'text-white'}`}>
+                  {comment.author.username || 'Anonymous'}
+                </span>
+              )}
               
               {isCreator && (
                 <div className="px-2 py-1 bg-gradient-to-r from-purple-500/30 to-pink-500/30 text-purple-300 rounded-full text-xs font-semibold border border-purple-500/50 shadow-md">

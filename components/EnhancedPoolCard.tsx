@@ -24,6 +24,7 @@ import { titleTemplatesService } from "../services/title-templates";
 import PlaceBetModal from "./PlaceBetModal";
 import { usePoolSocialStats } from "../hooks/usePoolSocialStats";
 import { HeartIcon as HeartIconSolid } from "@heroicons/react/24/solid";
+import UserAddressLink from "./UserAddressLink";
 
   // Enhanced Pool interface with indexed data
 export interface EnhancedPool {
@@ -357,12 +358,6 @@ export default function EnhancedPoolCard({
     }
   };
 
-
-  const formatAddress = (address: string) => {
-    if (!address) return "Unknown";
-    return `${address.slice(0, 6)}...${address.slice(-4)}`;
-  };
-
   const handleClick = () => {
     // Navigate to the specific bet page for this pool
     console.log('Navigating to pool:', pool.id);
@@ -544,7 +539,7 @@ export default function EnhancedPoolCard({
             </div>
           </div>
           <div className="text-[10px] sm:text-xs text-gray-400 truncate">
-            by {formatAddress(pool.creator)} • {pool.oracleType} Oracle
+            by <UserAddressLink address={pool.creator} className="text-gray-400 hover:text-primary" /> • {pool.oracleType} Oracle
             {indexedData?.creatorReputation && <span className="hidden sm:inline"> • {indexedData.creatorReputation} rep</span>}
           </div>
         </div>
