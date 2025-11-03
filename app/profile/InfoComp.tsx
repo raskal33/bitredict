@@ -3,6 +3,7 @@
 import { useAccount } from 'wagmi';
 import { useProfileStore } from '@/stores/useProfileStore';
 import { useCopyToClipboard } from "@uidotdev/usehooks";
+import { useUserFollow } from '@/hooks/useUserFollow';
 import { FaCopy, FaTwitter, FaDiscord, FaTelegram, FaCamera, FaEdit, FaSave, FaTimes } from "react-icons/fa";
 import { MdVerified, MdOutlineLeaderboard } from "react-icons/md";
 import { HiOutlineLocationMarker } from "react-icons/hi";
@@ -10,13 +11,22 @@ import { RiUserFollowLine, RiUserFollowFill } from "react-icons/ri";
 import { useState, useEffect, useRef } from "react";
 import Button from "@/components/button";
 
-export default function InfoComp() {
+export default function InfoComp({ targetAddress }: { targetAddress?: string }) {
   const [, copyToClipboard] = useCopyToClipboard();
   const { address } = useAccount();
   const { currentProfile, uploadAvatar, updateCurrentProfile, setCurrentProfile } = useProfileStore();
-  const [isFollowing, setIsFollowing] = useState(false);
-  const [formattedFollowers, setFormattedFollowers] = useState("1243");
-  const [formattedFollowing, setFormattedFollowing] = useState("358");
+  
+  // Use the profile address or target address, default to current user
+  const profileAddress = targetAddress || address || '';
+  const { profile, follow, unfollow, fetchFollowers, fetchFollowing } = useUserFollow(profileAddress);
+  
+  // Determine if current user is viewing their own profile
+  const isOwnProfile = address && profileAddress && address.toLowerCase() === profileAddress.toLowerCase();
+  const isFollowing = profile?.isFollowing || false;
+  
+  // Format follower/following counts
+  const formattedFollowers = profile?.followerCount?.toLocaleString() || "0";
+  const formattedFollowing = profile?.followingCount?.toLocaleString() || "0";
   const [isEditMode, setIsEditMode] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -32,15 +42,33 @@ export default function InfoComp() {
   
   const walletKey = address;
   
-  // Use profile data from store or fallback to mock data
-  const userData = currentProfile ? {
+  // Use profile data from backend API or fallback to store/mock data
+  const userData = profile ? {
+    username: currentProfile?.username || profileAddress.slice(0, 8),
+    displayName: currentProfile?.displayName || `${profileAddress.slice(0, 6)}...${profileAddress.slice(-4)}`,
+    bio: currentProfile?.bio || '',
+    joinDate: new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+    location: currentProfile?.location || "Unknown",
+    followers: profile.followerCount || 0,
+    following: profile.followingCount || 0,
+    isVerified: currentProfile?.isVerified || false,
+    socialLinks: {
+      twitter: currentProfile?.twitter || '',
+      discord: currentProfile?.discord || '',
+      telegram: currentProfile?.telegram || ''
+    },
+    rank: {
+      global: 0,
+      percentile: 100
+    }
+  } : (currentProfile ? {
     username: currentProfile.username,
     displayName: currentProfile.displayName,
     bio: currentProfile.bio,
     joinDate: new Date(currentProfile.joinDate).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
     location: currentProfile.location || "Unknown",
-    followers: 1243, // These would come from backend in real app
-    following: 358,
+    followers: 0,
+    following: 0,
     isVerified: currentProfile.isVerified,
     socialLinks: {
       twitter: currentProfile.twitter,
@@ -48,34 +76,36 @@ export default function InfoComp() {
       telegram: currentProfile.telegram
     },
     rank: {
-      global: 42, // Would come from backend
-      percentile: 5
+      global: 0,
+      percentile: 100
     }
   } : {
-    username: "CryptoWizard",
-    displayName: "Alex Thompson",
-    bio: "Crypto analyst and prediction market enthusiast. Top 5% predictor on Bitredict.",
-    joinDate: "July 2024",
-    location: "Singapore",
-    followers: 1243,
-    following: 358,
-    isVerified: true,
+    username: "Unknown",
+    displayName: "Unknown User",
+    bio: "",
+    joinDate: "Unknown",
+    location: "Unknown",
+    followers: 0,
+    following: 0,
+    isVerified: false,
     socialLinks: {
-      twitter: "https://twitter.com/cryptowizard",
-      discord: "cryptowizard#1234",
-      telegram: "@cryptowizard"
+      twitter: '',
+      discord: '',
+      telegram: ''
     },
     rank: {
-      global: 42,
-      percentile: 5
+      global: 0,
+      percentile: 100
     }
-  };
+  });
 
-  // Format numbers on client-side only to avoid hydration errors
+  // Fetch followers and following when component mounts
   useEffect(() => {
-    setFormattedFollowers(userData.followers.toString());
-    setFormattedFollowing(userData.following.toString());
-  }, [userData.followers, userData.following]);
+    if (profileAddress) {
+      fetchFollowers();
+      fetchFollowing();
+    }
+  }, [profileAddress, fetchFollowers, fetchFollowing]);
 
   // Set current profile when address changes
   useEffect(() => {
@@ -99,8 +129,12 @@ export default function InfoComp() {
     }
   }, [isEditMode, currentProfile]);
 
-  const handleFollow = () => {
-    setIsFollowing(!isFollowing);
+  const handleFollow = async () => {
+    if (isFollowing) {
+      await unfollow();
+    } else {
+      await follow();
+    }
   };
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {

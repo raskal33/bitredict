@@ -40,13 +40,33 @@ export default function WalletProvider({ children }: { children: ReactNode }) {
       <QueryClientProvider client={queryClient}>
         {children}
         <Toaster
-          position="top-right"
+          position="bottom-right"
           toastOptions={{
-            duration: 4000,
+            duration: 5000,
             style: {
               background: '#1a1a1a',
               color: '#fff',
               border: '1px solid #333',
+            },
+            success: {
+              iconTheme: {
+                primary: '#10b981',
+                secondary: '#fff',
+              },
+              style: {
+                background: '#064e3b',
+                border: '1px solid #10b981',
+              },
+            },
+            error: {
+              iconTheme: {
+                primary: '#ef4444',
+                secondary: '#fff',
+              },
+              style: {
+                background: '#7f1d1d',
+                border: '1px solid #ef4444',
+              },
             },
           }}
         />
