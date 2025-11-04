@@ -36,6 +36,7 @@ interface BetData {
   is_settled: boolean;
   creator_side_won: boolean;
   use_bitr?: boolean;
+  odds?: number; // Pool odds for P&L calculation
 }
 
 export async function GET(
@@ -105,10 +106,11 @@ export async function GET(
         result = bettorWon ? 'won' : 'lost';
         
         if (bettorWon) {
-          // Calculate payout (simplified - actual calculation requires pool odds)
-          // For now, assume 2x return on win (should be calculated from pool odds)
-          const odds = 200; // Default odds (2.0x), should come from pool data
-          const grossPayout = (betAmount * odds) / 100;
+          // Calculate payout using actual pool odds
+          // odds is stored as integer (e.g., 150 for 1.5x, 200 for 2.0x)
+          const oddsValue = bet.odds ? parseFloat(bet.odds) : 200; // Default to 2.0x if no odds
+          const oddsMultiplier = oddsValue / 100; // Convert to decimal (150 -> 1.5x)
+          const grossPayout = betAmount * oddsMultiplier;
           const fee = grossPayout * 0.05; // 5% fee
           amountWon = grossPayout - fee;
           profitLoss = amountWon - betAmount;
