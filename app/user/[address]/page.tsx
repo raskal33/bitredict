@@ -51,7 +51,6 @@ export default function PublicProfilePage() {
   
   const [bets, setBets] = useState<UserBet[]>([]);
   const [betsLoading, setBetsLoading] = useState(true);
-  const [totalProfitLoss, setTotalProfitLoss] = useState(0);
 
   useEffect(() => {
     if (!userAddress) return;
@@ -74,17 +73,17 @@ export default function PublicProfilePage() {
           setBets(data.data || []);
           // Calculate total P&L
           const totalPL = (data.data || []).reduce((sum: number, bet: UserBet) => sum + bet.profitLoss, 0);
-          setTotalProfitLoss(totalPL);
+          // setTotalProfitLoss(totalPL); // This line is removed as per the edit hint
           console.log('✅ Loaded', data.data.length, 'bets, Total P&L:', totalPL);
         } else {
           console.warn('⚠️ No bets data in response');
           setBets([]);
-          setTotalProfitLoss(0);
+          // setTotalProfitLoss(0); // This line is removed as per the edit hint
         }
       } catch (error) {
         console.error('❌ Error fetching bets:', error);
         setBets([]);
-        setTotalProfitLoss(0);
+        // setTotalProfitLoss(0); // This line is removed as per the edit hint
       } finally {
         setBetsLoading(false);
       }
@@ -113,14 +112,32 @@ export default function PublicProfilePage() {
     connectedAddress.toLowerCase() === userAddress.toLowerCase();
 
   const profileStats = profile?.stats || {
-    totalBets: 0,
-    wonBets: 0,
-    winRate: 0,
-    profitLoss: 0,
-    totalVolume: 0,
-    biggestWin: 0,
-    totalPoolsCreated: 0
+    total_bets: 0,
+    won_bets: 0,
+    profit_loss: 0,
+    total_volume: 0,
+    avg_bet_size: 0,
+    biggest_win: 0,
+    total_pools_created: 0,
+    pools_won: 0,
+    reputation: 40
   };
+
+  // Convert snake_case to camelCase for consistency
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const ps = profileStats as any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const normalizedStats: any = {
+    totalBets: ps.total_bets || ps.totalBets || 0,
+    wonBets: ps.won_bets || ps.wonBets || 0,
+    winRate: ((ps.total_bets || ps.totalBets) || 0) > 0 ? (((ps.won_bets || ps.wonBets) || 0) / ((ps.total_bets || ps.totalBets) || 0)) * 100 : 0,
+    profitLoss: ps.profit_loss || ps.profitLoss || 0,
+    totalVolume: ps.total_volume || ps.totalVolume || 0,
+    biggestWin: ps.biggest_win || ps.biggestWin || 0,
+    totalPoolsCreated: ps.total_pools_created || ps.totalPoolsCreated || 0,
+    averageBetSize: ps.avg_bet_size || ps.averageBetSize || 0
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
 
   const joinedDate = profile?.stats?.joinedAt 
     ? new Date(profile.stats.joinedAt)
@@ -182,7 +199,7 @@ export default function PublicProfilePage() {
                   )}
                   <div className="flex items-center gap-1">
                     <EyeIcon className="w-4 h-4" />
-                    <span>{profileStats.totalBets > 0 ? `${(profileStats.totalBets / 1000).toFixed(1)}k` : '0'} predictions</span>
+                    <span>{normalizedStats.totalBets > 0 ? `${(normalizedStats.totalBets / 1000).toFixed(1)}k` : '0'} predictions</span>
                   </div>
                 </div>
                 {!isOwnProfile && (
@@ -199,21 +216,21 @@ export default function PublicProfilePage() {
             {/* Right: Stats Grid */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 flex-1">
               <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-lg p-4 border border-gray-700/30">
-                <div className="text-xs text-gray-400 mb-1">Positions Value</div>
+                  <div className="text-xs text-gray-400 mb-1">Positions Value</div>
                 <div className="text-xl font-bold text-white">
-                  {formatCompactCurrency(profileStats.totalVolume)} STT
+                  {formatCompactCurrency(normalizedStats.totalVolume)} STT
                 </div>
               </div>
               <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-lg p-4 border border-gray-700/30">
                 <div className="text-xs text-gray-400 mb-1">Biggest Win</div>
                 <div className="text-xl font-bold text-green-400">
-                  {formatCompactCurrency(profileStats.biggestWin)} STT
+                  {formatCompactCurrency(normalizedStats.biggestWin)} STT
                 </div>
               </div>
               <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-lg p-4 border border-gray-700/30">
                 <div className="text-xs text-gray-400 mb-1">Predictions</div>
                 <div className="text-xl font-bold text-white">
-                  {profileStats.totalBets.toLocaleString()}
+                  {normalizedStats.totalBets.toLocaleString()}
                 </div>
               </div>
             </div>
@@ -246,8 +263,8 @@ export default function PublicProfilePage() {
               </div>
             </div>
             <div className="text-4xl font-bold mb-2">
-              <span className={totalProfitLoss >= 0 ? 'text-green-400' : 'text-red-400'}>
-                {totalProfitLoss >= 0 ? '+' : ''}{formatCompactCurrency(totalProfitLoss)} STT
+              <span className={normalizedStats.profitLoss >= 0 ? 'text-green-400' : 'text-red-400'}>
+                {normalizedStats.profitLoss >= 0 ? '+' : ''}{formatCompactCurrency(normalizedStats.profitLoss)} STT
               </span>
             </div>
             <div className="text-sm text-gray-400">Total P&L across all markets</div>
@@ -262,13 +279,13 @@ export default function PublicProfilePage() {
             <div className="glass-card p-4 rounded-xl border border-gray-700/50">
               <div className="text-xs text-gray-400 mb-1">Win Rate</div>
               <div className="text-2xl font-bold text-white">
-                {profileStats.winRate.toFixed(1)}%
+                {normalizedStats.winRate.toFixed(1)}%
               </div>
             </div>
             <div className="glass-card p-4 rounded-xl border border-gray-700/50">
               <div className="text-xs text-gray-400 mb-1">Total Volume</div>
               <div className="text-2xl font-bold text-white">
-                  {formatCompactCurrency(profileStats.totalVolume)} STT
+                  {formatCompactCurrency(normalizedStats.totalVolume)} STT
               </div>
             </div>
           </div>

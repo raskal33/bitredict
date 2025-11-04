@@ -78,36 +78,36 @@ export async function GET(
       throw new Error(`Backend responded with status: ${response.status}`);
     }
 
-           const data = await response.json();
-           
-           console.log('📊 Backend response structure:', {
-             success: data.success,
-             dataExists: !!data.data,
-             betsExists: !!data.data?.bets,
-             betsLength: data.data?.bets?.length || 0,
-             firstBet: data.data?.bets?.[0] || null,
-             rawResponse: JSON.stringify(data).substring(0, 500) // First 500 chars for debugging
-           });
-           
-           // Check if we have bets data
-           if (!data.success || !data.data || !Array.isArray(data.data.bets)) {
-             console.warn('⚠️ Invalid bets response structure:', data);
-             return NextResponse.json({
-               success: true,
-               data: [],
-               pagination: {
-                 currentPage: 1,
-                 totalPages: 1,
-                 totalBets: 0,
-                 hasNextPage: false,
-                 hasPrevPage: false
-               },
-               message: 'No bets data available'
-             });
-           }
-           
-           // Process bets to determine win/loss status and calculate profit/loss
-           const processedBets = data.data.bets.map((bet: BetData) => {
+    const data = await response.json();
+
+    console.log('📊 Backend response structure:', {
+      success: data.success,
+      dataExists: !!data.data,
+      betsExists: !!data.data?.bets,
+      betsLength: data.data?.bets?.length || 0,
+      firstBet: data.data?.bets?.[0] || null,
+      rawResponse: JSON.stringify(data).substring(0, 500) // First 500 chars for debugging
+    });
+
+    // Check if we have bets data - backend returns {success: true, data: {bets: [...], pagination: {...}}}
+    if (!data.success || !data.data || !Array.isArray(data.data.bets)) {
+      console.warn('⚠️ Invalid bets response structure:', data);
+      return NextResponse.json({
+        success: true,
+        data: [],
+        pagination: {
+          currentPage: 1,
+          totalPages: 1,
+          totalBets: 0,
+          hasNextPage: false,
+          hasPrevPage: false
+        },
+        message: 'No bets data available'
+      });
+    }
+
+    // Process bets to determine win/loss status and calculate profit/loss
+    const processedBets = data.data.bets.map((bet: BetData) => {
       const betAmount = parseFloat(bet.amount || '0') / 1e18; // Convert from Wei
       const isSettled = Boolean(bet.is_settled);
       const creatorSideWon = Boolean(bet.creator_side_won);

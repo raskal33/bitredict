@@ -36,9 +36,12 @@ export async function GET(
     const data = await response.json();
     console.log('✅ User profile fetched successfully:', data);
 
+    // Extract stats from backend response format {success: true, stats: {...}}
+    const statsData = data.stats || data.data || data;
+
     return NextResponse.json({
       success: true,
-      data: data.data || data,
+      data: statsData,
       message: 'User profile fetched successfully'
     }, {
       headers: {
