@@ -14,6 +14,7 @@ import {
 import { useUserProfile, useUserReputation } from '@/hooks/useUserProfile';
 import { useUserFollow } from '@/hooks/useUserFollow';
 import { formatDistanceToNow } from 'date-fns';
+import PnLChart from '@/components/charts/PnLChart';
 
 interface UserBet {
   id: string;
@@ -221,10 +222,10 @@ export default function PublicProfilePage() {
                 {totalProfitLoss >= 0 ? '+' : ''}{formatCurrency(totalProfitLoss)}
               </span>
             </div>
-            <div className="text-sm text-gray-400">Bitredict</div>
-            {/* Placeholder for chart - can be implemented with a charting library */}
-            <div className="mt-6 h-32 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 rounded-lg flex items-center justify-center border border-cyan-500/20">
-              <span className="text-gray-400 text-sm">Chart placeholder</span>
+            <div className="text-sm text-gray-400">Total P&L across all markets</div>
+            {/* PnL Chart */}
+            <div className="mt-6">
+              <PnLChart bets={bets} timeframe={timeframe} />
             </div>
           </div>
 

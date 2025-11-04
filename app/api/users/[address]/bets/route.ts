@@ -77,10 +77,18 @@ export async function GET(
       throw new Error(`Backend responded with status: ${response.status}`);
     }
 
-    const data = await response.json();
-    
-    // Process bets to determine win/loss status and calculate profit/loss
-    const processedBets = (data.data?.bets || []).map((bet: BetData) => {
+           const data = await response.json();
+           
+           console.log('📊 Backend response structure:', {
+             success: data.success,
+             dataExists: !!data.data,
+             betsExists: !!data.data?.bets,
+             betsLength: data.data?.bets?.length || 0,
+             firstBet: data.data?.bets?.[0] || null
+           });
+           
+           // Process bets to determine win/loss status and calculate profit/loss
+           const processedBets = (data.data?.bets || []).map((bet: BetData) => {
       const betAmount = parseFloat(bet.amount || '0') / 1e18; // Convert from Wei
       const isSettled = Boolean(bet.is_settled);
       const creatorSideWon = Boolean(bet.creator_side_won);
