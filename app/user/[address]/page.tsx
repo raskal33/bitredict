@@ -127,12 +127,25 @@ export default function PublicProfilePage() {
     : null;
 
   const formatCurrency = (value: number) => {
-    if (value >= 1000000) {
-      return `$${(value / 1000000).toFixed(2)}M`;
-    } else if (value >= 1000) {
-      return `$${(value / 1000).toFixed(2)}K`;
+    // Format STT values (not dollars, so no $ sign)
+    const absValue = Math.abs(value);
+    if (absValue >= 1000000) {
+      return `${(value / 1000000).toFixed(2)}M STT`;
+    } else if (absValue >= 1000) {
+      return `${(value / 1000).toFixed(2)}K STT`;
     }
-    return `$${value.toFixed(2)}`;
+    return `${value.toFixed(2)} STT`;
+  };
+  
+  const formatCompactCurrency = (value: number) => {
+    // For display in stat cards
+    const absValue = Math.abs(value);
+    if (absValue >= 1000000) {
+      return `${(value / 1000000).toFixed(2)}M`;
+    } else if (absValue >= 1000) {
+      return `${(value / 1000).toFixed(2)}K`;
+    }
+    return value.toFixed(2);
   };
 
   const closedBets = bets.filter(b => b.result === 'won' || b.result === 'lost');
@@ -188,13 +201,13 @@ export default function PublicProfilePage() {
               <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-lg p-4 border border-gray-700/30">
                 <div className="text-xs text-gray-400 mb-1">Positions Value</div>
                 <div className="text-xl font-bold text-white">
-                  {formatCurrency(profileStats.totalVolume)}
+                  {formatCompactCurrency(profileStats.totalVolume)} STT
                 </div>
               </div>
               <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-lg p-4 border border-gray-700/30">
                 <div className="text-xs text-gray-400 mb-1">Biggest Win</div>
                 <div className="text-xl font-bold text-green-400">
-                  {formatCurrency(profileStats.biggestWin)}
+                  {formatCompactCurrency(profileStats.biggestWin)} STT
                 </div>
               </div>
               <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-lg p-4 border border-gray-700/30">
@@ -234,7 +247,7 @@ export default function PublicProfilePage() {
             </div>
             <div className="text-4xl font-bold mb-2">
               <span className={totalProfitLoss >= 0 ? 'text-green-400' : 'text-red-400'}>
-                {totalProfitLoss >= 0 ? '+' : ''}{formatCurrency(totalProfitLoss)}
+                {totalProfitLoss >= 0 ? '+' : ''}{formatCompactCurrency(totalProfitLoss)} STT
               </span>
             </div>
             <div className="text-sm text-gray-400">Total P&L across all markets</div>
@@ -255,7 +268,7 @@ export default function PublicProfilePage() {
             <div className="glass-card p-4 rounded-xl border border-gray-700/50">
               <div className="text-xs text-gray-400 mb-1">Total Volume</div>
               <div className="text-2xl font-bold text-white">
-                  {formatCurrency(profileStats.totalVolume)}
+                  {formatCompactCurrency(profileStats.totalVolume)} STT
               </div>
             </div>
           </div>
@@ -413,7 +426,11 @@ export default function PublicProfilePage() {
                             {formatDistanceToNow(new Date(activity.timestamp), { addSuffix: true })}
                           </span>
                           {activity.amount && (
-                            <span className="text-xs text-gray-400">• {activity.amount}</span>
+                            <span className="text-xs text-gray-400">
+                              • {typeof activity.amount === 'string' && activity.amount.match(/^\d+$/)
+                                  ? formatCompactCurrency(parseFloat(activity.amount) / 1e18) + ' STT'
+                                  : activity.amount}
+                            </span>
                           )}
                         </div>
                       </div>
