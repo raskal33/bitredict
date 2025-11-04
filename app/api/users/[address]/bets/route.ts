@@ -85,11 +85,29 @@ export async function GET(
              dataExists: !!data.data,
              betsExists: !!data.data?.bets,
              betsLength: data.data?.bets?.length || 0,
-             firstBet: data.data?.bets?.[0] || null
+             firstBet: data.data?.bets?.[0] || null,
+             rawResponse: JSON.stringify(data).substring(0, 500) // First 500 chars for debugging
            });
            
+           // Check if we have bets data
+           if (!data.success || !data.data || !Array.isArray(data.data.bets)) {
+             console.warn('⚠️ Invalid bets response structure:', data);
+             return NextResponse.json({
+               success: true,
+               data: [],
+               pagination: {
+                 currentPage: 1,
+                 totalPages: 1,
+                 totalBets: 0,
+                 hasNextPage: false,
+                 hasPrevPage: false
+               },
+               message: 'No bets data available'
+             });
+           }
+           
            // Process bets to determine win/loss status and calculate profit/loss
-           const processedBets = (data.data?.bets || []).map((bet: BetData) => {
+           const processedBets = data.data.bets.map((bet: BetData) => {
       const betAmount = parseFloat(bet.amount || '0') / 1e18; // Convert from Wei
       const isSettled = Boolean(bet.is_settled);
       const creatorSideWon = Boolean(bet.creator_side_won);
@@ -108,7 +126,7 @@ export async function GET(
         if (bettorWon) {
           // Calculate payout using actual pool odds
           // odds is stored as integer (e.g., 150 for 1.5x, 200 for 2.0x)
-          const oddsValue = bet.odds ? parseFloat(bet.odds) : 200; // Default to 2.0x if no odds
+          const oddsValue = bet.odds ? (typeof bet.odds === 'string' ? parseFloat(bet.odds) : bet.odds) : 200; // Default to 2.0x if no odds
           const oddsMultiplier = oddsValue / 100; // Convert to decimal (150 -> 1.5x)
           const grossPayout = betAmount * oddsMultiplier;
           const fee = grossPayout * 0.05; // 5% fee
@@ -126,7 +144,7 @@ export async function GET(
       
       return {
         id: bet.bet_id || bet.transaction_hash || '',
-        poolId: bet.pool_id,
+        poolId: String(bet.pool_id),
         market: bet.title || `${bet.home_team || ''} vs ${bet.away_team || ''}`.trim() || bet.category || 'Unknown Market',
         category: bet.category || 'General',
         league: bet.league || '',
