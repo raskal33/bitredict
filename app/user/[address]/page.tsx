@@ -59,17 +59,32 @@ export default function PublicProfilePage() {
     const fetchBets = async () => {
       setBetsLoading(true);
       try {
+        console.log('🎯 Fetching bets for:', userAddress, 'filter:', positionFilter);
         const response = await fetch(`/api/users/${userAddress}/bets?status=${positionFilter}&limit=100`);
         const data = await response.json();
         
-        if (data.success) {
-          setBets(data.data.bets || []);
+        console.log('📊 Bets API response:', {
+          success: data.success,
+          hasBets: !!data.data,
+          betsCount: data.data?.length || 0,
+          firstBet: data.data?.[0] || null
+        });
+        
+        if (data.success && Array.isArray(data.data)) {
+          setBets(data.data || []);
           // Calculate total P&L
-          const totalPL = data.data.bets.reduce((sum: number, bet: UserBet) => sum + bet.profitLoss, 0);
+          const totalPL = (data.data || []).reduce((sum: number, bet: UserBet) => sum + bet.profitLoss, 0);
           setTotalProfitLoss(totalPL);
+          console.log('✅ Loaded', data.data.length, 'bets, Total P&L:', totalPL);
+        } else {
+          console.warn('⚠️ No bets data in response');
+          setBets([]);
+          setTotalProfitLoss(0);
         }
       } catch (error) {
-        console.error('Error fetching bets:', error);
+        console.error('❌ Error fetching bets:', error);
+        setBets([]);
+        setTotalProfitLoss(0);
       } finally {
         setBetsLoading(false);
       }
