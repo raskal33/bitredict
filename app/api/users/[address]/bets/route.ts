@@ -149,20 +149,20 @@ export async function GET(
       return true; // 'all'
     });
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        bets: processedBets,
-        pagination: data.data?.pagination || {
-          currentPage: 1,
-          totalPages: 1,
-          totalBets: processedBets.length,
-          hasNextPage: false,
-          hasPrevPage: false
-        }
-      },
-      message: 'User bets fetched successfully'
-    }, {
+           console.log('✅ User bets fetched and processed successfully:', processedBets.length);
+
+           return NextResponse.json({
+             success: true,
+             data: processedBets,  // Return bets array directly, not nested in {bets: []}
+             pagination: data.data?.pagination || {
+               currentPage: 1,
+               totalPages: 1,
+               totalBets: processedBets.length,
+               hasNextPage: false,
+               hasPrevPage: false
+             },
+             message: 'User bets fetched successfully'
+           }, {
       headers: {
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         'Pragma': 'no-cache',
@@ -175,16 +175,7 @@ export async function GET(
 
     return NextResponse.json({
       success: false,
-      data: {
-        bets: [],
-        pagination: {
-          currentPage: 1,
-          totalPages: 1,
-          totalBets: 0,
-          hasNextPage: false,
-          hasPrevPage: false
-        }
-      },
+      data: [],  // Return empty array directly
       message: 'Failed to fetch user bets'
     }, { status: 500 });
   }
