@@ -1,6 +1,6 @@
 import { Address } from 'viem';
 
-// Analytics API endpoints
+// Analytics API endpoints  
 const API_BASE = '/api/oddyssey/smart-analytics';
 
 // Type definitions for analytics data
