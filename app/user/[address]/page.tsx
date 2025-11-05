@@ -225,6 +225,18 @@ export default function PublicProfilePage() {
 
   const closedBets = bets.filter(b => b.result === 'won' || b.result === 'lost');
   const activeBets = bets.filter(b => b.result === 'active' || b.result === 'pending');
+  
+  // Calculate positions value (sum of active bets)
+  const positionsValue = activeBets.reduce((sum, bet) => sum + bet.totalBet, 0);
+  
+  // Calculate actual stats from loaded bets if available
+  const actualTotalBets = bets.length > 0 ? bets.length : normalizedStats.totalBets;
+  const actualBiggestWin = bets.length > 0 
+    ? Math.max(...bets.map(b => b.result === 'won' ? b.profitLoss : 0), 0)
+    : normalizedStats.biggestWin;
+  const actualTotalVolume = bets.length > 0
+    ? bets.reduce((sum, bet) => sum + bet.totalBet, 0)
+    : normalizedStats.totalVolume;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
@@ -257,7 +269,7 @@ export default function PublicProfilePage() {
                   )}
                   <div className="flex items-center gap-1">
                     <EyeIcon className="w-4 h-4" />
-                    <span>{normalizedStats.totalBets > 0 ? `${(normalizedStats.totalBets / 1000).toFixed(1)}k` : '0'} predictions</span>
+                    <span>{actualTotalBets} predictions</span>
                   </div>
                 </div>
                 {!isOwnProfile && (
@@ -276,19 +288,19 @@ export default function PublicProfilePage() {
               <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-lg p-4 border border-gray-700/30">
                   <div className="text-xs text-gray-400 mb-1">Positions Value</div>
                 <div className="text-xl font-bold text-white">
-                  {formatCompactCurrency(normalizedStats.totalVolume)} STT
+                  {formatCompactCurrency(positionsValue)} STT
                 </div>
               </div>
               <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-lg p-4 border border-gray-700/30">
                 <div className="text-xs text-gray-400 mb-1">Biggest Win</div>
                 <div className="text-xl font-bold text-green-400">
-                  {formatCompactCurrency(normalizedStats.biggestWin)} STT
+                  {formatCompactCurrency(actualBiggestWin)} STT
                 </div>
               </div>
               <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-lg p-4 border border-gray-700/30">
                 <div className="text-xs text-gray-400 mb-1">Predictions</div>
                 <div className="text-xl font-bold text-white">
-                  {normalizedStats.totalBets.toLocaleString()}
+                  {actualTotalBets}
                 </div>
               </div>
             </div>
@@ -343,7 +355,7 @@ export default function PublicProfilePage() {
             <div className="glass-card p-4 rounded-xl border border-gray-700/50">
               <div className="text-xs text-gray-400 mb-1">Total Volume</div>
               <div className="text-2xl font-bold text-white">
-                  {formatCompactCurrency(normalizedStats.totalVolume)} STT
+                  {formatCompactCurrency(actualTotalVolume)} STT
               </div>
             </div>
           </div>
