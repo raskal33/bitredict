@@ -388,9 +388,40 @@ class AnalyticsService {
   // Cycle analytics
   async getCycleAnalytics(cycleId: number): Promise<CycleAnalytics> {
     try {
-      const response = await fetch(`${API_BASE}/cycle/${cycleId}/analytics`);
+      // Fetch from real backend endpoint
+      const response = await fetch(`/api/oddyssey/stats?type=cycle&cycleId=${cycleId}`, {
+        headers: {
+          'Cache-Control': 'no-cache',
+        }
+      });
+      
       if (!response.ok) throw new Error('Failed to fetch cycle analytics');
-      return await response.json();
+      
+      const result = await response.json();
+      const data = result.data;
+      
+      // Transform backend data to match CycleAnalytics interface
+      return {
+        cycleId: data.cycleId || cycleId,
+        participationMetrics: {
+          totalSlips: data.totalSlips || 0,
+          uniqueUsers: data.participants || 0,
+          averageSlipsPerUser: data.participants > 0 ? (data.totalSlips / data.participants) : 0,
+          participationGrowth: 0 // TODO: calculate from historical data
+        },
+        performanceMetrics: {
+          averageCorrectPredictions: data.avgCorrectPredictions || 0,
+          winRate: data.maxCorrectPredictions >= 7 ? ((data.totalSlips > 0 ? (1 / data.totalSlips) : 0) * 100) : 0,
+          highestScore: data.maxCorrectPredictions || 0,
+          perfectSlips: 0 // TODO: query slips with all correct
+        },
+        popularityTrends: {
+          mostPopularMatch: { matchId: 0, predictions: 0 },
+          mostPopularSelection: { selection: '1', count: 0 },
+          surprisingResults: []
+        },
+        insights: []
+      };
     } catch (error) {
       console.error('Error fetching cycle analytics:', error);
       return this.getMockCycleAnalytics(cycleId);
@@ -400,9 +431,44 @@ class AnalyticsService {
   // User analytics
   async getUserAnalytics(address: Address): Promise<UserAnalytics> {
     try {
-      const response = await fetch(`${API_BASE}/user/${address}/analytics`);
+      // Fetch from real backend endpoint
+      const response = await fetch(`/api/oddyssey/stats?type=user&address=${address}`, {
+        headers: {
+          'Cache-Control': 'no-cache',
+        }
+      });
+      
       if (!response.ok) throw new Error('Failed to fetch user analytics');
-      return await response.json();
+      
+      const result = await response.json();
+      const data = result.data;
+      
+      // Transform backend data to match UserAnalytics interface
+      return {
+        address,
+        performanceMetrics: {
+          totalSlips: data.totalSlips || 0,
+          winRate: data.winRate || 0,
+          averageScore: data.averageScore || 0,
+          bestStreak: data.bestStreak || 0,
+          currentStreak: data.currentStreak || 0,
+          improvement: 0 // TODO: calculate improvement over time
+        },
+        behaviorPatterns: {
+          favoriteSelections: [], // TODO: analyze user predictions
+          riskProfile: 'balanced',
+          activityPattern: data.totalSlips > 5 ? 'regular' : 'casual'
+        },
+        achievements: {
+          badges: [], // TODO: implement badge system
+          milestones: [],
+          rankings: [] // TODO: fetch from leaderboard
+        },
+        insights: data.totalSlips > 0 ? [
+          `${data.totalSlips} total slips placed`,
+          `${data.winRate.toFixed(1)}% win rate`
+        ] : ['No data available yet']
+      };
     } catch (error) {
       console.error('Error fetching user analytics:', error);
       return this.getMockUserAnalytics(address);
@@ -412,9 +478,44 @@ class AnalyticsService {
   // Platform analytics
   async getPlatformAnalytics(): Promise<PlatformAnalytics> {
     try {
-      const response = await fetch(`${API_BASE}/platform/analytics`);
+      // Fetch from real backend endpoint
+      const response = await fetch(`/api/oddyssey/stats?type=global`, {
+        headers: {
+          'Cache-Control': 'no-cache',
+        }
+      });
+      
       if (!response.ok) throw new Error('Failed to fetch platform analytics');
-      return await response.json();
+      
+      const result = await response.json();
+      const data = result.data;
+      
+      // Transform backend data to match PlatformAnalytics interface
+      return {
+        globalMetrics: {
+          totalUsers: data.totalPlayers || 0,
+          totalSlips: data.totalSlips || 0,
+          totalVolume: data.totalVolume || 0,
+          averageWinRate: data.winRate || 0,
+          cyclesCompleted: data.totalCycles || 0
+        },
+        engagementMetrics: {
+          dailyActiveUsers: data.totalPlayers || 0, // TODO: implement DAU tracking
+          retentionRate: 0, // TODO: calculate retention
+          averageSessionTime: 0, // TODO: track session time
+          bounceRate: 0 // TODO: track bounce rate
+        },
+        performanceInsights: {
+          topPerformers: [], // TODO: fetch leaderboard
+          communityTrends: [`${data.avgCorrect.toFixed(1)} average correct predictions`],
+          platformHealth: data.totalSlips > 0 && data.totalPlayers > 0 ? 'good' : 'fair'
+        },
+        insights: [
+          `${data.totalPlayers} active players`,
+          `${data.totalSlips} total slips placed`,
+          `${data.highestOdd.toFixed(2)}x highest score achieved`
+        ]
+      };
     } catch (error) {
       console.error('Error fetching platform analytics:', error);
       return this.getMockPlatformAnalytics();
@@ -424,9 +525,73 @@ class AnalyticsService {
   // Visualization data
   async getVisualizationData(cycleId: number): Promise<VisualizationData> {
     try {
-      const response = await fetch(`${API_BASE}/visualization/${cycleId}`);
-      if (!response.ok) throw new Error('Failed to fetch visualization data');
-      return await response.json();
+      // Fetch both cycle and global stats for visualization
+      const [cycleResponse, globalResponse] = await Promise.all([
+        fetch(`/api/oddyssey/stats?type=cycle&cycleId=${cycleId}`, {
+          headers: { 'Cache-Control': 'no-cache' }
+        }),
+        fetch(`/api/oddyssey/stats?type=global`, {
+          headers: { 'Cache-Control': 'no-cache' }
+        })
+      ]);
+      
+      if (!cycleResponse.ok || !globalResponse.ok) {
+        throw new Error('Failed to fetch visualization data');
+      }
+      
+      const cycleResult = await cycleResponse.json();
+      const globalResult = await globalResponse.json();
+      
+      const cycleData = cycleResult.data;
+      const globalData = globalResult.data;
+      
+      // Transform backend data to visualization format
+      return {
+        cycleId: cycleData.cycleId || cycleId,
+        charts: {
+          selectionDistribution: {
+            labels: ['Home Win', 'Draw', 'Away Win', 'Over 2.5', 'Under 2.5'],
+            data: [0, 0, 0, 0, 0], // TODO: fetch actual selection distribution
+            colors: ['#22C7FF', '#FF0080', '#8C00FF', '#00FF88', '#FFB800']
+          },
+          performanceTrends: {
+            labels: [`Cycle ${cycleId - 2}`, `Cycle ${cycleId - 1}`, `Cycle ${cycleId}`],
+            datasets: [{
+              label: 'Average Correct',
+              data: [0, 0, cycleData.avgCorrectPredictions || 0],
+              color: '#22C7FF'
+            }]
+          },
+          participationFlow: {
+            nodes: [],
+            links: []
+          },
+          heatmap: {
+            matches: [],
+            maxIntensity: 0
+          }
+        },
+        infographics: {
+          keyStats: [
+            { label: 'Total Slips', value: String(cycleData.totalSlips || 0), trend: 0 },
+            { label: 'Win Rate', value: `${(cycleData.maxCorrectPredictions >= 7 ? 10 : 0)}%`, trend: 0 },
+            { label: 'Perfect Slips', value: '0', trend: 0 }, // TODO: calculate perfect slips
+            { label: 'Active Users', value: String(cycleData.participants || 0), trend: 0 }
+          ],
+          insights: [
+            {
+              title: `${cycleData.totalSlips} Slips Placed`,
+              description: `${cycleData.participants} unique participants in this cycle`,
+              impact: 'neutral'
+            },
+            {
+              title: `Average ${cycleData.avgCorrectPredictions.toFixed(1)} Correct`,
+              description: `Out of ${cycleData.matchesCount || 10} total matches`,
+              impact: cycleData.avgCorrectPredictions >= 7 ? 'positive' : 'neutral'
+            }
+          ]
+        }
+      };
     } catch (error) {
       console.error('Error fetching visualization data:', error);
       return this.getMockVisualizationData(cycleId);
