@@ -59,31 +59,87 @@ export default function PublicProfilePage() {
       setBetsLoading(true);
       try {
         console.log('🎯 Fetching bets for:', userAddress, 'filter:', positionFilter);
-        const response = await fetch(`/api/users/${userAddress}/bets?status=${positionFilter}&limit=100`);
+        // Fetch directly from backend since Vercel route has deployment issues
+        const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://bitredict-backend.fly.dev';
+        const response = await fetch(`${backendUrl}/api/pool-bets/user/${userAddress}?page=1&limit=100`);
         const data = await response.json();
         
         console.log('📊 Bets API response:', {
           success: data.success,
           hasBets: !!data.data,
-          betsCount: data.data?.length || 0,
-          firstBet: data.data?.[0] || null
+          betsCount: data.data?.bets?.length || 0,
+          firstBet: data.data?.bets?.[0] || null
         });
         
-        if (data.success && Array.isArray(data.data)) {
-          setBets(data.data || []);
-          // Calculate total P&L
-          const totalPL = (data.data || []).reduce((sum: number, bet: UserBet) => sum + bet.profitLoss, 0);
-          // setTotalProfitLoss(totalPL); // This line is removed as per the edit hint
-          console.log('✅ Loaded', data.data.length, 'bets, Total P&L:', totalPL);
+        if (data.success && data.data && Array.isArray(data.data.bets)) {
+          // Process bets similar to the API route
+          const processedBets = data.data.bets.map((bet: any) => {
+            const betAmount = parseFloat(bet.amount || '0') / 1e18;
+            const isSettled = Boolean(bet.is_settled);
+            const creatorSideWon = Boolean(bet.creator_side_won);
+            const isForOutcome = Boolean(bet.is_for_outcome);
+            
+            let result: 'won' | 'lost' | 'pending' | 'active' = 'active';
+            let amountWon = 0;
+            let profitLoss = 0;
+            let profitLossPercent = 0;
+            
+            if (isSettled) {
+              const bettorWon = (isForOutcome && !creatorSideWon) || (!isForOutcome && creatorSideWon);
+              result = bettorWon ? 'won' : 'lost';
+              
+              if (bettorWon) {
+                const oddsValue = bet.odds ? (typeof bet.odds === 'string' ? parseFloat(bet.odds) : bet.odds) : 200;
+                const oddsMultiplier = oddsValue / 100;
+                const grossPayout = betAmount * oddsMultiplier;
+                const fee = grossPayout * 0.05;
+                amountWon = grossPayout - fee;
+                profitLoss = amountWon - betAmount;
+                profitLossPercent = betAmount > 0 ? (profitLoss / betAmount) * 100 : 0;
+              } else {
+                amountWon = 0;
+                profitLoss = -betAmount;
+                profitLossPercent = -100;
+              }
+            } else {
+              result = 'pending';
+            }
+            
+            return {
+              id: bet.bet_id || bet.transaction_hash || '',
+              poolId: String(bet.pool_id),
+              market: bet.title || `${bet.home_team || ''} vs ${bet.away_team || ''}`.trim() || bet.category || 'Unknown Market',
+              category: bet.category || 'General',
+              league: bet.league || '',
+              homeTeam: bet.home_team || '',
+              awayTeam: bet.away_team || '',
+              totalBet: betAmount,
+              amountWon: amountWon,
+              profitLoss: profitLoss,
+              profitLossPercent: profitLossPercent,
+              result: result,
+              isForOutcome: isForOutcome,
+              currency: bet.use_bitr ? 'BITR' : 'STT',
+              timestamp: bet.created_at,
+              settledAt: bet.settled_at || null,
+              isSettled: isSettled,
+              creatorSideWon: creatorSideWon
+            };
+          }).filter((bet: any) => {
+            if (positionFilter === 'active') return bet.result === 'active' || bet.result === 'pending';
+            if (positionFilter === 'closed') return bet.result === 'won' || bet.result === 'lost';
+            return true;
+          });
+
+          setBets(processedBets);
+          console.log('✅ Loaded', processedBets.length, 'bets');
         } else {
           console.warn('⚠️ No bets data in response');
           setBets([]);
-          // setTotalProfitLoss(0); // This line is removed as per the edit hint
         }
       } catch (error) {
         console.error('❌ Error fetching bets:', error);
         setBets([]);
-        // setTotalProfitLoss(0); // This line is removed as per the edit hint
       } finally {
         setBetsLoading(false);
       }
