@@ -590,17 +590,6 @@ class AnalyticsService {
       const maxCorrectRaw = data.databaseAnalytics?.max_correct_predictions;
       const maxCorrect = (maxCorrectRaw === null || maxCorrectRaw === undefined || isNaN(parseInt(String(maxCorrectRaw)))) ? 0 : parseInt(String(maxCorrectRaw));
       
-      console.log('📊 Visualization Data Debug:', {
-        cycleId,
-        totalSlips,
-        participants,
-        avgCorrectRaw,
-        avgCorrect,
-        maxCorrectRaw,
-        maxCorrect,
-        chartData: [0, 0, avgCorrect]
-      });
-      
       // Transform backend data to visualization format
       return {
         cycleId: data.cycleId || cycleId,

@@ -38,7 +38,8 @@ export function AnalyticsChart({ title, type, data, height = 200, showLegend = t
   const renderBarChart = () => {
     // Ensure we have valid data
     const validData = data.data.filter(value => !isNaN(value) && isFinite(value));
-    const validMaxValue = validData.length > 0 ? Math.max(...validData) : 1;
+    const maxValue = validData.length > 0 ? Math.max(...validData) : 0;
+    const validMaxValue = maxValue > 0 ? maxValue : 1; // Prevent division by zero
     
     if (validData.length === 0) {
       return (
@@ -141,7 +142,8 @@ export function AnalyticsChart({ title, type, data, height = 200, showLegend = t
   const renderLineChart = () => {
     // Ensure we have valid data
     const validData = data.data.filter(value => !isNaN(value) && isFinite(value));
-    const validMaxValue = validData.length > 0 ? Math.max(...validData) : 1;
+    const maxValue = validData.length > 0 ? Math.max(...validData) : 0;
+    const validMaxValue = maxValue > 0 ? maxValue : 1; // Prevent division by zero
     
     if (validData.length === 0) {
       return (
