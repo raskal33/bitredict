@@ -29,6 +29,7 @@ export default function AnalyticsDashboard({ cycleId = 1, className = "" }: Anal
   const [activeTab, setActiveTab] = useState<'overview' | 'cycle' | 'user' | 'platform'>('overview');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeCycleId, setActiveCycleId] = useState<number>(cycleId);
   
   // Data state
   const [cycleAnalytics, setCycleAnalytics] = useState<CycleAnalytics | null>(null);
@@ -43,10 +44,29 @@ export default function AnalyticsDashboard({ cycleId = 1, className = "" }: Anal
         setIsLoading(true);
         setError(null);
 
-        const [cycleData, platformData, vizData] = await Promise.all([
-          analyticsService.getCycleAnalytics(cycleId),
+        // Try to get data for the requested cycle first
+        let cycleToUse = cycleId;
+        let cycleData = await analyticsService.getCycleAnalytics(cycleId);
+        
+        // If current cycle has no data, try previous cycles
+        if (cycleData.participationMetrics.totalSlips === 0 && cycleId > 1) {
+          console.log(`⚠️ Cycle ${cycleId} has no data, trying previous cycles...`);
+          for (let i = cycleId - 1; i >= 1; i--) {
+            const testCycle = await analyticsService.getCycleAnalytics(i);
+            if (testCycle.participationMetrics.totalSlips > 0) {
+              console.log(`✅ Found data in cycle ${i}`);
+              cycleData = testCycle;
+              cycleToUse = i;
+              break;
+            }
+          }
+        }
+        
+        setActiveCycleId(cycleToUse);
+
+        const [platformData, vizData] = await Promise.all([
           analyticsService.getPlatformAnalytics(),
-          analyticsService.getVisualizationData(cycleId)
+          analyticsService.getVisualizationData(cycleToUse)
         ]);
 
         setCycleAnalytics(cycleData);
@@ -531,7 +551,11 @@ export default function AnalyticsDashboard({ cycleId = 1, className = "" }: Anal
             </div>
             <div>
               <h2 className="text-2xl font-bold text-white">Smart Analytics</h2>
-              <p className="text-gray-400">AI-powered insights and visualizations</p>
+              <p className="text-gray-400">
+                AI-powered insights {cycleId !== activeCycleId && (
+                  <span className="text-yellow-400">• Showing Cycle {activeCycleId} data</span>
+                )}
+              </p>
             </div>
           </div>
         </div>
