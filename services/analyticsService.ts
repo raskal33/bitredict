@@ -400,11 +400,13 @@ class AnalyticsService {
       const result = await response.json();
       const data = result.data;
       
-      // Safe number parsing with fallback to 0
-      const totalSlips = parseInt(data.databaseAnalytics?.total_slips) || 0;
-      const participants = parseInt(data.databaseAnalytics?.unique_players) || 0;
-      const avgCorrect = parseFloat(data.databaseAnalytics?.avg_correct_predictions) || 0;
-      const maxCorrect = parseInt(data.databaseAnalytics?.max_correct_predictions) || 0;
+      // Safe number parsing with explicit null/undefined handling
+      const totalSlips = parseInt(String(data.databaseAnalytics?.total_slips || '0')) || 0;
+      const participants = parseInt(String(data.databaseAnalytics?.unique_players || '0')) || 0;
+      const avgCorrectRaw = data.databaseAnalytics?.avg_correct_predictions;
+      const avgCorrect = (avgCorrectRaw === null || avgCorrectRaw === undefined || isNaN(parseFloat(String(avgCorrectRaw)))) ? 0 : parseFloat(String(avgCorrectRaw));
+      const maxCorrectRaw = data.databaseAnalytics?.max_correct_predictions;
+      const maxCorrect = (maxCorrectRaw === null || maxCorrectRaw === undefined || isNaN(parseInt(String(maxCorrectRaw)))) ? 0 : parseInt(String(maxCorrectRaw));
       
       // Transform backend data to match CycleAnalytics interface
       return {
@@ -459,12 +461,17 @@ class AnalyticsService {
       const result = await response.json();
       const data = result.data;
       
-      // Safe number parsing with fallback to 0
-      const totalSlips = parseInt(data.contractData?.totalSlips) || parseInt(data.databaseAnalytics?.total_slips) || 0;
-      const winRate = parseFloat(data.contractData?.winRate) || 0;
-      const averageScore = parseFloat(data.contractData?.averageScore) || parseFloat(data.databaseAnalytics?.avg_accuracy) || 0;
-      const bestStreak = parseInt(data.contractData?.bestStreak) || 0;
-      const currentStreak = parseInt(data.contractData?.currentStreak) || 0;
+      // Safe number parsing with explicit null/undefined handling
+      const totalSlipsRaw = data.contractData?.totalSlips || data.databaseAnalytics?.total_slips;
+      const totalSlips = (totalSlipsRaw === null || totalSlipsRaw === undefined || isNaN(parseInt(String(totalSlipsRaw)))) ? 0 : parseInt(String(totalSlipsRaw));
+      const winRateRaw = data.contractData?.winRate;
+      const winRate = (winRateRaw === null || winRateRaw === undefined || isNaN(parseFloat(String(winRateRaw)))) ? 0 : parseFloat(String(winRateRaw));
+      const averageScoreRaw = data.contractData?.averageScore || data.databaseAnalytics?.avg_accuracy;
+      const averageScore = (averageScoreRaw === null || averageScoreRaw === undefined || isNaN(parseFloat(String(averageScoreRaw)))) ? 0 : parseFloat(String(averageScoreRaw));
+      const bestStreakRaw = data.contractData?.bestStreak;
+      const bestStreak = (bestStreakRaw === null || bestStreakRaw === undefined || isNaN(parseInt(String(bestStreakRaw)))) ? 0 : parseInt(String(bestStreakRaw));
+      const currentStreakRaw = data.contractData?.currentStreak;
+      const currentStreak = (currentStreakRaw === null || currentStreakRaw === undefined || isNaN(parseInt(String(currentStreakRaw)))) ? 0 : parseInt(String(currentStreakRaw));
       
       // Transform backend data to match UserAnalytics interface
       return {
@@ -514,12 +521,17 @@ class AnalyticsService {
       const result = await response.json();
       const data = result.data;
       
-      // Safe number parsing with fallback to 0
-      const totalPlayers = parseInt(data.platformStats?.unique_players) || 0;
-      const totalSlips = parseInt(data.platformStats?.total_slips) || 0;
-      const totalCycles = parseInt(data.platformStats?.total_cycles) || 0;
-      const avgAccuracy = parseFloat(data.platformStats?.avg_accuracy) || 0;
-      const bestScore = parseFloat(data.platformStats?.best_score) || 0;
+      // Safe number parsing with explicit null/undefined handling
+      const totalPlayersRaw = data.platformStats?.unique_players;
+      const totalPlayers = (totalPlayersRaw === null || totalPlayersRaw === undefined || isNaN(parseInt(String(totalPlayersRaw)))) ? 0 : parseInt(String(totalPlayersRaw));
+      const totalSlipsRaw = data.platformStats?.total_slips;
+      const totalSlips = (totalSlipsRaw === null || totalSlipsRaw === undefined || isNaN(parseInt(String(totalSlipsRaw)))) ? 0 : parseInt(String(totalSlipsRaw));
+      const totalCyclesRaw = data.platformStats?.total_cycles;
+      const totalCycles = (totalCyclesRaw === null || totalCyclesRaw === undefined || isNaN(parseInt(String(totalCyclesRaw)))) ? 0 : parseInt(String(totalCyclesRaw));
+      const avgAccuracyRaw = data.platformStats?.avg_accuracy;
+      const avgAccuracy = (avgAccuracyRaw === null || avgAccuracyRaw === undefined || isNaN(parseFloat(String(avgAccuracyRaw)))) ? 0 : parseFloat(String(avgAccuracyRaw));
+      const bestScoreRaw = data.platformStats?.best_score;
+      const bestScore = (bestScoreRaw === null || bestScoreRaw === undefined || isNaN(parseFloat(String(bestScoreRaw)))) ? 0 : parseFloat(String(bestScoreRaw));
       
       // Transform backend data to match PlatformAnalytics interface
       return {
@@ -570,11 +582,13 @@ class AnalyticsService {
       const result = await response.json();
       const data = result.data;
       
-      // Safe number parsing with fallback to 0
-      const totalSlips = parseInt(data.databaseAnalytics?.total_slips) || 0;
-      const participants = parseInt(data.databaseAnalytics?.unique_players) || 0;
-      const avgCorrect = parseFloat(data.databaseAnalytics?.avg_correct_predictions) || 0;
-      const maxCorrect = parseInt(data.databaseAnalytics?.max_correct_predictions) || 0;
+      // Safe number parsing with explicit null/undefined handling
+      const totalSlips = parseInt(String(data.databaseAnalytics?.total_slips || '0')) || 0;
+      const participants = parseInt(String(data.databaseAnalytics?.unique_players || '0')) || 0;
+      const avgCorrectRaw = data.databaseAnalytics?.avg_correct_predictions;
+      const avgCorrect = (avgCorrectRaw === null || avgCorrectRaw === undefined || isNaN(parseFloat(String(avgCorrectRaw)))) ? 0 : parseFloat(String(avgCorrectRaw));
+      const maxCorrectRaw = data.databaseAnalytics?.max_correct_predictions;
+      const maxCorrect = (maxCorrectRaw === null || maxCorrectRaw === undefined || isNaN(parseInt(String(maxCorrectRaw)))) ? 0 : parseInt(String(maxCorrectRaw));
       
       // Transform backend data to visualization format
       return {
