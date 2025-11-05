@@ -1154,57 +1154,21 @@ class OddysseyService {
     return { success: false, data: null };
   }
 
-  // Get current cycle matches from backend
+  // Get current cycle matches directly from contract (removed unnecessary API call)
   async getMatches(): Promise<{ success: boolean; data: any }> {
     try {
-      // Use /api/oddyssey/current endpoint for active cycles
-      const currentResponse = await fetch(`/api/oddyssey/current?t=${Date.now()}`, {
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
-      });
-      
-      if (!currentResponse.ok) {
-        throw new Error(`Current cycle API responded with status: ${currentResponse.status}`);
-      }
-      
-      const currentData = await currentResponse.json();
-      console.log('🔍 Current cycle from /api/oddyssey/current:', currentData);
-      
-      if (currentData.success && currentData.data?.matches) {
-        const matches = currentData.data.matches || [];
-        console.log('✅ Retrieved current cycle matches:', matches.length);
-        return {
-          success: true,
-          data: matches
-        };
-      } else {
-        // Fallback to contract matches if no current cycle available
-        const matches = await this.getCurrentCycleMatches();
-        return {
-          success: true,
-          data: matches
-        };
-      }
+      // Directly use contract matches - more reliable and decentralized
+      const matches = await this.getCurrentCycleMatches();
+      return {
+        success: true,
+        data: matches
+      };
     } catch (error) {
-      console.error('❌ Error getting current cycle matches, falling back to contract:', error);
-      
-      try {
-        // Fallback to contract matches
-        const matches = await this.getCurrentCycleMatches();
-        return {
-          success: true,
-          data: matches
-        };
-      } catch (fallbackError) {
-        console.error('❌ Error getting matches from contract:', fallbackError);
-        return {
-          success: false,
-          data: []
-        };
-      }
+      console.error('❌ Error getting matches from contract:', error);
+      return {
+        success: false,
+        data: []
+      };
     }
   }
 
