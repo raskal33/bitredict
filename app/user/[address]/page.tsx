@@ -73,6 +73,7 @@ export default function PublicProfilePage() {
         
         if (data.success && data.data && Array.isArray(data.data.bets)) {
           // Process bets similar to the API route
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const processedBets = data.data.bets.map((bet: any) => {
             const betAmount = parseFloat(bet.amount || '0') / 1e18;
             const isSettled = Boolean(bet.is_settled);
@@ -125,6 +126,7 @@ export default function PublicProfilePage() {
               isSettled: isSettled,
               creatorSideWon: creatorSideWon
             };
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           }).filter((bet: any) => {
             if (positionFilter === 'active') return bet.result === 'active' || bet.result === 'pending';
             if (positionFilter === 'closed') return bet.result === 'won' || bet.result === 'lost';
