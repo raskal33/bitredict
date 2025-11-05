@@ -6,7 +6,7 @@ export async function GET() {
 
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://bitredict-backend.fly.dev';
 
-    const response = await fetch(`${backendUrl}/api/oddyssey/current`, {
+    const response = await fetch(`${backendUrl}/api/oddyssey/current-cycle`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

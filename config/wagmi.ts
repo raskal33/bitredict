@@ -48,8 +48,8 @@ export const appKit = createAppKit({
   metadata: {
     name: 'BITR - Connect Wallet',
     description: 'Connect your wallet to access decentralized prediction markets on Somnia Network',
-    url: 'http://localhost:8080',
-    icons: ['http://localhost:8080/logo.png'],
+    url: typeof window !== 'undefined' ? window.location.origin : 'https://bitredict.vercel.app',
+    icons: [typeof window !== 'undefined' ? `${window.location.origin}/logo.png` : 'https://bitredict.vercel.app/logo.png'],
   },
   features: {
     analytics: false, // Disable analytics to remove Reown tracking
