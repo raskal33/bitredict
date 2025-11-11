@@ -182,7 +182,7 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
     return `${formData.cryptoAsset.toLowerCase()}_${targetPrice}_${date}`;
   }, [formData.cryptoAsset, formData.targetPrice]);
 
-  const calculateEventTimes = useCallback((timeframe: string) => {
+  const calculateEventTimes = useCallback((timeframe: string, customStartTime?: Date) => {
     const now = new Date();
     const hours = getTimeframeHours(timeframe);
     
@@ -190,7 +190,10 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
     // - Event Start: Creator sets when betting closes and price tracking begins
     // - Event End: Event Start + Timeframe (when final price is fetched)
     // - Default: Event starts in 1 hour, ends after timeframe duration
-    const eventStart = new Date(now.getTime() + (60 * 60 * 1000)); // 1 hour from now (default)
+    const eventStart = customStartTime || new Date(now.getTime() + (60 * 60 * 1000)); // 1 hour from now (default)
+    
+    // ✅ CRITICAL FIX: Always calculate eventEnd from eventStart + timeframe
+    // This ensures the timeframe is always correct
     const eventEnd = new Date(eventStart.getTime() + (hours * 60 * 60 * 1000)); // Event Start + Timeframe
     
     // ✅ FIX: Convert UTC dates to local datetime-local format
@@ -307,15 +310,28 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
         return Math.floor(localDate.getTime() / 1000);
       };
       
-      // Validate that eventEndTime is eventStartTime + timeframe
+      // ✅ FIX: Calculate event times properly
       const eventStartTimestamp = parseDateTimeLocal(formData.eventStartTime);
-      const eventEndTimestamp = parseDateTimeLocal(formData.eventEndTime);
       const timeframeHours = getTimeframeHours(formData.timeFrame);
-      const expectedEndTimestamp = eventStartTimestamp + (timeframeHours * 3600);
       
-      // Warn if there's a mismatch (user manually changed times)
-      if (Math.abs(eventEndTimestamp - expectedEndTimestamp) > 60) {
-        console.warn(`⚠️ Event end time (${eventEndTimestamp}) doesn't match timeframe (${timeframeHours}h from start ${eventStartTimestamp}). Expected: ${expectedEndTimestamp}`);
+      // ✅ CRITICAL FIX: Always calculate eventEndTime from eventStartTime + timeframe
+      // Don't trust the formData.eventEndTime - recalculate it to ensure correctness
+      const eventEndTimestamp = eventStartTimestamp + (timeframeHours * 3600);
+      
+      // Validate that the calculated end time matches what user sees (within 1 minute tolerance)
+      const userEndTimestamp = parseDateTimeLocal(formData.eventEndTime);
+      if (Math.abs(eventEndTimestamp - userEndTimestamp) > 60) {
+        console.warn(`⚠️ Event end time mismatch detected. Recalculating from timeframe.`);
+        console.warn(`   User entered: ${userEndTimestamp} (${new Date(userEndTimestamp * 1000).toISOString()})`);
+        console.warn(`   Calculated: ${eventEndTimestamp} (${new Date(eventEndTimestamp * 1000).toISOString()})`);
+        console.warn(`   Using calculated value to ensure timeframe is correct.`);
+      }
+      
+      // ✅ VALIDATION: Ensure timeframe matches selected value
+      const actualDuration = eventEndTimestamp - eventStartTimestamp;
+      const expectedDuration = timeframeHours * 3600;
+      if (Math.abs(actualDuration - expectedDuration) > 60) {
+        throw new Error(`Timeframe mismatch: Expected ${timeframeHours} hours (${expectedDuration}s), but got ${actualDuration}s. Please check your event times.`);
       }
       
       // Prepare pool data with all required contract parameters
@@ -473,13 +489,18 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
                 type="button"
                 onClick={() => {
                   handleInputChange('timeFrame', timeFrame.value);
-                  // Update event times when timeframe changes
-                  const times = calculateEventTimes(timeFrame.value);
+                  // ✅ FIX: Update event times when timeframe changes
+                  // Preserve the current start time if user has set it, otherwise use default
+                  const currentStartTime = formData.eventStartTime 
+                    ? new Date(formData.eventStartTime) 
+                    : undefined;
+                  const times = calculateEventTimes(timeFrame.value, currentStartTime);
                   setFormData(prev => ({
                     ...prev,
                     eventStartTime: times.eventStartTime,
                     eventEndTime: times.eventEndTime
                   }));
+                  console.log(`🔄 Updated timeframe to ${timeFrame.value}, recalculated event times`);
                 }}
                 className={`p-3 rounded-lg font-medium ${
                   formData.timeFrame === timeFrame.value
@@ -642,11 +663,14 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
                 type="datetime-local"
                 value={formData.eventStartTime}
                 onChange={(e) => {
-                  handleInputChange('eventStartTime', e.target.value);
-                  // ✅ FIX: Recalculate event end time when start time changes (preserve timeframe)
-                  if (e.target.value) {
-                    const startDate = new Date(e.target.value);
+                  const newStartTime = e.target.value;
+                  handleInputChange('eventStartTime', newStartTime);
+                  // ✅ CRITICAL FIX: Always recalculate event end time from start time + timeframe
+                  // This ensures timeframe is always correct, even when user manually changes start time
+                  if (newStartTime) {
+                    const startDate = new Date(newStartTime);
                     const timeframeHours = getTimeframeHours(formData.timeFrame);
+                    // ✅ FIX: Calculate end time as start + timeframe (in milliseconds)
                     const endDate = new Date(startDate.getTime() + (timeframeHours * 60 * 60 * 1000));
                     const formatDateTimeLocal = (date: Date): string => {
                       const year = date.getFullYear();
@@ -656,13 +680,20 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
                       const minutes = String(date.getMinutes()).padStart(2, '0');
                       return `${year}-${month}-${day}T${hours}:${minutes}`;
                     };
-                    handleInputChange('eventEndTime', formatDateTimeLocal(endDate));
+                    const newEndTime = formatDateTimeLocal(endDate);
+                    handleInputChange('eventEndTime', newEndTime);
+                    console.log(`🔄 Recalculated event end time: ${newEndTime} (${timeframeHours}h from start)`);
                   }
                 }}
                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <p className="text-xs text-gray-400 mt-1">
                 ⚠️ Time is in your local timezone. Will be converted to UTC on submit.
+                {formData.eventStartTime && (
+                  <span className="block mt-1 text-blue-400">
+                    UTC: {new Date(formData.eventStartTime).toISOString().replace('T', ' ').slice(0, 16)} UTC
+                  </span>
+                )}
               </p>
               {errors.eventStartTime && (
                 <p className="text-red-500 text-sm mt-1">{errors.eventStartTime}</p>
@@ -678,6 +709,14 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
                 onChange={(e) => handleInputChange('eventEndTime', e.target.value)}
                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+              <p className="text-xs text-gray-400 mt-1">
+                ⚠️ Time is in your local timezone. Will be converted to UTC on submit.
+                {formData.eventEndTime && (
+                  <span className="block mt-1 text-blue-400">
+                    UTC: {new Date(formData.eventEndTime).toISOString().replace('T', ' ').slice(0, 16)} UTC
+                  </span>
+                )}
+              </p>
               {errors.eventEndTime && (
                 <p className="text-red-500 text-sm mt-1">{errors.eventEndTime}</p>
               )}

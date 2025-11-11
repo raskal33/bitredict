@@ -59,89 +59,31 @@ export default function PublicProfilePage() {
       setBetsLoading(true);
       try {
         console.log('🎯 Fetching bets for:', userAddress, 'filter:', positionFilter);
-        // Fetch directly from backend since Vercel route has deployment issues
-        const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://bitredict-backend.fly.dev';
-        const response = await fetch(`${backendUrl}/api/pool-bets/user/${userAddress}?page=1&limit=100`);
+        const response = await fetch(`/api/users/${userAddress}/bets?status=${positionFilter}&limit=100`);
         const data = await response.json();
         
         console.log('📊 Bets API response:', {
           success: data.success,
           hasBets: !!data.data,
-          betsCount: data.data?.bets?.length || 0,
-          firstBet: data.data?.bets?.[0] || null
+          betsCount: data.data?.length || 0,
+          firstBet: data.data?.[0] || null
         });
         
-        if (data.success && data.data && Array.isArray(data.data.bets)) {
-          // Process bets similar to the API route
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const processedBets = data.data.bets.map((bet: any) => {
-            const betAmount = parseFloat(bet.amount || '0') / 1e18;
-            const isSettled = Boolean(bet.is_settled);
-            const creatorSideWon = Boolean(bet.creator_side_won);
-            const isForOutcome = Boolean(bet.is_for_outcome);
-            
-            let result: 'won' | 'lost' | 'pending' | 'active' = 'active';
-            let amountWon = 0;
-            let profitLoss = 0;
-            let profitLossPercent = 0;
-            
-            if (isSettled) {
-              const bettorWon = (isForOutcome && !creatorSideWon) || (!isForOutcome && creatorSideWon);
-              result = bettorWon ? 'won' : 'lost';
-              
-              if (bettorWon) {
-                const oddsValue = bet.odds ? (typeof bet.odds === 'string' ? parseFloat(bet.odds) : bet.odds) : 200;
-                const oddsMultiplier = oddsValue / 100;
-                const grossPayout = betAmount * oddsMultiplier;
-                const fee = grossPayout * 0.05;
-                amountWon = grossPayout - fee;
-                profitLoss = amountWon - betAmount;
-                profitLossPercent = betAmount > 0 ? (profitLoss / betAmount) * 100 : 0;
-              } else {
-                amountWon = 0;
-                profitLoss = -betAmount;
-                profitLossPercent = -100;
-              }
-            } else {
-              result = 'pending';
-            }
-            
-            return {
-              id: bet.bet_id || bet.transaction_hash || '',
-              poolId: String(bet.pool_id),
-              market: bet.title || `${bet.home_team || ''} vs ${bet.away_team || ''}`.trim() || bet.category || 'Unknown Market',
-              category: bet.category || 'General',
-              league: bet.league || '',
-              homeTeam: bet.home_team || '',
-              awayTeam: bet.away_team || '',
-              totalBet: betAmount,
-              amountWon: amountWon,
-              profitLoss: profitLoss,
-              profitLossPercent: profitLossPercent,
-              result: result,
-              isForOutcome: isForOutcome,
-              currency: bet.use_bitr ? 'BITR' : 'STT',
-              timestamp: bet.created_at,
-              settledAt: bet.settled_at || null,
-              isSettled: isSettled,
-              creatorSideWon: creatorSideWon
-            };
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          }).filter((bet: any) => {
-            if (positionFilter === 'active') return bet.result === 'active' || bet.result === 'pending';
-            if (positionFilter === 'closed') return bet.result === 'won' || bet.result === 'lost';
-            return true;
-          });
-
-          setBets(processedBets);
-          console.log('✅ Loaded', processedBets.length, 'bets');
+        if (data.success && Array.isArray(data.data)) {
+          setBets(data.data || []);
+          // Calculate total P&L
+          const totalPL = (data.data || []).reduce((sum: number, bet: UserBet) => sum + bet.profitLoss, 0);
+          // setTotalProfitLoss(totalPL); // This line is removed as per the edit hint
+          console.log('✅ Loaded', data.data.length, 'bets, Total P&L:', totalPL);
         } else {
           console.warn('⚠️ No bets data in response');
           setBets([]);
+          // setTotalProfitLoss(0); // This line is removed as per the edit hint
         }
       } catch (error) {
         console.error('❌ Error fetching bets:', error);
         setBets([]);
+        // setTotalProfitLoss(0); // This line is removed as per the edit hint
       } finally {
         setBetsLoading(false);
       }
@@ -225,18 +167,6 @@ export default function PublicProfilePage() {
 
   const closedBets = bets.filter(b => b.result === 'won' || b.result === 'lost');
   const activeBets = bets.filter(b => b.result === 'active' || b.result === 'pending');
-  
-  // Calculate positions value (sum of active bets)
-  const positionsValue = activeBets.reduce((sum, bet) => sum + bet.totalBet, 0);
-  
-  // Calculate actual stats from loaded bets if available
-  const actualTotalBets = bets.length > 0 ? bets.length : normalizedStats.totalBets;
-  const actualBiggestWin = bets.length > 0 
-    ? Math.max(...bets.map(b => b.result === 'won' ? b.profitLoss : 0), 0)
-    : normalizedStats.biggestWin;
-  const actualTotalVolume = bets.length > 0
-    ? bets.reduce((sum, bet) => sum + bet.totalBet, 0)
-    : normalizedStats.totalVolume;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
@@ -269,7 +199,7 @@ export default function PublicProfilePage() {
                   )}
                   <div className="flex items-center gap-1">
                     <EyeIcon className="w-4 h-4" />
-                    <span>{actualTotalBets} predictions</span>
+                    <span>{normalizedStats.totalBets > 0 ? `${(normalizedStats.totalBets / 1000).toFixed(1)}k` : '0'} predictions</span>
                   </div>
                 </div>
                 {!isOwnProfile && (
@@ -288,19 +218,19 @@ export default function PublicProfilePage() {
               <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-lg p-4 border border-gray-700/30">
                   <div className="text-xs text-gray-400 mb-1">Positions Value</div>
                 <div className="text-xl font-bold text-white">
-                  {formatCompactCurrency(positionsValue)} STT
+                  {formatCompactCurrency(normalizedStats.totalVolume)} STT
                 </div>
               </div>
               <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-lg p-4 border border-gray-700/30">
                 <div className="text-xs text-gray-400 mb-1">Biggest Win</div>
                 <div className="text-xl font-bold text-green-400">
-                  {formatCompactCurrency(actualBiggestWin)} STT
+                  {formatCompactCurrency(normalizedStats.biggestWin)} STT
                 </div>
               </div>
               <div className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-lg p-4 border border-gray-700/30">
                 <div className="text-xs text-gray-400 mb-1">Predictions</div>
                 <div className="text-xl font-bold text-white">
-                  {actualTotalBets}
+                  {normalizedStats.totalBets.toLocaleString()}
                 </div>
               </div>
             </div>
@@ -355,7 +285,7 @@ export default function PublicProfilePage() {
             <div className="glass-card p-4 rounded-xl border border-gray-700/50">
               <div className="text-xs text-gray-400 mb-1">Total Volume</div>
               <div className="text-2xl font-bold text-white">
-                  {formatCompactCurrency(actualTotalVolume)} STT
+                  {formatCompactCurrency(normalizedStats.totalVolume)} STT
               </div>
             </div>
           </div>
