@@ -58,13 +58,15 @@ const AmountInput: React.FC<AmountInputProps> = ({
   const [focused, setFocused] = useState(false);
   const [internalValue, setInternalValue] = useState('');
 
-  // Sync internal value with external value
+  // Sync internal value with external value (only when not focused to avoid interfering with user input)
   useEffect(() => {
-    const stringValue = typeof value === 'number' ? value.toString() : value;
-    if (stringValue !== internalValue) {
-      setInternalValue(stringValue);
+    if (!focused) {
+      const stringValue = typeof value === 'number' ? value.toString() : value || '';
+      if (stringValue !== internalValue) {
+        setInternalValue(stringValue);
+      }
     }
-  }, [value, internalValue]);
+  }, [value, focused]);
 
   // Format number with proper decimal handling
   const formatNumber = useCallback((num: string): string => {
@@ -118,6 +120,17 @@ const AmountInput: React.FC<AmountInputProps> = ({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const rawValue = e.target.value;
+    
+    // Allow empty string during editing (user might be deleting)
+    if (rawValue === '') {
+      setInternalValue('');
+      onChange('');
+      if (onValueChange) {
+        onValueChange(0);
+      }
+      return;
+    }
+    
     const formattedValue = formatNumber(rawValue);
     
     setInternalValue(formattedValue);
@@ -135,13 +148,13 @@ const AmountInput: React.FC<AmountInputProps> = ({
       return;
     }
     
-    // Allow Ctrl+A (select all), Ctrl+C (copy), Ctrl+V (paste), Ctrl+X (cut)
-    if (e.ctrlKey && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) {
+    // Allow Ctrl+A (select all), Ctrl+C (copy), Ctrl+V (paste), Ctrl+X (cut), Ctrl+Z (undo)
+    if (e.ctrlKey && ['a', 'c', 'v', 'x', 'z'].includes(e.key.toLowerCase())) {
       return;
     }
     
-    // Allow Cmd+A, Cmd+C, Cmd+V, Cmd+X (for Mac)
-    if (e.metaKey && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) {
+    // Allow Cmd+A, Cmd+C, Cmd+V, Cmd+X, Cmd+Z (for Mac)
+    if (e.metaKey && ['a', 'c', 'v', 'x', 'z'].includes(e.key.toLowerCase())) {
       return;
     }
     

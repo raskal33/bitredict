@@ -145,7 +145,7 @@ function CreateMarketPageContent() {
   const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({ hash });
   
   // Transaction feedback system
-  const { transactionStatus, showSuccess, showError, showInfo, clearStatus } = useTransactionFeedback();
+  const { transactionStatus, showSuccess, showError, showInfo, showPending, showConfirming, clearStatus } = useTransactionFeedback();
   
   // BITR Token approval state
   const [approvalConfirmed, setApprovalConfirmed] = useState(false);
@@ -156,7 +156,7 @@ function CreateMarketPageContent() {
   const [data, setData] = useState<GuidedMarketData>({
     category: '',
     odds: 200, // 2.0x default
-    creatorStake: 20, // Minimum for guided markets (20 tokens)
+    creatorStake: 5, // Minimum for STT pools (5 STT), BITR pools require 1000 BITR
     description: ''
   });
 
@@ -453,18 +453,18 @@ function CreateMarketPageContent() {
 
   // Monitor transaction states for feedback
   useEffect(() => {
-    if (isPending) {
+    if (isPending && hash) {
       console.log('🔄 Transaction pending - showing feedback');
-      showInfo('Transaction Pending', 'Please confirm the transaction in your wallet...');
+      showPending('Transaction Pending', 'Please confirm the transaction in your wallet...');
     }
-  }, [isPending, showInfo]);
+  }, [isPending, hash, showPending]);
 
   useEffect(() => {
-    if (isConfirming) {
+    if (isConfirming && hash) {
       console.log('⏳ Transaction confirming - showing feedback');
-      showInfo('Transaction Confirming', 'Your market creation is being processed on the blockchain...');
+      showConfirming('Transaction Confirming', 'Your market creation is being processed on the blockchain...', hash);
     }
-  }, [isConfirming, showInfo]);
+  }, [isConfirming, hash, showConfirming]);
 
   // Clear loading state when transaction is no longer pending (user cancelled or error occurred)
   useEffect(() => {
@@ -510,7 +510,7 @@ function CreateMarketPageContent() {
       setData({
         category: '',
         odds: 200,
-        creatorStake: 20,
+        creatorStake: 5, // Default to minimum STT stake
         description: ''
       });
       setStep(1);
@@ -726,7 +726,10 @@ function CreateMarketPageContent() {
       }
       
       // Contract minimum stake requirements
-      const minStake = useBitr ? 20 : 20; // Both STT and BITR have same minimum (20 tokens)
+      // STT: 5 STT minimum, BITR: 1000 BITR minimum (from contract)
+      const minStakeSTT = 5;
+      const minStakeBITR = 1000;
+      const minStake = useBitr ? minStakeBITR : minStakeSTT;
       if (!data.creatorStake || data.creatorStake < minStake) {
         newErrors.creatorStake = `Creator stake must be at least ${minStake} ${useBitr ? 'BITR' : 'STT'}`;
       }
@@ -931,10 +934,16 @@ function CreateMarketPageContent() {
         const creatorStake = parseUnits(data.creatorStake.toString(), 18);
         
         if (useBitr && creatorStake < minStakeBITR) {
-          throw new Error(`Minimum stake for BITR pools is 1000 BITR. You provided ${data.creatorStake} BITR.`);
+          const errorMsg = `⚠️ Minimum stake for BITR pools is 1000 BITR. You provided ${data.creatorStake} BITR.`;
+          setErrors(prev => ({ ...prev, creatorStake: errorMsg }));
+          showError('Invalid Stake Amount', errorMsg);
+          throw new Error(errorMsg);
         }
         if (!useBitr && creatorStake < minStakeSTT) {
-          throw new Error(`Minimum stake for STT pools is 5 STT. You provided ${data.creatorStake} STT.`);
+          const errorMsg = `⚠️ Minimum stake for STT pools is 5 STT. You provided ${data.creatorStake} STT.`;
+          setErrors(prev => ({ ...prev, creatorStake: errorMsg }));
+          showError('Invalid Stake Amount', errorMsg);
+          throw new Error(errorMsg);
         }
         
         // Validate odds (stored as basis points: 101-10000)
@@ -984,10 +993,15 @@ function CreateMarketPageContent() {
           meetsMinimum: useBitr ? poolData.creatorStake >= BigInt('1000000000000000000000') : poolData.creatorStake >= BigInt('5000000000000000000')
         });
         
-        showInfo('Creating Market', 'Preparing market creation transaction...');
+        showPending('Creating Market', 'Preparing market creation transaction...');
         
         // Use direct contract call
         const txHash = await createPool(poolData);
+        
+        // Update to confirming state once transaction is submitted
+        if (txHash) {
+          showConfirming('Transaction Submitted', 'Your market creation transaction has been submitted and is being processed on the blockchain...', txHash);
+        }
         
         if (txHash) {
           // Calculate total cost for display
@@ -1043,10 +1057,16 @@ function CreateMarketPageContent() {
         const creatorStake = parseUnits(data.creatorStake.toString(), 18);
         
         if (useBitr && creatorStake < minStakeBITR) {
-          throw new Error(`Minimum stake for BITR pools is 1000 BITR. You provided ${data.creatorStake} BITR.`);
+          const errorMsg = `⚠️ Minimum stake for BITR pools is 1000 BITR. You provided ${data.creatorStake} BITR.`;
+          setErrors(prev => ({ ...prev, creatorStake: errorMsg }));
+          showError('Invalid Stake Amount', errorMsg);
+          throw new Error(errorMsg);
         }
         if (!useBitr && creatorStake < minStakeSTT) {
-          throw new Error(`Minimum stake for STT pools is 5 STT. You provided ${data.creatorStake} STT.`);
+          const errorMsg = `⚠️ Minimum stake for STT pools is 5 STT. You provided ${data.creatorStake} STT.`;
+          setErrors(prev => ({ ...prev, creatorStake: errorMsg }));
+          showError('Invalid Stake Amount', errorMsg);
+          throw new Error(errorMsg);
         }
         
         // Validate odds (stored as basis points: 101-10000)
@@ -1088,10 +1108,15 @@ function CreateMarketPageContent() {
         });
         console.log('Crypto pool data for direct contract call:', poolData);
         
-        showInfo('Creating Market', 'Preparing crypto market creation transaction...');
+        showPending('Creating Market', 'Preparing crypto market creation transaction...');
         
         // Use direct contract call
         const txHash = await createPool(poolData);
+        
+        // Update to confirming state once transaction is submitted
+        if (txHash) {
+          showConfirming('Transaction Submitted', 'Your crypto market creation transaction has been submitted and is being processed on the blockchain...', txHash);
+        }
         
         if (txHash) {
         // Calculate total cost for display
@@ -1138,7 +1163,7 @@ function CreateMarketPageContent() {
         setData({
           category: '',
           odds: 200,
-          creatorStake: 20,
+          creatorStake: 5, // Default to minimum STT stake
           description: ''
         });
         setStep(1);
@@ -1536,28 +1561,63 @@ function CreateMarketPageContent() {
               value={data.creatorStake.toString()}
               onChange={(value) => {
                 const numValue = parseFloat(value);
-                const minStake = useBitr ? 20 : 20; // Both STT and BITR have same minimum
+                const minStakeSTT = 5;
+                const minStakeBITR = 1000;
+                const minStake = useBitr ? minStakeBITR : minStakeSTT;
                 if (!isNaN(numValue) && numValue >= minStake && numValue <= 1000000) {
                   handleInputChange('creatorStake', numValue);
+                  // Clear error when valid amount is entered
+                  if (errors.creatorStake) {
+                    setErrors(prev => {
+                      const newErrors = { ...prev };
+                      delete newErrors.creatorStake;
+                      return newErrors;
+                    });
+                  }
+                } else if (!isNaN(numValue) && numValue < minStake) {
+                  // Show warning for amounts below minimum
+                  handleInputChange('creatorStake', numValue);
+                  setErrors(prev => ({
+                    ...prev,
+                    creatorStake: `⚠️ Minimum stake is ${minStake} ${useBitr ? 'BITR' : 'STT'}. You entered ${numValue} ${useBitr ? 'BITR' : 'STT'}.`
+                  }));
                 }
               }}
               onValueChange={(numValue) => {
-                const minStake = useBitr ? 20 : 20;
+                const minStakeSTT = 5;
+                const minStakeBITR = 1000;
+                const minStake = useBitr ? minStakeBITR : minStakeSTT;
                 if (numValue >= minStake && numValue <= 1000000) {
                   handleInputChange('creatorStake', numValue);
+                  // Clear error when valid amount is entered
+                  if (errors.creatorStake) {
+                    setErrors(prev => {
+                      const newErrors = { ...prev };
+                      delete newErrors.creatorStake;
+                      return newErrors;
+                    });
+                  }
+                } else if (numValue < minStake) {
+                  // Show warning for amounts below minimum
+                  setErrors(prev => ({
+                    ...prev,
+                    creatorStake: `⚠️ Minimum stake is ${minStake} ${useBitr ? 'BITR' : 'STT'}. You entered ${numValue} ${useBitr ? 'BITR' : 'STT'}.`
+                  }));
                 }
               }}
-              placeholder="20.0"
-              min={20}
+              placeholder={useBitr ? "1000.0" : "5.0"}
+              min={useBitr ? 1000 : 5}
               max={1000000}
               step={0.1}
               allowDecimals={true}
               decimals={2}
               currency={useBitr ? 'BITR' : 'STT'}
-              help={`Your stake that acts as liquidity for the market. Minimum: 20 ${useBitr ? 'BITR' : 'STT'}`}
+              help={`Your stake that acts as liquidity for the market. Minimum: ${useBitr ? '1000 BITR' : '5 STT'}`}
             />
             {errors.creatorStake && (
-              <p className="text-red-400 text-sm">{errors.creatorStake}</p>
+              <p className={`text-sm ${errors.creatorStake.includes('⚠️') ? 'text-yellow-400' : 'text-red-400'}`}>
+                {errors.creatorStake}
+              </p>
             )}
           </div>
 
