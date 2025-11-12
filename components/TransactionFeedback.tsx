@@ -42,6 +42,8 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
     
     setIsClosing(true);
     setIsVisible(false);
+    // Restore body scroll when closing
+    document.body.style.overflow = '';
     
     // Small delay to allow animation to complete before calling onClose
     setTimeout(() => {
@@ -87,6 +89,11 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
     if (status && !isClosing) {
       setIsVisible(true);
       
+      // Prevent body scroll when feedback is visible
+      document.body.style.overflow = 'hidden';
+      // Prevent page from scrolling to footer
+      window.scrollTo(0, window.scrollY);
+      
       // Auto-close for success/error messages (but not for pending transactions)
       if (autoClose && (status.type === 'success' || status.type === 'error')) {
         const timer = setTimeout(() => {
@@ -99,7 +106,14 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
       // Immediately hide when status is cleared to prevent persistence
       setIsVisible(false);
       setIsClosing(false); // Reset closing state when status is cleared
+      // Restore body scroll when feedback is hidden
+      document.body.style.overflow = '';
     }
+    
+    // Cleanup: restore body scroll when component unmounts
+    return () => {
+      document.body.style.overflow = '';
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, autoClose, autoCloseDelay, isClosing]);
 
@@ -185,8 +199,9 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto"
           onClick={handleClose}
+          style={{ top: 0, left: 0, right: 0, bottom: 0 }}
         >
           <motion.div
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -339,13 +354,13 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
             <div className="px-6 py-4 border-t border-border-card/30 bg-bg-overlay/20 space-y-2">
               {status.hash && status.type === 'success' && (
                 <a
-                  href={`https://sepolia.etherscan.io/tx/${status.hash}`}
+                  href={`https://shannon-explorer.somnia.network/tx/${status.hash}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full px-4 py-3 text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl block"
                 >
                   <FaExternalLinkAlt className="h-4 w-4" />
-                  View on Etherscan
+                  View on Shannon Explorer
                 </a>
               )}
               <button

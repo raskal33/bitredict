@@ -69,6 +69,10 @@ export interface OptimizedPool {
   // Additional betting statistics
   bettorCount?: number;  // Number of unique bettors (YES bettors)
   totalCreatorSideStake?: string;  // Total stake on creator side (creator + all LPs)
+  // Logo URLs for card display
+  homeTeamLogo?: string | null;  // Team logo URL for football pools
+  awayTeamLogo?: string | null;  // Team logo URL for football pools
+  cryptoLogo?: string | null;  // Coin logo URL for crypto pools
 }
 
 export interface OptimizedPoolProgress {

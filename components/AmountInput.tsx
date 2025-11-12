@@ -66,7 +66,7 @@ const AmountInput: React.FC<AmountInputProps> = ({
         setInternalValue(stringValue);
       }
     }
-  }, [value, focused]);
+  }, [value, focused, internalValue]);
 
   // Format number with proper decimal handling
   const formatNumber = useCallback((num: string): string => {

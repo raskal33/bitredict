@@ -5,6 +5,7 @@
 
 import { readContract } from 'wagmi/actions';
 import { config } from '@/config/wagmi';
+import { CONTRACT_ADDRESSES } from '@/contracts';
 import BitredictPoolCoreArtifact from '@/contracts/abis/BitredictPoolCore.json';
 
 // Extract ABI array from artifact
@@ -21,7 +22,7 @@ interface PoolStateCache {
 class PoolStateService {
   private cache: PoolStateCache = {};
   private readonly CACHE_DURATION = 30000; // 30 seconds cache
-  private readonly CONTRACT_ADDRESS = "0xf6C56Ef095d88a04a3C594ECA30F6e275EEbe3db";
+  private readonly CONTRACT_ADDRESS = CONTRACT_ADDRESSES.POOL_CORE;
 
   /**
    * Get pool settlement status with smart caching
@@ -63,7 +64,7 @@ class PoolStateService {
       };
 
       return { creatorSideWon, settled };
-    } catch (error) {
+    } catch (error: any) {
       console.warn(`Failed to fetch pool state for pool ${poolId}:`, error);
       
       // Return fallback values
@@ -106,7 +107,7 @@ class PoolStateService {
             abi: BitredictPoolCoreABI,
             functionName: 'getPool',
             args: [BigInt(poolId)]
-          }).catch(error => {
+          }).catch((error: any) => {
             console.warn(`Failed to fetch pool state for pool ${poolId}:`, error);
             return { flags: 0 }; // Fallback
           })
