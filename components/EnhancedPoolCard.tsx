@@ -272,23 +272,6 @@ export default function EnhancedPoolCard({
                         pool.odds >= 200 ? 'ADVANCED' : 
                         pool.odds >= 150 ? 'INTERMEDIATE' : 'BEGINNER';
 
-  const parseStakeValue = (value: string | number | undefined): number => {
-    if (!value) return 0;
-    if (typeof value === 'number') return value;
-    try {
-      const str = value.toString();
-      if (str.length > 15 && !str.includes('.')) {
-        return parseFloat(formatEther(BigInt(str)));
-      }
-      return parseFloat(str) || 0;
-    } catch {
-      return parseFloat(value.toString()) || 0;
-    }
-  };
-
-  const yesVolume = parseStakeValue(pool.totalCreatorSideStake);
-  const noVolume = parseStakeValue(pool.totalBettorStake);
-
   const buyOdds = pool.odds ? pool.odds / 100 : 2.0;
   const sellOdds = buyOdds > 1 ? buyOdds / (buyOdds - 1) : 2.0;
 
