@@ -30,7 +30,6 @@ import Button from "@/components/button";
 import { useProfileStore } from '@/stores/useProfileStore';
 import { useWalletConnection } from '@/hooks/useWalletConnection';
 import NotificationBadge from "@/components/NotificationBadge";
-import { LiveReputationBadge } from "@/components/LiveReputationBadge";
 import { SettingsModal } from "@/components/SettingsModal";
 
 export default function Header() {
@@ -445,13 +444,6 @@ export default function Header() {
                 >
                   <Cog6ToothIcon className="h-5 w-5" />
                 </button>
-
-                {/* Live Reputation Badge - Placed after Create Market */}
-                {isConnected && address && isRender && (
-                  <div className="hidden md:flex items-center">
-                    <LiveReputationBadge />
-                  </div>
-                )}
 
                 {/* Mobile Menu Toggle */}
                 <button
