@@ -173,37 +173,43 @@ export function useSomniaStreams(
     try {
       console.log('🔄 Initializing Somnia Data Streams...');
       
-      // According to Somnia docs: "Requires createPublicClient({ transport: webSocket() })"
-      // for subscriptions to work properly
+      // Use HTTP transport for SDS (WebSocket connections to dream-rpc.somnia.network are failing)
+      // The backend uses HTTP transport successfully, so we'll use the same approach
       const rpcUrl = process.env.NEXT_PUBLIC_SDS_RPC_URL || 'https://dream-rpc.somnia.network';
-      const wsUrl = rpcUrl.replace('https://', 'wss://').replace('http://', 'ws://');
       
-      // Try WebSocket first (required for subscriptions per docs)
-      // Fallback to HTTP if WebSocket fails
+      // Use HTTP transport (more reliable than WebSocket for dream-rpc.somnia.network)
+      // WebSocket connections were failing with "UnknownRpcError"
       let publicClient;
-      let useWebSocket = true;
+      let useWebSocket = false;
       
       try {
-        // Create WebSocket transport (required for subscriptions per Somnia docs)
-        // Note: viem WebSocket connections are lazy, so errors will be caught during subscription
-        publicClient = createPublicClient({
-          chain: somniaTestnet,
-          transport: webSocket(wsUrl, {
-            reconnect: {
-              attempts: 3,
-              delay: 1000
-            }
-          })
-        });
-        
-        console.log('📡 Using WebSocket transport for SDS subscriptions (as per docs)');
-      } catch (wsError) {
-        console.warn('⚠️ WebSocket transport failed, falling back to HTTP:', wsError);
-        useWebSocket = false;
+        // Try HTTP transport first (backend uses this successfully)
         publicClient = createPublicClient({
           chain: somniaTestnet,
           transport: http(rpcUrl)
         });
+        
+        console.log('📡 Using HTTP transport for SDS (WebSocket connections failing)');
+      } catch (httpError) {
+        console.warn('⚠️ HTTP transport failed, trying WebSocket as last resort:', httpError);
+        // Last resort: try WebSocket (will likely fail but attempt anyway)
+        try {
+          const wsUrl = rpcUrl.replace('https://', 'wss://').replace('http://', 'ws://');
+          publicClient = createPublicClient({
+            chain: somniaTestnet,
+            transport: webSocket(wsUrl, {
+              reconnect: {
+                attempts: 3,
+                delay: 1000
+              }
+            })
+          });
+          useWebSocket = true;
+          console.log('📡 Using WebSocket transport (fallback)');
+        } catch (wsError) {
+          console.error('❌ Both HTTP and WebSocket transports failed:', wsError);
+          throw wsError;
+        }
       }
 
       // Initialize SDK (read-only, no wallet needed for subscribing)
