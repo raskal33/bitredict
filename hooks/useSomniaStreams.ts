@@ -365,16 +365,17 @@ export function useSomniaStreams(
     }
 
     // Map event types to event schema IDs and data schema IDs
+    // All event schemas are now registered in the backend
     const eventSchemaMap: Record<SDSEventType, string> = {
-      'pool:created': 'PoolCreated',
-      'pool:settled': 'PoolSettled',
-      'bet:placed': 'BetPlaced',
-      'pool:progress': 'BetPlaced', // Progress updates use BetPlaced events
-      'reputation:changed': 'ReputationActionOccurred',
-      'liquidity:added': 'LiquidityAdded',
-      'cycle:resolved': 'CycleResolved',
-      'slip:evaluated': 'SlipEvaluated',
-      'prize:claimed': 'PrizeClaimed'
+      'pool:created': 'PoolCreated',           // ✅ Registered
+      'pool:settled': 'PoolSettled',           // ✅ Registered
+      'bet:placed': 'BetPlaced',                // ✅ Registered
+      'pool:progress': 'BetPlaced',             // ✅ Uses BetPlaced events
+      'reputation:changed': 'ReputationActionOccurred',  // ✅ Now registered
+      'liquidity:added': 'LiquidityAdded',      // ✅ Now registered
+      'cycle:resolved': 'CycleResolved',        // ✅ Now registered
+      'slip:evaluated': 'SlipEvaluated',        // ✅ Now registered
+      'prize:claimed': 'PrizeClaimed'          // ✅ Now registered
     };
 
     const dataSchemaMap: Record<SDSEventType, string> = {
