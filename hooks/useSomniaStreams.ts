@@ -153,9 +153,9 @@ export function useSomniaStreams(
     enabled = true,
     autoReconnect = true,
     reconnectDelay = 3000,
-    // TEMPORARILY DISABLED FOR TESTING: Set to false to observe SDS integration without fallback
-    // Set to true to enable fallback to custom WebSocket when SDS fails
-    useFallback = false  // Changed from true to false for testing SDS integration
+    // Enable fallback to custom WebSocket when SDS fails
+    // This ensures Live Activity feed works even if SDS is unavailable
+    useFallback = true
   } = options;
 
   const [isConnected, setIsConnected] = useState(false);
@@ -293,8 +293,10 @@ export function useSomniaStreams(
             // Will subscribe per pool when usePoolProgress is called
           } else if (eventType === 'bet:placed') {
             channelsToSubscribe.add('recent_bets');
-          } else if (eventType === 'pool:created' || eventType === 'pool:settled') {
-            // These are handled via general pool updates
+          } else if (eventType === 'pool:created') {
+            channelsToSubscribe.add('pool:created');
+          } else if (eventType === 'pool:settled') {
+            channelsToSubscribe.add('pool:settled');
           }
         });
         
@@ -323,6 +325,10 @@ export function useSomniaStreams(
               eventType = 'pool:progress';
             } else if (channel === 'recent_bets') {
               eventType = 'bet:placed';
+            } else if (channel === 'pool:created') {
+              eventType = 'pool:created';
+            } else if (channel === 'pool:settled') {
+              eventType = 'pool:settled';
             }
             
             if (eventType) {
