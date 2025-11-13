@@ -17,7 +17,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { SDK } from '@somnia-chain/streams';
-import { createPublicClient, http } from 'viem';
+import { createPublicClient, http, webSocket } from 'viem';
 import { somniaTestnet } from 'viem/chains';
 
 // Event types
@@ -33,6 +33,8 @@ export type SDSEventType =
   | 'prize:claimed';
 
 export interface SDSPoolData {
+  isRefunded?: boolean; // ✅ Added refund detection
+  status?: string; // ✅ Added status field
   poolId: string;
   creator: string;
   odds: number;
@@ -140,6 +142,7 @@ interface UseSomniaStreamsReturn {
   isFallback: boolean;
   error: Error | null;
   subscribe: (eventType: SDSEventType, callback: (data: SDSEventData) => void) => () => void;
+  subscribeToChannel: (channel: string) => void;
   reconnect: () => void;
 }
 
@@ -170,11 +173,24 @@ export function useSomniaStreams(
     try {
       console.log('🔄 Initializing Somnia Data Streams...');
       
-      // Create public client for reading
-      const publicClient = createPublicClient({
-        chain: somniaTestnet,
-        transport: http(process.env.NEXT_PUBLIC_SDS_RPC_URL || 'https://dream-rpc.somnia.network')
-      });
+      // Create public client for reading (use WebSocket for real-time subscriptions)
+      const rpcUrl = process.env.NEXT_PUBLIC_SDS_RPC_URL || 'https://dream-rpc.somnia.network';
+      const wsUrl = rpcUrl.replace('https://', 'wss://').replace('http://', 'ws://');
+      
+      // Try WebSocket first for real-time subscriptions, fallback to HTTP
+      let publicClient;
+      try {
+        publicClient = createPublicClient({
+          chain: somniaTestnet,
+          transport: webSocket(wsUrl)
+        });
+      } catch (wsError) {
+        console.warn('WebSocket transport failed, using HTTP:', wsError);
+        publicClient = createPublicClient({
+          chain: somniaTestnet,
+          transport: http(rpcUrl)
+        });
+      }
 
       // Initialize SDK (read-only, no wallet needed for subscribing)
       const sdk = new SDK({
@@ -213,19 +229,54 @@ export function useSomniaStreams(
         setIsConnected(true);
         setIsFallback(true);
         setError(null);
+        
+        // Subscribe to all active channels
+        const channelsToSubscribe = new Set<string>();
+        
+        // Subscribe to pool progress channels
+        subscribersRef.current.forEach((callbacks, eventType) => {
+          if (eventType === 'pool:progress') {
+            // Will subscribe per pool when usePoolProgress is called
+          } else if (eventType === 'bet:placed') {
+            channelsToSubscribe.add('recent_bets');
+          } else if (eventType === 'pool:created' || eventType === 'pool:settled') {
+            // These are handled via general pool updates
+          }
+        });
+        
+        // Subscribe to general channels
+        channelsToSubscribe.forEach(channel => {
+          ws.send(JSON.stringify({ type: 'subscribe', channel }));
+        });
       };
 
       ws.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
-          const { type, data } = message;
-
-          // Normalize event types to match SDS format
-          const eventType = type as SDSEventType;
-          const callbacks = subscribersRef.current.get(eventType);
           
-          if (callbacks) {
-            callbacks.forEach(callback => callback(data));
+          // Handle WebSocket protocol messages
+          if (message.type === 'connected' || message.type === 'subscribed' || message.type === 'pong') {
+            return; // Protocol messages, ignore
+          }
+          
+          // Handle update messages
+          if (message.type === 'update' && message.channel && message.data) {
+            const channel = message.channel;
+            
+            // Map WebSocket channels to SDS event types
+            let eventType: SDSEventType | null = null;
+            if (channel.startsWith('pool:') && channel.endsWith(':progress')) {
+              eventType = 'pool:progress';
+            } else if (channel === 'recent_bets') {
+              eventType = 'bet:placed';
+            }
+            
+            if (eventType) {
+              const callbacks = subscribersRef.current.get(eventType);
+              if (callbacks) {
+                callbacks.forEach(callback => callback(message.data));
+              }
+            }
           }
         } catch (err) {
           console.error('Error processing WebSocket message:', err);
@@ -268,8 +319,20 @@ export function useSomniaStreams(
       return () => {};
     }
 
-    // Map event types to schema IDs
-    const schemaIdMap: Record<SDSEventType, string> = {
+    // Map event types to event schema IDs and data schema IDs
+    const eventSchemaMap: Record<SDSEventType, string> = {
+      'pool:created': 'PoolCreated',
+      'pool:settled': 'PoolSettled',
+      'bet:placed': 'BetPlaced',
+      'pool:progress': 'BetPlaced', // Progress updates use BetPlaced events
+      'reputation:changed': 'ReputationActionOccurred',
+      'liquidity:added': 'LiquidityAdded',
+      'cycle:resolved': 'CycleResolved',
+      'slip:evaluated': 'SlipEvaluated',
+      'prize:claimed': 'PrizeClaimed'
+    };
+
+    const dataSchemaMap: Record<SDSEventType, string> = {
       'pool:created': 'pool',
       'pool:settled': 'pool',
       'bet:placed': 'bet',
@@ -281,19 +344,86 @@ export function useSomniaStreams(
       'prize:claimed': 'prizeClaimed'
     };
 
-    const schemaId = schemaIdMap[eventType];
+    const eventSchemaId = eventSchemaMap[eventType];
+    const dataSchemaId = dataSchemaMap[eventType];
 
     try {
-      // For now, SDS subscription is simplified - WebSocket fallback handles actual data
-      // TODO: Implement proper SDS subscription when SDK API is finalized
-      console.log(`Subscribing to ${eventType} via SDS (using WebSocket fallback for now)`);
-      return () => {};
+      console.log(`📡 Subscribing to ${eventType} via SDS (event: ${eventSchemaId}, data: ${dataSchemaId})`);
+      
+      // ✅ Subscribe to SDS events using the SDK
+      // Based on Somnia SDS API: subscribe to event schema and optionally fetch enriched data
+      const subscriptionPromise = sdkRef.current.streams.subscribe({
+        somniaStreamsEventId: eventSchemaId,
+        ethCalls: [], // Optional: Add ethCalls to fetch enriched data when event occurs
+        onlyPushChanges: false, // Receive all events, not just changes
+        onData: (data) => {
+          try {
+            // The SDK provides enriched data when event is emitted
+            // Transform to match our SDSEventData interface
+            const transformedData = {
+              ...data,
+              poolId: data.poolId?.toString() || data.args?.poolId?.toString(),
+              // Ensure all required fields are present
+              fillPercentage: data.fillPercentage || 0,
+              participantCount: data.participantCount || data.participants || 0
+            };
+            
+            console.log(`✅ Received SDS data for ${eventType}:`, transformedData);
+            callback(transformedData as SDSEventData);
+          } catch (transformError) {
+            console.error(`Error transforming SDS data for ${eventType}:`, transformError);
+            // Still try to call callback with raw data
+            callback(data as any);
+          }
+        },
+        onError: (error) => {
+          console.error(`SDS subscription error for ${eventType}:`, error);
+        }
+      });
+
+      // Handle async subscription result
+      let unsubscribeFn: (() => void) | null = null;
+      
+      subscriptionPromise.then((result) => {
+        if (result && result.unsubscribe) {
+          unsubscribeFn = result.unsubscribe;
+        }
+      }).catch((err) => {
+        console.error(`Failed to establish SDS subscription for ${eventType}:`, err);
+      });
+
+      console.log(`✅ Successfully subscribed to ${eventType} via SDS`);
+      
+      // Return unsubscribe function (will be set when promise resolves)
+      return () => {
+        if (unsubscribeFn) {
+          unsubscribeFn();
+        }
+      };
 
     } catch (err) {
-      console.error(`Failed to subscribe to ${eventType}:`, err);
+      console.error(`Failed to subscribe to ${eventType} via SDS:`, err);
+      console.warn(`Falling back to WebSocket for ${eventType}`);
+      // Fallback to WebSocket if SDS subscription fails
+      setIsFallback(true);
+      setIsSDSActive(false);
+      if (useFallback && !wsRef.current) {
+        initializeWebSocketFallback();
+      }
       return () => {};
     }
-  }, []);
+  }, [useFallback, initializeWebSocketFallback]);
+
+  // Subscribe to WebSocket channel
+  const subscribeToChannel = useCallback((channel: string) => {
+    if (isFallback && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ 
+        type: 'subscribe', 
+        channel 
+      }));
+      console.log(`📡 Subscribed to ${channel} via WebSocket`);
+    }
+  }, [isFallback]);
 
   // Subscribe function (works for both SDS and WebSocket)
   const subscribe = useCallback((
@@ -372,6 +502,7 @@ export function useSomniaStreams(
     isFallback,
     error,
     subscribe,
+    subscribeToChannel,
     reconnect
   };
 }
@@ -408,20 +539,26 @@ export function useBetUpdates(callback: (data: SDSBetData) => void, enabled = tr
 }
 
 export function usePoolProgress(poolId: string, callback: (data: SDSPoolProgressData) => void, enabled = true) {
-  const { subscribe, ...rest } = useSomniaStreams({ enabled });
+  const { subscribe, subscribeToChannel, isFallback, isConnected, ...rest } = useSomniaStreams({ enabled });
   
   useEffect(() => {
     if (!enabled) return;
     
+    // Subscribe via SDS/WebSocket hook
     const unsubscribe = subscribe('pool:progress', (data) => {
       const progressData = data as SDSPoolProgressData;
-      if (progressData.poolId === poolId) {
+      if (progressData.poolId === poolId || progressData.poolId === String(poolId)) {
         callback(progressData);
       }
     });
     
+    // ✅ CRITICAL: Subscribe to WebSocket channel when connection is ready
+    if (isFallback && isConnected) {
+      subscribeToChannel(`pool:${poolId}:progress`);
+    }
+    
     return unsubscribe;
-  }, [subscribe, poolId, callback, enabled]);
+  }, [subscribe, subscribeToChannel, poolId, callback, enabled, isFallback, isConnected]);
   
   return rest;
 }

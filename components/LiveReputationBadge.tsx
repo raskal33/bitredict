@@ -6,7 +6,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useReputationUpdates } from '@/hooks/useSomniaStreams';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAccount } from 'wagmi';
@@ -17,47 +17,113 @@ interface LiveReputationBadgeProps {
   initialReputation?: number;
 }
 
-export function LiveReputationBadge({ initialReputation = 40 }: LiveReputationBadgeProps) {
+export function LiveReputationBadge({ initialReputation }: LiveReputationBadgeProps) {
   const { address } = useAccount();
-  const [reputation, setReputation] = useState(initialReputation);
+  const [reputation, setReputation] = useState<number | null>(initialReputation || null);
+  const [tier, setTier] = useState<string>('');
   const [reputationChange, setReputationChange] = useState<number | null>(null);
   const [lastAction, setLastAction] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const { playSuccess, playNotification } = useSoundEffects({ volume: 0.3 });
   const { animationsEnabled, getMotionProps } = useAnimationProps();
 
-  // Real-time reputation updates
-  useReputationUpdates(address || '', (repData) => {
-    const change = repData.newReputation - repData.oldReputation;
-    setReputationChange(change);
-    setLastAction(repData.actionName);
-    setReputation(repData.newReputation);
-
-    // Play sound based on change
-    if (change > 0) {
-      playSuccess();
-    } else {
-      playNotification();
+  // ✅ Fetch reputation from API when address changes
+  useEffect(() => {
+    if (!address) {
+      setReputation(null);
+      setIsLoading(false);
+      return;
     }
 
-    // Clear the change indicator after animation
-    setTimeout(() => {
-      setReputationChange(null);
-      setLastAction(null);
-    }, 3000);
+    const fetchReputation = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch(`/api/reputation/user/${address}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            setReputation(data.data.reputation || 40);
+            setTier(data.data.tier || 'ACTIVE');
+          } else {
+            // Default to 40 if API fails
+            setReputation(40);
+            setTier('ACTIVE');
+          }
+        } else {
+          setReputation(40);
+          setTier('ACTIVE');
+        }
+      } catch (error) {
+        console.error('Failed to fetch reputation:', error);
+        setReputation(40);
+        setTier('ACTIVE');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchReputation();
+  }, [address]);
+
+  // Real-time reputation updates
+  useReputationUpdates(address || '', (repData) => {
+    const oldRep = reputation || 40;
+    const newRep = repData.newReputation || repData.oldReputation || 40;
+    const change = newRep - oldRep;
+    
+    if (change !== 0) {
+      setReputationChange(change);
+      setLastAction(repData.actionName || '');
+      setReputation(newRep);
+      
+      // Update tier based on new reputation
+      if (newRep >= 400) setTier('LEGENDARY');
+      else if (newRep >= 300) setTier('EXPERT');
+      else if (newRep >= 200) setTier('VETERAN');
+      else if (newRep >= 100) setTier('REGULAR');
+      else if (newRep >= 40) setTier('ACTIVE');
+      else setTier('NEWCOMER');
+
+      // Play sound based on change
+      if (change > 0) {
+        playSuccess();
+      } else {
+        playNotification();
+      }
+
+      // Clear the change indicator after animation
+      setTimeout(() => {
+        setReputationChange(null);
+        setLastAction(null);
+      }, 3000);
+    }
   });
 
-  const getReputationColor = (rep: number) => {
+  const getReputationColor = (rep: number | null) => {
+    if (!rep) return 'text-gray-400 border-gray-400';
+    if (rep >= 400) return 'text-purple-400 border-purple-400';
+    if (rep >= 300) return 'text-blue-400 border-blue-400';
+    if (rep >= 200) return 'text-green-400 border-green-400';
     if (rep >= 100) return 'text-yellow-400 border-yellow-400';
-    if (rep >= 70) return 'text-green-400 border-green-400';
     if (rep >= 40) return 'text-blue-400 border-blue-400';
     return 'text-gray-400 border-gray-400';
   };
 
-  const getReputationRank = (rep: number) => {
-    if (rep >= 100) return '👑 Elite';
-    if (rep >= 70) return '⭐ Expert';
-    if (rep >= 40) return '🎯 Active';
-    return '🌱 Newbie';
+  const getReputationTierLabel = (tierName: string, rep: number | null) => {
+    if (!rep) return 'Loading...';
+    
+    // Use tier from API if available, otherwise calculate
+    if (tierName) {
+      return tierName;
+    }
+    
+    // Fallback calculation
+    if (rep >= 400) return 'LEGENDARY';
+    if (rep >= 300) return 'EXPERT';
+    if (rep >= 200) return 'VETERAN';
+    if (rep >= 100) return 'REGULAR';
+    if (rep >= 40) return 'ACTIVE';
+    return 'NEWCOMER';
   };
 
   const BadgeComponent = animationsEnabled ? motion.div : 'div';
@@ -68,19 +134,27 @@ export function LiveReputationBadge({ initialReputation = 40 }: LiveReputationBa
       })
     : {};
 
+  // Don't render if no address or still loading
+  if (!address || isLoading) {
+    return null;
+  }
+
+  const currentReputation = reputation || 40;
+  const tierLabel = getReputationTierLabel(tier, reputation);
+
   return (
     <div className="relative">
       <BadgeComponent
-        className={`px-4 py-2 rounded-lg border-2 ${getReputationColor(reputation)} bg-gray-800/50 backdrop-blur`}
+        className={`px-3 py-1.5 rounded-lg border ${getReputationColor(reputation)} bg-gray-800/50 backdrop-blur`}
         {...badgeProps}
       >
-        <div className="flex items-center gap-3">
-          <div className="text-center">
-            <div className="text-2xl font-bold">{reputation}</div>
-            <div className="text-xs opacity-70">Reputation</div>
+        <div className="flex items-center gap-2">
+          <div className="text-center min-w-[50px]">
+            <div className="text-lg font-bold leading-tight">{currentReputation}</div>
+            <div className="text-[10px] opacity-70 leading-tight">Score</div>
           </div>
-          <div className="text-sm">
-            {getReputationRank(reputation)}
+          <div className="text-xs font-medium opacity-90">
+            {tierLabel}
           </div>
         </div>
       </BadgeComponent>

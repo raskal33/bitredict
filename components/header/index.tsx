@@ -329,9 +329,9 @@ export default function Header() {
                   <Cog6ToothIcon className="h-5 w-5" />
                 </button>
 
-                {/* Live Reputation Badge */}
+                {/* Live Reputation Badge - Only show when connected */}
                 {isConnected && address && isRender && (
-                  <div className="hidden md:block">
+                  <div className="hidden md:flex items-center">
                     <LiveReputationBadge />
                   </div>
                 )}

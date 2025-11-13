@@ -26,6 +26,8 @@ interface SettlementResult {
   totalPoolSize: number;
   totalParticipants: number;
   creatorWon: boolean;
+  isRefunded?: boolean; // ✅ Added refund detection
+  settlementStatus?: string; // ✅ Added settlement status
   settlementTimestamp: string;
   transparencyData?: {
     totalBets: number;
@@ -235,16 +237,24 @@ export default function SettlementResults({ poolId, className = "" }: Settlement
               </div>
               
               <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${
-                result.creatorWon 
+                result.isRefunded || result.settlementStatus === 'refunded'
+                  ? 'text-gray-400 bg-gray-500/20 border-gray-500/30'
+                  : result.creatorWon 
                   ? 'text-green-400 bg-green-500/20 border-green-500/30'
                   : 'text-red-400 bg-red-500/20 border-red-500/30'
               }`}>
-                {result.creatorWon ? (
+                {result.isRefunded || result.settlementStatus === 'refunded' ? (
+                  <BanknotesIcon className="w-3 h-3" />
+                ) : result.creatorWon ? (
                   <CheckCircleIcon className="w-3 h-3" />
                 ) : (
                   <XCircleIcon className="w-3 h-3" />
                 )}
-                {result.creatorWon ? 'Creator Won' : 'Creator Lost'}
+                {result.isRefunded || result.settlementStatus === 'refunded' 
+                  ? 'Refunded' 
+                  : result.creatorWon 
+                  ? 'Creator Won' 
+                  : 'Creator Lost'}
               </div>
             </div>
 

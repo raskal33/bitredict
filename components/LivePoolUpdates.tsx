@@ -35,7 +35,10 @@ export function LivePoolUpdates() {
       id: `pool-${poolData.poolId}-${Date.now()}`,
       type: poolData.isSettled ? 'pool_settled' : 'pool_created',
       message: poolData.isSettled 
-        ? `${poolData.title} settled! Winner: ${poolData.creatorSideWon ? 'Creator' : 'Bettors'}`
+        ? (poolData.isRefunded || poolData.status === 'refunded' || 
+           (poolData.creatorSideWon === false && parseFloat(poolData.totalBettorStake || '0') === 0))
+          ? `${poolData.title} was refunded - No bets placed`
+          : `${poolData.title} settled! Winner: ${poolData.creatorSideWon ? 'Creator' : 'Bettors'}`
         : `New pool: ${poolData.title} (${poolData.category})`,
       timestamp: Date.now(),
       poolId: poolData.poolId

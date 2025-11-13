@@ -53,9 +53,17 @@ export function getPoolStatus(pool: PoolData): PoolStatusInfo {
   const arbitrationDeadline = pool.arbitrationDeadline ? pool.arbitrationDeadline * 1000 : null;
 
   // Enhanced settlement detection - check multiple indicators
+  const zeroResult = '0x0000000000000000000000000000000000000000000000000000000000000000';
   const isSettled = pool.settled || 
                    (pool.resultTimestamp && pool.resultTimestamp > 0) ||
-                   (pool.result && pool.result !== '0x0000000000000000000000000000000000000000000000000000000000000000');
+                   (pool.result && pool.result !== zeroResult);
+  
+  // ✅ Detect refunded pools (result is zero/empty)
+  const isRefunded = pool.settled && 
+                     (pool.result === zeroResult || 
+                      pool.result === null || 
+                      pool.result === '' ||
+                      (typeof pool.result === 'string' && pool.result.trim() === '0x'));
 
   console.log('🔍 Pool Status Debug:', {
     poolId: pool.id || 'unknown',
@@ -63,8 +71,24 @@ export function getPoolStatus(pool: PoolData): PoolStatusInfo {
     resultTimestamp: pool.resultTimestamp,
     result: pool.result,
     isSettled,
+    isRefunded,
     creatorSideWon: pool.creatorSideWon
   });
+
+  // Check if pool is refunded first (before checking winner)
+  if (isRefunded) {
+    return {
+      status: 'refunded',
+      label: 'Refunded',
+      description: 'Pool was refunded - No bets placed',
+      color: 'text-gray-400',
+      bgColor: 'bg-gradient-to-r from-gray-500/20 to-slate-500/20',
+      icon: '💰',
+      canBet: false,
+      canClaim: false,
+      canRefund: false
+    };
+  }
 
   // Check if pool is settled first
   if (isSettled) {
