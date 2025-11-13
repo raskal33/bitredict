@@ -153,7 +153,9 @@ export function useSomniaStreams(
     enabled = true,
     autoReconnect = true,
     reconnectDelay = 3000,
-    useFallback = true
+    // TEMPORARILY DISABLED FOR TESTING: Set to false to observe SDS integration without fallback
+    // Set to true to enable fallback to custom WebSocket when SDS fails
+    useFallback = false  // Changed from true to false for testing SDS integration
   } = options;
 
   const [isConnected, setIsConnected] = useState(false);
