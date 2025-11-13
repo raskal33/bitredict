@@ -68,6 +68,9 @@ export interface SDSPoolProgressData {
   totalCreatorSideStake: string;
   maxPoolSize: string;
   participantCount: number;
+  betCount?: number; // ✅ Added bet count
+  currentMaxBettorStake?: string; // ✅ Added for dynamic capacity calculation
+  effectiveCreatorSideStake?: string; // ✅ Added for dynamic capacity calculation
   timestamp: number;
 }
 

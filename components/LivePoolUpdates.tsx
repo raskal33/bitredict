@@ -91,7 +91,7 @@ export function LivePoolUpdates() {
       poolTitle?: string;
     }
     
-    const unsubscribe = subscribe('liquidity:added', (liquidityData: any) => {
+    const unsubscribe = subscribe('liquidity:added', (liquidityData: unknown) => {
       // Type assertion for liquidity data
       const data = liquidityData as LiquidityData;
       // ✅ FIX: Convert amount from wei to token if needed

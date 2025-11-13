@@ -16,15 +16,18 @@ interface RealtimePoolProgressProps {
   poolId: string;
   initialFillPercentage?: number;
   initialParticipants?: number;
+  initialBetCount?: number; // ✅ Added bet count
 }
 
 export function RealtimePoolProgress({
   poolId,
   initialFillPercentage = 0,
-  initialParticipants = 0
+  initialParticipants = 0,
+  initialBetCount = 0 // ✅ Added bet count
 }: RealtimePoolProgressProps) {
   const [fillPercentage, setFillPercentage] = useState(initialFillPercentage);
   const [participants, setParticipants] = useState(initialParticipants);
+  const [betCount, setBetCount] = useState(initialBetCount); // ✅ Added bet count state
   const [isUpdating, setIsUpdating] = useState(false);
   const { animationsEnabled, getMotionProps } = useAnimationProps();
 
@@ -33,6 +36,7 @@ export function RealtimePoolProgress({
     setIsUpdating(true);
     setFillPercentage(progressData.fillPercentage);
     setParticipants(progressData.participantCount);
+    setBetCount(progressData.betCount || 0); // ✅ Update bet count
     
     // Flash animation
     setTimeout(() => setIsUpdating(false), 1000);
@@ -105,7 +109,7 @@ export function RealtimePoolProgress({
               })}
               className="text-gray-400"
             >
-              {participants} participant{participants !== 1 ? 's' : ''}
+              {participants} participant{participants !== 1 ? 's' : ''} • {betCount} bet{betCount !== 1 ? 's' : ''}
             </motion.span>
           </>
         ) : (
@@ -116,7 +120,7 @@ export function RealtimePoolProgress({
               {fillPercentage.toFixed(1)}% filled
             </span>
             <span className="text-gray-400">
-              {participants} participant{participants !== 1 ? 's' : ''}
+              {participants} participant{participants !== 1 ? 's' : ''} • {betCount} bet{betCount !== 1 ? 's' : ''}
             </span>
           </>
         )}

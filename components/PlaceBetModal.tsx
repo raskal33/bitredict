@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { usePools } from "@/hooks/usePools";
 import { toast } from "react-hot-toast";
 import { EnhancedPool } from "./EnhancedPoolCard";
+import { usePoolProgress } from "@/hooks/useSomniaStreams";
 
 interface PlaceBetModalProps {
   pool: EnhancedPool;
@@ -30,6 +31,23 @@ export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalPr
   const [waitingForApproval, setWaitingForApproval] = useState(false);
   const [betSuccess, setBetSuccess] = useState(false);
   const [initialStake, setInitialStake] = useState<number | null>(null);
+  
+  // ✅ CRITICAL: Use real-time pool progress updates to get latest max bettor stake
+  const [currentPoolData, setCurrentPoolData] = useState({
+    totalCreatorSideStake: parseFloat(pool.totalCreatorSideStake || pool.creatorStake || "0"),
+    totalBettorStake: parseFloat(pool.totalBettorStake || "0"),
+    maxBettorStake: parseFloat(pool.maxBettorStake || "0")
+  });
+  
+  usePoolProgress(pool.id.toString(), (progressData) => {
+    // Update pool data when progress changes (e.g., LP added)
+    setCurrentPoolData(prev => ({
+      ...prev,
+      totalCreatorSideStake: parseFloat(progressData.effectiveCreatorSideStake || "0"),
+      totalBettorStake: parseFloat(progressData.totalBettorStake || "0"),
+      maxBettorStake: parseFloat(progressData.currentMaxBettorStake || "0")
+    }));
+  });
   
   // ✅ FIX: Poll for transaction success since usePools doesn't expose hash directly
   useEffect(() => {
@@ -104,15 +122,34 @@ export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalPr
     return amount * oddsDecimal;
   };
   
-  // Calculate remaining capacity
+  // ✅ FIX: Calculate remaining capacity using dynamic max bettor stake calculation
+  // Matches contract logic: effectiveCreatorSideStake determines max bettor stake
+  // Uses real-time pool data from usePoolProgress hook
   const getRemainingCapacity = (): number => {
     const creatorStake = parseFloat(pool.creatorStake || "0");
-    const totalBettorStake = parseFloat(pool.totalBettorStake || "0");
-    const oddsDecimal = pool.odds / 100;
+    // ✅ Use real-time pool data (updated when LP is added)
+    const totalCreatorSideStake = currentPoolData.totalCreatorSideStake || parseFloat(pool.totalCreatorSideStake || pool.creatorStake || "0");
+    const totalBettorStake = currentPoolData.totalBettorStake || parseFloat(pool.totalBettorStake || "0");
+    const maxBettorStake = currentPoolData.maxBettorStake || parseFloat(pool.maxBettorStake || "0");
     
-    // Max bettor stake = (creator stake / (odds - 1))
-    const maxBettorStake = creatorStake / (oddsDecimal - 1);
-    const remaining = Math.max(0, maxBettorStake - totalBettorStake);
+    // ✅ CRITICAL: Use dynamic calculation matching contract logic
+    // effectiveCreatorSideStake = totalBettorStake == 0 || totalBettorStake > creatorStake 
+    //   ? totalCreatorSideStake : creatorStake
+    const effectiveCreatorSideStake = (totalBettorStake === 0 || totalBettorStake > creatorStake) 
+      ? totalCreatorSideStake 
+      : creatorStake;
+    
+    // Max bettor stake = (effectiveCreatorSideStake * 100) / (odds - 100)
+    // This accounts for LP additions dynamically
+    const denominator = pool.odds - 100; // e.g., 200 - 100 = 100
+    const calculatedMaxBettorStake = denominator > 0 
+      ? (effectiveCreatorSideStake * 100) / denominator
+      : 0;
+    
+    // Use provided maxBettorStake if available and valid, otherwise calculate
+    const currentMaxBettorStake = maxBettorStake > 0 ? maxBettorStake : calculatedMaxBettorStake;
+    
+    const remaining = Math.max(0, currentMaxBettorStake - totalBettorStake);
     
     return remaining;
   };

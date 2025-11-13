@@ -1507,31 +1507,43 @@ export default function BetPage() {
               </div>
               
                {/* Bet Display or Claim Rewards - Conditional based on pool status */}
-               <div className="mt-8">
-                 {(() => {
-                   
-                  // ✅ CRITICAL: Check for refunded status
-                  if (poolStatusType === 'refunded') {
-                    return (
-                      <div className="p-6 bg-gray-800/50 rounded-xl border border-gray-700/30 text-center">
-                        <div className="text-4xl mb-4">💰</div>
-                        <h3 className="text-xl font-bold text-gray-400 mb-2">Pool Refunded</h3>
-                        <p className="text-gray-500">This pool was refunded - No bets were placed</p>
-                      </div>
-                    );
-                  } else if (poolStatusType && (poolStatusType === 'creator_won' || poolStatusType === 'bettor_won' || poolStatusType === 'settled')) {
-                    return <ClaimRewards pool={{
-                      id: pool.id,
-                      currency: pool.currency,
-                      settled: poolStatusType === 'settled',
-                      eventEndTime: pool.eventDetails?.endTime?.getTime() ? Math.floor(pool.eventDetails.endTime.getTime() / 1000) : 0,
-                      status: poolStatusType
-                    }} />;
-                  } else {
-                    return <BetDisplay poolId={poolId} />;
-                  }
-                 })()}
-              </div>
+       <div className="mt-8">
+         {(() => {
+           
+          // ✅ CRITICAL: Check for refunded status
+          if (poolStatusType === 'refunded') {
+            return (
+              <>
+                <div className="p-6 bg-gray-800/50 rounded-xl border border-gray-700/30 text-center mb-6">
+                  <div className="text-4xl mb-4">💰</div>
+                  <h3 className="text-xl font-bold text-gray-400 mb-2">Pool Refunded</h3>
+                  <p className="text-gray-500">This pool was refunded - No bets were placed</p>
+                </div>
+                {/* ✅ FIX: Always show BetDisplay (even for refunded pools) */}
+                <BetDisplay poolId={poolId} />
+              </>
+            );
+          } else if (poolStatusType && (poolStatusType === 'creator_won' || poolStatusType === 'bettor_won' || poolStatusType === 'settled')) {
+            return (
+              <>
+                <ClaimRewards pool={{
+                  id: pool.id,
+                  currency: pool.currency,
+                  settled: poolStatusType === 'settled',
+                  eventEndTime: pool.eventDetails?.endTime?.getTime() ? Math.floor(pool.eventDetails.endTime.getTime() / 1000) : 0,
+                  status: poolStatusType
+                }} />
+                {/* ✅ FIX: Always show BetDisplay (even after settlement) */}
+                <div className="mt-8">
+                  <BetDisplay poolId={poolId} />
+                </div>
+              </>
+            );
+          } else {
+            return <BetDisplay poolId={poolId} />;
+          }
+         })()}
+       </div>
                           </div>
           )}
 

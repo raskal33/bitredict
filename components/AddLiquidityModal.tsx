@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { 
   XMarkIcon,
   PlusCircleIcon,
@@ -28,6 +28,9 @@ export default function AddLiquidityModal({ pool, isOpen, onClose }: AddLiquidit
   const [waitingForApproval, setWaitingForApproval] = useState(false);
   const [addSuccess, setAddSuccess] = useState(false);
   const [initialStake, setInitialStake] = useState<number | null>(null);
+  
+  // ✅ CRITICAL: Pool data is updated in real-time via EnhancedPoolCard's usePoolProgress hook
+  // The pool prop passed to this modal will reflect latest state when LP is added
   
   // Poll for transaction success
   useEffect(() => {
@@ -129,132 +132,236 @@ export default function AddLiquidityModal({ pool, isOpen, onClose }: AddLiquidit
     }
   };
   
+  const handleClose = useCallback(() => {
+    if (!isAdding && !waitingForApproval) {
+      onClose();
+      setLiquidityAmount("");
+      setAddSuccess(false);
+      setInitialStake(null);
+    }
+  }, [isAdding, waitingForApproval, onClose]);
+  
+  // Close on escape key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isOpen && !isAdding && !waitingForApproval) {
+        handleClose();
+      }
+    };
+    
+    if (isOpen) {
+      document.addEventListener("keydown", handleEscape);
+      document.body.style.overflow = "hidden";
+    }
+    
+    return () => {
+      document.removeEventListener("keydown", handleEscape);
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen, isAdding, waitingForApproval, handleClose]);
+  
   const isDisabled = isAdding || waitingForApproval || addSuccess || pool.settled || 
     (pool.bettingEndTime ? Date.now() / 1000 > pool.bettingEndTime : false);
-  
-  if (!isOpen) return null;
   
   return (
     <AnimatePresence>
       {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
-          onClick={onClose}
-        >
+        <>
+          {/* Backdrop */}
           <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleClose();
+            }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+          />
+          
+          {/* Modal - Bottom Sheet Style (matching PlaceBetModal) */}
+          <motion.div
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ 
+              type: "spring",
+              damping: 30,
+              stiffness: 300
+            }}
             onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-md bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-700 rounded-xl shadow-2xl overflow-hidden"
+            className="fixed inset-x-0 bottom-0 z-50 bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 border-t-2 border-rose-500/30 rounded-t-3xl shadow-2xl max-h-[85vh] overflow-hidden"
           >
+            {/* Drag Handle */}
+            <div className="w-full flex justify-center pt-3 pb-2">
+              <div className="w-12 h-1.5 bg-gray-600 rounded-full" />
+            </div>
+            
             {/* Header */}
-            <div className="px-6 py-4 border-b border-slate-700 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-rose-500/20 rounded-lg">
-                  <PlusCircleIcon className="w-6 h-6 text-rose-400" />
-                </div>
+            <div className="px-6 pt-2 pb-4 border-b border-gray-700/50">
+              <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-bold text-white">Add Liquidity (Sell)</h3>
-                  <p className="text-xs text-gray-400">Support the creator side</p>
+                  <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                    <PlusCircleIcon className="w-6 h-6 text-rose-400" />
+                    Add Liquidity (Sell) Pool #{pool.id}
+                  </h2>
+                  <p className="text-sm text-gray-400 mt-1">
+                    Support the creator side
+                  </p>
                 </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleClose();
+                  }}
+                  disabled={isAdding || waitingForApproval}
+                  className="p-2 rounded-lg hover:bg-gray-700/50 transition-colors disabled:opacity-50"
+                >
+                  <XMarkIcon className="w-6 h-6 text-gray-400" />
+                </button>
               </div>
-              <button
-                onClick={onClose}
-                className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
-              >
-                <XMarkIcon className="w-5 h-5 text-gray-400" />
-              </button>
             </div>
             
             {/* Content */}
-            <div className="p-6 space-y-4">
-              {/* Pool Info */}
-              <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
-                <div className="text-xs text-gray-400 mb-2">Pool</div>
-                <div className="text-sm font-semibold text-white line-clamp-2">
-                  {pool.title || `${pool.homeTeam || ""} vs ${pool.awayTeam || ""}`}
-                </div>
-                <div className="flex items-center justify-between mt-3">
-                  <div>
-                    <div className="text-xs text-gray-400">Sell Odds</div>
-                    <div className="text-lg font-bold text-rose-400">{sellOdds.toFixed(2)}x</div>
-                  </div>
-                  <div>
-                    <div className="text-xs text-gray-400">Currency</div>
-                    <div className="text-sm font-semibold text-white">{pool.usesBitr ? "BITR" : "STT"}</div>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Amount Input */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Amount ({pool.usesBitr ? "BITR" : "STT"})
-                </label>
-                <input
-                  type="number"
-                  value={liquidityAmount}
-                  onChange={(e) => setLiquidityAmount(e.target.value)}
-                  placeholder="0.00"
-                  disabled={isDisabled}
-                  className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-rose-500 disabled:opacity-50"
-                />
-                
-                {/* Quick Amount Buttons */}
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {quickAmounts.map((amount) => (
-                    <button
-                      key={amount}
-                      onClick={() => setLiquidityAmount(amount.toString())}
-                      disabled={isDisabled}
-                      className="px-3 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-gray-300 hover:text-white transition-colors disabled:opacity-50"
-                    >
-                      {amount}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              
-              {/* Status Messages */}
-              {waitingForApproval && (
-                <div className="p-3 bg-blue-500/20 border border-blue-500/30 rounded-lg flex items-center gap-2">
-                  <ExclamationCircleIcon className="w-5 h-5 text-blue-400 animate-pulse" />
-                  <span className="text-sm text-blue-300">Waiting for approval...</span>
-                </div>
-              )}
-              
+            <div className="overflow-y-auto max-h-[calc(85vh-180px)] px-4 py-3">
+              {/* Success Animation */}
               {addSuccess && (
-                <div className="p-3 bg-green-500/20 border border-green-500/30 rounded-lg flex items-center gap-2">
-                  <CheckCircleIcon className="w-5 h-5 text-green-400" />
-                  <span className="text-sm text-green-300">Liquidity added successfully!</span>
-                </div>
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  className="absolute inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-green-500/20 via-rose-500/20 to-pink-500/20 backdrop-blur-sm rounded-t-3xl"
+                >
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: "spring", damping: 15, stiffness: 200 }}
+                    className="text-center"
+                  >
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 0.6, ease: "easeOut" }}
+                      className="w-20 h-20 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-2xl shadow-green-500/50"
+                    >
+                      <CheckCircleIcon className="w-12 h-12 text-white" />
+                    </motion.div>
+                    <motion.h3
+                      initial={{ y: 20, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      transition={{ delay: 0.2 }}
+                      className="text-2xl font-bold text-white mb-2"
+                    >
+                      Liquidity Added!
+                    </motion.h3>
+                    <motion.p
+                      initial={{ y: 20, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      transition={{ delay: 0.3 }}
+                      className="text-gray-300"
+                    >
+                      Your liquidity has been successfully added
+                    </motion.p>
+                  </motion.div>
+                </motion.div>
               )}
               
-              {/* Action Button */}
-              <button
-                onClick={handleAddLiquidity}
-                disabled={isDisabled}
-                className="w-full px-6 py-3 bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white font-semibold rounded-lg transition-all transform hover:scale-105 shadow-lg shadow-rose-500/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
-              >
-                {isAdding ? (
-                  <>
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Adding Liquidity...
-                  </>
-                ) : (
-                  <>
-                    <PlusCircleIcon className="w-5 h-5" />
-                    Add Liquidity
-                  </>
+              {/* Error Animation */}
+              {!isAdding && !waitingForApproval && !addSuccess && isDisabled && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-3 bg-red-500/20 border border-red-500/30 rounded-lg flex items-center gap-2 mb-4"
+                >
+                  <ExclamationCircleIcon className="w-5 h-5 text-red-400" />
+                  <span className="text-sm text-red-300">
+                    {pool.settled ? "Pool is settled" : "Betting window is closed"}
+                  </span>
+                </motion.div>
+              )}
+              
+              <div className="space-y-4">
+                {/* Pool Info */}
+                <div className="p-4 bg-gray-800/50 rounded-lg border border-gray-700/50">
+                  <div className="text-xs text-gray-400 mb-2">Pool</div>
+                  <div className="text-sm font-semibold text-white line-clamp-2">
+                    {pool.title || `${pool.homeTeam || ""} vs ${pool.awayTeam || ""}`}
+                  </div>
+                  <div className="flex items-center justify-between mt-3">
+                    <div>
+                      <div className="text-xs text-gray-400">Sell Odds</div>
+                      <div className="text-lg font-bold text-rose-400">{sellOdds.toFixed(2)}x</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-400">Currency</div>
+                      <div className="text-sm font-semibold text-white">{pool.usesBitr ? "BITR" : "STT"}</div>
+                    </div>
+                  </div>
+                </div>
+              
+                {/* Amount Input */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Amount ({pool.usesBitr ? "BITR" : "STT"})
+                  </label>
+                  <input
+                    type="number"
+                    value={liquidityAmount}
+                    onChange={(e) => setLiquidityAmount(e.target.value)}
+                    placeholder="0.00"
+                    disabled={isDisabled}
+                    className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-rose-500 disabled:opacity-50"
+                  />
+                  
+                  {/* Quick Amount Buttons */}
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {quickAmounts.map((amount) => (
+                      <button
+                        key={amount}
+                        onClick={() => setLiquidityAmount(amount.toString())}
+                        disabled={isDisabled}
+                        className="px-3 py-1.5 text-xs bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg text-gray-300 hover:text-white transition-colors disabled:opacity-50"
+                      >
+                        {amount}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Status Messages */}
+                {waitingForApproval && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-3 bg-blue-500/20 border border-blue-500/30 rounded-lg flex items-center gap-2"
+                  >
+                    <ExclamationCircleIcon className="w-5 h-5 text-blue-400 animate-pulse" />
+                    <span className="text-sm text-blue-300">Waiting for approval...</span>
+                  </motion.div>
                 )}
-              </button>
+                
+                {/* Action Button */}
+                <button
+                  onClick={handleAddLiquidity}
+                  disabled={isDisabled}
+                  className="w-full px-6 py-3 bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white font-semibold rounded-lg transition-all transform hover:scale-105 shadow-lg shadow-rose-500/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
+                >
+                  {isAdding ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Adding Liquidity...
+                    </>
+                  ) : (
+                    <>
+                      <PlusCircleIcon className="w-5 h-5" />
+                      Add Liquidity
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </motion.div>
-        </motion.div>
+        </>
       )}
     </AnimatePresence>
   );
