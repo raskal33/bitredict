@@ -443,7 +443,16 @@ export function useSomniaStreams(
       }).catch((err) => {
         console.error(`❌ Failed to establish SDS subscription for ${eventType}:`, err);
         console.log(`   Error: ${err.message || err}`);
-        // If subscription fails (e.g., "websocket required" error), fallback immediately
+        
+        // Check if error is "Failed to get event schemas" - means schemas not registered yet
+        if (err.message?.includes('Failed to get event schemas') || err.message?.includes('event schemas')) {
+          console.warn(`⚠️ Event schema "${eventSchemaId}" not registered on-chain yet`);
+          console.warn(`   Backend needs to register event schemas first`);
+          console.warn(`   Run: node backend/scripts/register-sds-event-schemas.js`);
+          console.warn(`   Falling back to WebSocket for ${eventType}...`);
+        }
+        
+        // If subscription fails, fallback immediately
         setIsFallback(true);
         setIsSDSActive(false);
         if (useFallback && !wsRef.current) {
