@@ -173,43 +173,33 @@ export function useSomniaStreams(
     try {
       console.log('🔄 Initializing Somnia Data Streams...');
       
-      // Use HTTP transport for SDS (WebSocket connections to dream-rpc.somnia.network are failing)
-      // The backend uses HTTP transport successfully, so we'll use the same approach
+      // SDS SDK REQUIRES WebSocket for subscriptions (as per error: "Invalid public client config - websocket required")
+      // However, WebSocket connections to dream-rpc.somnia.network are failing
+      // Solution: Try WebSocket, but immediately fall back to custom WebSocket service if it fails
       const rpcUrl = process.env.NEXT_PUBLIC_SDS_RPC_URL || 'https://dream-rpc.somnia.network';
+      const wsUrl = rpcUrl.replace('https://', 'wss://').replace('http://', 'ws://');
       
-      // Use HTTP transport (more reliable than WebSocket for dream-rpc.somnia.network)
-      // WebSocket connections were failing with "UnknownRpcError"
       let publicClient;
-      let useWebSocket = false;
+      let useWebSocket = true;
       
       try {
-        // Try HTTP transport first (backend uses this successfully)
+        // SDS SDK requires WebSocket for subscriptions - try it first
         publicClient = createPublicClient({
           chain: somniaTestnet,
-          transport: http(rpcUrl)
+          transport: webSocket(wsUrl, {
+            reconnect: {
+              attempts: 3,
+              delay: 1000
+            }
+          })
         });
         
-        console.log('📡 Using HTTP transport for SDS (WebSocket connections failing)');
-      } catch (httpError) {
-        console.warn('⚠️ HTTP transport failed, trying WebSocket as last resort:', httpError);
-        // Last resort: try WebSocket (will likely fail but attempt anyway)
-        try {
-          const wsUrl = rpcUrl.replace('https://', 'wss://').replace('http://', 'ws://');
-          publicClient = createPublicClient({
-            chain: somniaTestnet,
-            transport: webSocket(wsUrl, {
-              reconnect: {
-                attempts: 3,
-                delay: 1000
-              }
-            })
-          });
-          useWebSocket = true;
-          console.log('📡 Using WebSocket transport (fallback)');
-        } catch (wsError) {
-          console.error('❌ Both HTTP and WebSocket transports failed:', wsError);
-          throw wsError;
-        }
+        console.log('📡 Using WebSocket transport for SDS subscriptions (required by SDK)');
+      } catch (wsError) {
+        console.warn('⚠️ WebSocket transport failed for SDS:', wsError);
+        // If WebSocket fails, we can't use SDS subscriptions
+        // Will fall back to custom WebSocket service below
+        throw new Error('SDS WebSocket connection failed - will use fallback');
       }
 
       // Initialize SDK (read-only, no wallet needed for subscribing)
@@ -230,18 +220,31 @@ export function useSomniaStreams(
       setError(err as Error);
       setIsSDSActive(false);
 
-      // Fall back to custom WebSocket if enabled
+      // Always fall back to custom WebSocket if SDS fails
+      // This is expected when WebSocket connections to dream-rpc.somnia.network fail
       if (useFallback) {
-        console.log('🔄 Falling back to custom WebSocket service...');
+        console.log('🔄 SDS unavailable - falling back to custom WebSocket service...');
         initializeWebSocketFallback();
+      } else {
+        // If fallback disabled, still mark as connected but using fallback
+        setIsFallback(true);
+        setIsConnected(false);
       }
     }
   }, [enabled, useFallback]);
 
   // Initialize WebSocket fallback
   const initializeWebSocketFallback = useCallback(() => {
+    // Don't initialize if already initialized
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      console.log('WebSocket fallback already connected');
+      return;
+    }
+    
     try {
-      const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:4001';
+      // Use the backend WebSocket URL (not localhost)
+      const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'wss://bitredict-backend.fly.dev/ws';
+      console.log(`🔌 Connecting to WebSocket fallback: ${wsUrl}`);
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
@@ -414,10 +417,12 @@ export function useSomniaStreams(
         }
       }).catch((err) => {
         console.error(`❌ Failed to establish SDS subscription for ${eventType}:`, err);
-        // Fallback to WebSocket if subscription fails
+        console.log(`   Error: ${err.message || err}`);
+        // If subscription fails (e.g., "websocket required" error), fallback immediately
         setIsFallback(true);
         setIsSDSActive(false);
         if (useFallback && !wsRef.current) {
+          console.log(`   Falling back to WebSocket for ${eventType}...`);
           initializeWebSocketFallback();
         }
       });
@@ -465,9 +470,24 @@ export function useSomniaStreams(
     subscribersRef.current.get(eventType)!.add(callback);
 
     // If using SDS, subscribe to stream
+    // But if SDS isn't active (WebSocket failed), use WebSocket fallback instead
     let sdsUnsubscribe: (() => void) | null = null;
     if (isSDSActive && sdkRef.current) {
-      sdsUnsubscribe = subscribeToSDSEvent(eventType, callback);
+      try {
+        sdsUnsubscribe = subscribeToSDSEvent(eventType, callback);
+      } catch (err) {
+        console.warn(`SDS subscription failed for ${eventType}, using WebSocket fallback:`, err);
+        // If SDS subscription fails, ensure fallback is initialized
+        if (useFallback && !wsRef.current) {
+          initializeWebSocketFallback();
+        }
+      }
+    } else if (isFallback && wsRef.current) {
+      // If already in fallback mode, subscribe via WebSocket
+      subscribeToChannel(eventType === 'pool:progress' ? `pool:*:progress` : eventType);
+    } else if (useFallback && !wsRef.current) {
+      // Initialize fallback if not already done
+      initializeWebSocketFallback();
     }
 
     // Return unsubscribe function
