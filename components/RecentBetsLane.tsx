@@ -10,6 +10,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { optimizedPoolService } from "@/services/optimizedPoolService";
 import { getPoolIcon } from "@/services/crypto-icons";
+import { useBetUpdates } from "@/hooks/useSomniaStreams";
 
 interface RecentBet {
   id: number;
@@ -174,7 +175,61 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
   const [apiData, setApiData] = useState<RecentBet[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch recent bets using optimized API service
+  // ✅ CRITICAL: Use real-time bet updates via SDS/WebSocket
+  useBetUpdates((betData: {
+    poolId?: string | number;
+    bettor?: string;
+    amount?: string;
+    isForOutcome?: boolean;
+    timestamp?: number;
+    poolTitle?: string;
+    category?: string;
+    league?: string;
+    odds?: number;
+    eventType?: string;
+    action?: string;
+    icon?: string;
+    currency?: string;
+  }) => {
+    console.log('📡 Recent Bets Lane: Received real-time bet update:', betData);
+    
+    // Transform bet data to component format
+    const eventType: 'bet' | 'pool_created' | 'liquidity_added' = 
+      (betData.eventType === 'pool_created' ? 'pool_created' :
+       betData.eventType === 'liquidity_added' ? 'liquidity_added' : 'bet') as 'bet' | 'pool_created' | 'liquidity_added';
+    
+    const newBet: RecentBet = {
+      id: Date.now(), // Use timestamp as ID for new bets
+      poolId: betData.poolId?.toString() || '',
+      bettorAddress: betData.bettor || '',
+      amount: betData.amount || '0',
+      amountFormatted: parseFloat(betData.amount || '0').toFixed(2),
+      isForOutcome: betData.isForOutcome !== undefined ? betData.isForOutcome : true,
+      eventType: eventType,
+      action: betData.action || 'Placed bet',
+      icon: betData.icon || '🎯',
+      odds: betData.odds,
+      currency: betData.currency || 'STT',
+      createdAt: new Date((betData.timestamp || Date.now() / 1000) * 1000).toISOString(),
+      timeAgo: 'Just now',
+      pool: {
+        predictedOutcome: '',
+        league: betData.league || 'Unknown',
+        category: betData.category || 'Unknown',
+        homeTeam: '',
+        awayTeam: '',
+        title: betData.poolTitle || `Pool #${betData.poolId}`,
+        useBitr: false,
+        odds: betData.odds || 0,
+        creatorAddress: ''
+      }
+    };
+    
+    // Add to beginning of list (most recent first)
+    setApiData(prev => [newBet, ...prev].slice(0, 20));
+  });
+
+  // Fetch initial recent bets using optimized API service
   useEffect(() => {
     const fetchRecentBets = async () => {
       try {
@@ -220,8 +275,9 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
 
     fetchRecentBets();
     
-    // Set up polling interval
-    const interval = setInterval(fetchRecentBets, 60000); // 1 minute
+    // ✅ FIX: Reduced polling interval as fallback (real-time updates via WebSocket/SDS are primary)
+    // Only poll every 5 minutes as backup if WebSocket/SDS fails
+    const interval = setInterval(fetchRecentBets, 300000); // 5 minutes (fallback only)
     return () => clearInterval(interval);
   }, []);
 
@@ -411,7 +467,7 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
         </div>
         
         <div className="text-xs text-gray-500">
-          Auto-refresh every 3s
+          Real-time updates via WebSocket/SDS
         </div>
       </div>
     </div>

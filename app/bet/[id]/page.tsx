@@ -99,7 +99,13 @@ export default function BetPage() {
     oracleType: number;
     marketId: string;
   } | null>(null);
-  const [poolStatusType, setPoolStatusType] = useState<'creator_won' | 'bettor_won' | 'settled' | 'active' | null>(null);
+  const [poolStatusType, setPoolStatusType] = useState<'creator_won' | 'bettor_won' | 'settled' | 'active' | 'refunded' | null>(null);
+  const [isRefunded, setIsRefunded] = useState<boolean>(false); // ✅ Store isRefunded flag
+  const [poolApiData, setPoolApiData] = useState<{
+    totalBettorStake?: string;
+    betCount?: number;
+    totalBets?: number;
+  } | null>(null); // ✅ Store pool API data for PoolStatusBanner
   
   // Backend formatted data to avoid scientific notation
   const [creatorStakeFormatted, setCreatorStakeFormatted] = useState<number>(0);
@@ -312,7 +318,16 @@ export default function BetPage() {
       // ✅ CRITICAL: Use verified API data directly (API verifies against contract for settled pools)
       // This ensures EnhancedPoolCard and Bet Page always see the same status
       const isSettled = poolData.isSettled || poolData.status === 'settled';
+      const refundedFlag = (poolData as { isRefunded?: boolean }).isRefunded || false; // ✅ CRITICAL: Check API's isRefunded flag
       const creatorSideWon = poolData.creatorSideWon; // Already verified against contract in API
+      
+      // ✅ Store in state for use in PoolStatusBanner
+      setIsRefunded(refundedFlag);
+      setPoolApiData({
+        totalBettorStake: poolData.totalBettorStake,
+        betCount: (poolData as { betCount?: number; totalBets?: number }).betCount,
+        totalBets: (poolData as { betCount?: number; totalBets?: number }).totalBets
+      });
       
       // Set contract data for status banner using verified API data
       const flags = 
@@ -323,7 +338,10 @@ export default function BetPage() {
         poolId: poolData.id,
         status: poolData.status,
         isSettled,
+        isRefunded: refundedFlag, // ✅ Added refund check
         creatorSideWon: creatorSideWon, // Verified against contract
+        totalBettorStake: poolData.totalBettorStake, // ✅ Added for debugging
+        betCount: (poolData as { betCount?: number; totalBets?: number }).betCount || (poolData as { betCount?: number; totalBets?: number }).totalBets, // ✅ Added for debugging
         source: 'API (verified against contract)',
         flagsCalculation: {
           settled: (isSettled ? 1 : 0),
@@ -348,11 +366,16 @@ export default function BetPage() {
         marketId: poolData.marketId || ''
       });
         
-      // Determine pool status type using verified API data (source of truth)
+      // ✅ CRITICAL FIX: Determine pool status type using verified API data (source of truth)
+      // Check for refund FIRST (before checking winner)
       const settled = isSettled; // Use verified API data
       
       if (settled) {
-        if (creatorSideWon) {
+        // ✅ CRITICAL: Check if pool is refunded FIRST
+        // Pools with bets are NEVER refunded (backend ensures this)
+        if (refundedFlag) {
+          setPoolStatusType('refunded'); // Mark as refunded
+        } else if (creatorSideWon) {
           setPoolStatusType('creator_won');
         } else {
           setPoolStatusType('bettor_won');
@@ -1086,7 +1109,7 @@ export default function BetPage() {
                 
                 {/* Pool Status Banner */}
                 {contractData && (
-                  <PoolStatusBanner 
+                  <PoolStatusBanner
                     pool={{
                       id: parseInt(poolId),
                       settled: (contractData.flags & 1) !== 0, // Bit 0: settled
@@ -1098,7 +1121,11 @@ export default function BetPage() {
                       result: contractData.result,
                       resultTimestamp: contractData.resultTimestamp,
                       oracleType: contractData.oracleType === 0 ? 'GUIDED' : 'OPEN',
-                      marketId: contractData.marketId
+                      marketId: contractData.marketId,
+                      // ✅ CRITICAL: Pass isRefunded and bet data from API (backend calculates correctly)
+                      isRefunded: isRefunded,
+                      totalBettorStake: poolApiData?.totalBettorStake,
+                      betCount: poolApiData?.betCount || poolApiData?.totalBets
                     }}
                     className="mb-6"
                   />
@@ -1483,7 +1510,16 @@ export default function BetPage() {
                <div className="mt-8">
                  {(() => {
                    
-                  if (poolStatusType && (poolStatusType === 'creator_won' || poolStatusType === 'bettor_won' || poolStatusType === 'settled')) {
+                  // ✅ CRITICAL: Check for refunded status
+                  if (poolStatusType === 'refunded') {
+                    return (
+                      <div className="p-6 bg-gray-800/50 rounded-xl border border-gray-700/30 text-center">
+                        <div className="text-4xl mb-4">💰</div>
+                        <h3 className="text-xl font-bold text-gray-400 mb-2">Pool Refunded</h3>
+                        <p className="text-gray-500">This pool was refunded - No bets were placed</p>
+                      </div>
+                    );
+                  } else if (poolStatusType && (poolStatusType === 'creator_won' || poolStatusType === 'bettor_won' || poolStatusType === 'settled')) {
                     return <ClaimRewards pool={{
                       id: pool.id,
                       currency: pool.currency,
