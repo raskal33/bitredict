@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAccount } from 'wagmi';
 import { 
@@ -300,6 +300,13 @@ export default function EnhancedComboPoolCreationForm({ onSuccess, onClose }: {
       setIsLoading(false);
     }
   }, [isConnected, address, canCreate, validateForm, createComboPool, formData, onSuccess, onClose, connectWallet]);
+
+  // Scroll to top when step changes to 4 (review/summary)
+  useEffect(() => {
+    if (step === 4) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [step]);
 
   const renderTypeSelection = () => (
     <div className="space-y-6">
@@ -860,7 +867,10 @@ export default function EnhancedComboPoolCreationForm({ onSuccess, onClose }: {
         <Button onClick={() => setStep(2)} variant="outline">
           Back: Selection
         </Button>
-        <Button onClick={() => setStep(4)} variant="primary">
+        <Button onClick={() => {
+          setStep(4);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }} variant="primary">
           Next: Review
         </Button>
       </div>

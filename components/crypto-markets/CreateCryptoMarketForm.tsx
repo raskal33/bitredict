@@ -182,6 +182,18 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
     return `${formData.cryptoAsset.toLowerCase()}_${targetPrice}_${date}`;
   }, [formData.cryptoAsset, formData.targetPrice]);
 
+  const getTimeframeHours = useCallback((timeframe: string): number => {
+    const hoursMap: Record<string, number> = {
+      '1h': 1,
+      '4h': 4,
+      '24h': 24,
+      '3d': 72,
+      '7d': 168,
+      '30d': 720
+    };
+    return hoursMap[timeframe] || 24;
+  }, []);
+
   const calculateEventTimes = useCallback((timeframe: string, customStartTime?: Date) => {
     const now = new Date();
     const hours = getTimeframeHours(timeframe);
@@ -212,38 +224,49 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
       eventStartTime: formatDateTimeLocal(eventStart), // Local time format for datetime-local input
       eventEndTime: formatDateTimeLocal(eventEnd) // Local time format for datetime-local input
     };
-  }, []);
-
-  const getTimeframeHours = (timeframe: string): number => {
-    const hoursMap: Record<string, number> = {
-      '1h': 1,
-      '4h': 4,
-      '24h': 24,
-      '3d': 72,
-      '7d': 168,
-      '30d': 720
-    };
-    return hoursMap[timeframe] || 24;
-  };
+  }, [getTimeframeHours]);
 
   // Auto-generate prediction outcome and market ID
   useEffect(() => {
     const predictedOutcome = generatePredictedOutcome();
     const marketId = generateMarketId();
-    const times = calculateEventTimes(formData.timeFrame);
+    
+    // ✅ CRITICAL FIX: Only recalculate event times if they're not set or if timeframe changed
+    // Preserve user's custom eventStartTime if they've set it
+    const currentStartTime = formData.eventStartTime 
+      ? new Date(formData.eventStartTime) 
+      : undefined;
+    const times = calculateEventTimes(formData.timeFrame, currentStartTime);
     
     setFormData(prev => ({
       ...prev,
       predictedOutcome,
       marketId,
-      eventStartTime: times.eventStartTime,
-      eventEndTime: times.eventEndTime,
+      // ✅ FIX: Only update eventStartTime if it's not already set by user
+      eventStartTime: prev.eventStartTime || times.eventStartTime,
+      // ✅ FIX: Always recalculate eventEndTime from current eventStartTime + timeframe
+      eventEndTime: prev.eventStartTime 
+        ? (() => {
+            const start = new Date(prev.eventStartTime);
+            const hours = getTimeframeHours(formData.timeFrame);
+            const end = new Date(start.getTime() + (hours * 60 * 60 * 1000));
+            const formatDateTimeLocal = (date: Date): string => {
+              const year = date.getFullYear();
+              const month = String(date.getMonth() + 1).padStart(2, '0');
+              const day = String(date.getDate()).padStart(2, '0');
+              const hours = String(date.getHours()).padStart(2, '0');
+              const minutes = String(date.getMinutes()).padStart(2, '0');
+              return `${year}-${month}-${day}T${hours}:${minutes}`;
+            };
+            return formatDateTimeLocal(end);
+          })()
+        : times.eventEndTime,
       title: `${formData.cryptoAsset} Price Prediction`,
       homeTeam: formData.cryptoAsset,
       awayTeam: 'USD',
       category: 'cryptocurrency'
     }));
-  }, [formData.cryptoAsset, formData.targetPrice, formData.timeFrame, generatePredictedOutcome, generateMarketId, calculateEventTimes]);
+  }, [formData.cryptoAsset, formData.targetPrice, formData.timeFrame, formData.eventStartTime, generatePredictedOutcome, generateMarketId, calculateEventTimes, getTimeframeHours]);
 
   const calculateOdds = useCallback(() => {
     const currentPrice = currentPrices[formData.cryptoAsset];
@@ -334,6 +357,13 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
         throw new Error(`Timeframe mismatch: Expected ${timeframeHours} hours (${expectedDuration}s), but got ${actualDuration}s. Please check your event times.`);
       }
       
+      // ✅ DEBUG LOGGING: Log what we're sending to the contract
+      console.log('📤 Sending pool creation data to contract:');
+      console.log(`  Timeframe: ${formData.timeFrame} (${timeframeHours} hours)`);
+      console.log(`  Event Start: ${eventStartTimestamp} (${new Date(eventStartTimestamp * 1000).toISOString()})`);
+      console.log(`  Event End: ${eventEndTimestamp} (${new Date(eventEndTimestamp * 1000).toISOString()})`);
+      console.log(`  Duration: ${actualDuration} seconds (${actualDuration / 3600} hours)`);
+      
       // Prepare pool data with all required contract parameters
       const poolData = {
         predictedOutcome,
@@ -383,7 +413,7 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
     } finally {
       setIsLoading(false);
     }
-  }, [isConnected, address, validateForm, checkEligibility, createPool, createPoolWithBoost, formData, generatePredictedOutcome, onSuccess, onClose]);
+  }, [isConnected, address, validateForm, checkEligibility, createPool, createPoolWithBoost, formData, generatePredictedOutcome, getTimeframeHours, onSuccess, onClose]);
 
   const currentPrice = currentPrices[formData.cryptoAsset];
   const suggestedOdds = calculateOdds();
@@ -489,18 +519,34 @@ export default function CreateCryptoMarketForm({ onSuccess, onClose }: CreateCry
                 type="button"
                 onClick={() => {
                   handleInputChange('timeFrame', timeFrame.value);
-                  // ✅ FIX: Update event times when timeframe changes
-                  // Preserve the current start time if user has set it, otherwise use default
-                  const currentStartTime = formData.eventStartTime 
-                    ? new Date(formData.eventStartTime) 
-                    : undefined;
-                  const times = calculateEventTimes(timeFrame.value, currentStartTime);
-                  setFormData(prev => ({
-                    ...prev,
-                    eventStartTime: times.eventStartTime,
-                    eventEndTime: times.eventEndTime
-                  }));
-                  console.log(`🔄 Updated timeframe to ${timeFrame.value}, recalculated event times`);
+                  // ✅ CRITICAL FIX: When timeframe changes, recalculate eventEndTime from current eventStartTime
+                  // Preserve the current start time if user has set it
+                  setFormData(prev => {
+                    const currentStartTime = prev.eventStartTime 
+                      ? new Date(prev.eventStartTime) 
+                      : new Date(Date.now() + (60 * 60 * 1000)); // Default: 1 hour from now
+                    
+                    const timeframeHours = getTimeframeHours(timeFrame.value);
+                    const newEndTime = new Date(currentStartTime.getTime() + (timeframeHours * 60 * 60 * 1000));
+                    
+                    const formatDateTimeLocal = (date: Date): string => {
+                      const year = date.getFullYear();
+                      const month = String(date.getMonth() + 1).padStart(2, '0');
+                      const day = String(date.getDate()).padStart(2, '0');
+                      const hours = String(date.getHours()).padStart(2, '0');
+                      const minutes = String(date.getMinutes()).padStart(2, '0');
+                      return `${year}-${month}-${day}T${hours}:${minutes}`;
+                    };
+                    
+                    return {
+                      ...prev,
+                      // Only update eventStartTime if it wasn't set
+                      eventStartTime: prev.eventStartTime || formatDateTimeLocal(currentStartTime),
+                      // Always recalculate eventEndTime from start + timeframe
+                      eventEndTime: formatDateTimeLocal(newEndTime)
+                    };
+                  });
+                  console.log(`🔄 Updated timeframe to ${timeFrame.value}, recalculated event end time`);
                 }}
                 className={`p-3 rounded-lg font-medium ${
                   formData.timeFrame === timeFrame.value

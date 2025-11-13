@@ -244,7 +244,8 @@ function CreateMarketPageContent() {
   };
 
   const handleSuccess = (poolId: string) => {
-    // setIsCreating(false); // This variable is not defined, removing this line
+    // Scroll to top before navigation
+    window.scrollTo({ top: 0, behavior: 'smooth' });
     // Navigate to the created pool
     if (selectedType === 'combo') {
       router.push(`/markets/combo/${poolId}`);
@@ -750,12 +751,30 @@ function CreateMarketPageContent() {
   const handleNextStep = () => {
     if (validateStep(step)) {
       setStep(step + 1);
+      // Scroll to top when moving to preview/deploy step
+      if (step + 1 === 3) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
     }
   };
 
   const handlePrevStep = () => {
     setStep(step - 1);
   };
+
+  // Scroll to top when step changes to 3 (preview/deploy)
+  useEffect(() => {
+    if (step === 3) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [step]);
+
+  // Scroll to top when transaction succeeds
+  useEffect(() => {
+    if (isSuccess) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [isSuccess]);
 
   // Calculate event times based on category and settings
   const calculateEventTimes = () => {
