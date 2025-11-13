@@ -229,7 +229,8 @@ export function useSomniaStreams(
         console.warn('⚠️ WebSocket transport failed for SDS:', wsError);
         // If WebSocket fails, we can't use SDS subscriptions
         // Will fall back to custom WebSocket service below
-        throw new Error(`SDS WebSocket connection failed: ${wsError.message || wsError} - will use fallback`);
+        const errorMessage = wsError instanceof Error ? wsError.message : String(wsError);
+        throw new Error(`SDS WebSocket connection failed: ${errorMessage} - will use fallback`);
       }
 
       // Initialize SDK (read-only, no wallet needed for subscribing)
