@@ -208,6 +208,11 @@ export function useSomniaStreams(
       
       try {
         // SDS SDK requires WebSocket for subscriptions - try it first
+        // CRITICAL: Ensure wsUrl is a valid string and not undefined
+        if (!wsUrl || typeof wsUrl !== 'string') {
+          throw new Error(`Invalid WebSocket URL: ${wsUrl}`);
+        }
+        
         publicClient = createPublicClient({
           chain: somniaTestnet,
           transport: webSocket(wsUrl, {
@@ -219,11 +224,12 @@ export function useSomniaStreams(
         });
         
         console.log('📡 Using WebSocket transport for SDS subscriptions (required by SDK)');
+        console.log(`   WebSocket URL: ${wsUrl}`);
       } catch (wsError) {
         console.warn('⚠️ WebSocket transport failed for SDS:', wsError);
         // If WebSocket fails, we can't use SDS subscriptions
         // Will fall back to custom WebSocket service below
-        throw new Error('SDS WebSocket connection failed - will use fallback');
+        throw new Error(`SDS WebSocket connection failed: ${wsError.message || wsError} - will use fallback`);
       }
 
       // Initialize SDK (read-only, no wallet needed for subscribing)
@@ -396,6 +402,10 @@ export function useSomniaStreams(
     const dataSchemaId = dataSchemaMap[eventType];
 
     try {
+      if (!sdkRef.current) {
+        throw new Error('SDS SDK not initialized');
+      }
+      
       console.log(`📡 Subscribing to ${eventType} via SDS (event: ${eventSchemaId}, data: ${dataSchemaId})`);
       
       // ✅ Subscribe to SDS events using the SDK
@@ -444,8 +454,12 @@ export function useSomniaStreams(
         console.error(`❌ Failed to establish SDS subscription for ${eventType}:`, err);
         console.log(`   Error: ${err.message || err}`);
         
-        // Check if error is "Failed to get event schemas" - means schemas not registered yet
-        if (err.message?.includes('Failed to get event schemas') || err.message?.includes('event schemas')) {
+        // Check for specific error types
+        if (err.message?.includes('UrlRequiredError') || err.message?.includes('No URL was provided')) {
+          console.error(`⚠️ SDS SDK transport error: WebSocket URL not properly configured`);
+          console.error(`   This usually means the SDK's public client doesn't have a valid WebSocket transport`);
+          console.error(`   Falling back to WebSocket for ${eventType}...`);
+        } else if (err.message?.includes('Failed to get event schemas') || err.message?.includes('event schemas')) {
           console.warn(`⚠️ Event schema "${eventSchemaId}" not registered on-chain yet`);
           console.warn(`   Backend needs to register event schemas first`);
           console.warn(`   Run: node backend/scripts/register-sds-event-schemas.js`);
