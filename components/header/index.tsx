@@ -320,22 +320,6 @@ export default function Header() {
 
               {/* Right Side Actions */}
               <div className="flex items-center gap-2 flex-shrink-0">
-                {/* Settings Button */}
-                <button
-                  onClick={() => setIsSettingsOpen(true)}
-                  className="hidden sm:flex items-center justify-center p-2 rounded-button text-text-secondary hover:text-text-primary hover:bg-bg-card transition-colors"
-                  title="Settings"
-                >
-                  <Cog6ToothIcon className="h-5 w-5" />
-                </button>
-
-                {/* Live Reputation Badge - Only show when connected */}
-                {isConnected && address && isRender && (
-                  <div className="hidden md:flex items-center">
-                    <LiveReputationBadge />
-                  </div>
-                )}
-                
                 {/* Notification Badge */}
                 {isConnected && address && isRender && <NotificationBadge />}
                 
@@ -391,34 +375,34 @@ export default function Header() {
                                 }}
                                 onClick={(e) => e.stopPropagation()}
                               >
-                              <div className="py-2 px-1">
-                                {!isOnSomnia && (
+                                <div className="py-2 px-1">
+                                  {!isOnSomnia && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        switchToSomnia();
+                                        handleWalletDropdownClose();
+                                      }}
+                                      className="w-full flex items-center gap-2 px-3 py-2 mx-1 text-sm font-medium transition-all duration-200 rounded-xl text-orange-400 hover:text-orange-300 hover:bg-[rgba(255,255,255,0.08)]"
+                                    >
+                                      <span>Switch to Somnia</span>
+                                    </button>
+                                  )}
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      switchToSomnia();
+                                      disconnectWallet();
                                       handleWalletDropdownClose();
                                     }}
-                                    className="w-full flex items-center gap-2 px-3 py-2 mx-1 text-sm font-medium transition-all duration-200 rounded-xl text-orange-400 hover:text-orange-300 hover:bg-[rgba(255,255,255,0.08)]"
+                                    className="w-full flex items-center gap-2 px-3 py-2 mx-1 text-sm font-medium transition-all duration-200 rounded-xl text-text-secondary hover:text-text-primary hover:bg-[rgba(255,255,255,0.08)]"
                                   >
-                                    <span>Switch to Somnia</span>
+                                    <span>Disconnect</span>
                                   </button>
-                                )}
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    disconnectWallet();
-                                    handleWalletDropdownClose();
-                                  }}
-                                  className="w-full flex items-center gap-2 px-3 py-2 mx-1 text-sm font-medium transition-all duration-200 rounded-xl text-text-secondary hover:text-text-primary hover:bg-[rgba(255,255,255,0.08)]"
-                                >
-                                  <span>Disconnect</span>
-                                </button>
-                              </div>
-                              <div className="h-0.5 bg-gradient-to-r from-primary via-secondary to-accent" />
-                            </motion.div>
-                            );
-                          })()}
+                                </div>
+                                <div className="h-0.5 bg-gradient-to-r from-primary via-secondary to-accent" />
+                              </motion.div>
+                              );
+                            })()}
                         </AnimatePresence>
                       </div>
                     ) : (
@@ -452,6 +436,22 @@ export default function Header() {
                     Create Market
                   </Button>
                 </Link>
+
+                {/* Settings Button - Placed after Create Market */}
+                <button
+                  onClick={() => setIsSettingsOpen(true)}
+                  className="hidden md:flex items-center justify-center p-2 rounded-button text-text-secondary hover:text-text-primary hover:bg-bg-card transition-colors"
+                  title="Settings"
+                >
+                  <Cog6ToothIcon className="h-5 w-5" />
+                </button>
+
+                {/* Live Reputation Badge - Placed after Create Market */}
+                {isConnected && address && isRender && (
+                  <div className="hidden md:flex items-center">
+                    <LiveReputationBadge />
+                  </div>
+                )}
 
                 {/* Mobile Menu Toggle */}
                 <button

@@ -173,19 +173,33 @@ export function useSomniaStreams(
     try {
       console.log('🔄 Initializing Somnia Data Streams...');
       
-      // Create public client for reading (use WebSocket for real-time subscriptions)
+      // According to Somnia docs: "Requires createPublicClient({ transport: webSocket() })"
+      // for subscriptions to work properly
       const rpcUrl = process.env.NEXT_PUBLIC_SDS_RPC_URL || 'https://dream-rpc.somnia.network';
       const wsUrl = rpcUrl.replace('https://', 'wss://').replace('http://', 'ws://');
       
-      // Try WebSocket first for real-time subscriptions, fallback to HTTP
+      // Try WebSocket first (required for subscriptions per docs)
+      // Fallback to HTTP if WebSocket fails
       let publicClient;
+      let useWebSocket = true;
+      
       try {
+        // Create WebSocket transport (required for subscriptions per Somnia docs)
+        // Note: viem WebSocket connections are lazy, so errors will be caught during subscription
         publicClient = createPublicClient({
           chain: somniaTestnet,
-          transport: webSocket(wsUrl)
+          transport: webSocket(wsUrl, {
+            reconnect: {
+              attempts: 3,
+              delay: 1000
+            }
+          })
         });
+        
+        console.log('📡 Using WebSocket transport for SDS subscriptions (as per docs)');
       } catch (wsError) {
-        console.warn('WebSocket transport failed, using HTTP:', wsError);
+        console.warn('⚠️ WebSocket transport failed, falling back to HTTP:', wsError);
+        useWebSocket = false;
         publicClient = createPublicClient({
           chain: somniaTestnet,
           transport: http(rpcUrl)
@@ -203,16 +217,16 @@ export function useSomniaStreams(
       setIsFallback(false);
       setError(null);
       
-      console.log('✅ Somnia Data Streams initialized');
+      console.log(`✅ Somnia Data Streams initialized (${useWebSocket ? 'WebSocket' : 'HTTP'} transport)`);
 
     } catch (err) {
       console.error('❌ Failed to initialize SDS:', err);
       setError(err as Error);
       setIsSDSActive(false);
 
-      // Fall back to WebSocket if enabled
+      // Fall back to custom WebSocket if enabled
       if (useFallback) {
-        console.log('🔄 Falling back to WebSocket...');
+        console.log('🔄 Falling back to custom WebSocket service...');
         initializeWebSocketFallback();
       }
     }
@@ -382,18 +396,26 @@ export function useSomniaStreams(
       });
 
       // Handle async subscription result
+      // According to docs: subscribe() returns Promise<{ subscriptionId: string, unsubscribe: () => void } | undefined>
       let unsubscribeFn: (() => void) | null = null;
       
       subscriptionPromise.then((result) => {
         if (result && result.unsubscribe) {
           unsubscribeFn = result.unsubscribe;
+          console.log(`✅ Successfully subscribed to ${eventType} via SDS (subscriptionId: ${result.subscriptionId})`);
+        } else {
+          console.warn(`⚠️ SDS subscription for ${eventType} returned undefined`);
         }
       }).catch((err) => {
-        console.error(`Failed to establish SDS subscription for ${eventType}:`, err);
+        console.error(`❌ Failed to establish SDS subscription for ${eventType}:`, err);
+        // Fallback to WebSocket if subscription fails
+        setIsFallback(true);
+        setIsSDSActive(false);
+        if (useFallback && !wsRef.current) {
+          initializeWebSocketFallback();
+        }
       });
 
-      console.log(`✅ Successfully subscribed to ${eventType} via SDS`);
-      
       // Return unsubscribe function (will be set when promise resolves)
       return () => {
         if (unsubscribeFn) {

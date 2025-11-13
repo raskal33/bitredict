@@ -426,7 +426,9 @@ export default function EnhancedPoolCard({
               eventEndTime: pool.eventEndTime,
               bettingEndTime: pool.bettingEndTime,
               oracleType: pool.oracleType,
-              marketId: pool.marketId
+              marketId: pool.marketId,
+              result: pool.result, // ✅ Pass result for refund detection
+              resultTimestamp: pool.resultTimestamp // ✅ Pass resultTimestamp for refund detection
             });
 
             const badgeProps = getStatusBadgeProps(statusInfo);
