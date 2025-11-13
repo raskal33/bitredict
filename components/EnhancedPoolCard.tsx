@@ -428,7 +428,11 @@ export default function EnhancedPoolCard({
               oracleType: pool.oracleType,
               marketId: pool.marketId,
               result: pool.result, // ✅ Pass result for refund detection
-              resultTimestamp: pool.resultTimestamp // ✅ Pass resultTimestamp for refund detection
+              resultTimestamp: pool.resultTimestamp, // ✅ Pass resultTimestamp for refund detection
+              // ✅ CRITICAL: Pass isRefunded and bet data from API (backend calculates correctly)
+              isRefunded: (pool as any).isRefunded,
+              totalBettorStake: pool.totalBettorStake,
+              betCount: (pool as any).totalBets || (pool as any).betCount || pool.indexedData?.betCount
             });
 
             const badgeProps = getStatusBadgeProps(statusInfo);

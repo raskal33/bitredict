@@ -40,6 +40,10 @@ export interface PoolData {
   resultTimestamp?: number;
   oracleType: 'GUIDED' | 'OPEN';
   marketId: string;
+  // ✅ CRITICAL: Use API's isRefunded flag instead of calculating it
+  isRefunded?: boolean;
+  totalBettorStake?: string | number; // For refund detection
+  betCount?: number; // For refund detection
 }
 
 /**
@@ -58,12 +62,29 @@ export function getPoolStatus(pool: PoolData): PoolStatusInfo {
                    (pool.resultTimestamp && pool.resultTimestamp > 0) ||
                    (pool.result && pool.result !== zeroResult);
   
-  // ✅ Detect refunded pools (result is zero/empty)
-  const isRefunded = pool.settled && 
-                     (pool.result === zeroResult || 
-                      pool.result === null || 
-                      pool.result === '' ||
-                      (typeof pool.result === 'string' && pool.result.trim() === '0x'));
+  // ✅ CRITICAL FIX: Use API's isRefunded flag (backend calculates it correctly with bet checks)
+  // If API doesn't provide isRefunded, fall back to checking bets ourselves
+  let isRefunded = false;
+  if (pool.isRefunded !== undefined) {
+    // Use API's isRefunded flag (most reliable - backend checks for bets)
+    isRefunded = pool.isRefunded;
+  } else if (pool.settled) {
+    // Fallback: Check if pool has bets (pools with bets cannot be refunded)
+    const totalBettorStakeNum = typeof pool.totalBettorStake === 'string' 
+      ? parseFloat(pool.totalBettorStake) 
+      : (pool.totalBettorStake || 0);
+    const betCountNum = pool.betCount || 0;
+    const hasBets = totalBettorStakeNum > 0 || betCountNum > 0;
+    
+    // Only mark as refunded if NO bets AND result is zero/null/empty
+    if (!hasBets) {
+      isRefunded = (pool.result === zeroResult || 
+                   pool.result === null || 
+                   pool.result === '' ||
+                   (typeof pool.result === 'string' && pool.result.trim() === '0x'));
+    }
+    // If hasBets is true, isRefunded remains false (pools with bets are NEVER refunded)
+  }
 
   console.log('🔍 Pool Status Debug:', {
     poolId: pool.id || 'unknown',
@@ -72,7 +93,10 @@ export function getPoolStatus(pool: PoolData): PoolStatusInfo {
     result: pool.result,
     isSettled,
     isRefunded,
-    creatorSideWon: pool.creatorSideWon
+    creatorSideWon: pool.creatorSideWon,
+    totalBettorStake: pool.totalBettorStake,
+    betCount: pool.betCount,
+    apiIsRefunded: pool.isRefunded
   });
 
   // Check if pool is refunded first (before checking winner)
