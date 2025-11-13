@@ -23,18 +23,22 @@ import {
   BoltIcon,
   ArrowTrendingUpIcon,
   LockClosedIcon,
-  Squares2X2Icon
+  Squares2X2Icon,
+  Cog6ToothIcon
 } from "@heroicons/react/24/outline";
 import Button from "@/components/button";
 import { useProfileStore } from '@/stores/useProfileStore';
 import { useWalletConnection } from '@/hooks/useWalletConnection';
 import NotificationBadge from "@/components/NotificationBadge";
+import { LiveReputationBadge } from "@/components/LiveReputationBadge";
+import { SettingsModal } from "@/components/SettingsModal";
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const [isBitredictorOpen, setIsBitredictorOpen] = useState<boolean>(false);
   const [isMarketsOpen, setIsMarketsOpen] = useState<boolean>(false);
   const [isWalletDropdownOpen, setIsWalletDropdownOpen] = useState<boolean>(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [{ y }] = useWindowScroll();
   const segment = useSelectedLayoutSegment();
   const [isRender, setIsRender] = useState<boolean>(false);
@@ -316,6 +320,22 @@ export default function Header() {
 
               {/* Right Side Actions */}
               <div className="flex items-center gap-2 flex-shrink-0">
+                {/* Settings Button */}
+                <button
+                  onClick={() => setIsSettingsOpen(true)}
+                  className="hidden sm:flex items-center justify-center p-2 rounded-button text-text-secondary hover:text-text-primary hover:bg-bg-card transition-colors"
+                  title="Settings"
+                >
+                  <Cog6ToothIcon className="h-5 w-5" />
+                </button>
+
+                {/* Live Reputation Badge */}
+                {isConnected && address && isRender && (
+                  <div className="hidden md:block">
+                    <LiveReputationBadge />
+                  </div>
+                )}
+                
                 {/* Notification Badge */}
                 {isConnected && address && isRender && <NotificationBadge />}
                 
@@ -663,6 +683,9 @@ export default function Header() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Settings Modal */}
+        <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
       </>
     );
   }

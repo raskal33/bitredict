@@ -5,6 +5,7 @@ import { Onest } from "next/font/google";
 import WalletProvider from "@/providers/WalletProvider";
 import AppContent from "./AppContent";
 import ScrollToTop from "@/components/ScrollToTop";
+import { ToasterProvider } from "@/components/ToasterProvider";
 
 const onest = Onest({
   subsets: ["latin"],
@@ -68,6 +69,7 @@ export default function RootLayout({
         <WalletProvider>
           <ScrollToTop />
           <AppContent>{children}</AppContent>
+          <ToasterProvider />
         </WalletProvider>
       </body>
     </html>

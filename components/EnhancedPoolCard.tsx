@@ -19,7 +19,6 @@ import { useState, useEffect, startTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
 import Image from "next/image";
-import { calculatePoolFill } from "../utils/poolCalculations";
 import { getPoolStatusDisplay, getStatusBadgeProps } from "../utils/poolStatus";
 import { getPoolIcon } from "../services/crypto-icons";
 import { titleTemplatesService } from "../services/title-templates";
@@ -28,6 +27,7 @@ import AddLiquidityModal from "./AddLiquidityModal";
 import { usePoolSocialStats } from "../hooks/usePoolSocialStats";
 import { HeartIcon as HeartIconSolid } from "@heroicons/react/24/solid";
 import UserAddressLink from "./UserAddressLink";
+import { RealtimePoolProgress } from "./RealtimePoolProgress";
 
 export interface EnhancedPool {
   id: number;
@@ -362,13 +362,6 @@ export default function EnhancedPoolCard({
     router.prefetch(`/bet/${pool.id}`);
   };
 
-  const getProgressColor = (percentage: number) => {
-    if (percentage >= 80) return 'bg-green-500';
-    if (percentage >= 60) return 'bg-yellow-500';
-    if (percentage >= 40) return 'bg-orange-500';
-    return 'bg-red-500';
-  };
-
   const getCategoryIcon = (category: string) => {
     const poolIcon = getPoolIcon(category, pool.homeTeam);
     return poolIcon.icon;
@@ -581,140 +574,12 @@ export default function EnhancedPoolCard({
         </div>
       )}
         <div className="mb-1 sm:mb-1.5 flex-shrink-0 px-3 sm:px-4 md:px-5">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-xs text-gray-400">Pool Progress</span>
-          <span className="text-xs text-white font-medium">
-            {(() => {
-              if (indexedData && indexedData.fillPercentage > 0) {
-                const roundedPercentage = Math.round(indexedData.fillPercentage * 10) / 10;
-                return `${roundedPercentage}%`;
-              }
-
-              const creatorStake = parseFloat(pool.creatorStake || "0");
-              const totalBettorStake = parseFloat(pool.totalBettorStake || "0");
-              const totalFilled = creatorStake + totalBettorStake;
-              const poolCalculation = calculatePoolFill({
-                creatorStake: creatorStake.toString(),
-                totalBettorStake: totalBettorStake.toString(),
-                odds: pool.odds / 100, 
-                isWei: false 
-              });
-              let totalCapacity = creatorStake + poolCalculation.maxBettorStake;
-              if (pool.liquidityProviders && pool.liquidityProviders.length > 0) {
-                const lpTotal = pool.liquidityProviders.reduce((sum, lp) => {
-                  const lpAmount = parseFloat(lp.stake || "0");
-
-                  const oddsDecimal = pool.odds / 100;
-                  const additionalCapacity = lpAmount / (oddsDecimal - 1);
-                  return sum + additionalCapacity;
-                }, 0);
-                totalCapacity += lpTotal;
-              }
-              const fillPercentage = totalCapacity > 0 ? Math.min((totalFilled / totalCapacity) * 100, 100) : 0;
-
-              console.log(`📊 Pool ${pool.id} progress calculation:`, {
-                creatorStake,
-                totalBettorStake,
-                totalFilled,
-                totalCapacity,
-                fillPercentage
-              });
-              const displayPercentage = fillPercentage >= 99.95 ? 100 : Math.round(fillPercentage * 10) / 10;
-              return `${displayPercentage}%`;
-            })()}
-          </span>
-          </div>
-        <div className="w-full rounded-full h-2 bg-gray-800/30 border border-gray-600/20 shadow-inner">
-          <div
-            className={`h-2 rounded-full transition-all duration-500 shadow-sm ${
-              (() => {
-                if (indexedData && indexedData.fillPercentage > 0) {
-                  return getProgressColor(indexedData.fillPercentage);
-                }
-
-                const creatorStake = parseFloat(pool.creatorStake || "0");
-                const totalBettorStake = parseFloat(pool.totalBettorStake || "0");
-                const totalFilled = creatorStake + totalBettorStake;
-                const poolCalculation = calculatePoolFill({
-                  creatorStake: creatorStake.toString(),
-                  totalBettorStake: totalBettorStake.toString(),
-                  odds: pool.odds / 100, 
-                  isWei: false 
-                });
-                const totalCapacity = creatorStake + poolCalculation.maxBettorStake;
-                const fillPercentage = totalCapacity > 0 ? Math.min((totalFilled / totalCapacity) * 100, 100) : 0;
-
-                return getProgressColor(fillPercentage);
-              })()
-            }`}
-            style={{ 
-              width: `${(() => {
-                if (indexedData && indexedData.fillPercentage > 0) {
-                  return Math.min(indexedData.fillPercentage, 100);
-                }
-
-                const creatorStake = parseFloat(pool.creatorStake || "0");
-                const totalBettorStake = parseFloat(pool.totalBettorStake || "0");
-                const totalFilled = creatorStake + totalBettorStake;
-                const poolCalculation = calculatePoolFill({
-                  creatorStake: creatorStake.toString(),
-                  totalBettorStake: totalBettorStake.toString(),
-                  odds: pool.odds / 100, 
-                  isWei: false 
-                });
-                const totalCapacity = creatorStake + poolCalculation.maxBettorStake;
-                const fillPercentage = totalCapacity > 0 ? Math.min((totalFilled / totalCapacity) * 100, 100) : 0;
-
-                console.log(`📊 Pool ${pool.id} progress calculation:`, {
-                  creatorStake,
-                  totalBettorStake,
-                  totalFilled,
-                  totalCapacity,
-                  fillPercentage
-                });
-
-                return Math.min(fillPercentage, 100);
-              })()}%`,
-              minWidth: '2px' 
-            }}
-            />
-          </div>
-        <div className="flex justify-between text-xs text-gray-400 mt-1">
-          <span>
-            {(() => {
-
-              const totalBettorStake = parseFloat(pool.totalBettorStake || "0");
-              const creatorStake = parseFloat(pool.creatorStake || "0");
-              const totalFilled = totalBettorStake + creatorStake;
-              return totalFilled.toFixed(2);
-            })()} {pool.usesBitr ? 'BITR' : 'STT'} Filled
-          </span>
-          <span>
-            {(() => {
-
-              const creatorStake = parseFloat(pool.creatorStake || "0");
-              const poolCalculation = calculatePoolFill({
-                creatorStake: creatorStake.toString(),
-                totalBettorStake: (parseFloat(pool.totalBettorStake || "0")).toString(),
-                odds: pool.odds / 100, 
-                isWei: false 
-              });
-              let totalCapacity = creatorStake + poolCalculation.maxBettorStake;
-              if (pool.liquidityProviders && pool.liquidityProviders.length > 0) {
-                const lpTotal = pool.liquidityProviders.reduce((sum, lp) => {
-                  const lpAmount = parseFloat(lp.stake || "0");
-
-                  const oddsDecimal = pool.odds / 100;
-                  const additionalCapacity = lpAmount / (oddsDecimal - 1);
-                  return sum + additionalCapacity;
-                }, 0);
-                totalCapacity += lpTotal;
-              }
-              return totalCapacity.toFixed(2);
-            })()} {pool.usesBitr ? 'BITR' : 'STT'} Capacity
-          </span>
+          <RealtimePoolProgress 
+            poolId={pool.id.toString()}
+            initialFillPercentage={indexedData?.fillPercentage || 0}
+            initialParticipants={indexedData?.participantCount || 0}
+          />
         </div>
-      </div>
       {pool.isComboPool ? (
         <div className="mb-1 sm:mb-1.5 p-2 sm:p-2.5 glass-card bg-gradient-to-br from-purple-800/40 to-indigo-900/40 rounded-lg border border-purple-600/30 flex-shrink-0 backdrop-blur-md shadow-lg mx-3 sm:mx-4 md:mx-5">
           <div className="mb-2">
