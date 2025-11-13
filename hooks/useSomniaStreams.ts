@@ -58,6 +58,7 @@ export interface SDSBetData {
   poolTitle: string;
   category: string;
   odds: number;
+  currency?: string; // ✅ Added currency field
 }
 
 export interface SDSPoolProgressData {
@@ -292,7 +293,9 @@ export function useSomniaStreams(
           if (eventType === 'pool:progress') {
             // Will subscribe per pool when usePoolProgress is called
           } else if (eventType === 'bet:placed') {
+            // ✅ FIX: Subscribe to both channels for bet events
             channelsToSubscribe.add('recent_bets');
+            channelsToSubscribe.add('bet:placed');
           } else if (eventType === 'pool:created') {
             channelsToSubscribe.add('pool:created');
           } else if (eventType === 'pool:settled') {
@@ -334,7 +337,8 @@ export function useSomniaStreams(
             let eventType: SDSEventType | null = null;
             if (channel.startsWith('pool:') && channel.endsWith(':progress')) {
               eventType = 'pool:progress';
-            } else if (channel === 'recent_bets') {
+            } else if (channel === 'recent_bets' || channel === 'bet:placed') {
+              // ✅ FIX: Map both recent_bets and bet:placed to bet:placed event type
               eventType = 'bet:placed';
             } else if (channel === 'pool:created') {
               eventType = 'pool:created';

@@ -8,7 +8,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { usePoolUpdates, useBetUpdates } from '@/hooks/useSomniaStreams';
+import { usePoolUpdates, useBetUpdates, useSomniaStreams } from '@/hooks/useSomniaStreams';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
@@ -58,19 +58,65 @@ export function LivePoolUpdates() {
 
   // Real-time bet updates
   useBetUpdates((betData) => {
+    // ✅ FIX: Convert amount from wei to token if needed
+    let amountInToken = betData.amount || '0';
+    const amountNum = parseFloat(amountInToken);
+    if (amountNum > 1e15) {
+      amountInToken = (amountNum / 1e18).toString();
+    }
+    
     const activity: LiveActivity = {
       id: `bet-${betData.poolId}-${Date.now()}`,
       type: 'bet_placed',
-      message: `${betData.bettor.slice(0, 6)}...${betData.bettor.slice(-4)} bet ${betData.amount} STT on ${betData.poolTitle}`,
+      message: `${betData.bettor.slice(0, 6)}...${betData.bettor.slice(-4)} bet ${amountInToken} ${betData.currency || 'STT'} on ${betData.poolTitle}`,
       timestamp: Date.now(),
       poolId: betData.poolId,
-      amount: betData.amount
+      amount: amountInToken
     };
 
     setActivities(prev => [activity, ...prev].slice(0, 10));
     setNewActivityCount(prev => prev + 1);
     playNotification();
   });
+  
+  // ✅ CRITICAL: Subscribe to liquidity:added events for Live Activity feed
+  const { subscribe } = useSomniaStreams({ enabled: true });
+  
+  useEffect(() => {
+    interface LiquidityData {
+      poolId: string;
+      provider: string;
+      amount: string;
+      currency?: string;
+      poolTitle?: string;
+    }
+    
+    const unsubscribe = subscribe('liquidity:added', (liquidityData: any) => {
+      // Type assertion for liquidity data
+      const data = liquidityData as LiquidityData;
+      // ✅ FIX: Convert amount from wei to token if needed
+      let amountInToken = data.amount || '0';
+      const amountNum = parseFloat(amountInToken);
+      if (amountNum > 1e15) {
+        amountInToken = (amountNum / 1e18).toString();
+      }
+      
+      const activity: LiveActivity = {
+        id: `liquidity-${data.poolId}-${Date.now()}`,
+        type: 'bet_placed', // Use same type for display consistency
+        message: `${data.provider.slice(0, 6)}...${data.provider.slice(-4)} added ${amountInToken} ${data.currency || 'BITR'} liquidity to ${data.poolTitle || `Pool #${data.poolId}`}`,
+        timestamp: Date.now(),
+        poolId: data.poolId,
+        amount: amountInToken
+      };
+
+      setActivities(prev => [activity, ...prev].slice(0, 10));
+      setNewActivityCount(prev => prev + 1);
+      playNotification();
+    });
+    
+    return unsubscribe;
+  }, [subscribe, playNotification]);
 
   // Reset counter when user views
   useEffect(() => {

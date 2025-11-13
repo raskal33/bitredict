@@ -198,16 +198,26 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
       (betData.eventType === 'pool_created' ? 'pool_created' :
        betData.eventType === 'liquidity_added' ? 'liquidity_added' : 'bet') as 'bet' | 'pool_created' | 'liquidity_added';
     
+    // ✅ FIX: Convert amount from wei to BITR/STT if needed
+    // Backend now sends amount in BITR/STT (not wei), but check if it's still in wei
+    let amountInToken = betData.amount || '0';
+    const amountNum = parseFloat(amountInToken);
+    
+    // If amount is very large (> 1e15), it's likely in wei - convert to token
+    if (amountNum > 1e15) {
+      amountInToken = (amountNum / 1e18).toString();
+    }
+    
     const newBet: RecentBet = {
       id: Date.now(), // Use timestamp as ID for new bets
       poolId: betData.poolId?.toString() || '',
       bettorAddress: betData.bettor || '',
-      amount: betData.amount || '0',
-      amountFormatted: parseFloat(betData.amount || '0').toFixed(2),
+      amount: amountInToken, // ✅ FIX: Amount in token (BITR/STT)
+      amountFormatted: parseFloat(amountInToken).toFixed(2),
       isForOutcome: betData.isForOutcome !== undefined ? betData.isForOutcome : true,
       eventType: eventType,
-      action: betData.action || 'Placed bet',
-      icon: betData.icon || '🎯',
+      action: betData.action || (eventType === 'liquidity_added' ? 'Added liquidity' : 'Placed bet'),
+      icon: betData.icon || (eventType === 'liquidity_added' ? '💧' : '🎯'),
       odds: betData.odds,
       currency: betData.currency || 'STT',
       createdAt: new Date((betData.timestamp || Date.now() / 1000) * 1000).toISOString(),
@@ -219,7 +229,7 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
         homeTeam: '',
         awayTeam: '',
         title: betData.poolTitle || `Pool #${betData.poolId}`,
-        useBitr: false,
+        useBitr: betData.currency === 'BITR',
         odds: betData.odds || 0,
         creatorAddress: ''
       }
