@@ -107,6 +107,8 @@ export interface EnhancedPool {
   participants?: string;
   avgBet?: string;
   totalBets?: number;
+  isRefunded?: boolean;
+  betCount?: number;
 }
 
 interface EnhancedPoolCardProps {
@@ -430,9 +432,9 @@ export default function EnhancedPoolCard({
               result: pool.result, // ✅ Pass result for refund detection
               resultTimestamp: pool.resultTimestamp, // ✅ Pass resultTimestamp for refund detection
               // ✅ CRITICAL: Pass isRefunded and bet data from API (backend calculates correctly)
-              isRefunded: (pool as any).isRefunded,
+              isRefunded: pool.isRefunded,
               totalBettorStake: pool.totalBettorStake,
-              betCount: (pool as any).totalBets || (pool as any).betCount || pool.indexedData?.betCount
+              betCount: pool.totalBets || pool.betCount || pool.indexedData?.betCount
             });
 
             const badgeProps = getStatusBadgeProps(statusInfo);
