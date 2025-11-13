@@ -174,10 +174,32 @@ export function useSomniaStreams(
       console.log('🔄 Initializing Somnia Data Streams...');
       
       // SDS SDK REQUIRES WebSocket for subscriptions (as per error: "Invalid public client config - websocket required")
-      // However, WebSocket connections to dream-rpc.somnia.network are failing
-      // Solution: Try WebSocket, but immediately fall back to custom WebSocket service if it fails
-      const rpcUrl = process.env.NEXT_PUBLIC_SDS_RPC_URL || 'https://dream-rpc.somnia.network';
-      const wsUrl = rpcUrl.replace('https://', 'wss://').replace('http://', 'ws://');
+      // Based on ISS tracker example: WebSocket URL should have /ws suffix
+      // Example: wss://api.infra.testnet.somnia.network/ws or wss://dream-rpc.somnia.network/ws
+      
+      // Check for direct WebSocket URL first (recommended)
+      let wsUrl = process.env.NEXT_PUBLIC_SDS_WS_URL;
+      
+      if (!wsUrl) {
+        // Convert HTTP RPC URL to WebSocket URL with /ws suffix
+        const rpcUrl = process.env.NEXT_PUBLIC_SDS_RPC_URL || 'https://dream-rpc.somnia.network';
+        
+        if (rpcUrl.startsWith('https://')) {
+          wsUrl = rpcUrl.replace('https://', 'wss://');
+        } else if (rpcUrl.startsWith('http://')) {
+          wsUrl = rpcUrl.replace('http://', 'ws://');
+        } else {
+          wsUrl = rpcUrl; // Already a WebSocket URL
+        }
+        
+        // Ensure /ws suffix is present (required for Somnia WebSocket connections)
+        if (!wsUrl.endsWith('/ws')) {
+          // Remove trailing slash if present, then add /ws
+          wsUrl = wsUrl.replace(/\/$/, '') + '/ws';
+        }
+      }
+      
+      console.log(`🔌 Using WebSocket URL: ${wsUrl}`);
       
       let publicClient;
       let useWebSocket = true;
