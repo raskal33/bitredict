@@ -287,7 +287,7 @@ export function useSomniaStreams(
         // Subscribe to all active channels
         const channelsToSubscribe = new Set<string>();
         
-        // Subscribe to pool progress channels
+        // ✅ COMPREHENSIVE: Subscribe to all event channels
         subscribersRef.current.forEach((callbacks, eventType) => {
           if (eventType === 'pool:progress') {
             // Will subscribe per pool when usePoolProgress is called
@@ -297,6 +297,16 @@ export function useSomniaStreams(
             channelsToSubscribe.add('pool:created');
           } else if (eventType === 'pool:settled') {
             channelsToSubscribe.add('pool:settled');
+          } else if (eventType === 'reputation:changed') {
+            channelsToSubscribe.add('reputation:changed');
+          } else if (eventType === 'liquidity:added') {
+            channelsToSubscribe.add('liquidity:added');
+          } else if (eventType === 'cycle:resolved') {
+            channelsToSubscribe.add('cycle:resolved');
+          } else if (eventType === 'slip:evaluated') {
+            channelsToSubscribe.add('slip:evaluated');
+          } else if (eventType === 'prize:claimed') {
+            channelsToSubscribe.add('prize:claimed');
           }
         });
         
@@ -320,6 +330,7 @@ export function useSomniaStreams(
             const channel = message.channel;
             
             // Map WebSocket channels to SDS event types
+            // ✅ COMPREHENSIVE: All event types mapped
             let eventType: SDSEventType | null = null;
             if (channel.startsWith('pool:') && channel.endsWith(':progress')) {
               eventType = 'pool:progress';
@@ -329,6 +340,16 @@ export function useSomniaStreams(
               eventType = 'pool:created';
             } else if (channel === 'pool:settled') {
               eventType = 'pool:settled';
+            } else if (channel === 'reputation:changed') {
+              eventType = 'reputation:changed';
+            } else if (channel === 'liquidity:added') {
+              eventType = 'liquidity:added';
+            } else if (channel === 'cycle:resolved') {
+              eventType = 'cycle:resolved';
+            } else if (channel === 'slip:evaluated') {
+              eventType = 'slip:evaluated';
+            } else if (channel === 'prize:claimed') {
+              eventType = 'prize:claimed';
             }
             
             if (eventType) {
