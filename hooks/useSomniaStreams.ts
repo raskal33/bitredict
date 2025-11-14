@@ -362,23 +362,62 @@ export function useSomniaStreams(
     if (sdkRef.current && isSDSActive) {
       const eventSchemaId = EVENT_SCHEMA_MAP[eventType];
       
-      sdkRef.current.streams.subscribe({
-        somniaStreamsEventId: eventSchemaId,
-        ethCalls: [],
-        onlyPushChanges: false,
-        onData: (data) => {
-          callback(data as SDSEventData);
-        },
-        onError: () => {
-          // Silent error handling
-        }
-      }).then((result) => {
-        if (result?.unsubscribe) {
-          unsubscribeFunctionsRef.current.set(callback, result.unsubscribe);
-        }
-      }).catch(() => {
-        // Silent error handling
-      });
+      // Verify WebSocket URL is available
+      if (!wsUrlRef.current) {
+        console.error('❌ Cannot subscribe: WebSocket URL not available');
+        return () => {}; // Return no-op unsubscribe
+      }
+      
+      console.log(`📡 Subscribing to ${eventType} via SDS (event: ${eventSchemaId}, URL: ${wsUrlRef.current})`);
+      
+      try {
+        // Create subscription parameters matching stream-rank-sync approach
+        const subscriptionParams = {
+          somniaStreamsEventId: eventSchemaId,
+          ethCalls: [],
+          onlyPushChanges: false,
+          context: eventType, // Add context like they do
+          onData: (data: any) => {
+            console.log(`📦 Received ${eventType} data:`, data);
+            callback(data as SDSEventData);
+          },
+          onError: (error: any) => {
+            console.error(`❌ SDS subscription error for ${eventType}:`, error);
+          }
+        };
+        
+        console.log(`📡 Calling SDK subscribe with params:`, subscriptionParams);
+        
+        const subscriptionPromise = sdkRef.current.streams.subscribe(subscriptionParams);
+        
+        subscriptionPromise.then((result) => {
+          console.log(`📡 Subscribe result for ${eventType}:`, result);
+          if (result?.unsubscribe) {
+            unsubscribeFunctionsRef.current.set(callback, result.unsubscribe);
+            console.log(`✅ Successfully subscribed to ${eventType}`);
+          } else {
+            console.warn(`⚠️ Subscribe returned result without unsubscribe for ${eventType}:`, result);
+          }
+        }).catch((error) => {
+          console.error(`❌ Failed to subscribe to ${eventType}:`, error);
+          console.error(`❌ Error details:`, {
+            message: error.message,
+            stack: error.stack,
+            name: error.name
+          });
+          // Try fallback if SDS subscription fails
+          if (useFallback) {
+            console.log(`🔄 Falling back to WebSocket for ${eventType}`);
+          }
+        });
+      } catch (error) {
+        console.error(`❌ Error calling subscribe for ${eventType}:`, error);
+        console.error(`❌ Sync error details:`, {
+          message: (error as Error).message,
+          stack: (error as Error).stack,
+          name: (error as Error).name
+        });
+      }
     }
 
     // Return unsubscribe function
