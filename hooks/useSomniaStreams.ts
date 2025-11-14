@@ -179,27 +179,35 @@ export function useSomniaStreams(
     try {
       console.log('🔄 Initializing Somnia Data Streams...');
       
-      // ✅ CRITICAL FIX: Based on Somnia docs, use HTTP transport for public client
-      // The SDK's subscribe() method will automatically create WebSocket connections internally
-      // It derives the WebSocket URL from the HTTP RPC URL
+      // ✅ CRITICAL: With viem 2.37.x, SDK subscribe() requires WebSocket transport explicitly
+      // Derive WebSocket URL from RPC URL
       const rpcUrl = process.env.NEXT_PUBLIC_SDS_RPC_URL || process.env.NEXT_PUBLIC_RPC_URL || 'https://dream-rpc.somnia.network';
       
-      console.log('📡 Creating public client with HTTP transport...');
-      console.log(`   HTTP RPC URL: ${rpcUrl}`);
-      console.log(`   SDK will create WebSocket connections automatically for subscriptions`);
+      // Convert HTTP to WebSocket URL
+      let wsUrl = rpcUrl.replace('https://', 'wss://').replace('http://', 'ws://');
+      // Ensure /ws suffix (required by Somnia)
+      if (!wsUrl.endsWith('/ws')) {
+        wsUrl = wsUrl.replace(/\/$/, '') + '/ws';
+      }
       
-      // Create public client with HTTP transport (as per Somnia docs)
-      // The SDK handles WebSocket internally for subscribe()
+      console.log('📡 Creating public client with WebSocket transport (required for subscriptions)...');
+      console.log(`   RPC URL: ${rpcUrl}`);
+      console.log(`   WebSocket URL: ${wsUrl}`);
+      
+      // Create public client with WebSocket transport (required by SDK's subscribe() in viem 2.37.x)
       const publicClient = createPublicClient({
         chain: somniaTestnet,
-        transport: http(rpcUrl, {
-          timeout: 30_000,
-          retryCount: 3,
-          retryDelay: 1000
+        transport: webSocket(wsUrl, {
+          keepAlive: true,
+          reconnect: {
+            attempts: 5,
+            delay: 1000
+          },
+          timeout: 30_000
         })
       });
       
-      console.log('✅ Public client created with HTTP transport');
+      console.log('✅ Public client created with WebSocket transport');
 
       // Initialize SDK (read-only, no wallet needed for subscribing)
       const sdk = new SDK({
@@ -212,7 +220,7 @@ export function useSomniaStreams(
       setIsFallback(false);
       setError(null);
       
-      console.log(`✅ Somnia Data Streams initialized (HTTP transport with automatic WebSocket for subscriptions)`);
+      console.log(`✅ Somnia Data Streams initialized (WebSocket transport for viem 2.37.x)`);
 
     } catch (err) {
       console.error('❌ Failed to initialize SDS:', err);
