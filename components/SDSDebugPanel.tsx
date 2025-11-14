@@ -14,11 +14,11 @@ interface DebugEvent {
   timestamp: number;
   type: string;
   message: string;
-  data?: any;
+  data?: unknown;
 }
 
 export function SDSDebugPanel() {
-  const { isConnected, isSDSActive, isFallback, error } = useSomniaStreams();
+  const { isSDSActive, isFallback, error } = useSomniaStreams();
   const [events, setEvents] = useState<DebugEvent[]>([]);
   const [isOpen, setIsOpen] = useState(false);
 
@@ -28,7 +28,7 @@ export function SDSDebugPanel() {
     const originalError = console.error;
     const originalWarn = console.warn;
 
-    const addEvent = (type: string, ...args: any[]) => {
+    const addEvent = (type: string, ...args: unknown[]) => {
       const message = args.map(arg => 
         typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
       ).join(' ');
@@ -44,17 +44,17 @@ export function SDSDebugPanel() {
       }
     };
 
-    console.log = (...args: any[]) => {
+    console.log = (...args: unknown[]) => {
       addEvent('log', ...args);
       originalLog(...args);
     };
 
-    console.error = (...args: any[]) => {
+    console.error = (...args: unknown[]) => {
       addEvent('error', ...args);
       originalError(...args);
     };
 
-    console.warn = (...args: any[]) => {
+    console.warn = (...args: unknown[]) => {
       addEvent('warn', ...args);
       originalWarn(...args);
     };
@@ -132,9 +132,9 @@ export function SDSDebugPanel() {
                   {new Date(event.timestamp).toLocaleTimeString()}
                 </span>
               </div>
-              {event.data && (
+              {event.data !== undefined && (
                 <pre className="mt-1 text-[10px] overflow-x-auto">
-                  {JSON.stringify(event.data, null, 2)}
+                  {String(JSON.stringify(event.data, null, 2))}
                 </pre>
               )}
             </div>
