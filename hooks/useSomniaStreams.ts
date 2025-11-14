@@ -344,59 +344,72 @@ export function useSomniaStreams(
     }
     subscribersRef.current.get(eventType)!.add(callback);
 
-    // Subscribe via SDS if available
+    // Subscribe via SDS if available (only once per event type)
     if (sdkRef.current && isSDSActive) {
       const eventSchemaId = EVENT_SCHEMA_MAP[eventType];
       
-      console.log(`📡 Subscribing to ${eventType} via SDS (event: ${eventSchemaId})`);
+      // Check if we already have an active subscription for this event type
+      const existingCallbacks = subscribersRef.current.get(eventType);
+      const isFirstSubscriber = existingCallbacks?.size === 1; // Just added this callback
       
-      try {
-        // Create subscription parameters matching stream-rank-sync approach
-        const subscriptionParams = {
-          somniaStreamsEventId: eventSchemaId,
-          ethCalls: [],
-          onlyPushChanges: false,
-          context: eventType, 
-          onData: (data: any) => {
-            console.log(`📦 Received ${eventType} data:`, data);
-            callback(data as SDSEventData);
-          },
-          onError: (error: any) => {
-            console.error(`❌ SDS subscription error for ${eventType}:`, error);
-          }
-        };
+      if (isFirstSubscriber) {
+        console.log(`📡 Subscribing to ${eventType} via SDS (event: ${eventSchemaId})`);
         
-        console.log(`📡 Calling SDK subscribe with params:`, subscriptionParams);
-        
-        const subscriptionPromise = sdkRef.current.streams.subscribe(subscriptionParams);
-        
-        subscriptionPromise.then((result) => {
-          console.log(`📡 Subscribe result for ${eventType}:`, result);
-          if (result?.unsubscribe) {
-            unsubscribeFunctionsRef.current.set(callback, result.unsubscribe);
-            console.log(`✅ Successfully subscribed to ${eventType}`);
-          } else {
-            console.warn(`⚠️ Subscribe returned result without unsubscribe for ${eventType}:`, result);
-          }
-        }).catch((error) => {
-          console.error(`❌ Failed to subscribe to ${eventType}:`, error);
-          console.error(`❌ Error details:`, {
-            message: error.message,
-            stack: error.stack,
-            name: error.name
+        try {
+          // Create subscription parameters matching stream-rank-sync approach
+          const subscriptionParams = {
+            somniaStreamsEventId: eventSchemaId,
+            ethCalls: [],
+            onlyPushChanges: false,
+            context: eventType, 
+            onData: (data: any) => {
+              console.log(`📦 Received ${eventType} data:`, data);
+              // Broadcast to all subscribers for this event type
+              const callbacks = subscribersRef.current.get(eventType);
+              if (callbacks) {
+                callbacks.forEach(cb => cb(data as SDSEventData));
+              }
+            },
+            onError: (error: any) => {
+              console.error(`❌ SDS subscription error for ${eventType}:`, error);
+            }
+          };
+          
+          console.log(`📡 Calling SDK subscribe with params:`, subscriptionParams);
+          
+          const subscriptionPromise = sdkRef.current.streams.subscribe(subscriptionParams);
+          
+          subscriptionPromise.then((result) => {
+            console.log(`📡 Subscribe result for ${eventType}:`, result);
+            if (result?.unsubscribe) {
+              // Store unsubscribe function by event type (not by callback)
+              unsubscribeFunctionsRef.current.set(eventType as any, result.unsubscribe);
+              console.log(`✅ Successfully subscribed to ${eventType}`);
+            } else {
+              console.warn(`⚠️ Subscribe returned result without unsubscribe for ${eventType}:`, result);
+            }
+          }).catch((error) => {
+            console.error(`❌ Failed to subscribe to ${eventType}:`, error);
+            console.error(`❌ Error details:`, {
+              message: error.message,
+              stack: error.stack,
+              name: error.name
+            });
+            // Try fallback if SDS subscription fails
+            if (useFallback) {
+              console.log(`🔄 Falling back to WebSocket for ${eventType}`);
+            }
           });
-          // Try fallback if SDS subscription fails
-          if (useFallback) {
-            console.log(`🔄 Falling back to WebSocket for ${eventType}`);
-          }
-        });
-      } catch (error) {
-        console.error(`❌ Error calling subscribe for ${eventType}:`, error);
-        console.error(`❌ Sync error details:`, {
-          message: (error as Error).message,
-          stack: (error as Error).stack,
-          name: (error as Error).name
-        });
+        } catch (error) {
+          console.error(`❌ Error calling subscribe for ${eventType}:`, error);
+          console.error(`❌ Sync error details:`, {
+            message: (error as Error).message,
+            stack: (error as Error).stack,
+            name: (error as Error).name
+          });
+        }
+      } else {
+        console.log(`♻️ Reusing existing subscription for ${eventType} (${existingCallbacks?.size} subscribers)`);
       }
     }
 
@@ -405,18 +418,20 @@ export function useSomniaStreams(
       const callbacks = subscribersRef.current.get(eventType);
       if (callbacks) {
         callbacks.delete(callback);
+        // Only unsubscribe from SDS when no more callbacks
         if (callbacks.size === 0) {
           subscribersRef.current.delete(eventType);
+          
+          const unsubscribeFn = unsubscribeFunctionsRef.current.get(eventType as any);
+          if (unsubscribeFn) {
+            unsubscribeFn();
+            unsubscribeFunctionsRef.current.delete(eventType as any);
+            console.log(`🔌 Unsubscribed from ${eventType} (no more subscribers)`);
+          }
         }
       }
-
-      const unsubscribeFn = unsubscribeFunctionsRef.current.get(callback);
-      if (unsubscribeFn) {
-        unsubscribeFn();
-        unsubscribeFunctionsRef.current.delete(callback);
-      }
     };
-  }, [isSDSActive]);
+  }, [isSDSActive, useFallback]);
 
   const subscribeToChannel = useCallback((channel: string) => {
     if (isFallback && wsRef.current?.readyState === WebSocket.OPEN) {
