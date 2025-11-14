@@ -408,24 +408,21 @@ export function useSomniaStreams(
       
       console.log(`📡 Subscribing to ${eventType} via SDS (event: ${eventSchemaId}, data: ${dataSchemaId})`);
       
-      // ✅ CRITICAL FIX: Verify event schema exists before subscribing
+      // ✅ Try to verify event schema exists (non-blocking - subscribe may still work)
       try {
         const eventSchemas = await sdkRef.current.streams.getEventSchemasById([eventSchemaId]);
-        if (!eventSchemas || !eventSchemas[0] || !eventSchemas[0].eventTopic) {
-          throw new Error(`Event schema "${eventSchemaId}" not found`);
+        if (eventSchemas && eventSchemas[0] && eventSchemas[0].eventTopic) {
+          console.log(`✅ Event schema "${eventSchemaId}" verified`);
+        } else {
+          console.warn(`⚠️ Event schema "${eventSchemaId}" verification returned empty result, but attempting subscription anyway`);
         }
-        console.log(`✅ Event schema "${eventSchemaId}" verified`);
       } catch (verifyError: any) {
-        console.error(`❌ Event schema "${eventSchemaId}" verification failed:`, verifyError);
-        if (verifyError?.message?.includes('not found') || verifyError?.message?.includes('Failed to get')) {
-          console.error(`   Event schema "${eventSchemaId}" is not registered on-chain`);
-          console.error(`   Backend needs to register event schemas first`);
-          console.error(`   Run: node backend/scripts/register-sds-event-schemas.js`);
-        }
-        return null;
+        // Verification failed, but try subscribing anyway - schemas might be registered but not queryable
+        console.warn(`⚠️ Event schema "${eventSchemaId}" verification failed, but attempting subscription anyway:`, verifyError.message);
+        console.warn(`   This is non-critical - subscription may still work if schemas are registered`);
       }
       
-      // ✅ Subscribe to SDS events using the SDK
+      // ✅ Subscribe to SDS events using the SDK (try even if verification failed)
       // Based on Somnia SDS API: subscribe to event schema and optionally fetch enriched data
       const subscriptionResult = await sdkRef.current.streams.subscribe({
         somniaStreamsEventId: eventSchemaId,
