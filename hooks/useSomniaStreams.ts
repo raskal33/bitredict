@@ -168,6 +168,7 @@ export function useSomniaStreams(
   
   const sdkRef = useRef<SDK | null>(null);
   const subscribersRef = useRef<Map<SDSEventType, Set<(data: SDSEventData) => void>>>(new Map());
+  const unsubscribeFunctionsRef = useRef<Map<SDSEventType, Map<(data: SDSEventData) => void, (() => void)>>>(new Map());
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
 
@@ -403,13 +404,13 @@ export function useSomniaStreams(
   }, [autoReconnect, reconnectDelay]);
 
   // Subscribe to SDS events
-  const subscribeToSDSEvent = useCallback((
+  const subscribeToSDSEvent = useCallback(async (
     eventType: SDSEventType,
     callback: (data: SDSEventData) => void
-  ) => {
+  ): Promise<(() => void) | null> => {
     if (!sdkRef.current) {
-      console.warn('SDK not initialized');
-      return () => {};
+      console.warn('⚠️ SDK not initialized for subscription');
+      return null;
     }
 
     // Map event types to event schema IDs and data schema IDs
@@ -448,9 +449,26 @@ export function useSomniaStreams(
       
       console.log(`📡 Subscribing to ${eventType} via SDS (event: ${eventSchemaId}, data: ${dataSchemaId})`);
       
+      // ✅ CRITICAL FIX: Verify event schema exists before subscribing
+      try {
+        const eventSchemas = await sdkRef.current.streams.getEventSchemasById([eventSchemaId]);
+        if (!eventSchemas || !eventSchemas[0] || !eventSchemas[0].eventTopic) {
+          throw new Error(`Event schema "${eventSchemaId}" not found`);
+        }
+        console.log(`✅ Event schema "${eventSchemaId}" verified`);
+      } catch (verifyError: any) {
+        console.error(`❌ Event schema "${eventSchemaId}" verification failed:`, verifyError);
+        if (verifyError?.message?.includes('not found') || verifyError?.message?.includes('Failed to get')) {
+          console.error(`   Event schema "${eventSchemaId}" is not registered on-chain`);
+          console.error(`   Backend needs to register event schemas first`);
+          console.error(`   Run: node backend/scripts/register-sds-event-schemas.js`);
+        }
+        return null;
+      }
+      
       // ✅ Subscribe to SDS events using the SDK
       // Based on Somnia SDS API: subscribe to event schema and optionally fetch enriched data
-      const subscriptionPromise = sdkRef.current.streams.subscribe({
+      const subscriptionResult = await sdkRef.current.streams.subscribe({
         somniaStreamsEventId: eventSchemaId,
         ethCalls: [], // Optional: Add ethCalls to fetch enriched data when event occurs
         onlyPushChanges: false, // Receive all events, not just changes
@@ -479,48 +497,31 @@ export function useSomniaStreams(
         }
       });
 
-      // Handle async subscription result
-      // According to docs: subscribe() returns Promise<{ subscriptionId: string, unsubscribe: () => void } | undefined>
-      let unsubscribeFn: (() => void) | null = null;
-      
-      subscriptionPromise.then((result) => {
-        if (result && result.unsubscribe) {
-          unsubscribeFn = result.unsubscribe;
-          console.log(`✅ Successfully subscribed to ${eventType} via SDS (subscriptionId: ${result.subscriptionId})`);
-        } else {
-          console.warn(`⚠️ SDS subscription for ${eventType} returned undefined`);
-        }
-      }).catch((err) => {
-        console.error(`❌ Failed to establish SDS subscription for ${eventType}:`, err);
-        console.log(`   Error: ${err.message || err}`);
-        
-        // ✅ FIX: Don't fallback - log error and fail explicitly
-        if (err.message?.includes('UrlRequiredError') || err.message?.includes('No URL was provided')) {
-          console.error(`❌ SDS SDK transport error: WebSocket URL not properly configured`);
-          console.error(`   This usually means the SDK's public client doesn't have a valid WebSocket transport`);
-          console.error(`   Check NEXT_PUBLIC_SDS_WS_URL or NEXT_PUBLIC_SDS_RPC_URL environment variables`);
-        } else if (err.message?.includes('Failed to get event schemas') || err.message?.includes('event schemas')) {
-          console.error(`❌ Event schema "${eventSchemaId}" not registered on-chain yet`);
-          console.error(`   Backend needs to register event schemas first`);
-          console.error(`   Run: node backend/scripts/register-sds-event-schemas.js`);
-        }
-        
-        // ✅ FIX: Don't fallback - fail explicitly
-        console.error(`❌ SDS subscription failed for ${eventType}. Fallback is disabled.`);
-      });
+      // Handle subscription result
+      if (subscriptionResult && subscriptionResult.unsubscribe) {
+        console.log(`✅ Successfully subscribed to ${eventType} via SDS (subscriptionId: ${subscriptionResult.subscriptionId})`);
+        return subscriptionResult.unsubscribe;
+      } else {
+        console.warn(`⚠️ SDS subscription for ${eventType} returned undefined`);
+        return null;
+      }
 
-      // Return unsubscribe function (will be set when promise resolves)
-      return () => {
-        if (unsubscribeFn) {
-          unsubscribeFn();
-        }
-      };
-
-    } catch (err) {
+    } catch (err: any) {
       console.error(`❌ Failed to subscribe to ${eventType} via SDS:`, err);
-      // ✅ FIX: Don't fallback - fail explicitly
-      console.error(`   Fallback is disabled. SDS WebSocket connection required.`);
-      return () => {};
+      console.error(`   Error: ${err.message || err}`);
+      
+      // ✅ FIX: Provide detailed error messages
+      if (err.message?.includes('UrlRequiredError') || err.message?.includes('No URL was provided')) {
+        console.error(`❌ SDS SDK transport error: WebSocket URL not properly configured`);
+        console.error(`   This usually means the SDK's public client doesn't have a valid WebSocket transport`);
+        console.error(`   Check NEXT_PUBLIC_SDS_WS_URL or NEXT_PUBLIC_SDS_RPC_URL environment variables`);
+      } else if (err.message?.includes('Failed to get event schemas') || err.message?.includes('event schemas')) {
+        console.error(`❌ Event schema "${eventSchemaId}" not registered on-chain yet`);
+        console.error(`   Backend needs to register event schemas first`);
+        console.error(`   Run: node backend/scripts/register-sds-event-schemas.js`);
+      }
+      
+      return null;
     }
   }, []);
 
@@ -547,16 +548,74 @@ export function useSomniaStreams(
     subscribersRef.current.get(eventType)!.add(callback);
 
     // ✅ FIX: Only use SDS - no fallback
-    let sdsUnsubscribe: (() => void) | null = null;
+    // Store unsubscribe function reference (will be set async)
+    if (!unsubscribeFunctionsRef.current.has(eventType)) {
+      unsubscribeFunctionsRef.current.set(eventType, new Map());
+    }
+    
     if (isSDSActive && sdkRef.current) {
-      try {
-        sdsUnsubscribe = subscribeToSDSEvent(eventType, callback);
-      } catch (err) {
-        console.error(`❌ SDS subscription failed for ${eventType}:`, err);
-        console.error(`   Fallback is disabled. SDS WebSocket connection required.`);
-      }
+      // ✅ CRITICAL FIX: Handle async subscription properly with retry logic
+      const attemptSubscription = async (retryCount = 0) => {
+        try {
+          const unsubscribeFn = await subscribeToSDSEvent(eventType, callback);
+          if (unsubscribeFn) {
+            unsubscribeFunctionsRef.current.get(eventType)!.set(callback, unsubscribeFn);
+            console.log(`✅ SDS subscription established for ${eventType}`);
+          } else {
+            // Retry if subscription returned null (might be timing issue)
+            if (retryCount < 3) {
+              console.warn(`⚠️ SDS subscription for ${eventType} returned null, retrying... (${retryCount + 1}/3)`);
+              setTimeout(() => attemptSubscription(retryCount + 1), 1000 * (retryCount + 1));
+            } else {
+              console.warn(`⚠️ SDS subscription for ${eventType} failed after ${retryCount + 1} attempts`);
+            }
+          }
+        } catch (err) {
+          // Retry on error (might be timing issue with SDK initialization)
+          if (retryCount < 3) {
+            console.warn(`⚠️ SDS subscription for ${eventType} failed, retrying... (${retryCount + 1}/3):`, err);
+            setTimeout(() => attemptSubscription(retryCount + 1), 1000 * (retryCount + 1));
+          } else {
+            console.error(`❌ SDS subscription failed for ${eventType} after ${retryCount + 1} attempts:`, err);
+            console.error(`   Fallback is disabled. SDS WebSocket connection required.`);
+          }
+        }
+      };
+      
+      attemptSubscription();
     } else {
       console.warn(`⚠️ SDS not active for ${eventType}. SDK not initialized or connection failed.`);
+      console.warn(`   isSDSActive: ${isSDSActive}, sdkRef.current: ${!!sdkRef.current}`);
+      // Retry subscription after a delay if SDK becomes active
+      // Check SDK ref directly (not state, which might be stale)
+      const maxRetries = 30; // 30 seconds max wait
+      let retryCount = 0;
+      
+      const checkAndRetry = () => {
+        // Check SDK ref directly - it will be current
+        if (sdkRef.current) {
+          const attemptSubscription = async () => {
+            try {
+              const unsubscribeFn = await subscribeToSDSEvent(eventType, callback);
+              if (unsubscribeFn) {
+                unsubscribeFunctionsRef.current.get(eventType)!.set(callback, unsubscribeFn);
+                console.log(`✅ SDS subscription established for ${eventType} (after retry)`);
+              }
+            } catch (err) {
+              console.error(`❌ SDS subscription failed for ${eventType} (after retry):`, err);
+            }
+          };
+          attemptSubscription();
+        } else if (retryCount < maxRetries) {
+          retryCount++;
+          setTimeout(checkAndRetry, 1000);
+        }
+      };
+      
+      // Only retry if SDK is not available yet
+      if (!sdkRef.current) {
+        checkAndRetry();
+      }
     }
 
     // Return unsubscribe function
@@ -569,8 +628,16 @@ export function useSomniaStreams(
         }
       }
 
-      if (sdsUnsubscribe) {
-        sdsUnsubscribe();
+      const unsubscribeMap = unsubscribeFunctionsRef.current.get(eventType);
+      if (unsubscribeMap) {
+        const unsubscribeFn = unsubscribeMap.get(callback);
+        if (unsubscribeFn) {
+          unsubscribeFn();
+          unsubscribeMap.delete(callback);
+        }
+        if (unsubscribeMap.size === 0) {
+          unsubscribeFunctionsRef.current.delete(eventType);
+        }
       }
     };
   }, [isSDSActive, subscribeToSDSEvent]);
@@ -609,6 +676,13 @@ export function useSomniaStreams(
       if (wsRef.current) {
         wsRef.current.close();
       }
+      // Unsubscribe from all SDS subscriptions
+      unsubscribeFunctionsRef.current.forEach((unsubscribeMap) => {
+        unsubscribeMap.forEach((unsubscribeFn) => {
+          unsubscribeFn();
+        });
+      });
+      unsubscribeFunctionsRef.current.clear();
       subscribersRef.current.clear();
     };
   }, [enabled, initializeSDK]);
