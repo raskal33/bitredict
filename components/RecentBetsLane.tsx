@@ -199,13 +199,20 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
        betData.eventType === 'liquidity_added' ? 'liquidity_added' : 'bet') as 'bet' | 'pool_created' | 'liquidity_added';
     
     // ✅ FIX: Convert amount from wei to BITR/STT if needed
-    // Backend now sends amount in BITR/STT (not wei), but check if it's still in wei
+    // Backend sends amount in BITR/STT for WebSocket, but check if it's still in wei
     let amountInToken = betData.amount || '0';
     const amountNum = parseFloat(amountInToken);
     
-    // If amount is very large (> 1e15), it's likely in wei - convert to token
-    if (amountNum > 1e15) {
-      amountInToken = (amountNum / 1e18).toString();
+    // If amount is very large, it's likely in wei - convert to token
+    // LP amounts use 1e15 divisor, bets use 1e18 divisor
+    if (amountNum > 1e12) {
+      if (eventType === 'liquidity_added') {
+        // LP amounts are stored as 1e15
+        amountInToken = (amountNum / 1e15).toString();
+      } else {
+        // Bet amounts are stored as 1e18
+        amountInToken = (amountNum / 1e18).toString();
+      }
     }
     
     const newBet: RecentBet = {
@@ -247,12 +254,15 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
         const bets = await optimizedPoolService.getRecentBets(20);
         
         // Transform API data to component format
-        const transformedBets: RecentBet[] = bets.map((bet, index) => ({
-          id: index + 1,
-          poolId: bet.poolId.toString(),
-          bettorAddress: bet.bettor,
-          amount: bet.amount,
-          amountFormatted: parseFloat(bet.amount).toFixed(2),
+        const transformedBets: RecentBet[] = bets.map((bet, index) => {
+          // ✅ FIX: Backend already converts amounts, but ensure they're formatted correctly
+          const amount = parseFloat(bet.amount || '0');
+          return {
+            id: index + 1,
+            poolId: bet.poolId.toString(),
+            bettorAddress: bet.bettor,
+            amount: amount.toString(),
+            amountFormatted: amount.toFixed(2),
           isForOutcome: bet.isForOutcome,
           eventType: bet.eventType || 'bet', // Default to 'bet' if not provided
           action: bet.action || (bet.eventType === 'liquidity_added' ? 'Added liquidity' : 'Placed bet'),
