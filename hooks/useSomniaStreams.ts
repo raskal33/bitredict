@@ -7,7 +7,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { SDK } from '@somnia-chain/streams';
-import { createPublicClient, webSocket, http, fallback } from 'viem';
+import { createPublicClient, webSocket } from 'viem';
 import { somniaTestnet } from 'viem/chains';
 
 // Get RPC URLs with proper fallback
@@ -189,24 +189,20 @@ export function useSomniaStreams(
     if (!enabled) return;
 
     try {
-      const rpcUrl = getRPCURL();
       const wsUrl = getWSURL();
       
-      if (!wsUrl || !rpcUrl) {
-        throw new Error('SDS URLs not configured');
+      if (!wsUrl) {
+        throw new Error('SDS WebSocket URL not configured');
       }
       
-      console.log('📡 Creating public client with fallback transport (HTTP + WebSocket)...');
-      console.log(`   RPC URL: ${rpcUrl}`);
+      console.log('📡 Creating public client with WebSocket transport (for subscriptions)...');
       console.log(`   WebSocket URL: ${wsUrl}`);
 
-      // Use fallback transport: try WebSocket first for subscriptions, fallback to HTTP for RPC calls
+      // WebSocket transport handles both subscriptions AND RPC calls
+      // The SDK requires WebSocket for subscribe() method
       const publicClient = createPublicClient({
         chain: somniaTestnet,
-        transport: fallback([
-          webSocket(wsUrl),
-          http(rpcUrl)
-        ]),
+        transport: webSocket(wsUrl),
       });
 
       const sdk = new SDK({
