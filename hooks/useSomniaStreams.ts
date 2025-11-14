@@ -179,64 +179,27 @@ export function useSomniaStreams(
     try {
       console.log('🔄 Initializing Somnia Data Streams...');
       
-      // SDS SDK REQUIRES WebSocket for subscriptions (as per error: "Invalid public client config - websocket required")
-      // Based on ISS tracker example: WebSocket URL should have /ws suffix
-      // Example: wss://api.infra.testnet.somnia.network/ws or wss://dream-rpc.somnia.network/ws
-      
-      // ✅ CRITICAL FIX: Ensure WebSocket URL is always set correctly
-      // Check for direct WebSocket URL first (recommended)
-      let wsUrl: string | undefined = process.env.NEXT_PUBLIC_SDS_WS_URL;
-      
-      // ✅ FIX: Handle case where env var might be undefined at runtime
-      if (!wsUrl || wsUrl === 'undefined' || wsUrl.trim() === '') {
-        // Convert HTTP RPC URL to WebSocket URL with /ws suffix
-        const rpcUrl = process.env.NEXT_PUBLIC_SDS_RPC_URL || 'https://dream-rpc.somnia.network';
-        
-        if (rpcUrl.startsWith('https://')) {
-          wsUrl = rpcUrl.replace('https://', 'wss://');
-        } else if (rpcUrl.startsWith('http://')) {
-          wsUrl = rpcUrl.replace('http://', 'ws://');
-        } else {
-          wsUrl = rpcUrl; // Already a WebSocket URL
-        }
-        
-        // Ensure /ws suffix is present (required for Somnia WebSocket connections)
-        if (!wsUrl.endsWith('/ws')) {
-          // Remove trailing slash if present, then add /ws
-          wsUrl = wsUrl.replace(/\/$/, '') + '/ws';
-        }
-      }
-      
-      // ✅ CRITICAL: Validate wsUrl is a valid string before using
-      if (!wsUrl || typeof wsUrl !== 'string' || wsUrl.trim() === '' || wsUrl === 'undefined') {
-        throw new Error(`Invalid or missing WebSocket URL. NEXT_PUBLIC_SDS_WS_URL=${process.env.NEXT_PUBLIC_SDS_WS_URL}, NEXT_PUBLIC_SDS_RPC_URL=${process.env.NEXT_PUBLIC_SDS_RPC_URL}`);
-      }
-      
-      console.log(`🔌 Using WebSocket URL: ${wsUrl}`);
-      
-      // ✅ CRITICAL FIX: The SDK's subscribe() method creates its own WebSocket transport
-      // We need to provide BOTH http and webSocket transports using fallback
-      // The SDK will use HTTP for reads and WebSocket for subscriptions
+      // ✅ CRITICAL FIX: Based on Somnia docs, use HTTP transport for public client
+      // The SDK's subscribe() method will automatically create WebSocket connections internally
+      // It derives the WebSocket URL from the HTTP RPC URL
       const rpcUrl = process.env.NEXT_PUBLIC_SDS_RPC_URL || process.env.NEXT_PUBLIC_RPC_URL || 'https://dream-rpc.somnia.network';
       
-      console.log('📡 Creating public client with WebSocket URL for subscriptions...');
+      console.log('📡 Creating public client with HTTP transport...');
       console.log(`   HTTP RPC URL: ${rpcUrl}`);
-      console.log(`   WebSocket URL: ${wsUrl}`);
+      console.log(`   SDK will create WebSocket connections automatically for subscriptions`);
       
-      // Create public client with WebSocket transport (required for subscriptions)
+      // Create public client with HTTP transport (as per Somnia docs)
+      // The SDK handles WebSocket internally for subscribe()
       const publicClient = createPublicClient({
         chain: somniaTestnet,
-        transport: webSocket(wsUrl, {
-          keepAlive: true,
-          reconnect: {
-            attempts: 5,
-            delay: 1000
-          },
-          timeout: 30_000
+        transport: http(rpcUrl, {
+          timeout: 30_000,
+          retryCount: 3,
+          retryDelay: 1000
         })
       });
       
-      console.log('✅ Public client created with WebSocket transport');
+      console.log('✅ Public client created with HTTP transport');
 
       // Initialize SDK (read-only, no wallet needed for subscribing)
       const sdk = new SDK({
@@ -249,7 +212,7 @@ export function useSomniaStreams(
       setIsFallback(false);
       setError(null);
       
-      console.log(`✅ Somnia Data Streams initialized (WebSocket transport)`);
+      console.log(`✅ Somnia Data Streams initialized (HTTP transport with automatic WebSocket for subscriptions)`);
 
     } catch (err) {
       console.error('❌ Failed to initialize SDS:', err);
