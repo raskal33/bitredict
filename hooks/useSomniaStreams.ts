@@ -184,7 +184,7 @@ export function useSomniaStreams(
       // Don't add /ws suffix - use URL as-is
       const wsUrl = process.env.NEXT_PUBLIC_SDS_WS_URL || 
                     process.env.NEXT_PUBLIC_WS_URL || 
-                    'wss://dream-rpc.somnia.network';
+                    'wss://dream-rpc.somnia.network/ws';
       
       if (!wsUrl || typeof wsUrl !== 'string' || wsUrl.trim() === '') {
         throw new Error(`Invalid WebSocket URL: ${wsUrl}`);
