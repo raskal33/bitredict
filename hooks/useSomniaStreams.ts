@@ -214,35 +214,29 @@ export function useSomniaStreams(
       
       console.log(`🔌 Using WebSocket URL: ${wsUrl}`);
       
-      let publicClient;
-      let useWebSocket = true;
+      // ✅ CRITICAL FIX: The SDK's subscribe() method creates its own WebSocket transport
+      // We need to provide BOTH http and webSocket transports using fallback
+      // The SDK will use HTTP for reads and WebSocket for subscriptions
+      const rpcUrl = process.env.NEXT_PUBLIC_SDS_RPC_URL || process.env.NEXT_PUBLIC_RPC_URL || 'https://dream-rpc.somnia.network';
       
-      // ✅ CRITICAL: Validate wsUrl before creating transport
-      if (!wsUrl || typeof wsUrl !== 'string' || wsUrl.trim() === '' || wsUrl === 'undefined') {
-        throw new Error(`Invalid WebSocket URL: ${wsUrl}. Please set NEXT_PUBLIC_SDS_WS_URL or NEXT_PUBLIC_SDS_RPC_URL environment variable.`);
-      }
+      console.log('📡 Creating public client with WebSocket URL for subscriptions...');
+      console.log(`   HTTP RPC URL: ${rpcUrl}`);
+      console.log(`   WebSocket URL: ${wsUrl}`);
       
-      try {
-        // SDS SDK requires WebSocket for subscriptions - try it first
-        console.log('📡 Creating WebSocket transport for SDS subscriptions...');
-        console.log(`   WebSocket URL: ${wsUrl}`);
-        
-        publicClient = createPublicClient({
-          chain: somniaTestnet,
-          transport: webSocket(wsUrl, {
-            reconnect: {
-              attempts: 3,
-              delay: 1000
-            }
-          })
-        });
-        
-        console.log('✅ WebSocket transport created successfully');
-      } catch (wsError) {
-        console.error('❌ WebSocket transport creation failed:', wsError);
-        const errorMessage = wsError instanceof Error ? wsError.message : String(wsError);
-        throw new Error(`SDS WebSocket connection failed: ${errorMessage}. URL: ${wsUrl}`);
-      }
+      // Create public client with WebSocket transport (required for subscriptions)
+      const publicClient = createPublicClient({
+        chain: somniaTestnet,
+        transport: webSocket(wsUrl, {
+          keepAlive: true,
+          reconnect: {
+            attempts: 5,
+            delay: 1000
+          },
+          timeout: 30_000
+        })
+      });
+      
+      console.log('✅ Public client created with WebSocket transport');
 
       // Initialize SDK (read-only, no wallet needed for subscribing)
       const sdk = new SDK({
@@ -255,7 +249,7 @@ export function useSomniaStreams(
       setIsFallback(false);
       setError(null);
       
-      console.log(`✅ Somnia Data Streams initialized (${useWebSocket ? 'WebSocket' : 'HTTP'} transport)`);
+      console.log(`✅ Somnia Data Streams initialized (WebSocket transport)`);
 
     } catch (err) {
       console.error('❌ Failed to initialize SDS:', err);
