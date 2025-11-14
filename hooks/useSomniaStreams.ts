@@ -509,12 +509,10 @@ export function useSomniaStreams(
       unsubscribeFunctionsRef.current.set(eventType, new Map());
     }
 
-    // ✅ FIX: Use both SDS and WebSocket fallback
-    let sdsUnsubscribe: (() => void) | null = null;
-    let wsUnsubscribe: (() => void) | null = null;
-    
-    if (isSDSActive && sdkRef.current) {
-      // ✅ Try SDS subscription with retry logic
+    // ✅ FIX: Check SDK ref directly (not state) to avoid race conditions
+    // If SDK exists, subscribe immediately - don't wait for isSDSActive state update
+    if (sdkRef.current) {
+      // ✅ Try SDS subscription immediately
       const attemptSubscription = async (retryCount = 0) => {
         try {
           const unsubscribeFn = await subscribeToSDSEvent(eventType, callback);
@@ -527,11 +525,7 @@ export function useSomniaStreams(
               console.warn(`⚠️ SDS subscription for ${eventType} returned null, retrying... (${retryCount + 1}/3)`);
               setTimeout(() => attemptSubscription(retryCount + 1), 1000 * (retryCount + 1));
             } else {
-              console.warn(`⚠️ SDS subscription for ${eventType} failed after ${retryCount + 1} attempts - using WebSocket fallback`);
-              // SDS failed, ensure WebSocket fallback is initialized
-              if (useFallback && !isFallback) {
-                initializeWebSocketFallback();
-              }
+              console.warn(`⚠️ SDS subscription for ${eventType} failed after ${retryCount + 1} attempts`);
             }
           }
         } catch (err) {
@@ -540,22 +534,14 @@ export function useSomniaStreams(
             console.warn(`⚠️ SDS subscription for ${eventType} failed, retrying... (${retryCount + 1}/3):`, err);
             setTimeout(() => attemptSubscription(retryCount + 1), 1000 * (retryCount + 1));
           } else {
-            console.error(`❌ SDS subscription failed for ${eventType} after ${retryCount + 1} attempts - using WebSocket fallback:`, err);
-            // SDS failed, ensure WebSocket fallback is initialized
-            if (useFallback && !isFallback) {
-              initializeWebSocketFallback();
-            }
+            console.error(`❌ SDS subscription failed for ${eventType} after ${retryCount + 1} attempts:`, err);
           }
         }
       };
       
       attemptSubscription();
     } else {
-      console.warn(`⚠️ SDS not active for ${eventType}. SDK not initialized or connection failed.`);
-      console.warn(`   isSDSActive: ${isSDSActive}, sdkRef.current: ${!!sdkRef.current}`);
-      
-      // Retry subscription after a delay if SDK becomes active
-      // Check SDK ref directly (not state, which might be stale)
+      // SDK not ready yet - wait for it
       const maxRetries = 30; // 30 seconds max wait
       let retryCount = 0;
       
@@ -567,14 +553,10 @@ export function useSomniaStreams(
               const unsubscribeFn = await subscribeToSDSEvent(eventType, callback);
               if (unsubscribeFn) {
                 unsubscribeFunctionsRef.current.get(eventType)!.set(callback, unsubscribeFn);
-                console.log(`✅ SDS subscription established for ${eventType} (after retry)`);
+                console.log(`✅ SDS subscription established for ${eventType} (after SDK ready)`);
               }
             } catch (err) {
-              console.error(`❌ SDS subscription failed for ${eventType} (after retry):`, err);
-              // SDS failed, ensure WebSocket fallback is initialized
-              if (useFallback && !isFallback) {
-                initializeWebSocketFallback();
-              }
+              console.error(`❌ SDS subscription failed for ${eventType} (after SDK ready):`, err);
             }
           };
           attemptSubscription();
@@ -582,18 +564,11 @@ export function useSomniaStreams(
           retryCount++;
           setTimeout(checkAndRetry, 1000);
         } else {
-          console.warn(`⚠️ SDK not available after ${maxRetries} retries - using WebSocket fallback`);
-          // SDK never became available, use WebSocket fallback
-          if (useFallback && !isFallback) {
-            initializeWebSocketFallback();
-          }
+          console.warn(`⚠️ SDK not available after ${maxRetries} retries for ${eventType}`);
         }
       };
       
-      // Only retry if SDK is not available yet
-      if (!sdkRef.current) {
-        checkAndRetry();
-      }
+      checkAndRetry();
     }
     
     // If fallback is enabled and WebSocket is active, also subscribe via WebSocket
@@ -624,7 +599,7 @@ export function useSomniaStreams(
         }
       }
     };
-  }, [isSDSActive, subscribeToSDSEvent]);
+  }, [subscribeToSDSEvent, isFallback]);
 
   // Manual reconnect
   const reconnect = useCallback(() => {
