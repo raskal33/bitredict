@@ -191,19 +191,39 @@ export function useSomniaStreams(
     try {
       const wsUrl = getWSURL();
       
-      if (!wsUrl) {
-        throw new Error('SDS WebSocket URL not configured');
+      // Strict validation - ensure URL is a non-empty string
+      if (!wsUrl || typeof wsUrl !== 'string' || wsUrl.trim() === '') {
+        throw new Error(`SDS WebSocket URL not configured. Got: ${typeof wsUrl} - ${wsUrl}`);
       }
       
+      // Ensure URL starts with wss://
+      const validWsUrl = wsUrl.startsWith('wss://') || wsUrl.startsWith('ws://') 
+        ? wsUrl 
+        : `wss://${wsUrl.replace(/^https?:\/\//, '')}`;
+      
       console.log('📡 Creating public client with WebSocket transport (for subscriptions)...');
-      console.log(`   WebSocket URL: ${wsUrl}`);
+      console.log(`   WebSocket URL: ${validWsUrl}`);
+      console.log(`   URL type: ${typeof validWsUrl}, length: ${validWsUrl.length}`);
 
       // WebSocket transport handles both subscriptions AND RPC calls
       // The SDK requires WebSocket for subscribe() method
+      // CRITICAL: webSocket() must receive a valid URL string
+      // Create transport with explicit URL string
+      const wsTransport = webSocket(validWsUrl as `wss://${string}`);
+      
+      if (!wsTransport) {
+        throw new Error('Failed to create WebSocket transport');
+      }
+      
       const publicClient = createPublicClient({
         chain: somniaTestnet,
-        transport: webSocket(wsUrl),
+        transport: wsTransport,
       });
+      
+      // Verify client was created
+      if (!publicClient) {
+        throw new Error('Failed to create public client');
+      }
 
       const sdk = new SDK({
         public: publicClient
