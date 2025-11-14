@@ -184,29 +184,22 @@ export function useSomniaStreams(
     try {
       console.log('🔄 Initializing Somnia Data Streams...');
       
-      // ✅ PATTERN FROM WORKING ISS TRACKER EXAMPLE:
-      // Use dedicated WebSocket URL env var, don't derive from RPC URL
-      // Don't add /ws suffix - use URL as-is
-      const wsUrl = process.env.NEXT_PUBLIC_SDS_WS_URL || 
-                    process.env.NEXT_PUBLIC_WS_URL || 
-                    'wss://dream-rpc.somnia.network/ws';
+      // ✅ SDS SDK requires WebSocket transport for subscriptions
+      // Use base RPC URL converted to WebSocket (remove trailing slash, add wss://)
+      const rpcUrlClean = RPC_URL.replace(/\/$/, ''); // Remove trailing slash
+      const wsUrl = rpcUrlClean.replace(/^https?:\/\//, 'wss://'); // Convert http/https to wss
       
-      if (!wsUrl || typeof wsUrl !== 'string' || wsUrl.trim() === '') {
-        throw new Error(`Invalid WebSocket URL: ${wsUrl}`);
-      }
-      
-      console.log('📡 Creating public client with WebSocket transport (for subscriptions)...');
-      console.log(`   WebSocket URL: ${wsUrl}`);
+      console.log('📡 Creating public client with WebSocket transport (required for SDS subscriptions)...');
       console.log(`   RPC URL: ${RPC_URL}`);
+      console.log(`   WebSocket URL: ${wsUrl}`);
       
-      // Create public client with HTTP RPC (SDK needs this for subscribe operations)
-      // The SDK will use WebSocket internally for subscriptions
+      // Create public client with WebSocket transport (SDK subscribe requires WebSocket)
       const publicClient = createPublicClient({
         chain: somniaTestnet,
-        transport: http(RPC_URL),
+        transport: webSocket(wsUrl),
       });
       
-      console.log('✅ Public client created with HTTP RPC transport');
+      console.log('✅ Public client created with WebSocket transport');
 
       // Initialize SDK (read-only, no wallet needed for subscribing)
       // SDK will handle WebSocket connections internally for subscriptions
