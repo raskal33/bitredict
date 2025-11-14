@@ -10,9 +10,18 @@ import { SDK } from '@somnia-chain/streams';
 import { createPublicClient, webSocket } from 'viem';
 import { somniaTestnet } from 'viem/chains';
 
-const WS_URL = process.env.NEXT_PUBLIC_SDS_WS_URL || 
-               process.env.NEXT_PUBLIC_SDS_RPC_URL?.replace(/^https?:\/\//, 'wss://') + '/ws' ||
-               'wss://dream-rpc.somnia.network/ws';
+// Get WebSocket URL with proper fallback
+const getWSURL = (): string => {
+  if (process.env.NEXT_PUBLIC_SDS_WS_URL) {
+    return process.env.NEXT_PUBLIC_SDS_WS_URL;
+  }
+  if (process.env.NEXT_PUBLIC_SDS_RPC_URL) {
+    return process.env.NEXT_PUBLIC_SDS_RPC_URL.replace(/^https?:\/\//, 'wss://') + '/ws';
+  }
+  return 'wss://dream-rpc.somnia.network/ws';
+};
+
+const WS_URL = getWSURL();
 
 // Event types
 export type SDSEventType = 
@@ -178,9 +187,18 @@ export function useSomniaStreams(
     if (!enabled) return;
 
     try {
+      // Ensure WS_URL is available
+      const wsUrl = getWSURL();
+      if (!wsUrl) {
+        throw new Error('SDS WebSocket URL not configured');
+      }
+
+      console.log('📡 Creating public client with WebSocket transport (for subscriptions)...');
+      console.log(`   WebSocket URL: ${wsUrl}`);
+
       const publicClient = createPublicClient({
         chain: somniaTestnet,
-        transport: webSocket(WS_URL),
+        transport: webSocket(wsUrl),
       });
 
       const sdk = new SDK({
