@@ -41,6 +41,7 @@ import ClaimRewards from "@/components/ClaimRewards";
 import { CONTRACT_ADDRESSES } from "@/contracts";
 import SkeletonLoader from "@/components/SkeletonLoader";
 import UserAddressLink from "@/components/UserAddressLink";
+import { usePoolProgress } from "@/hooks/useSomniaStreams";
 
 interface ApiComment {
   id: number;
@@ -495,6 +496,32 @@ export default function BetPage() {
       }
     }
   }, [poolId, address]);
+
+  // ✅ CRITICAL: Subscribe to real-time pool progress updates (LP added, bets placed)
+  usePoolProgress(poolId, (progressData) => {
+    // Update fill percentage dynamically
+    if (progressData.fillPercentage !== undefined) {
+      setFillPercentage(progressData.fillPercentage);
+    }
+    // Update max pool size dynamically
+    if (progressData.maxPoolSize) {
+      const maxPoolSizeNum = parseFloat(progressData.maxPoolSize);
+      setMaxPoolSizeFormatted(maxPoolSizeNum);
+    }
+    // Update total bettor stake dynamically
+    if (progressData.totalBettorStake) {
+      const totalBettorStakeNum = parseFloat(progressData.totalBettorStake);
+      setTotalBettorStakeFormatted(totalBettorStakeNum);
+    }
+    // Update max bettor stake dynamically (for bet validation)
+    if (progressData.currentMaxBettorStake && pool) {
+      // Update pool object with new max bettor stake
+      setPool(prev => prev ? {
+        ...prev,
+        maxBettorStake: progressData.currentMaxBettorStake || prev.maxBettorStake
+      } : null);
+    }
+  });
 
   useEffect(() => {
     fetchPoolData();

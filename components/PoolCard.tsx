@@ -1,12 +1,13 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Users, Clock, TrendingUp } from "lucide-react";
 import { formatEther } from "viem";
 import Image from "next/image";
 import EnhancedPoolCard, { EnhancedPool } from "./EnhancedPoolCard";
 import { calculateSellOdds } from "../utils/poolCalculations";
+import { usePoolProgress } from "../hooks/useSomniaStreams";
 
 interface PoolCardProps {
   pool: EnhancedPool;
@@ -95,6 +96,21 @@ const BuySellMeter = ({ buyPct = 50, isHot = false }: { buyPct: number; isHot?: 
 
 // Compact NFT-style card - Premium Bitredict Design
 export const PoolCardNFT = ({ pool, onClick }: PoolCardProps) => {
+  // ✅ CRITICAL: Subscribe to real-time pool progress updates
+  const [dynamicFillPercentage, setDynamicFillPercentage] = useState(pool.indexedData?.fillPercentage || 0);
+  const [dynamicParticipants, setDynamicParticipants] = useState(pool.indexedData?.participantCount || 0);
+  
+  usePoolProgress(pool.id.toString(), (progressData) => {
+    // Update fill percentage dynamically when LP is added or bets are placed
+    if (progressData.fillPercentage !== undefined) {
+      setDynamicFillPercentage(progressData.fillPercentage);
+    }
+    // Update participant count dynamically
+    if (progressData.participantCount !== undefined) {
+      setDynamicParticipants(progressData.participantCount);
+    }
+  });
+
   // Calculate buy/sell volumes
   // Sell side = creator + LPs (totalCreatorSideStake)
   // Buy side = bettors (totalBettorStake)
@@ -112,8 +128,9 @@ export const PoolCardNFT = ({ pool, onClick }: PoolCardProps) => {
   const sellOdds = pool.odds ? calculateSellOdds(buyOdds) : 2.0;
   
   const timeInfo = timeRemaining(pool.bettingEndTime || pool.eventEndTime);
-  const participants = pool.indexedData?.participantCount || 0;
-  const fillPercentage = pool.indexedData?.fillPercentage || 0;
+  // ✅ Use dynamic values from WebSocket updates, fallback to API data
+  const participants = dynamicParticipants || pool.indexedData?.participantCount || 0;
+  const fillPercentage = dynamicFillPercentage || pool.indexedData?.fillPercentage || 0;
   const isBoosted = pool.boostTier && pool.boostTier !== 'NONE';
   
   // Bitredict-specific color schemes based on category and status
