@@ -183,21 +183,36 @@ export function useSomniaStreams(
       // Derive WebSocket URL from RPC URL
       const rpcUrl = process.env.NEXT_PUBLIC_SDS_RPC_URL || process.env.NEXT_PUBLIC_RPC_URL || 'https://dream-rpc.somnia.network';
       
+      if (!rpcUrl || typeof rpcUrl !== 'string' || rpcUrl.trim() === '') {
+        throw new Error(`Invalid RPC URL: ${rpcUrl}`);
+      }
+      
       // Convert HTTP to WebSocket URL
       let wsUrl = rpcUrl.replace('https://', 'wss://').replace('http://', 'ws://');
+      // Remove trailing slash if present
+      wsUrl = wsUrl.replace(/\/$/, '');
       // Ensure /ws suffix (required by Somnia)
       if (!wsUrl.endsWith('/ws')) {
-        wsUrl = wsUrl.replace(/\/$/, '') + '/ws';
+        wsUrl = wsUrl + '/ws';
+      }
+      
+      // Validate WebSocket URL
+      if (!wsUrl || typeof wsUrl !== 'string' || wsUrl.trim() === '' || 
+          (!wsUrl.startsWith('wss://') && !wsUrl.startsWith('ws://'))) {
+        throw new Error(`Invalid WebSocket URL derived from RPC: ${wsUrl} (from RPC: ${rpcUrl})`);
       }
       
       console.log('📡 Creating public client with WebSocket transport (required for subscriptions)...');
       console.log(`   RPC URL: ${rpcUrl}`);
       console.log(`   WebSocket URL: ${wsUrl}`);
+      console.log(`   Calling webSocket() with URL: ${wsUrl}`);
       
       // Create public client with WebSocket transport (required by SDK's subscribe() in viem 2.37.x)
       const publicClient = createPublicClient({
         chain: somniaTestnet,
         transport: webSocket(wsUrl, {
+          key: 'somnia-sds',
+          name: 'Somnia SDS WebSocket',
           keepAlive: true,
           reconnect: {
             attempts: 5,
@@ -208,6 +223,8 @@ export function useSomniaStreams(
       });
       
       console.log('✅ Public client created with WebSocket transport');
+      console.log(`   Transport type: ${publicClient.transport.type}`);
+      console.log(`   Transport config:`, publicClient.transport);
 
       // Initialize SDK (read-only, no wallet needed for subscribing)
       const sdk = new SDK({
