@@ -213,6 +213,7 @@ export function useSomniaStreams(
       setError(null);
       
       console.log(`✅ Somnia Data Streams initialized (WebSocket transport for viem 2.37.x)`);
+      console.log(`✅ SDK ready: ${!!sdkRef.current}, isSDSActive: true`);
 
     } catch (err) {
       console.error('❌ Failed to initialize SDS:', err);
@@ -512,9 +513,11 @@ export function useSomniaStreams(
     // ✅ FIX: Check SDK ref directly (not state) to avoid race conditions
     // If SDK exists, subscribe immediately - don't wait for isSDSActive state update
     if (sdkRef.current) {
+      console.log(`🚀 Attempting SDS subscription for ${eventType} (SDK ready: ${!!sdkRef.current})`);
       // ✅ Try SDS subscription immediately
       const attemptSubscription = async (retryCount = 0) => {
         try {
+          console.log(`📡 Subscribing to ${eventType} (attempt ${retryCount + 1})...`);
           const unsubscribeFn = await subscribeToSDSEvent(eventType, callback);
           if (unsubscribeFn) {
             unsubscribeFunctionsRef.current.get(eventType)!.set(callback, unsubscribeFn);

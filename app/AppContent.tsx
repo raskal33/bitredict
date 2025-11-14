@@ -5,6 +5,7 @@ import ProfileCreationModal from "@/components/ProfileCreationModal";
 import NotificationToast from "@/components/NotificationToast";
 import { OddysseyLiveUpdates } from "@/components/OddysseyLiveUpdates";
 import { SDSConnectionIndicator } from "@/components/SDSConnectionIndicator";
+import { SDSDebugPanel } from "@/components/SDSDebugPanel";
 
 export default function AppContent({
   children,
@@ -18,6 +19,8 @@ export default function AppContent({
       <NotificationToast />
       <OddysseyLiveUpdates />
       <SDSConnectionIndicator />
+      {/* Debug panel - only in development */}
+      {process.env.NODE_ENV === 'development' && <SDSDebugPanel />}
     </>
   );
 } 
