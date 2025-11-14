@@ -192,6 +192,7 @@ export function useSomniaStreams(
   const [error, setError] = useState<Error | null>(null);
   
   const sdkRef = useRef<SDK | null>(null);
+  const wsUrlRef = useRef<string | null>(null); // Store WebSocket URL for SDK access
   const subscribersRef = useRef<Map<SDSEventType, Set<(data: SDSEventData) => void>>>(new Map());
   const unsubscribeFunctionsRef = useRef<Map<(data: SDSEventData) => void, (() => void)>>(new Map());
   const wsRef = useRef<WebSocket | null>(null);
@@ -217,11 +218,18 @@ export function useSomniaStreams(
       console.log(`   WebSocket URL: ${validWsUrl}`);
       console.log(`   URL type: ${typeof validWsUrl}, length: ${validWsUrl.length}`);
 
+      // Store URL for SDK access
+      wsUrlRef.current = validWsUrl;
+      
       // WebSocket transport handles both subscriptions AND RPC calls
       // The SDK requires WebSocket for subscribe() method
-      // CRITICAL: webSocket() must receive a valid URL string
-      // Create transport with explicit URL string
-      const wsTransport = webSocket(validWsUrl as `wss://${string}`);
+      // CRITICAL: Pass URL as string literal to ensure it's stored correctly
+      const wsUrlString: `wss://${string}` = validWsUrl as `wss://${string}`;
+      
+      console.log('🔧 Creating WebSocket transport with URL:', wsUrlString);
+      
+      // Create transport - ensure URL is definitely a string
+      const wsTransport = webSocket(wsUrlString);
       
       if (!wsTransport) {
         throw new Error('Failed to create WebSocket transport');
@@ -237,9 +245,13 @@ export function useSomniaStreams(
         throw new Error('Failed to create public client');
       }
 
+      console.log('✅ Public client created, initializing SDK...');
+      
       const sdk = new SDK({
         public: publicClient
       });
+      
+      console.log('✅ SDK initialized successfully');
 
       sdkRef.current = sdk;
       setIsConnected(true);
