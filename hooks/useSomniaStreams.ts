@@ -7,34 +7,48 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { SDK } from '@somnia-chain/streams';
-import { createPublicClient, webSocket } from 'viem';
-import { somniaTestnet } from 'viem/chains';
+import { createPublicClient, webSocket, defineChain } from 'viem';
 
-// Get RPC URLs with proper fallback
-const getRPCURL = (): string => {
-  return process.env.NEXT_PUBLIC_SDS_RPC_URL || 
-         process.env.NEXT_PUBLIC_RPC_URL || 
-         'https://dream-rpc.somnia.network';
-};
+// Define Somnia testnet with WebSocket URL
 
+const SOMNIA_TESTNET_RPC_URL = process.env.NEXT_PUBLIC_SDS_RPC_URL || 'https://dream-rpc.somnia.network';
+const SOMNIA_TESTNET_WS_URL = process.env.NEXT_PUBLIC_SDS_WS_URL || 'wss://dream-rpc.somnia.network/ws';
+
+const somniaTestnet = defineChain({
+  id: 50312,
+  name: 'Somnia Testnet',
+  network: 'somnia-testnet',
+  nativeCurrency: {
+    name: 'Somnia Testnet Token',
+    symbol: 'STT',
+    decimals: 18,
+  },
+  rpcUrls: {
+    default: {
+      http: [SOMNIA_TESTNET_RPC_URL],
+      webSocket: [SOMNIA_TESTNET_WS_URL],
+    },
+    public: {
+      http: [SOMNIA_TESTNET_RPC_URL],
+      webSocket: [SOMNIA_TESTNET_WS_URL],
+    },
+  },
+  blockExplorers: {
+    default: {
+      name: 'Somnia Explorer',
+      url: 'https://shannon-explorer.somnia.network',
+    },
+  },
+  testnet: true,
+});
+
+// Get WebSocket URL from chain config 
 const getWSURL = (): string => {
-  // Always return a valid URL - env vars might not be available in browser
-  const envWsUrl = typeof window !== 'undefined' 
-    ? (window as any).__NEXT_DATA__?.env?.NEXT_PUBLIC_SDS_WS_URL
-    : process.env.NEXT_PUBLIC_SDS_WS_URL;
-    
-  if (envWsUrl && typeof envWsUrl === 'string' && envWsUrl.trim() !== '') {
-    return envWsUrl;
+  const wsUrl = somniaTestnet.rpcUrls.default.webSocket?.[0];
+  if (!wsUrl) {
+    throw new Error('WebSocket URL not configured for Somnia chain');
   }
-  
-  // Fallback: construct from RPC URL
-  const rpcUrl = getRPCURL();
-  if (rpcUrl && rpcUrl.includes('dream-rpc.somnia.network')) {
-    return rpcUrl.replace(/^https?:\/\//, 'wss://') + '/ws';
-  }
-  
-  // Hardcoded fallback - always works
-  return 'wss://dream-rpc.somnia.network/ws';
+  return wsUrl;
 };
 
 // Event types
@@ -192,7 +206,6 @@ export function useSomniaStreams(
   const [error, setError] = useState<Error | null>(null);
   
   const sdkRef = useRef<SDK | null>(null);
-  const wsUrlRef = useRef<string | null>(null); // Store WebSocket URL for SDK access
   const subscribersRef = useRef<Map<SDSEventType, Set<(data: SDSEventData) => void>>>(new Map());
   const unsubscribeFunctionsRef = useRef<Map<(data: SDSEventData) => void, (() => void)>>(new Map());
   const wsRef = useRef<WebSocket | null>(null);
@@ -202,51 +215,24 @@ export function useSomniaStreams(
     if (!enabled) return;
 
     try {
+      // Get WebSocket URL from chain config 
       const wsUrl = getWSURL();
       
-      // Strict validation - ensure URL is a non-empty string
-      if (!wsUrl || typeof wsUrl !== 'string' || wsUrl.trim() === '') {
-        throw new Error(`SDS WebSocket URL not configured. Got: ${typeof wsUrl} - ${wsUrl}`);
-      }
-      
-      // Ensure URL starts with wss://
-      const validWsUrl = wsUrl.startsWith('wss://') || wsUrl.startsWith('ws://') 
-        ? wsUrl 
-        : `wss://${wsUrl.replace(/^https?:\/\//, '')}`;
-      
-      console.log('📡 Creating public client with WebSocket transport (for subscriptions)...');
-      console.log(`   WebSocket URL: ${validWsUrl}`);
-      console.log(`   URL type: ${typeof validWsUrl}, length: ${validWsUrl.length}`);
+      console.log('📡 Creating public client with WebSocket transport...');
+      console.log(`   WebSocket URL: ${wsUrl}`);
 
-      // Store URL for SDK access
-      wsUrlRef.current = validWsUrl;
+      // Create WebSocket transport
+      const wsTransport = webSocket(wsUrl);
       
-      // WebSocket transport handles both subscriptions AND RPC calls
-      // The SDK requires WebSocket for subscribe() method
-      // CRITICAL: Pass URL as string literal to ensure it's stored correctly
-      const wsUrlString: `wss://${string}` = validWsUrl as `wss://${string}`;
-      
-      console.log('🔧 Creating WebSocket transport with URL:', wsUrlString);
-      
-      // Create transport - ensure URL is definitely a string
-      const wsTransport = webSocket(wsUrlString);
-      
-      if (!wsTransport) {
-        throw new Error('Failed to create WebSocket transport');
-      }
-      
+      // Create public client 
       const publicClient = createPublicClient({
         chain: somniaTestnet,
         transport: wsTransport,
       });
-      
-      // Verify client was created
-      if (!publicClient) {
-        throw new Error('Failed to create public client');
-      }
 
       console.log('✅ Public client created, initializing SDK...');
       
+      // Initialize SDK
       const sdk = new SDK({
         public: publicClient
       });
@@ -362,13 +348,7 @@ export function useSomniaStreams(
     if (sdkRef.current && isSDSActive) {
       const eventSchemaId = EVENT_SCHEMA_MAP[eventType];
       
-      // Verify WebSocket URL is available
-      if (!wsUrlRef.current) {
-        console.error('❌ Cannot subscribe: WebSocket URL not available');
-        return () => {}; // Return no-op unsubscribe
-      }
-      
-      console.log(`📡 Subscribing to ${eventType} via SDS (event: ${eventSchemaId}, URL: ${wsUrlRef.current})`);
+      console.log(`📡 Subscribing to ${eventType} via SDS (event: ${eventSchemaId})`);
       
       try {
         // Create subscription parameters matching stream-rank-sync approach
@@ -376,7 +356,7 @@ export function useSomniaStreams(
           somniaStreamsEventId: eventSchemaId,
           ethCalls: [],
           onlyPushChanges: false,
-          context: eventType, // Add context like they do
+          context: eventType, 
           onData: (data: any) => {
             console.log(`📦 Received ${eventType} data:`, data);
             callback(data as SDSEventData);
