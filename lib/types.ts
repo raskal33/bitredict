@@ -47,6 +47,7 @@ export interface Pool {
   comments: Comment[];
   defeated: number;
   marketType?: string;
+  maxBettorStake?: number;
   marketId?: string;
   fixtureId?: string;  // SportMonks fixture ID for football pools
   progress?: number;

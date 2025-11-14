@@ -518,7 +518,9 @@ export default function BetPage() {
       // Update pool object with new max bettor stake
       setPool(prev => prev ? {
         ...prev,
-        maxBettorStake: progressData.currentMaxBettorStake || prev.maxBettorStake
+        maxBettorStake: typeof progressData.currentMaxBettorStake === 'string' 
+          ? parseFloat(progressData.currentMaxBettorStake) 
+          : (progressData.currentMaxBettorStake || prev.maxBettorStake)
       } : null);
     }
   });

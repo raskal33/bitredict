@@ -263,26 +263,27 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
             bettorAddress: bet.bettor,
             amount: amount.toString(),
             amountFormatted: amount.toFixed(2),
-          isForOutcome: bet.isForOutcome,
-          eventType: bet.eventType || 'bet', // Default to 'bet' if not provided
-          action: bet.action || (bet.eventType === 'liquidity_added' ? 'Added liquidity' : 'Placed bet'),
-          icon: bet.icon || (bet.eventType === 'liquidity_added' ? '💧' : '🎯'),
-          odds: bet.odds,
-          currency: bet.currency || 'STT',
-          createdAt: new Date(bet.timestamp * 1000).toISOString(),
-          timeAgo: `${Math.floor((Date.now() - bet.timestamp * 1000) / 60000)}m ago`,
-          pool: {
-            predictedOutcome: '',
-            league: bet.league || 'Unknown',
-            category: bet.category,
-            homeTeam: '',
-            awayTeam: '',
-            title: bet.poolTitle,
-            useBitr: false,
-            odds: bet.odds || 0,
-            creatorAddress: ''
-          }
-        }));
+            isForOutcome: bet.isForOutcome,
+            eventType: bet.eventType || 'bet', // Default to 'bet' if not provided
+            action: bet.action || (bet.eventType === 'liquidity_added' ? 'Added liquidity' : 'Placed bet'),
+            icon: bet.icon || (bet.eventType === 'liquidity_added' ? '💧' : '🎯'),
+            odds: bet.odds,
+            currency: bet.currency || 'STT',
+            createdAt: new Date(bet.timestamp * 1000).toISOString(),
+            timeAgo: `${Math.floor((Date.now() - bet.timestamp * 1000) / 60000)}m ago`,
+            pool: {
+              predictedOutcome: '',
+              league: bet.league || 'Unknown',
+              category: bet.category,
+              homeTeam: '',
+              awayTeam: '',
+              title: bet.poolTitle,
+              useBitr: false,
+              odds: bet.odds || 0,
+              creatorAddress: ''
+            }
+          };
+        });
         
         setApiData(transformedBets);
       } catch (error) {
