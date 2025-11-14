@@ -18,11 +18,23 @@ const getRPCURL = (): string => {
 };
 
 const getWSURL = (): string => {
-  if (process.env.NEXT_PUBLIC_SDS_WS_URL) {
-    return process.env.NEXT_PUBLIC_SDS_WS_URL;
+  // Always return a valid URL - env vars might not be available in browser
+  const envWsUrl = typeof window !== 'undefined' 
+    ? (window as any).__NEXT_DATA__?.env?.NEXT_PUBLIC_SDS_WS_URL
+    : process.env.NEXT_PUBLIC_SDS_WS_URL;
+    
+  if (envWsUrl && typeof envWsUrl === 'string' && envWsUrl.trim() !== '') {
+    return envWsUrl;
   }
+  
+  // Fallback: construct from RPC URL
   const rpcUrl = getRPCURL();
-  return rpcUrl.replace(/^https?:\/\//, 'wss://') + '/ws';
+  if (rpcUrl && rpcUrl.includes('dream-rpc.somnia.network')) {
+    return rpcUrl.replace(/^https?:\/\//, 'wss://') + '/ws';
+  }
+  
+  // Hardcoded fallback - always works
+  return 'wss://dream-rpc.somnia.network/ws';
 };
 
 // Event types
