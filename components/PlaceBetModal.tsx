@@ -40,13 +40,40 @@ export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalPr
   });
   
   usePoolProgress(pool.id.toString(), (progressData) => {
-    // Update pool data when progress changes (e.g., LP added)
+    // ✅ CRITICAL: Update pool data when progress changes (e.g., LP added)
+    // Progress data comes in token amounts (already divided by 1e18), but we need to handle both formats
+    const effectiveCreatorSideStake = progressData.effectiveCreatorSideStake || progressData.totalCreatorSideStake || "0";
+    const totalBettorStake = progressData.totalBettorStake || "0";
+    const currentMaxBettorStake = progressData.currentMaxBettorStake || "0";
+    
+    // Convert to numbers (handle both wei and token formats)
+    let totalCreatorSideStakeNum = parseFloat(effectiveCreatorSideStake);
+    let totalBettorStakeNum = parseFloat(totalBettorStake);
+    let maxBettorStakeNum = parseFloat(currentMaxBettorStake);
+    
+    // If values are very large (> 1e15), they're likely in wei - convert to token
+    if (totalCreatorSideStakeNum > 1e15) {
+      totalCreatorSideStakeNum = totalCreatorSideStakeNum / 1e18;
+    }
+    if (totalBettorStakeNum > 1e15) {
+      totalBettorStakeNum = totalBettorStakeNum / 1e18;
+    }
+    if (maxBettorStakeNum > 1e15) {
+      maxBettorStakeNum = maxBettorStakeNum / 1e18;
+    }
+    
     setCurrentPoolData(prev => ({
       ...prev,
-      totalCreatorSideStake: parseFloat(progressData.effectiveCreatorSideStake || "0"),
-      totalBettorStake: parseFloat(progressData.totalBettorStake || "0"),
-      maxBettorStake: parseFloat(progressData.currentMaxBettorStake || "0")
+      totalCreatorSideStake: totalCreatorSideStakeNum,
+      totalBettorStake: totalBettorStakeNum,
+      maxBettorStake: maxBettorStakeNum
     }));
+    
+    console.log(`📊 PlaceBetModal: Pool progress updated for pool ${pool.id}:`, {
+      totalCreatorSideStake: totalCreatorSideStakeNum,
+      totalBettorStake: totalBettorStakeNum,
+      maxBettorStake: maxBettorStakeNum
+    });
   });
   
   // ✅ FIX: Poll for transaction success since usePools doesn't expose hash directly
@@ -126,15 +153,33 @@ export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalPr
   // Matches contract logic: effectiveCreatorSideStake determines max bettor stake
   // Uses real-time pool data from usePoolProgress hook
   const getRemainingCapacity = (): number => {
-    const creatorStake = parseFloat(pool.creatorStake || "0");
-    // ✅ Use real-time pool data (updated when LP is added)
-    const totalCreatorSideStake = currentPoolData.totalCreatorSideStake || parseFloat(pool.totalCreatorSideStake || pool.creatorStake || "0");
-    const totalBettorStake = currentPoolData.totalBettorStake || parseFloat(pool.totalBettorStake || "0");
-    const maxBettorStake = currentPoolData.maxBettorStake || parseFloat(pool.maxBettorStake || "0");
+    // ✅ CRITICAL: Convert pool.creatorStake from wei to token if needed
+    let creatorStake = parseFloat(pool.creatorStake || "0");
+    if (creatorStake > 1e15) {
+      creatorStake = creatorStake / 1e18;
+    }
+    
+    // ✅ Use real-time pool data (updated when LP is added) - already in token units
+    const totalCreatorSideStake = currentPoolData.totalCreatorSideStake || (() => {
+      let stake = parseFloat(pool.totalCreatorSideStake || pool.creatorStake || "0");
+      if (stake > 1e15) stake = stake / 1e18;
+      return stake;
+    })();
+    const totalBettorStake = currentPoolData.totalBettorStake || (() => {
+      let stake = parseFloat(pool.totalBettorStake || "0");
+      if (stake > 1e15) stake = stake / 1e18;
+      return stake;
+    })();
+    const maxBettorStake = currentPoolData.maxBettorStake || (() => {
+      let stake = parseFloat(pool.maxBettorStake || "0");
+      if (stake > 1e15) stake = stake / 1e18;
+      return stake;
+    })();
     
     // ✅ CRITICAL: Use dynamic calculation matching contract logic
-    // effectiveCreatorSideStake = totalBettorStake == 0 || totalBettorStake > creatorStake 
+    // Contract: effectiveCreatorSideStake = totalBettorStake == 0 || totalBettorStake + amount > creatorStake 
     //   ? totalCreatorSideStake : creatorStake
+    // For display, we use: totalBettorStake == 0 || totalBettorStake > creatorStake
     const effectiveCreatorSideStake = (totalBettorStake === 0 || totalBettorStake > creatorStake) 
       ? totalCreatorSideStake 
       : creatorStake;
@@ -150,6 +195,18 @@ export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalPr
     const currentMaxBettorStake = maxBettorStake > 0 ? maxBettorStake : calculatedMaxBettorStake;
     
     const remaining = Math.max(0, currentMaxBettorStake - totalBettorStake);
+    
+    console.log(`🔍 PlaceBetModal getRemainingCapacity for pool ${pool.id}:`, {
+      creatorStake,
+      totalCreatorSideStake,
+      totalBettorStake,
+      maxBettorStake,
+      effectiveCreatorSideStake,
+      calculatedMaxBettorStake,
+      currentMaxBettorStake,
+      remaining,
+      odds: pool.odds
+    });
     
     return remaining;
   };

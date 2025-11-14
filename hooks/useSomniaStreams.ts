@@ -157,9 +157,8 @@ export function useSomniaStreams(
     enabled = true,
     autoReconnect = true,
     reconnectDelay = 3000,
-    // Enable fallback to custom WebSocket when SDS fails
-    // This ensures Live Activity feed works even if SDS is unavailable
-    useFallback = true
+    // ✅ FIX: Disable WebSocket fallback - use only SDS WebSocket
+    useFallback = false
   } = options;
 
   const [isConnected, setIsConnected] = useState(false);
@@ -183,10 +182,12 @@ export function useSomniaStreams(
       // Based on ISS tracker example: WebSocket URL should have /ws suffix
       // Example: wss://api.infra.testnet.somnia.network/ws or wss://dream-rpc.somnia.network/ws
       
+      // ✅ CRITICAL FIX: Ensure WebSocket URL is always set correctly
       // Check for direct WebSocket URL first (recommended)
-      let wsUrl = process.env.NEXT_PUBLIC_SDS_WS_URL;
+      let wsUrl: string | undefined = process.env.NEXT_PUBLIC_SDS_WS_URL;
       
-      if (!wsUrl) {
+      // ✅ FIX: Handle case where env var might be undefined at runtime
+      if (!wsUrl || wsUrl === 'undefined' || wsUrl.trim() === '') {
         // Convert HTTP RPC URL to WebSocket URL with /ws suffix
         const rpcUrl = process.env.NEXT_PUBLIC_SDS_RPC_URL || 'https://dream-rpc.somnia.network';
         
@@ -205,17 +206,25 @@ export function useSomniaStreams(
         }
       }
       
+      // ✅ CRITICAL: Validate wsUrl is a valid string before using
+      if (!wsUrl || typeof wsUrl !== 'string' || wsUrl.trim() === '' || wsUrl === 'undefined') {
+        throw new Error(`Invalid or missing WebSocket URL. NEXT_PUBLIC_SDS_WS_URL=${process.env.NEXT_PUBLIC_SDS_WS_URL}, NEXT_PUBLIC_SDS_RPC_URL=${process.env.NEXT_PUBLIC_SDS_RPC_URL}`);
+      }
+      
       console.log(`🔌 Using WebSocket URL: ${wsUrl}`);
       
       let publicClient;
       let useWebSocket = true;
       
+      // ✅ CRITICAL: Validate wsUrl before creating transport
+      if (!wsUrl || typeof wsUrl !== 'string' || wsUrl.trim() === '' || wsUrl === 'undefined') {
+        throw new Error(`Invalid WebSocket URL: ${wsUrl}. Please set NEXT_PUBLIC_SDS_WS_URL or NEXT_PUBLIC_SDS_RPC_URL environment variable.`);
+      }
+      
       try {
         // SDS SDK requires WebSocket for subscriptions - try it first
-        // CRITICAL: Ensure wsUrl is a valid string and not undefined
-        if (!wsUrl || typeof wsUrl !== 'string') {
-          throw new Error(`Invalid WebSocket URL: ${wsUrl}`);
-        }
+        console.log('📡 Creating WebSocket transport for SDS subscriptions...');
+        console.log(`   WebSocket URL: ${wsUrl}`);
         
         publicClient = createPublicClient({
           chain: somniaTestnet,
@@ -227,14 +236,11 @@ export function useSomniaStreams(
           })
         });
         
-        console.log('📡 Using WebSocket transport for SDS subscriptions (required by SDK)');
-        console.log(`   WebSocket URL: ${wsUrl}`);
+        console.log('✅ WebSocket transport created successfully');
       } catch (wsError) {
-        console.warn('⚠️ WebSocket transport failed for SDS:', wsError);
-        // If WebSocket fails, we can't use SDS subscriptions
-        // Will fall back to custom WebSocket service below
+        console.error('❌ WebSocket transport creation failed:', wsError);
         const errorMessage = wsError instanceof Error ? wsError.message : String(wsError);
-        throw new Error(`SDS WebSocket connection failed: ${errorMessage} - will use fallback`);
+        throw new Error(`SDS WebSocket connection failed: ${errorMessage}. URL: ${wsUrl}`);
       }
 
       // Initialize SDK (read-only, no wallet needed for subscribing)
@@ -254,16 +260,15 @@ export function useSomniaStreams(
       console.error('❌ Failed to initialize SDS:', err);
       setError(err as Error);
       setIsSDSActive(false);
+      setIsConnected(false);
+      setIsFallback(false);
 
-      // Always fall back to custom WebSocket if SDS fails
-      // This is expected when WebSocket connections to dream-rpc.somnia.network fail
+      // ✅ FIX: Don't fall back to WebSocket - fail explicitly so user knows SDS is required
       if (useFallback) {
-        console.log('🔄 SDS unavailable - falling back to custom WebSocket service...');
-        initializeWebSocketFallback();
+        console.warn('🔄 SDS unavailable - WebSocket fallback is disabled. SDS WebSocket connection required.');
+        // Don't initialize fallback - let it fail so we can debug SDS issues
       } else {
-        // If fallback disabled, still mark as connected but using fallback
-        setIsFallback(true);
-        setIsConnected(false);
+        console.error('❌ SDS initialization failed and fallback is disabled. Please check SDS WebSocket configuration.');
       }
     }
   }, [enabled, useFallback]);
@@ -489,25 +494,19 @@ export function useSomniaStreams(
         console.error(`❌ Failed to establish SDS subscription for ${eventType}:`, err);
         console.log(`   Error: ${err.message || err}`);
         
-        // Check for specific error types
+        // ✅ FIX: Don't fallback - log error and fail explicitly
         if (err.message?.includes('UrlRequiredError') || err.message?.includes('No URL was provided')) {
-          console.error(`⚠️ SDS SDK transport error: WebSocket URL not properly configured`);
+          console.error(`❌ SDS SDK transport error: WebSocket URL not properly configured`);
           console.error(`   This usually means the SDK's public client doesn't have a valid WebSocket transport`);
-          console.error(`   Falling back to WebSocket for ${eventType}...`);
+          console.error(`   Check NEXT_PUBLIC_SDS_WS_URL or NEXT_PUBLIC_SDS_RPC_URL environment variables`);
         } else if (err.message?.includes('Failed to get event schemas') || err.message?.includes('event schemas')) {
-          console.warn(`⚠️ Event schema "${eventSchemaId}" not registered on-chain yet`);
-          console.warn(`   Backend needs to register event schemas first`);
-          console.warn(`   Run: node backend/scripts/register-sds-event-schemas.js`);
-          console.warn(`   Falling back to WebSocket for ${eventType}...`);
+          console.error(`❌ Event schema "${eventSchemaId}" not registered on-chain yet`);
+          console.error(`   Backend needs to register event schemas first`);
+          console.error(`   Run: node backend/scripts/register-sds-event-schemas.js`);
         }
         
-        // If subscription fails, fallback immediately
-        setIsFallback(true);
-        setIsSDSActive(false);
-        if (useFallback && !wsRef.current) {
-          console.log(`   Falling back to WebSocket for ${eventType}...`);
-          initializeWebSocketFallback();
-        }
+        // ✅ FIX: Don't fallback - fail explicitly
+        console.error(`❌ SDS subscription failed for ${eventType}. Fallback is disabled.`);
       });
 
       // Return unsubscribe function (will be set when promise resolves)
@@ -518,17 +517,12 @@ export function useSomniaStreams(
       };
 
     } catch (err) {
-      console.error(`Failed to subscribe to ${eventType} via SDS:`, err);
-      console.warn(`Falling back to WebSocket for ${eventType}`);
-      // Fallback to WebSocket if SDS subscription fails
-      setIsFallback(true);
-      setIsSDSActive(false);
-      if (useFallback && !wsRef.current) {
-        initializeWebSocketFallback();
-      }
+      console.error(`❌ Failed to subscribe to ${eventType} via SDS:`, err);
+      // ✅ FIX: Don't fallback - fail explicitly
+      console.error(`   Fallback is disabled. SDS WebSocket connection required.`);
       return () => {};
     }
-  }, [useFallback, initializeWebSocketFallback]);
+  }, []);
 
   // Subscribe to WebSocket channel
   const subscribeToChannel = useCallback((channel: string) => {
@@ -552,25 +546,17 @@ export function useSomniaStreams(
     }
     subscribersRef.current.get(eventType)!.add(callback);
 
-    // If using SDS, subscribe to stream
-    // But if SDS isn't active (WebSocket failed), use WebSocket fallback instead
+    // ✅ FIX: Only use SDS - no fallback
     let sdsUnsubscribe: (() => void) | null = null;
     if (isSDSActive && sdkRef.current) {
       try {
         sdsUnsubscribe = subscribeToSDSEvent(eventType, callback);
       } catch (err) {
-        console.warn(`SDS subscription failed for ${eventType}, using WebSocket fallback:`, err);
-        // If SDS subscription fails, ensure fallback is initialized
-        if (useFallback && !wsRef.current) {
-          initializeWebSocketFallback();
-        }
+        console.error(`❌ SDS subscription failed for ${eventType}:`, err);
+        console.error(`   Fallback is disabled. SDS WebSocket connection required.`);
       }
-    } else if (isFallback && wsRef.current) {
-      // If already in fallback mode, subscribe via WebSocket
-      subscribeToChannel(eventType === 'pool:progress' ? `pool:*:progress` : eventType);
-    } else if (useFallback && !wsRef.current) {
-      // Initialize fallback if not already done
-      initializeWebSocketFallback();
+    } else {
+      console.warn(`⚠️ SDS not active for ${eventType}. SDK not initialized or connection failed.`);
     }
 
     // Return unsubscribe function
@@ -675,21 +661,21 @@ export function usePoolProgress(poolId: string, callback: (data: SDSPoolProgress
   useEffect(() => {
     if (!enabled) return;
     
-    // Subscribe via SDS/WebSocket hook
+    // ✅ FIX: Only subscribe via SDS - no WebSocket fallback
     const unsubscribe = subscribe('pool:progress', (data) => {
       const progressData = data as SDSPoolProgressData;
       if (progressData.poolId === poolId || progressData.poolId === String(poolId)) {
-        callback(progressData);
+        // ✅ CRITICAL: Ensure all required fields are present for dynamic calculation
+        callback({
+          ...progressData,
+          currentMaxBettorStake: progressData.currentMaxBettorStake || progressData.maxPoolSize || "0",
+          effectiveCreatorSideStake: progressData.effectiveCreatorSideStake || progressData.totalCreatorSideStake || "0"
+        });
       }
     });
     
-    // ✅ CRITICAL: Subscribe to WebSocket channel when connection is ready
-    if (isFallback && isConnected) {
-      subscribeToChannel(`pool:${poolId}:progress`);
-    }
-    
     return unsubscribe;
-  }, [subscribe, subscribeToChannel, poolId, callback, enabled, isFallback, isConnected]);
+  }, [subscribe, poolId, callback, enabled]);
   
   return rest;
 }
