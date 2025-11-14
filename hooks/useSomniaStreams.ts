@@ -7,21 +7,23 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { SDK } from '@somnia-chain/streams';
-import { createPublicClient, webSocket } from 'viem';
+import { createPublicClient, webSocket, http, fallback } from 'viem';
 import { somniaTestnet } from 'viem/chains';
 
-// Get WebSocket URL with proper fallback
+// Get RPC URLs with proper fallback
+const getRPCURL = (): string => {
+  return process.env.NEXT_PUBLIC_SDS_RPC_URL || 
+         process.env.NEXT_PUBLIC_RPC_URL || 
+         'https://dream-rpc.somnia.network';
+};
+
 const getWSURL = (): string => {
   if (process.env.NEXT_PUBLIC_SDS_WS_URL) {
     return process.env.NEXT_PUBLIC_SDS_WS_URL;
   }
-  if (process.env.NEXT_PUBLIC_SDS_RPC_URL) {
-    return process.env.NEXT_PUBLIC_SDS_RPC_URL.replace(/^https?:\/\//, 'wss://') + '/ws';
-  }
-  return 'wss://dream-rpc.somnia.network/ws';
+  const rpcUrl = getRPCURL();
+  return rpcUrl.replace(/^https?:\/\//, 'wss://') + '/ws';
 };
-
-const WS_URL = getWSURL();
 
 // Event types
 export type SDSEventType = 
@@ -187,18 +189,24 @@ export function useSomniaStreams(
     if (!enabled) return;
 
     try {
-      // Ensure WS_URL is available
+      const rpcUrl = getRPCURL();
       const wsUrl = getWSURL();
-      if (!wsUrl) {
-        throw new Error('SDS WebSocket URL not configured');
+      
+      if (!wsUrl || !rpcUrl) {
+        throw new Error('SDS URLs not configured');
       }
-
-      console.log('📡 Creating public client with WebSocket transport (for subscriptions)...');
+      
+      console.log('📡 Creating public client with fallback transport (HTTP + WebSocket)...');
+      console.log(`   RPC URL: ${rpcUrl}`);
       console.log(`   WebSocket URL: ${wsUrl}`);
 
+      // Use fallback transport: try WebSocket first for subscriptions, fallback to HTTP for RPC calls
       const publicClient = createPublicClient({
         chain: somniaTestnet,
-        transport: webSocket(wsUrl),
+        transport: fallback([
+          webSocket(wsUrl),
+          http(rpcUrl)
+        ]),
       });
 
       const sdk = new SDK({
