@@ -20,6 +20,11 @@ import { SDK } from '@somnia-chain/streams';
 import { createPublicClient, http, webSocket } from 'viem';
 import { somniaTestnet } from 'viem/chains';
 
+// Get RPC URL for SDK internal operations (subscribe needs HTTP RPC)
+const RPC_URL = process.env.NEXT_PUBLIC_SDS_RPC_URL || 
+                process.env.NEXT_PUBLIC_RPC_URL || 
+                'https://dream-rpc.somnia.network/';
+
 // Event types
 export type SDSEventType = 
   | 'pool:created'
@@ -192,16 +197,19 @@ export function useSomniaStreams(
       
       console.log('📡 Creating public client with WebSocket transport (for subscriptions)...');
       console.log(`   WebSocket URL: ${wsUrl}`);
+      console.log(`   RPC URL: ${RPC_URL}`);
       
-      // Create public client with WebSocket transport (matching ISS tracker pattern)
+      // Create public client with HTTP RPC (SDK needs this for subscribe operations)
+      // The SDK will use WebSocket internally for subscriptions
       const publicClient = createPublicClient({
         chain: somniaTestnet,
-        transport: webSocket(wsUrl),
+        transport: http(RPC_URL),
       });
       
-      console.log('✅ Public client created with WebSocket transport');
+      console.log('✅ Public client created with HTTP RPC transport');
 
       // Initialize SDK (read-only, no wallet needed for subscribing)
+      // SDK will handle WebSocket connections internally for subscriptions
       const sdk = new SDK({
         public: publicClient
       });
