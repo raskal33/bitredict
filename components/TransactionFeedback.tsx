@@ -89,10 +89,12 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
     if (status && !isClosing) {
       setIsVisible(true);
       
-      // Prevent body scroll when feedback is visible
+      // ✅ FIX: Prevent scroll jump by saving current position
+      const scrollY = window.scrollY;
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
       document.body.style.overflow = 'hidden';
-      // Prevent page from scrolling to footer
-      window.scrollTo(0, window.scrollY);
       
       // Auto-close for success/error messages (but not for pending transactions)
       if (autoClose && (status.type === 'success' || status.type === 'error')) {
@@ -106,13 +108,28 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
       // Immediately hide when status is cleared to prevent persistence
       setIsVisible(false);
       setIsClosing(false); // Reset closing state when status is cleared
-      // Restore body scroll when feedback is hidden
+      
+      // ✅ FIX: Restore scroll position
+      const scrollY = document.body.style.top;
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
       document.body.style.overflow = '';
+      if (scrollY) {
+        window.scrollTo(0, parseInt(scrollY || '0') * -1);
+      }
     }
     
     // Cleanup: restore body scroll when component unmounts
     return () => {
+      const scrollY = document.body.style.top;
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
       document.body.style.overflow = '';
+      if (scrollY) {
+        window.scrollTo(0, parseInt(scrollY || '0') * -1);
+      }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, autoClose, autoCloseDelay, isClosing]);

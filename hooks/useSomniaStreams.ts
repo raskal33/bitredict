@@ -339,78 +339,78 @@ export function useSomniaStreams(
     eventType: SDSEventType,
     callback: (data: SDSEventData) => void
   ): (() => void) => {
+    // Add callback to subscribers
     if (!subscribersRef.current.has(eventType)) {
       subscribersRef.current.set(eventType, new Set());
     }
-    subscribersRef.current.get(eventType)!.add(callback);
+    
+    const callbacks = subscribersRef.current.get(eventType)!;
+    const isFirstSubscriber = callbacks.size === 0; // Check BEFORE adding
+    callbacks.add(callback);
 
     // Subscribe via SDS if available (only once per event type)
-    if (sdkRef.current && isSDSActive) {
+    if (sdkRef.current && isSDSActive && isFirstSubscriber) {
       const eventSchemaId = EVENT_SCHEMA_MAP[eventType];
       
-      // Check if we already have an active subscription for this event type
-      const existingCallbacks = subscribersRef.current.get(eventType);
-      const isFirstSubscriber = existingCallbacks?.size === 1; // Just added this callback
+      console.log(`📡 Subscribing to ${eventType} via SDS (event: ${eventSchemaId})`);
       
-      if (isFirstSubscriber) {
-        console.log(`📡 Subscribing to ${eventType} via SDS (event: ${eventSchemaId})`);
+      try {
+        // Create subscription parameters matching stream-rank-sync approach
+        const subscriptionParams = {
+          somniaStreamsEventId: eventSchemaId,
+          ethCalls: [],
+          onlyPushChanges: false,
+          context: eventType, 
+          onData: (data: any) => {
+            console.log(`📦 Received ${eventType} data:`, data);
+            // Broadcast to all subscribers for this event type
+            const callbacks = subscribersRef.current.get(eventType);
+            if (callbacks) {
+              callbacks.forEach(cb => cb(data as SDSEventData));
+            }
+          },
+          onError: (error: any) => {
+            console.error(`❌ SDS subscription error for ${eventType}:`, error);
+          }
+        };
         
-        try {
-          // Create subscription parameters matching stream-rank-sync approach
-          const subscriptionParams = {
-            somniaStreamsEventId: eventSchemaId,
-            ethCalls: [],
-            onlyPushChanges: false,
-            context: eventType, 
-            onData: (data: any) => {
-              console.log(`📦 Received ${eventType} data:`, data);
-              // Broadcast to all subscribers for this event type
-              const callbacks = subscribersRef.current.get(eventType);
-              if (callbacks) {
-                callbacks.forEach(cb => cb(data as SDSEventData));
-              }
-            },
-            onError: (error: any) => {
-              console.error(`❌ SDS subscription error for ${eventType}:`, error);
-            }
-          };
-          
-          console.log(`📡 Calling SDK subscribe with params:`, subscriptionParams);
-          
-          const subscriptionPromise = sdkRef.current.streams.subscribe(subscriptionParams);
-          
-          subscriptionPromise.then((result) => {
-            console.log(`📡 Subscribe result for ${eventType}:`, result);
-            if (result?.unsubscribe) {
-              // Store unsubscribe function by event type (not by callback)
-              unsubscribeFunctionsRef.current.set(eventType as any, result.unsubscribe);
-              console.log(`✅ Successfully subscribed to ${eventType}`);
-            } else {
-              console.warn(`⚠️ Subscribe returned result without unsubscribe for ${eventType}:`, result);
-            }
-          }).catch((error) => {
-            console.error(`❌ Failed to subscribe to ${eventType}:`, error);
-            console.error(`❌ Error details:`, {
-              message: error.message,
-              stack: error.stack,
-              name: error.name
-            });
-            // Try fallback if SDS subscription fails
-            if (useFallback) {
-              console.log(`🔄 Falling back to WebSocket for ${eventType}`);
-            }
+        console.log(`📡 Calling SDK subscribe with params:`, subscriptionParams);
+        
+        const subscriptionPromise = sdkRef.current.streams.subscribe(subscriptionParams);
+        
+        subscriptionPromise.then((result) => {
+          console.log(`📡 Subscribe result for ${eventType}:`, result);
+          if (result?.unsubscribe) {
+            // Store unsubscribe function by event type (not by callback)
+            unsubscribeFunctionsRef.current.set(eventType as any, result.unsubscribe);
+            console.log(`✅ Successfully subscribed to ${eventType}`);
+          } else {
+            console.warn(`⚠️ Subscribe returned result without unsubscribe for ${eventType}:`, result);
+          }
+        }).catch((error) => {
+          console.error(`❌ Failed to subscribe to ${eventType}:`, error);
+          console.error(`❌ Error details:`, {
+            message: error.message,
+            stack: error.stack,
+            name: error.name
           });
-        } catch (error) {
-          console.error(`❌ Error calling subscribe for ${eventType}:`, error);
-          console.error(`❌ Sync error details:`, {
-            message: (error as Error).message,
-            stack: (error as Error).stack,
-            name: (error as Error).name
-          });
-        }
-      } else {
-        console.log(`♻️ Reusing existing subscription for ${eventType} (${existingCallbacks?.size} subscribers)`);
+          // Try fallback if SDS subscription fails
+          if (useFallback) {
+            console.log(`🔄 Falling back to WebSocket for ${eventType}`);
+          }
+        });
+      } catch (error) {
+        console.error(`❌ Error calling subscribe for ${eventType}:`, error);
+        console.error(`❌ Sync error details:`, {
+          message: (error as Error).message,
+          stack: (error as Error).stack,
+          name: (error as Error).name
+        });
       }
+    } else if (isFirstSubscriber) {
+      console.log(`♻️ First subscriber for ${eventType}, but SDK not ready yet`);
+    } else {
+      console.log(`♻️ Reusing existing subscription for ${eventType} (${callbacks.size} subscribers)`);
     }
 
     // Return unsubscribe function
@@ -418,15 +418,34 @@ export function useSomniaStreams(
       const callbacks = subscribersRef.current.get(eventType);
       if (callbacks) {
         callbacks.delete(callback);
-        // Only unsubscribe from SDS when no more callbacks
+        console.log(`🔌 Callback removed from ${eventType} (${callbacks.size} remaining)`);
+        
+        // ✅ FIX: Only unsubscribe from SDS after a delay to avoid rapid subscribe/unsubscribe
         if (callbacks.size === 0) {
-          subscribersRef.current.delete(eventType);
+          // Wait 5 seconds before actually unsubscribing to handle React re-renders
+          const unsubscribeTimer = setTimeout(() => {
+            const currentCallbacks = subscribersRef.current.get(eventType);
+            // Double-check that there are still no subscribers
+            if (currentCallbacks && currentCallbacks.size === 0) {
+              subscribersRef.current.delete(eventType);
+              
+              const unsubscribeFn = unsubscribeFunctionsRef.current.get(eventType as any);
+              if (unsubscribeFn) {
+                unsubscribeFn();
+                unsubscribeFunctionsRef.current.delete(eventType as any);
+                console.log(`🔌 Unsubscribed from ${eventType} (no more subscribers after delay)`);
+              }
+            }
+          }, 5000); // 5 second delay
           
-          const unsubscribeFn = unsubscribeFunctionsRef.current.get(eventType as any);
-          if (unsubscribeFn) {
-            unsubscribeFn();
-            unsubscribeFunctionsRef.current.delete(eventType as any);
-            console.log(`🔌 Unsubscribed from ${eventType} (no more subscribers)`);
+          // Store timer so we can cancel it if a new subscription comes in
+          (subscribersRef.current as any)[`_timer_${eventType}`] = unsubscribeTimer;
+        } else {
+          // Cancel any pending unsubscribe timer if we still have subscribers
+          const timer = (subscribersRef.current as any)[`_timer_${eventType}`];
+          if (timer) {
+            clearTimeout(timer);
+            delete (subscribersRef.current as any)[`_timer_${eventType}`];
           }
         }
       }

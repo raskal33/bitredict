@@ -700,7 +700,7 @@ export default function BetPage() {
     if(!betType || betAmount <= 0 || !address) return;
     
     // ✅ FIX: Calculate and validate remaining capacity
-    const maxBettorStake = parseFloat(pool?.maxBettorStake || "0");
+    const maxBettorStake = parseFloat(pool?.maxBettorStake?.toString() || "0");
     const totalBettorStake = parseFloat(pool?.totalBettorStake || "0");
     const remaining = Math.max(0, maxBettorStake - totalBettorStake);
     
@@ -1455,7 +1455,7 @@ export default function BetPage() {
                     {/* Remaining Capacity Display */}
                     {pool && (
                       <div className="text-sm text-gray-400 mt-1">
-                        Remaining: {Math.max(0, parseFloat(pool.maxBettorStake || "0") - parseFloat(pool.totalBettorStake || "0")).toFixed(2)} {pool.currency}
+                        Remaining: {Math.max(0, parseFloat(pool.maxBettorStake?.toString() || "0") - parseFloat(pool.totalBettorStake || "0")).toFixed(2)} {pool.currency}
                       </div>
                     )}
 

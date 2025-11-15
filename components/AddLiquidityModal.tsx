@@ -21,17 +21,54 @@ interface AddLiquidityModalProps {
 
 export default function AddLiquidityModal({ pool, isOpen, onClose }: AddLiquidityModalProps) {
   const { address } = useAccount();
-  const { addLiquidity } = usePools();
+  const { addLiquidity, isConfirmed, isPending, hash } = usePools();
   
   const [liquidityAmount, setLiquidityAmount] = useState<string>("");
   const [isAdding, setIsAdding] = useState(false);
   const [waitingForApproval, setWaitingForApproval] = useState(false);
   const [addSuccess, setAddSuccess] = useState(false);
-  const [initialStake, setInitialStake] = useState<number | null>(null);
   
   // ✅ CRITICAL: Pool data is updated in real-time via EnhancedPoolCard's usePoolProgress hook
   // The pool prop passed to this modal will reflect latest state when LP is added
   
+  // ✅ FIX: Auto-close modal when transaction is confirmed
+  useEffect(() => {
+    if (isConfirmed && hash) {
+      console.log('✅ Liquidity transaction confirmed, closing modal');
+      setAddSuccess(true);
+      setIsAdding(false);
+      setWaitingForApproval(false);
+      toast.success("Liquidity added successfully! 🎉", { id: 'liquidity-tx' });
+      
+      // Close after brief success animation
+      setTimeout(() => {
+        onClose();
+        setLiquidityAmount("");
+        setAddSuccess(false);
+      }, 1500);
+    }
+  }, [isConfirmed, hash, onClose]);
+  
+  // ✅ FIX: Track isPending state from usePools
+  useEffect(() => {
+    if (isPending) {
+      setWaitingForApproval(false);
+      setIsAdding(true);
+    }
+  }, [isPending]);
+  
+  // Reset states when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setLiquidityAmount("");
+      setAddSuccess(false);
+      setIsAdding(false);
+      setWaitingForApproval(false);
+    }
+  }, [isOpen]);
+  
+  // ✅ DEPRECATED: Old polling logic removed - now using wagmi hooks directly
+  /*
   // Poll for transaction success
   useEffect(() => {
     if (!isAdding || addSuccess || initialStake === null) return;
@@ -83,6 +120,7 @@ export default function AddLiquidityModal({ pool, isOpen, onClose }: AddLiquidit
       clearTimeout(timeout);
     };
   }, [isAdding, addSuccess, pool.id, initialStake, liquidityAmount, onClose]);
+  */
   
   // Currency-sensitive quick amounts
   const quickAmounts = pool.usesBitr 
@@ -109,26 +147,20 @@ export default function AddLiquidityModal({ pool, isOpen, onClose }: AddLiquidit
       setIsAdding(true);
       setWaitingForApproval(true);
       
-      // Get initial stake for comparison
-      const response = await fetch(`/api/optimized-pools/pools/${pool.id}`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.data) {
-          setInitialStake(parseFloat(data.data.pool.creatorStake || "0"));
-        }
-      }
-      
       toast.loading('Adding liquidity...', { id: 'liquidity-tx' });
       
+      // ✅ FIX: Call addLiquidity and let wagmi hooks handle the rest
       await addLiquidity(pool.id, liquidityAmount, pool.usesBitr);
       
+      console.log('💧 Liquidity transaction initiated');
+      
+      // Let the useEffect handle the rest based on wagmi hooks
     } catch (error: unknown) {
       console.error('Error adding liquidity:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to add liquidity. Please try again.';
       toast.error(errorMessage, { id: 'liquidity-tx' });
       setIsAdding(false);
       setWaitingForApproval(false);
-      setInitialStake(null);
     }
   };
   
@@ -137,7 +169,6 @@ export default function AddLiquidityModal({ pool, isOpen, onClose }: AddLiquidit
       onClose();
       setLiquidityAmount("");
       setAddSuccess(false);
-      setInitialStake(null);
     }
   }, [isAdding, waitingForApproval, onClose]);
   

@@ -24,13 +24,12 @@ interface PlaceBetModalProps {
 export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalProps) {
   const { address } = useAccount();
   const router = useRouter();
-  const { placeBet } = usePools();
+  const { placeBet, isConfirmed, isPending, hash } = usePools();
   
   const [betAmount, setBetAmount] = useState<string>("");
   const [isPlacing, setIsPlacing] = useState(false);
   const [waitingForApproval, setWaitingForApproval] = useState(false);
   const [betSuccess, setBetSuccess] = useState(false);
-  const [initialStake, setInitialStake] = useState<number | null>(null);
   
   // ✅ CRITICAL: Use real-time pool progress updates to get latest max bettor stake
   const [currentPoolData, setCurrentPoolData] = useState({
@@ -76,6 +75,44 @@ export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalPr
     });
   });
   
+  // ✅ FIX: Auto-close modal when transaction is confirmed
+  useEffect(() => {
+    if (isConfirmed && hash) {
+      console.log('✅ Transaction confirmed, closing modal');
+      setBetSuccess(true);
+      setIsPlacing(false);
+      setWaitingForApproval(false);
+      toast.success("Bet placed successfully! 🎉", { id: 'bet-tx' });
+      
+      // Close after brief success animation
+      setTimeout(() => {
+        onClose();
+        setBetAmount("");
+        setBetSuccess(false);
+      }, 1500);
+    }
+  }, [isConfirmed, hash, onClose]);
+  
+  // ✅ FIX: Track isPending state from usePools
+  useEffect(() => {
+    if (isPending) {
+      setWaitingForApproval(false);
+      setIsPlacing(true);
+    }
+  }, [isPending]);
+  
+  // Reset states when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setBetAmount("");
+      setBetSuccess(false);
+      setIsPlacing(false);
+      setWaitingForApproval(false);
+    }
+  }, [isOpen]);
+  
+  // ✅ DEPRECATED: Old polling logic removed - now using wagmi hooks directly
+  /*
   // ✅ FIX: Poll for transaction success since usePools doesn't expose hash directly
   useEffect(() => {
     if (!isPlacing || betSuccess || initialStake === null) return;
@@ -136,6 +173,7 @@ export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalPr
       clearTimeout(timeout);
     };
   }, [isPlacing, betSuccess, pool.id, initialStake, betAmount, onClose]);
+  */
   
   // Currency-sensitive quick amounts
   const quickAmounts = pool.usesBitr 
@@ -195,7 +233,8 @@ export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalPr
     
     // ✅ FIX: Add validation for exceeding remaining capacity
     if (betAmountNum > remainingCapacity) {
-      toast.error(`Bet amount exceeds remaining capacity of ${remainingCapacity.toFixed(2)} ${pool.currency || 'STT'}`);
+      const currencySymbol = pool.usesBitr ? 'BITR' : 'STT';
+      toast.error(`Bet amount exceeds remaining capacity of ${remainingCapacity.toFixed(2)} ${currencySymbol}`);
       return;
     }
     
@@ -243,7 +282,6 @@ export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalPr
       toast.error(errorMessage, { id: 'bet-tx' });
       setIsPlacing(false);
       setWaitingForApproval(false);
-      setInitialStake(null);
     }
   };
   
