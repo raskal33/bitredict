@@ -208,6 +208,7 @@ export function useSomniaStreams(
   const sdkRef = useRef<SDK | null>(null);
   const subscribersRef = useRef<Map<SDSEventType, Set<(data: SDSEventData) => void>>>(new Map());
   const unsubscribeFunctionsRef = useRef<Map<(data: SDSEventData) => void, (() => void)>>(new Map());
+  const pendingSubscriptionsRef = useRef<Set<SDSEventType>>(new Set()); // ✅ Track pending subscriptions
   const wsRef = useRef<WebSocket | null>(null);
 
   // Initialize SDS SDK
@@ -346,11 +347,15 @@ export function useSomniaStreams(
     
     const callbacks = subscribersRef.current.get(eventType)!;
     const isFirstSubscriber = callbacks.size === 0; // Check BEFORE adding
+    const isPending = pendingSubscriptionsRef.current.has(eventType); // ✅ Check if subscription is already in progress
     callbacks.add(callback);
 
-    // Subscribe via SDS if available (only once per event type)
-    if (sdkRef.current && isSDSActive && isFirstSubscriber) {
+    // Subscribe via SDS if available (only once per event type AND not already pending)
+    if (sdkRef.current && isSDSActive && isFirstSubscriber && !isPending) {
       const eventSchemaId = EVENT_SCHEMA_MAP[eventType];
+      
+      // ✅ Mark as pending IMMEDIATELY to prevent duplicate subscriptions
+      pendingSubscriptionsRef.current.add(eventType);
       
       console.log(`📡 Subscribing to ${eventType} via SDS (event: ${eventSchemaId})`);
       
@@ -389,6 +394,9 @@ export function useSomniaStreams(
         const subscriptionPromise = sdkRef.current.streams.subscribe(subscriptionParams);
         
         subscriptionPromise.then((result) => {
+          // ✅ Clear pending flag on success
+          pendingSubscriptionsRef.current.delete(eventType);
+          
           console.log(`📡 Subscribe result for ${eventType}:`, result);
           if (result?.unsubscribe) {
             // Store unsubscribe function by event type (not by callback)
@@ -398,6 +406,8 @@ export function useSomniaStreams(
             console.warn(`⚠️ Subscribe returned result without unsubscribe for ${eventType}:`, result);
           }
         }).catch((error) => {
+          // ✅ Clear pending flag on error
+          pendingSubscriptionsRef.current.delete(eventType);
           console.error(`❌ Failed to subscribe to ${eventType}:`, error);
           console.error(`❌ Error details:`, {
             message: error.message,
@@ -410,6 +420,8 @@ export function useSomniaStreams(
           }
         });
       } catch (error) {
+        // ✅ Clear pending flag on sync error
+        pendingSubscriptionsRef.current.delete(eventType);
         console.error(`❌ Error calling subscribe for ${eventType}:`, error);
         console.error(`❌ Sync error details:`, {
           message: (error as Error).message,
@@ -417,6 +429,8 @@ export function useSomniaStreams(
           name: (error as Error).name
         });
       }
+    } else if (isPending) {
+      console.log(`⏳ Subscription already pending for ${eventType}, adding callback to queue (${callbacks.size} subscribers)`);
     } else if (isFirstSubscriber) {
       console.log(`♻️ First subscriber for ${eventType}, but SDK not ready yet`);
     } else {
