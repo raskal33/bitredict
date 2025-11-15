@@ -699,10 +699,35 @@ export default function BetPage() {
   const handlePlaceBet = async () => { 
     if(!betType || betAmount <= 0 || !address) return;
     
-    // ✅ FIX: Calculate and validate remaining capacity
-    const maxBettorStake = parseFloat(pool?.maxBettorStake?.toString() || "0");
-    const totalBettorStake = parseFloat(pool?.totalBettorStake || "0");
+    // ✅ FIX: Calculate and validate remaining capacity correctly
+    // Get maxBettorStake (max bettor stake, NOT total pool size)
+    let maxBettorStake = parseFloat(pool?.maxBettorStake?.toString() || "0");
+    if (maxBettorStake > 1e15) maxBettorStake = maxBettorStake / 1e18;
+    
+    // ✅ FALLBACK: If maxBettorStake is 0 or invalid, calculate it
+    if (!maxBettorStake || maxBettorStake === 0) {
+      // Use creatorStakeFormatted which is already in token format
+      const effectiveCreatorSideStake = creatorStakeFormatted || 0;
+      const odds = pool?.odds || 130;
+      const denominator = odds - 100;
+      if (denominator > 0 && effectiveCreatorSideStake > 0) {
+        maxBettorStake = (effectiveCreatorSideStake * 100) / denominator;
+      }
+    }
+    
+    // Get total bettor stake (use formatted value which is already in token format)
+    const totalBettorStake = totalBettorStakeFormatted || 0;
+    
+    // Calculate remaining = maxBettorStake - totalBettorStake
     const remaining = Math.max(0, maxBettorStake - totalBettorStake);
+    
+    console.log('🔍 Bet page remaining capacity:', {
+      maxBettorStake,
+      totalBettorStake,
+      remaining,
+      poolMaxBettorStake: pool?.maxBettorStake,
+      poolOdds: pool?.odds
+    });
     
     if (betAmount > remaining) {
       toast.error(`Bet amount exceeds remaining capacity of ${remaining.toFixed(2)} ${pool?.currency || 'STT'}`, { id: 'bet-tx' });
@@ -1453,11 +1478,35 @@ export default function BetPage() {
                     </div>
                     
                     {/* Remaining Capacity Display */}
-                    {pool && (
-                      <div className="text-sm text-gray-400 mt-1">
-                        Remaining: {Math.max(0, parseFloat(pool.maxBettorStake?.toString() || "0") - parseFloat(pool.totalBettorStake || "0")).toFixed(2)} {pool.currency}
-                      </div>
-                    )}
+                    {pool && (() => {
+                      // ✅ FIX: Calculate remaining capacity correctly
+                      // Get maxBettorStake (max bettor stake, NOT total pool size)
+                      let maxBettorStake = parseFloat(pool.maxBettorStake?.toString() || "0");
+                      if (maxBettorStake > 1e15) maxBettorStake = maxBettorStake / 1e18;
+                      
+                      // ✅ FALLBACK: If maxBettorStake is 0 or invalid, calculate it
+                      if (!maxBettorStake || maxBettorStake === 0) {
+                        // Use creatorStakeFormatted which is already in token format
+                        const effectiveCreatorSideStake = creatorStakeFormatted || 0;
+                        const odds = pool.odds || 130;
+                        const denominator = odds - 100;
+                        if (denominator > 0 && effectiveCreatorSideStake > 0) {
+                          maxBettorStake = (effectiveCreatorSideStake * 100) / denominator;
+                        }
+                      }
+                      
+                      // Get total bettor stake (use formatted value which is already in token format)
+                      const totalBettorStake = totalBettorStakeFormatted || 0;
+                      
+                      // Calculate remaining = maxBettorStake - totalBettorStake
+                      const remaining = Math.max(0, maxBettorStake - totalBettorStake);
+                      
+                      return (
+                        <div className="text-sm text-gray-400 mt-1">
+                          Remaining: {remaining.toFixed(2)} {pool.currency}
+                        </div>
+                      );
+                    })()}
 
                     {/* Quick Amount Buttons */}
                     <div className="grid grid-cols-4 gap-2">

@@ -189,28 +189,51 @@ export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalPr
   
   // ✅ FIX: Calculate REMAINING capacity (not max pool size!)
   // Remaining = maxBettorStake - totalBettorStake (what's left to bet)
+  // CRITICAL: maxBettorStake is the MAX BETTOR STAKE, NOT the total pool size!
   const getRemainingCapacity = (): number => {
     // Get total bettor stake (already bet)
-    const totalBettorStake = currentPoolData.totalBettorStake || (() => {
+    let totalBettorStake = currentPoolData.totalBettorStake;
+    if (!totalBettorStake || totalBettorStake === 0) {
       let stake = parseFloat(pool.totalBettorStake || "0");
       if (stake > 1e15) stake = stake / 1e18;
-      return stake;
-    })();
+      totalBettorStake = stake;
+    }
     
-    // Get max bettor stake (capacity limit)
-    const maxBettorStake = currentPoolData.maxBettorStake || (() => {
+    // Get max bettor stake (capacity limit) - THIS IS THE KEY!
+    // maxBettorStake = (effectiveCreatorSideStake * 100) / (odds - 100)
+    // This is the MAXIMUM that bettors can bet, NOT the total pool size
+    let maxBettorStake = currentPoolData.maxBettorStake;
+    if (!maxBettorStake || maxBettorStake === 0) {
       let stake = parseFloat(pool.maxBettorStake || "0");
       if (stake > 1e15) stake = stake / 1e18;
-      return stake;
-    })();
+      maxBettorStake = stake;
+      
+      // ✅ FALLBACK: If maxBettorStake is still 0 or invalid, calculate it
+      if (!maxBettorStake || maxBettorStake === 0) {
+        const effectiveCreatorSideStake = currentPoolData.totalCreatorSideStake || parseFloat(pool.totalCreatorSideStake || pool.creatorStake || "0");
+        const odds = pool.odds || 130; // Default to 1.30x if not set
+        const denominator = odds - 100;
+        if (denominator > 0) {
+          maxBettorStake = (effectiveCreatorSideStake * 100) / denominator;
+          console.log(`🔧 PlaceBetModal: Calculated maxBettorStake from formula:`, {
+            effectiveCreatorSideStake,
+            odds,
+            denominator,
+            maxBettorStake
+          });
+        }
+      }
+    }
     
-    // REMAINING = max - current
+    // REMAINING = maxBettorStake - totalBettorStake (NOT maxPoolSize!)
     const remaining = Math.max(0, maxBettorStake - totalBettorStake);
     
     console.log(`🔍 PlaceBetModal REMAINING capacity for pool ${pool.id}:`, {
       maxBettorStake,
       totalBettorStake,
-      remaining
+      remaining,
+      poolMaxBettorStake: pool.maxBettorStake,
+      currentPoolData
     });
     
     return remaining;
