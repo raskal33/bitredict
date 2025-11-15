@@ -42,6 +42,12 @@ const somniaTestnet = defineChain({
   testnet: true,
 });
 
+// ✅ CRITICAL: Module-level state shared across ALL hook instances to prevent duplicate subscriptions
+const globalSubscribersMap = new Map<SDSEventType, Set<(data: SDSEventData) => void>>();
+const globalUnsubscribeFunctionsMap = new Map<string, () => void>();
+const globalPendingSubscriptions = new Set<SDSEventType>(); // ✅ Shared lock
+let globalSDKInstance: SDK | null = null; // ✅ Shared SDK instance
+
 // Get WebSocket URL from chain config 
 const getWSURL = (): string => {
   const wsUrl = somniaTestnet.rpcUrls.default.webSocket?.[0];
@@ -205,15 +211,22 @@ export function useSomniaStreams(
   const [isFallback, setIsFallback] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   
-  const sdkRef = useRef<SDK | null>(null);
-  const subscribersRef = useRef<Map<SDSEventType, Set<(data: SDSEventData) => void>>>(new Map());
-  const unsubscribeFunctionsRef = useRef<Map<(data: SDSEventData) => void, (() => void)>>(new Map());
-  const pendingSubscriptionsRef = useRef<Set<SDSEventType>>(new Set()); // ✅ Track pending subscriptions
+  // ✅ Use global SDK instance instead of per-hook instance
+  const sdkRef = useRef<SDK | null>(globalSDKInstance);
   const wsRef = useRef<WebSocket | null>(null);
 
-  // Initialize SDS SDK
+  // Initialize SDS SDK (only once globally)
   const initializeSDK = useCallback(async () => {
     if (!enabled) return;
+    
+    // ✅ If SDK already initialized globally, reuse it
+    if (globalSDKInstance) {
+      sdkRef.current = globalSDKInstance;
+      setIsSDSActive(true);
+      setIsConnected(true);
+      console.log('♻️ Reusing existing global SDK instance');
+      return;
+    }
 
     try {
       // Get WebSocket URL from chain config 
@@ -239,7 +252,9 @@ export function useSomniaStreams(
       });
       
       console.log('✅ SDK initialized successfully');
-
+      
+      // ✅ Store globally to prevent multiple SDK instances
+      globalSDKInstance = sdk;
       sdkRef.current = sdk;
       setIsConnected(true);
       setIsSDSActive(true);
@@ -271,7 +286,7 @@ export function useSomniaStreams(
         setError(null);
         
         const channels = new Set<string>();
-        subscribersRef.current.forEach((_, eventType) => {
+        globalSubscribersMap.forEach((_, eventType) => {
           if (eventType === 'bet:placed') {
             channels.add('recent_bets');
           } else {
@@ -312,7 +327,7 @@ export function useSomniaStreams(
             }
             
             if (eventType) {
-              const callbacks = subscribersRef.current.get(eventType);
+              const callbacks = globalSubscribersMap.get(eventType);
               callbacks?.forEach(callback => callback(message.data));
             }
           }
@@ -335,29 +350,29 @@ export function useSomniaStreams(
     }
   }, []);
 
-  // Subscribe to SDS events
+  // Subscribe to SDS events (using global state to prevent duplicates across components)
   const subscribe = useCallback((
     eventType: SDSEventType,
     callback: (data: SDSEventData) => void
   ): (() => void) => {
-    // Add callback to subscribers
-    if (!subscribersRef.current.has(eventType)) {
-      subscribersRef.current.set(eventType, new Set());
+    // ✅ Use GLOBAL subscribers map instead of per-hook ref
+    if (!globalSubscribersMap.has(eventType)) {
+      globalSubscribersMap.set(eventType, new Set());
     }
     
-    const callbacks = subscribersRef.current.get(eventType)!;
+    const callbacks = globalSubscribersMap.get(eventType)!;
     const isFirstSubscriber = callbacks.size === 0; // Check BEFORE adding
-    const isPending = pendingSubscriptionsRef.current.has(eventType); // ✅ Check if subscription is already in progress
+    const isPending = globalPendingSubscriptions.has(eventType); // ✅ Check GLOBAL pending
     callbacks.add(callback);
 
     // Subscribe via SDS if available (only once per event type AND not already pending)
     if (sdkRef.current && isSDSActive && isFirstSubscriber && !isPending) {
       const eventSchemaId = EVENT_SCHEMA_MAP[eventType];
       
-      // ✅ Mark as pending IMMEDIATELY to prevent duplicate subscriptions
-      pendingSubscriptionsRef.current.add(eventType);
+      // ✅ Mark as pending GLOBALLY to prevent duplicate subscriptions across ALL components
+      globalPendingSubscriptions.add(eventType);
       
-      console.log(`📡 Subscribing to ${eventType} via SDS (event: ${eventSchemaId})`);
+      console.log(`📡 [GLOBAL] Subscribing to ${eventType} via SDS (event: ${eventSchemaId})`);
       
       try {
         // Create subscription parameters matching stream-rank-sync approach
@@ -369,8 +384,8 @@ export function useSomniaStreams(
           onData: (data: any) => {
             console.log(`📦 Received ${eventType} data:`, data);
             console.log(`📦 Data type:`, typeof data, 'Keys:', data ? Object.keys(data) : 'null');
-            // Broadcast to all subscribers for this event type
-            const callbacks = subscribersRef.current.get(eventType);
+            // ✅ Broadcast to all subscribers from GLOBAL map
+            const callbacks = globalSubscribersMap.get(eventType);
             if (callbacks) {
               console.log(`📦 Broadcasting to ${callbacks.size} callbacks for ${eventType}`);
               callbacks.forEach(cb => {
@@ -394,20 +409,20 @@ export function useSomniaStreams(
         const subscriptionPromise = sdkRef.current.streams.subscribe(subscriptionParams);
         
         subscriptionPromise.then((result) => {
-          // ✅ Clear pending flag on success
-          pendingSubscriptionsRef.current.delete(eventType);
+          // ✅ Clear GLOBAL pending flag on success
+          globalPendingSubscriptions.delete(eventType);
           
           console.log(`📡 Subscribe result for ${eventType}:`, result);
           if (result?.unsubscribe) {
-            // Store unsubscribe function by event type (not by callback)
-            unsubscribeFunctionsRef.current.set(eventType as any, result.unsubscribe);
+            // ✅ Store unsubscribe function in GLOBAL map
+            globalUnsubscribeFunctionsMap.set(eventType as any, result.unsubscribe);
             console.log(`✅ Successfully subscribed to ${eventType}`);
           } else {
             console.warn(`⚠️ Subscribe returned result without unsubscribe for ${eventType}:`, result);
           }
         }).catch((error) => {
-          // ✅ Clear pending flag on error
-          pendingSubscriptionsRef.current.delete(eventType);
+          // ✅ Clear GLOBAL pending flag on error
+          globalPendingSubscriptions.delete(eventType);
           console.error(`❌ Failed to subscribe to ${eventType}:`, error);
           console.error(`❌ Error details:`, {
             message: error.message,
@@ -420,8 +435,8 @@ export function useSomniaStreams(
           }
         });
       } catch (error) {
-        // ✅ Clear pending flag on sync error
-        pendingSubscriptionsRef.current.delete(eventType);
+        // ✅ Clear GLOBAL pending flag on sync error
+        globalPendingSubscriptions.delete(eventType);
         console.error(`❌ Error calling subscribe for ${eventType}:`, error);
         console.error(`❌ Sync error details:`, {
           message: (error as Error).message,
@@ -439,37 +454,37 @@ export function useSomniaStreams(
 
     // Return unsubscribe function
     return () => {
-      const callbacks = subscribersRef.current.get(eventType);
+      const callbacks = globalSubscribersMap.get(eventType); // ✅ Use GLOBAL map
       if (callbacks) {
         callbacks.delete(callback);
         console.log(`🔌 Callback removed from ${eventType} (${callbacks.size} remaining)`);
         
-             // ✅ FIX: Only unsubscribe from SDS after a delay to avoid rapid subscribe/unsubscribe
-             if (callbacks.size === 0) {
-               // Wait 30 seconds before actually unsubscribing to handle React re-renders
-               const unsubscribeTimer = setTimeout(() => {
-            const currentCallbacks = subscribersRef.current.get(eventType);
+        // ✅ FIX: Only unsubscribe from SDS after a delay to avoid rapid subscribe/unsubscribe
+        if (callbacks.size === 0) {
+          // Wait 30 seconds before actually unsubscribing to handle React re-renders
+          const unsubscribeTimer = setTimeout(() => {
+            const currentCallbacks = globalSubscribersMap.get(eventType); // ✅ Use GLOBAL map
             // Double-check that there are still no subscribers
             if (currentCallbacks && currentCallbacks.size === 0) {
-              subscribersRef.current.delete(eventType);
+              globalSubscribersMap.delete(eventType);
               
-              const unsubscribeFn = unsubscribeFunctionsRef.current.get(eventType as any);
+              const unsubscribeFn = globalUnsubscribeFunctionsMap.get(eventType as any); // ✅ Use GLOBAL map
               if (unsubscribeFn) {
                 unsubscribeFn();
-                unsubscribeFunctionsRef.current.delete(eventType as any);
-                     console.log(`🔌 Unsubscribed from ${eventType} (no more subscribers after delay)`);
-                   }
-                 }
-               }, 30000); // 30 second delay to handle React re-renders and modal interactions
+                globalUnsubscribeFunctionsMap.delete(eventType as any);
+                console.log(`🔌 Unsubscribed from ${eventType} (no more subscribers after delay)`);
+              }
+            }
+          }, 30000); // 30 second delay to handle React re-renders and modal interactions
           
           // Store timer so we can cancel it if a new subscription comes in
-          (subscribersRef.current as any)[`_timer_${eventType}`] = unsubscribeTimer;
+          (globalSubscribersMap as any)[`_timer_${eventType}`] = unsubscribeTimer;
         } else {
           // Cancel any pending unsubscribe timer if we still have subscribers
-          const timer = (subscribersRef.current as any)[`_timer_${eventType}`];
+          const timer = (globalSubscribersMap as any)[`_timer_${eventType}`];
           if (timer) {
             clearTimeout(timer);
-            delete (subscribersRef.current as any)[`_timer_${eventType}`];
+            delete (globalSubscribersMap as any)[`_timer_${eventType}`];
           }
         }
       }
@@ -502,11 +517,11 @@ export function useSomniaStreams(
       if (wsRef.current) {
         wsRef.current.close();
       }
-      unsubscribeFunctionsRef.current.forEach((unsubscribeFn) => {
+      globalUnsubscribeFunctionsMap.forEach((unsubscribeFn) => {
         unsubscribeFn();
       });
-      unsubscribeFunctionsRef.current.clear();
-      subscribersRef.current.clear();
+      globalUnsubscribeFunctionsMap.clear();
+      globalSubscribersMap.clear();
     };
   }, [enabled, initializeSDK]);
 
