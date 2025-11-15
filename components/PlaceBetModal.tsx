@@ -249,33 +249,16 @@ export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalPr
     }
     
     try {
-      // Store initial stake before placing bet
-      const currentStake = parseFloat(pool.totalBettorStake || "0");
-      setInitialStake(currentStake);
+      setWaitingForApproval(true);
+      setIsPlacing(false);
+      setBetSuccess(false);
       
-      setIsPlacing(true);
-      
-      // Show initial loading toast
-      toast.loading("Preparing transaction...", { id: 'bet-tx' });
-      
-      // Call placeBet - it expects human-readable amount string (e.g., "50"), NOT wei
-      // The placeBet function in usePools will convert to wei internally using parseUnits
-      // For BITR pools, this may return early if approval is needed
-      // The usePools hook handles approval flow and transaction feedback automatically
+      // ✅ FIX: Call placeBet and let wagmi hooks handle the rest
       await placeBet(pool.id, betAmountNum.toString(), pool.usesBitr);
       
-      // ✅ FIX: For both BITR and STT pools, poll for transaction success
-      // The useEffect above will detect when the bet is placed by checking pool progress
-      if (pool.usesBitr) {
-        // For BITR pools, might need approval - wait for approval confirmation
-        setWaitingForApproval(true);
-        toast.loading("Approval may be required. Please confirm in your wallet...", { id: 'bet-tx' });
-      } else {
-        // For STT pools, transaction should be immediate
-        // Poll for success via useEffect above
-        toast.loading("Waiting for transaction confirmation...", { id: 'bet-tx' });
-      }
+      console.log('🎯 Bet transaction initiated');
       
+      // Let the useEffect handle the rest based on wagmi hooks
     } catch (error: unknown) {
       console.error("Error placing bet:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to place bet";
