@@ -363,10 +363,20 @@ export function useSomniaStreams(
           context: eventType, 
           onData: (data: any) => {
             console.log(`📦 Received ${eventType} data:`, data);
+            console.log(`📦 Data type:`, typeof data, 'Keys:', data ? Object.keys(data) : 'null');
             // Broadcast to all subscribers for this event type
             const callbacks = subscribersRef.current.get(eventType);
             if (callbacks) {
-              callbacks.forEach(cb => cb(data as SDSEventData));
+              console.log(`📦 Broadcasting to ${callbacks.size} callbacks for ${eventType}`);
+              callbacks.forEach(cb => {
+                try {
+                  cb(data as SDSEventData);
+                } catch (error) {
+                  console.error(`❌ Error in callback for ${eventType}:`, error);
+                }
+              });
+            } else {
+              console.warn(`⚠️ No callbacks registered for ${eventType}`);
             }
           },
           onError: (error: any) => {
@@ -500,28 +510,50 @@ export function useSomniaStreams(
 // Convenience hooks
 export function usePoolUpdates(callback: (data: SDSPoolData) => void, enabled = true) {
   const { subscribe, ...rest } = useSomniaStreams({ enabled });
+  const callbackRef = useRef(callback);
+  
+  // ✅ FIX: Keep callback ref up to date without causing re-subscriptions
+  useEffect(() => {
+    callbackRef.current = callback;
+  }, [callback]);
   
   useEffect(() => {
     if (!enabled) return;
-    const unsub1 = subscribe('pool:created', callback as any);
-    const unsub2 = subscribe('pool:settled', callback as any);
+    
+    const wrappedCallback = (data: SDSEventData) => {
+      callbackRef.current(data as SDSPoolData);
+    };
+    
+    const unsub1 = subscribe('pool:created', wrappedCallback);
+    const unsub2 = subscribe('pool:settled', wrappedCallback);
     return () => {
       unsub1();
       unsub2();
     };
-  }, [subscribe, callback, enabled]);
+  }, [subscribe, enabled]); // ✅ Removed callback from deps
   
   return rest;
 }
 
 export function useBetUpdates(callback: (data: SDSBetData) => void, enabled = true) {
   const { subscribe, ...rest } = useSomniaStreams({ enabled });
+  const callbackRef = useRef(callback);
+  
+  // ✅ FIX: Keep callback ref up to date without causing re-subscriptions
+  useEffect(() => {
+    callbackRef.current = callback;
+  }, [callback]);
   
   useEffect(() => {
     if (!enabled) return;
-    const unsubscribe = subscribe('bet:placed', callback as any);
+    
+    const wrappedCallback = (data: SDSEventData) => {
+      callbackRef.current(data as SDSBetData);
+    };
+    
+    const unsubscribe = subscribe('bet:placed', wrappedCallback);
     return unsubscribe;
-  }, [subscribe, callback, enabled]);
+  }, [subscribe, enabled]); // ✅ Removed callback from deps
   
   return rest;
 }

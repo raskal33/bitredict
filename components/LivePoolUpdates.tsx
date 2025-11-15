@@ -7,8 +7,8 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
-import { usePoolUpdates, useBetUpdates, useSomniaStreams } from '@/hooks/useSomniaStreams';
+import { useState, useEffect, useCallback } from 'react';
+import { usePoolUpdates, useBetUpdates, useSomniaStreams, type SDSPoolData, type SDSBetData } from '@/hooks/useSomniaStreams';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
@@ -29,8 +29,10 @@ export function LivePoolUpdates() {
   const { playNotification, playSuccess } = useSoundEffects({ volume: 0.3 });
   const { animationsEnabled, getMotionProps } = useAnimationProps();
 
-  // Real-time pool updates
-  usePoolUpdates((poolData) => {
+  // ✅ FIX: Memoize callbacks to prevent re-subscriptions
+  const handlePoolUpdate = useCallback((poolData: SDSPoolData) => {
+    console.log('🏊 LivePoolUpdates: Received pool update:', poolData);
+    
     const activity: LiveActivity = {
       id: `pool-${poolData.poolId}-${Date.now()}`,
       type: poolData.isSettled ? 'pool_settled' : 'pool_created',
@@ -54,10 +56,11 @@ export function LivePoolUpdates() {
     } else {
       playNotification();
     }
-  });
+  }, [playNotification, playSuccess]);
 
-  // Real-time bet updates
-  useBetUpdates((betData) => {
+  const handleBetUpdate = useCallback((betData: SDSBetData) => {
+    console.log('🎯 LivePoolUpdates: Received bet update:', betData);
+    
     // ✅ FIX: Convert amount from wei to token if needed
     let amountInToken = betData.amount || '0';
     const amountNum = parseFloat(amountInToken);
@@ -77,12 +80,20 @@ export function LivePoolUpdates() {
     setActivities(prev => [activity, ...prev].slice(0, 10));
     setNewActivityCount(prev => prev + 1);
     playNotification();
-  });
+  }, [playNotification]);
+
+  // Real-time pool updates
+  usePoolUpdates(handlePoolUpdate);
+  
+  // Real-time bet updates
+  useBetUpdates(handleBetUpdate);
   
   // ✅ CRITICAL: Subscribe to liquidity:added events for Live Activity feed
   const { subscribe } = useSomniaStreams({ enabled: true });
   
-  useEffect(() => {
+  const handleLiquidityUpdate = useCallback((liquidityData: unknown) => {
+    console.log('💧 LivePoolUpdates: Received liquidity update:', liquidityData);
+    
     interface LiquidityData {
       poolId: string;
       provider: string;
@@ -91,32 +102,33 @@ export function LivePoolUpdates() {
       poolTitle?: string;
     }
     
-    const unsubscribe = subscribe('liquidity:added', (liquidityData: unknown) => {
-      // Type assertion for liquidity data
-      const data = liquidityData as LiquidityData;
-      // ✅ FIX: Convert amount from wei to token if needed
-      let amountInToken = data.amount || '0';
-      const amountNum = parseFloat(amountInToken);
-      if (amountNum > 1e15) {
-        amountInToken = (amountNum / 1e18).toString();
-      }
-      
-      const activity: LiveActivity = {
-        id: `liquidity-${data.poolId}-${Date.now()}`,
-        type: 'bet_placed', // Use same type for display consistency
-        message: `${data.provider.slice(0, 6)}...${data.provider.slice(-4)} added ${amountInToken} ${data.currency || 'BITR'} liquidity to ${data.poolTitle || `Pool #${data.poolId}`}`,
-        timestamp: Date.now(),
-        poolId: data.poolId,
-        amount: amountInToken
-      };
-
-      setActivities(prev => [activity, ...prev].slice(0, 10));
-      setNewActivityCount(prev => prev + 1);
-      playNotification();
-    });
+    // Type assertion for liquidity data
+    const data = liquidityData as LiquidityData;
+    // ✅ FIX: Convert amount from wei to token if needed
+    let amountInToken = data.amount || '0';
+    const amountNum = parseFloat(amountInToken);
+    if (amountNum > 1e15) {
+      amountInToken = (amountNum / 1e18).toString();
+    }
     
+    const activity: LiveActivity = {
+      id: `liquidity-${data.poolId}-${Date.now()}`,
+      type: 'bet_placed', // Use same type for display consistency
+      message: `${data.provider.slice(0, 6)}...${data.provider.slice(-4)} added ${amountInToken} ${data.currency || 'BITR'} liquidity to ${data.poolTitle || `Pool #${data.poolId}`}`,
+      timestamp: Date.now(),
+      poolId: data.poolId,
+      amount: amountInToken
+    };
+
+    setActivities(prev => [activity, ...prev].slice(0, 10));
+    setNewActivityCount(prev => prev + 1);
+    playNotification();
+  }, [playNotification]);
+  
+  useEffect(() => {
+    const unsubscribe = subscribe('liquidity:added', handleLiquidityUpdate);
     return unsubscribe;
-  }, [subscribe, playNotification]);
+  }, [subscribe, handleLiquidityUpdate]);
 
   // Reset counter when user views
   useEffect(() => {
