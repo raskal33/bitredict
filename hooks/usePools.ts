@@ -159,15 +159,23 @@ export function usePools() {
 
   // Direct bet placement function
   const placeBetDirect = async (poolId: number, betAmount: bigint, useBitr: boolean) => {
-    showPending('Placing Bet', 'Please confirm the bet transaction in your wallet...');
-    
-    writeContract({
-      ...CONTRACTS.POOL_CORE,
-      functionName: 'placeBet',
-      args: [BigInt(poolId), betAmount],
-      value: useBitr ? 0n : betAmount,
-      ...getTransactionOptions(), // Use same gas settings as create pool
-    });
+    try {
+      showPending('Placing Bet', 'Please confirm the bet transaction in your wallet...');
+      
+      console.log('🎯 Placing bet:', { poolId, betAmount: betAmount.toString(), useBitr });
+      
+      writeContract({
+        ...CONTRACTS.POOL_CORE,
+        functionName: 'placeBet',
+        args: [BigInt(poolId), betAmount],
+        value: useBitr ? 0n : betAmount,
+        ...getTransactionOptions(), // Use same gas settings as create pool
+      });
+    } catch (error) {
+      console.error('❌ Bet placement error:', error);
+      showError('Transaction Failed', error instanceof Error ? error.message : 'Failed to place bet');
+      throw error;
+    }
   };
 
   // Track approval errors
