@@ -699,6 +699,16 @@ export default function BetPage() {
   const handlePlaceBet = async () => { 
     if(!betType || betAmount <= 0 || !address) return;
     
+    // ✅ FIX: Calculate and validate remaining capacity
+    const maxBettorStake = parseFloat(pool?.maxBettorStake || "0");
+    const totalBettorStake = parseFloat(pool?.totalBettorStake || "0");
+    const remaining = Math.max(0, maxBettorStake - totalBettorStake);
+    
+    if (betAmount > remaining) {
+      toast.error(`Bet amount exceeds remaining capacity of ${remaining.toFixed(2)} ${pool?.currency || 'STT'}`, { id: 'bet-tx' });
+      return;
+    }
+    
     try {
       
       // Show loading toast
@@ -1428,19 +1438,26 @@ export default function BetPage() {
                     <div className="relative group">
                       <input
                         type="number"
-                        value={betAmount}
-                        onChange={(e) => canBet && setBetAmount(Number(e.target.value))}
-                        placeholder="0.00"
+                        value={betAmount || ''}
+                        onChange={(e) => canBet && setBetAmount(Number(e.target.value) || 0)}
+                        placeholder="0"
                         disabled={!canBet}
-                        className={`w-full px-4 py-3 sm:py-4 bg-bg-card border border-border-input rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 text-lg sm:text-xl group-hover:border-primary/30 transition-all backdrop-blur-sm ${
+                        className={`w-full px-4 py-3 pr-20 sm:py-4 bg-bg-card border border-border-input rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 text-lg sm:text-xl group-hover:border-primary/30 transition-all backdrop-blur-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
                           !canBet ? 'opacity-50 cursor-not-allowed' : ''
                         }`}
                       />
-                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-blue-400 text-sm sm:text-base font-medium">
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-blue-400 text-sm sm:text-base font-medium pointer-events-none">
                         {pool.currency}
                       </div>
                       <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-primary/5 to-secondary/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
                     </div>
+                    
+                    {/* Remaining Capacity Display */}
+                    {pool && (
+                      <div className="text-sm text-gray-400 mt-1">
+                        Remaining: {Math.max(0, parseFloat(pool.maxBettorStake || "0") - parseFloat(pool.totalBettorStake || "0")).toFixed(2)} {pool.currency}
+                      </div>
+                    )}
 
                     {/* Quick Amount Buttons */}
                     <div className="grid grid-cols-4 gap-2">

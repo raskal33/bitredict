@@ -149,63 +149,30 @@ export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalPr
     return amount * oddsDecimal;
   };
   
-  // ✅ FIX: Calculate remaining capacity using dynamic max bettor stake calculation
-  // Matches contract logic: effectiveCreatorSideStake determines max bettor stake
-  // Uses real-time pool data from usePoolProgress hook
+  // ✅ FIX: Calculate REMAINING capacity (not max pool size!)
+  // Remaining = maxBettorStake - totalBettorStake (what's left to bet)
   const getRemainingCapacity = (): number => {
-    // ✅ CRITICAL: Convert pool.creatorStake from wei to token if needed
-    let creatorStake = parseFloat(pool.creatorStake || "0");
-    if (creatorStake > 1e15) {
-      creatorStake = creatorStake / 1e18;
-    }
-    
-    // ✅ Use real-time pool data (updated when LP is added) - already in token units
-    const totalCreatorSideStake = currentPoolData.totalCreatorSideStake || (() => {
-      let stake = parseFloat(pool.totalCreatorSideStake || pool.creatorStake || "0");
-      if (stake > 1e15) stake = stake / 1e18;
-      return stake;
-    })();
+    // Get total bettor stake (already bet)
     const totalBettorStake = currentPoolData.totalBettorStake || (() => {
       let stake = parseFloat(pool.totalBettorStake || "0");
       if (stake > 1e15) stake = stake / 1e18;
       return stake;
     })();
+    
+    // Get max bettor stake (capacity limit)
     const maxBettorStake = currentPoolData.maxBettorStake || (() => {
       let stake = parseFloat(pool.maxBettorStake || "0");
       if (stake > 1e15) stake = stake / 1e18;
       return stake;
     })();
     
-    // ✅ CRITICAL: Use dynamic calculation matching contract logic
-    // Contract: effectiveCreatorSideStake = totalBettorStake == 0 || totalBettorStake + amount > creatorStake 
-    //   ? totalCreatorSideStake : creatorStake
-    // For display, we use: totalBettorStake == 0 || totalBettorStake > creatorStake
-    const effectiveCreatorSideStake = (totalBettorStake === 0 || totalBettorStake > creatorStake) 
-      ? totalCreatorSideStake 
-      : creatorStake;
+    // REMAINING = max - current
+    const remaining = Math.max(0, maxBettorStake - totalBettorStake);
     
-    // Max bettor stake = (effectiveCreatorSideStake * 100) / (odds - 100)
-    // This accounts for LP additions dynamically
-    const denominator = pool.odds - 100; // e.g., 200 - 100 = 100
-    const calculatedMaxBettorStake = denominator > 0 
-      ? (effectiveCreatorSideStake * 100) / denominator
-      : 0;
-    
-    // Use provided maxBettorStake if available and valid, otherwise calculate
-    const currentMaxBettorStake = maxBettorStake > 0 ? maxBettorStake : calculatedMaxBettorStake;
-    
-    const remaining = Math.max(0, currentMaxBettorStake - totalBettorStake);
-    
-    console.log(`🔍 PlaceBetModal getRemainingCapacity for pool ${pool.id}:`, {
-      creatorStake,
-      totalCreatorSideStake,
-      totalBettorStake,
+    console.log(`🔍 PlaceBetModal REMAINING capacity for pool ${pool.id}:`, {
       maxBettorStake,
-      effectiveCreatorSideStake,
-      calculatedMaxBettorStake,
-      currentMaxBettorStake,
-      remaining,
-      odds: pool.odds
+      totalBettorStake,
+      remaining
     });
     
     return remaining;
@@ -223,6 +190,12 @@ export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalPr
   const handlePlaceBet = async () => {
     if (!address) {
       toast.error("Please connect your wallet");
+      return;
+    }
+    
+    // ✅ FIX: Add validation for exceeding remaining capacity
+    if (betAmountNum > remainingCapacity) {
+      toast.error(`Bet amount exceeds remaining capacity of ${remainingCapacity.toFixed(2)} ${pool.currency || 'STT'}`);
       return;
     }
     
@@ -473,11 +446,11 @@ export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalPr
                     onChange={(e) => setBetAmount(e.target.value)}
                     onClick={(e) => e.stopPropagation()}
                     onFocus={(e) => e.stopPropagation()}
-                    placeholder="0.00"
+                    placeholder="0"
                     disabled={isPlacing || !isBettingOpen || betSuccess}
-                    className="w-full px-3 py-2.5 text-lg font-bold text-white bg-gray-800/50 border-2 border-gray-700 rounded-lg focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full px-3 py-2.5 pr-16 text-lg font-bold text-white bg-gray-800/50 border-2 border-gray-700 rounded-lg focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none">
                     {pool.usesBitr ? 'BITR' : 'STT'}
                   </div>
                 </div>
