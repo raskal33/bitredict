@@ -430,10 +430,10 @@ export function useSomniaStreams(
         callbacks.delete(callback);
         console.log(`🔌 Callback removed from ${eventType} (${callbacks.size} remaining)`);
         
-        // ✅ FIX: Only unsubscribe from SDS after a delay to avoid rapid subscribe/unsubscribe
-        if (callbacks.size === 0) {
-          // Wait 5 seconds before actually unsubscribing to handle React re-renders
-          const unsubscribeTimer = setTimeout(() => {
+             // ✅ FIX: Only unsubscribe from SDS after a delay to avoid rapid subscribe/unsubscribe
+             if (callbacks.size === 0) {
+               // Wait 30 seconds before actually unsubscribing to handle React re-renders
+               const unsubscribeTimer = setTimeout(() => {
             const currentCallbacks = subscribersRef.current.get(eventType);
             // Double-check that there are still no subscribers
             if (currentCallbacks && currentCallbacks.size === 0) {
@@ -443,10 +443,10 @@ export function useSomniaStreams(
               if (unsubscribeFn) {
                 unsubscribeFn();
                 unsubscribeFunctionsRef.current.delete(eventType as any);
-                console.log(`🔌 Unsubscribed from ${eventType} (no more subscribers after delay)`);
-              }
-            }
-          }, 5000); // 5 second delay
+                     console.log(`🔌 Unsubscribed from ${eventType} (no more subscribers after delay)`);
+                   }
+                 }
+               }, 30000); // 30 second delay to handle React re-renders and modal interactions
           
           // Store timer so we can cancel it if a new subscription comes in
           (subscribersRef.current as any)[`_timer_${eventType}`] = unsubscribeTimer;
