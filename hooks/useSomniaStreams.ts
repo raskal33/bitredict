@@ -7,7 +7,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { SDK } from '@somnia-chain/streams';
-import { createPublicClient, webSocket, defineChain } from 'viem';
+import { createPublicClient, webSocket, defineChain, decodeAbiParameters } from 'viem';
 
 // Define Somnia testnet with WebSocket URL
 
@@ -384,13 +384,80 @@ export function useSomniaStreams(
           onData: (data: any) => {
             console.log(`📦 Received ${eventType} data:`, data);
             console.log(`📦 Data type:`, typeof data, 'Keys:', data ? Object.keys(data) : 'null');
+            
+            // ✅ CRITICAL: Decode pool progress data if it's ABI-encoded
+            let decodedData = data;
+            if (eventType === 'pool:progress' && data && typeof data === 'object') {
+              // SDS should already decode the data, but ensure it's in the right format
+              // If data has raw hex, decode it; otherwise use as-is
+              if (data.data && typeof data.data === 'string' && data.data.startsWith('0x')) {
+                // Data is ABI-encoded, need to decode
+                try {
+                  const decoded = decodeAbiParameters(
+                    [
+                      { name: 'poolId', type: 'uint256' },
+                      { name: 'fillPercentage', type: 'uint256' },
+                      { name: 'totalBettorStake', type: 'uint256' },
+                      { name: 'totalCreatorSideStake', type: 'uint256' },
+                      { name: 'maxPoolSize', type: 'uint256' },
+                      { name: 'participantCount', type: 'uint256' },
+                      { name: 'timestamp', type: 'uint256' }
+                    ],
+                    data.data
+                  );
+                  
+                  // ✅ CRITICAL: fillPercentage is already a percentage (0-100), not basis points
+                  const fillPercentage = Number(decoded[1]);
+                  const maxPoolSize = decoded[4];
+                  const totalCreatorSideStake = decoded[3];
+                  
+                  // Calculate currentMaxBettorStake = maxPoolSize - totalCreatorSideStake
+                  const currentMaxBettorStake = maxPoolSize > totalCreatorSideStake 
+                    ? (maxPoolSize - totalCreatorSideStake).toString()
+                    : '0';
+                  
+                  decodedData = {
+                    poolId: decoded[0].toString(),
+                    fillPercentage: fillPercentage, // Already a percentage (0-100)
+                    totalBettorStake: decoded[2].toString(),
+                    totalCreatorSideStake: totalCreatorSideStake.toString(),
+                    maxPoolSize: maxPoolSize.toString(),
+                    participantCount: Number(decoded[5]),
+                    timestamp: Number(decoded[6]),
+                    // Calculate derived fields
+                    currentMaxBettorStake: currentMaxBettorStake,
+                    effectiveCreatorSideStake: totalCreatorSideStake.toString()
+                  };
+                  console.log(`✅ Decoded pool progress data:`, decodedData);
+                } catch (decodeError) {
+                  console.warn(`⚠️ Failed to decode pool progress data:`, decodeError);
+                  // Use data as-is if decoding fails
+                }
+              } else if (data.poolId || data.fillPercentage !== undefined) {
+                // Data is already decoded, ensure it has all required fields
+                decodedData = {
+                  poolId: data.poolId?.toString() || data.pool_id?.toString(),
+                  fillPercentage: data.fillPercentage ?? data.fill_percentage ?? 0,
+                  totalBettorStake: data.totalBettorStake?.toString() || data.total_bettor_stake?.toString() || '0',
+                  totalCreatorSideStake: data.totalCreatorSideStake?.toString() || data.total_creator_side_stake?.toString() || '0',
+                  maxPoolSize: data.maxPoolSize?.toString() || data.max_pool_size?.toString() || '0',
+                  participantCount: data.participantCount ?? data.participant_count ?? 0,
+                  betCount: data.betCount ?? data.bet_count ?? 0,
+                  timestamp: data.timestamp ?? Math.floor(Date.now() / 1000),
+                  currentMaxBettorStake: data.currentMaxBettorStake?.toString() || data.current_max_bettor_stake?.toString() || data.maxPoolSize?.toString() || '0',
+                  effectiveCreatorSideStake: data.effectiveCreatorSideStake?.toString() || data.effective_creator_side_stake?.toString() || data.totalCreatorSideStake?.toString() || '0'
+                };
+                console.log(`✅ Formatted pool progress data:`, decodedData);
+              }
+            }
+            
             // ✅ Broadcast to all subscribers from GLOBAL map
             const callbacks = globalSubscribersMap.get(eventType);
             if (callbacks) {
               console.log(`📦 Broadcasting to ${callbacks.size} callbacks for ${eventType}`);
               callbacks.forEach(cb => {
                 try {
-                  cb(data as SDSEventData);
+                  cb(decodedData as SDSEventData);
                 } catch (error) {
                   console.error(`❌ Error in callback for ${eventType}:`, error);
                 }

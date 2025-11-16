@@ -499,29 +499,43 @@ export default function BetPage() {
 
   // ✅ CRITICAL: Subscribe to real-time pool progress updates (LP added, bets placed)
   usePoolProgress(poolId, (progressData) => {
+    console.log(`🔄 Bet page: Received progress update for pool ${poolId}:`, progressData);
     // Update fill percentage dynamically
-    if (progressData.fillPercentage !== undefined) {
+    if (progressData.fillPercentage !== undefined && !isNaN(progressData.fillPercentage)) {
       setFillPercentage(progressData.fillPercentage);
+      console.log(`   ✅ Updated fill percentage: ${progressData.fillPercentage}%`);
     }
     // Update max pool size dynamically
     if (progressData.maxPoolSize) {
       const maxPoolSizeNum = parseFloat(progressData.maxPoolSize);
-      setMaxPoolSizeFormatted(maxPoolSizeNum);
+      if (!isNaN(maxPoolSizeNum)) {
+        setMaxPoolSizeFormatted(maxPoolSizeNum);
+        console.log(`   ✅ Updated max pool size: ${maxPoolSizeNum}`);
+      }
     }
     // Update total bettor stake dynamically
     if (progressData.totalBettorStake) {
       const totalBettorStakeNum = parseFloat(progressData.totalBettorStake);
-      setTotalBettorStakeFormatted(totalBettorStakeNum);
+      if (!isNaN(totalBettorStakeNum)) {
+        setTotalBettorStakeFormatted(totalBettorStakeNum);
+        console.log(`   ✅ Updated total bettor stake: ${totalBettorStakeNum}`);
+      }
     }
     // Update max bettor stake dynamically (for bet validation)
     if (progressData.currentMaxBettorStake && pool) {
-      // Update pool object with new max bettor stake
-      setPool(prev => prev ? {
-        ...prev,
-        maxBettorStake: typeof progressData.currentMaxBettorStake === 'string' 
-          ? parseFloat(progressData.currentMaxBettorStake) 
-          : (progressData.currentMaxBettorStake || prev.maxBettorStake)
-      } : null);
+      const maxBettorStakeNum = typeof progressData.currentMaxBettorStake === 'string' 
+        ? parseFloat(progressData.currentMaxBettorStake) 
+        : (progressData.currentMaxBettorStake || 0);
+      if (!isNaN(maxBettorStakeNum)) {
+        // Update pool object with new max bettor stake
+        setPool(prev => prev ? {
+          ...prev,
+          maxBettorStake: maxBettorStakeNum,
+          totalBettorStake: progressData.totalBettorStake || prev.totalBettorStake,
+          totalCreatorSideStake: progressData.totalCreatorSideStake || prev.totalCreatorSideStake
+        } : null);
+        console.log(`   ✅ Updated max bettor stake: ${maxBettorStakeNum}`);
+      }
     }
   });
 

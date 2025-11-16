@@ -101,13 +101,16 @@ export const PoolCardNFT = ({ pool, onClick }: PoolCardProps) => {
   const [dynamicParticipants, setDynamicParticipants] = useState(pool.indexedData?.participantCount || 0);
   
   usePoolProgress(pool.id.toString(), (progressData) => {
+    console.log(`🔄 PoolCard: Received progress update for pool ${pool.id}:`, progressData);
     // Update fill percentage dynamically when LP is added or bets are placed
-    if (progressData.fillPercentage !== undefined) {
+    if (progressData.fillPercentage !== undefined && !isNaN(progressData.fillPercentage)) {
       setDynamicFillPercentage(progressData.fillPercentage);
+      console.log(`   ✅ Updated fill percentage: ${progressData.fillPercentage}%`);
     }
     // Update participant count dynamically
-    if (progressData.participantCount !== undefined) {
+    if (progressData.participantCount !== undefined && !isNaN(progressData.participantCount)) {
       setDynamicParticipants(progressData.participantCount);
+      console.log(`   ✅ Updated participants: ${progressData.participantCount}`);
     }
   });
 

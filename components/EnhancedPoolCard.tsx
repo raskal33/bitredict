@@ -145,14 +145,29 @@ export default function EnhancedPoolCard({
   });
   
   usePoolProgress(pool.id.toString(), (progressData) => {
+    console.log(`🔄 EnhancedPoolCard: Received progress update for pool ${pool.id}:`, progressData);
     // Update pool data when progress changes (e.g., LP added, bets placed)
-    setCurrentPoolData(prev => ({
-      ...prev,
-      totalCreatorSideStake: parseFloat(progressData.effectiveCreatorSideStake || progressData.totalCreatorSideStake || "0"),
-      totalBettorStake: parseFloat(progressData.totalBettorStake || "0"),
-      maxBettorStake: parseFloat(progressData.currentMaxBettorStake || "0"),
-      fillPercentage: progressData.fillPercentage
-    }));
+    setCurrentPoolData(prev => {
+      const newData = {
+        ...prev,
+        totalCreatorSideStake: parseFloat(progressData.effectiveCreatorSideStake || progressData.totalCreatorSideStake || "0"),
+        totalBettorStake: parseFloat(progressData.totalBettorStake || "0"),
+        maxBettorStake: parseFloat(progressData.currentMaxBettorStake || "0"),
+        fillPercentage: progressData.fillPercentage ?? prev.fillPercentage
+      };
+      console.log(`   ✅ Updated pool data:`, newData);
+      return newData;
+    });
+    
+    // Also update indexedData for participant count and bet count
+    if (progressData.participantCount !== undefined || progressData.betCount !== undefined) {
+      setIndexedData(prev => ({
+        ...prev,
+        participantCount: progressData.participantCount ?? prev?.participantCount ?? 0,
+        betCount: progressData.betCount ?? prev?.betCount ?? 0,
+        fillPercentage: progressData.fillPercentage ?? prev?.fillPercentage ?? 0
+      }));
+    }
   });
 
   const { socialStats, isLiked, isLoading, trackView, toggleLike, fetchStats } = usePoolSocialStats(pool.id);
