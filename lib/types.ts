@@ -79,6 +79,7 @@ export interface Pool {
   successRate?: number;
   totalValue?: number;
   totalBettorStake?: string;
+  totalCreatorSideStake?: string; // ✅ Added for realtime updates
   liquidityProviders?: Array<{
     address: string;
     stake: string;

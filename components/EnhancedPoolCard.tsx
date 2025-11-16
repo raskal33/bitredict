@@ -162,10 +162,16 @@ export default function EnhancedPoolCard({
     // Also update indexedData for participant count and bet count
     if (progressData.participantCount !== undefined || progressData.betCount !== undefined) {
       setIndexedData(prev => ({
-        ...prev,
         participantCount: progressData.participantCount ?? prev?.participantCount ?? 0,
         betCount: progressData.betCount ?? prev?.betCount ?? 0,
-        fillPercentage: progressData.fillPercentage ?? prev?.fillPercentage ?? 0
+        fillPercentage: progressData.fillPercentage ?? prev?.fillPercentage ?? 0,
+        totalVolume: prev?.totalVolume ?? '0',
+        timeToFill: prev?.timeToFill,
+        avgBetSize: prev?.avgBetSize ?? '0',
+        creatorReputation: prev?.creatorReputation ?? 0,
+        categoryRank: prev?.categoryRank ?? 0,
+        isHot: prev?.isHot ?? false,
+        lastActivity: prev?.lastActivity ?? new Date()
       }));
     }
   });
