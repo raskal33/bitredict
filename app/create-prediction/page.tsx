@@ -1024,7 +1024,7 @@ function CreateMarketPageContent() {
         
         if (txHash) {
           // Calculate total cost for display
-          const creationFee = useBitr ? '70 BITR' : '1 STT'; // ✅ FIX: Contract uses 70 BITR, not 50
+          const creationFee = useBitr ? '50 BITR' : '1 STT'; // ✅ FIX: Contract uses 50 BITR (50e18)
         // ✅ FIX: Boost cost is always in STT (not BITR), regardless of pool currency
         const boostCost = data.boostTier && data.boostTier !== 'NONE' 
           ? `${data.boostTier === 'BRONZE' ? '2' : data.boostTier === 'SILVER' ? '3' : '5'} STT`
@@ -2160,11 +2160,11 @@ function CreateMarketPageContent() {
                   {data.boostTier && data.boostTier !== 'NONE' 
                     ? `${(() => {
                         const boostAmount = data.boostTier === 'BRONZE' ? 2 : data.boostTier === 'SILVER' ? 3 : 5;
-                        const creationAmount = useBitr ? 70 : 1;
+                        const creationAmount = useBitr ? 50 : 1;
                         const total = boostAmount + creationAmount;
                         return `${boostAmount} STT + ${creationAmount} ${useBitr ? 'BITR' : 'STT'} = ${useBitr ? `${creationAmount} BITR + ${boostAmount} STT` : `${total} STT`}`;
                       })()}`
-                    : `${useBitr ? '70 BITR' : '1 STT'}`}
+                    : `${useBitr ? '50 BITR' : '1 STT'}`}
                 </span>
               </div>
             </div>

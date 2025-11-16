@@ -44,7 +44,7 @@ export function useComboPools() {
       }));
       
       // Calculate total required payment
-      const creationFeeBITR = 70n * 10n**18n; // 70 BITR
+      const creationFeeBITR = 50n * 10n**18n; // 50 BITR
       const creationFeeSTT = 1n * 10n**18n;   // 1 STT
       const totalRequired = poolData.useBitr 
         ? creationFeeBITR + poolData.creatorStake

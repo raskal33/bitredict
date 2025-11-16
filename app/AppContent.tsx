@@ -4,8 +4,7 @@ import App from "./App";
 import ProfileCreationModal from "@/components/ProfileCreationModal";
 import NotificationToast from "@/components/NotificationToast";
 import { OddysseyLiveUpdates } from "@/components/OddysseyLiveUpdates";
-import { SDSConnectionIndicator } from "@/components/SDSConnectionIndicator";
-import { SDSDebugPanel } from "@/components/SDSDebugPanel";
+import { LiveActivity } from "@/components/LiveActivity";
 
 export default function AppContent({
   children,
@@ -18,9 +17,8 @@ export default function AppContent({
       <ProfileCreationModal />
       <NotificationToast />
       <OddysseyLiveUpdates />
-      <SDSConnectionIndicator />
-      {/* Debug panel - only in development */}
-      {process.env.NODE_ENV === 'development' && <SDSDebugPanel />}
+      {/* Live Activity Panel - shows real-time events (bets, pools, liquidity) */}
+      <LiveActivity />
     </>
   );
 } 

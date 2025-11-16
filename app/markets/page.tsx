@@ -27,6 +27,8 @@ type PoolStatus = "active" | "closed" | "settled" | "all";
 
 
 
+type StatsTab = "pools" | "stats";
+
 export default function MarketsPage() {
   const router = useRouter();
   const [activeCategory, setActiveCategory] = useState<MarketCategory>("all");
@@ -48,6 +50,7 @@ export default function MarketsPage() {
     trendingPools: 0
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [mobileTab, setMobileTab] = useState<StatsTab>("pools"); // ✅ Mobile tab state
 
   // Convert OptimizedPool to EnhancedPool
   const convertToEnhancedPool = (pool: OptimizedPool & { isSettled?: boolean; creatorSideWon?: boolean }): EnhancedPool => {
@@ -63,8 +66,12 @@ export default function MarketsPage() {
       oracleType: (pool.oracleType as 'GUIDED' | 'OPEN') || 'GUIDED',
       status: pool.status as 'active' | 'closed' | 'settled' | 'cancelled',
       creatorStake: pool.creatorStake,
-      totalCreatorSideStake: pool.creatorStake,
-      maxBettorStake: pool.maxPoolSize,
+      totalCreatorSideStake: pool.totalCreatorSideStake || pool.creatorStake,
+      // ✅ CRITICAL FIX: Backend returns maxBettorStake which is current_max_bettor_stake (remaining capacity)
+      // NOT maxPoolSize (total pool size). Use maxBettorStake if available, fallback to calculated value
+      maxBettorStake: (pool as OptimizedPool & { maxBettorStake?: string; currentMaxBettorStake?: string }).maxBettorStake || 
+                      (pool as OptimizedPool & { maxBettorStake?: string; currentMaxBettorStake?: string }).currentMaxBettorStake || 
+                      pool.maxPoolSize,
       totalBettorStake: pool.totalBettorStake,
       predictedOutcome: pool.predictedOutcome || 'Unknown',
       result: '',
@@ -476,10 +483,36 @@ export default function MarketsPage() {
           </div>
         </div>
 
+        {/* Mobile Tabs - Only visible on mobile */}
+        <div className="lg:hidden mb-4">
+          <div className="bg-slate-800/30 backdrop-blur-xl border border-slate-700/50 rounded-xl p-1 flex gap-1">
+            <button
+              onClick={() => setMobileTab("pools")}
+              className={`flex-1 py-2 px-4 rounded-lg font-semibold text-sm transition-all ${
+                mobileTab === "pools"
+                  ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-md"
+                  : "text-gray-400 hover:text-white"
+              }`}
+            >
+              Pools
+            </button>
+            <button
+              onClick={() => setMobileTab("stats")}
+              className={`flex-1 py-2 px-4 rounded-lg font-semibold text-sm transition-all ${
+                mobileTab === "stats"
+                  ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-md"
+                  : "text-gray-400 hover:text-white"
+              }`}
+            >
+              Stats
+            </button>
+          </div>
+        </div>
+
         {/* Markets Grid - Compact Layout - Fully Responsive */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 sm:gap-4">
           {/* Markets List */}
-          <div className="lg:col-span-3 order-2 lg:order-1">
+          <div className={`lg:col-span-3 ${mobileTab === "pools" ? "block" : "hidden lg:block"} order-2 lg:order-1`}>
             <div className="bg-slate-800/30 backdrop-blur-xl border border-slate-700/50 rounded-xl p-4">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
@@ -529,7 +562,7 @@ export default function MarketsPage() {
           </div>
 
           {/* Compact Sidebar - Responsive */}
-          <div className="lg:col-span-1 space-y-3 order-1 lg:order-2">
+          <div className={`lg:col-span-1 space-y-3 ${mobileTab === "stats" ? "block" : "hidden lg:block"} order-1 lg:order-2`}>
             {/* Live Activity Feed */}
             <LivePoolUpdates />
 

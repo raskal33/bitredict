@@ -32,10 +32,33 @@ export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalPr
   const [betSuccess, setBetSuccess] = useState(false);
   
   // ✅ CRITICAL: Use real-time pool progress updates to get latest max bettor stake
+  // ✅ CRITICAL FIX: Calculate initial maxBettorStake correctly if missing or wrong
+  const calculateInitialMaxBettorStake = () => {
+    let maxBettorStake = parseFloat(pool.maxBettorStake || "0");
+    // If maxBettorStake is 0, missing, or suspiciously equals creator stake, calculate it
+    const creatorStake = parseFloat(pool.creatorStake || "0");
+    if (!maxBettorStake || maxBettorStake === 0 || Math.abs(maxBettorStake - creatorStake) < 0.01) {
+      const effectiveCreatorSideStake = parseFloat(pool.totalCreatorSideStake || pool.creatorStake || "0");
+      const odds = pool.odds || 130;
+      const denominator = odds - 100;
+      if (denominator > 0 && effectiveCreatorSideStake > 0) {
+        maxBettorStake = (effectiveCreatorSideStake * 100) / denominator;
+        console.log(`🔧 PlaceBetModal: Calculated initial maxBettorStake:`, {
+          effectiveCreatorSideStake,
+          odds,
+          denominator,
+          maxBettorStake,
+          poolMaxBettorStake: pool.maxBettorStake
+        });
+      }
+    }
+    return maxBettorStake;
+  };
+
   const [currentPoolData, setCurrentPoolData] = useState({
     totalCreatorSideStake: parseFloat(pool.totalCreatorSideStake || pool.creatorStake || "0"),
     totalBettorStake: parseFloat(pool.totalBettorStake || "0"),
-    maxBettorStake: parseFloat(pool.maxBettorStake || "0")
+    maxBettorStake: calculateInitialMaxBettorStake()
   });
   
   usePoolProgress(pool.id.toString(), (progressData) => {

@@ -137,10 +137,26 @@ export default function EnhancedPoolCard({
   const [showLiquidityModal, setShowLiquidityModal] = useState(false);
   
   // ✅ CRITICAL: Use real-time pool progress updates to get latest pool data
+  // ✅ CRITICAL FIX: Initialize maxBettorStake correctly
+  // Backend returns maxBettorStake which is current_max_bettor_stake (remaining capacity)
+  // If it's 0 or missing, calculate it from effectiveCreatorSideStake and odds
+  const calculateInitialMaxBettorStake = () => {
+    let maxBettorStake = parseFloat(pool.maxBettorStake || "0");
+    if (!maxBettorStake || maxBettorStake === 0) {
+      const effectiveCreatorSideStake = parseFloat(pool.totalCreatorSideStake || pool.creatorStake || "0");
+      const odds = pool.odds || 130;
+      const denominator = odds - 100;
+      if (denominator > 0 && effectiveCreatorSideStake > 0) {
+        maxBettorStake = (effectiveCreatorSideStake * 100) / denominator;
+      }
+    }
+    return maxBettorStake;
+  };
+
   const [currentPoolData, setCurrentPoolData] = useState({
     totalCreatorSideStake: parseFloat(pool.totalCreatorSideStake || pool.creatorStake || "0"),
     totalBettorStake: parseFloat(pool.totalBettorStake || "0"),
-    maxBettorStake: parseFloat(pool.maxBettorStake || "0"),
+    maxBettorStake: calculateInitialMaxBettorStake(),
     fillPercentage: indexedData?.fillPercentage || 0
   });
   

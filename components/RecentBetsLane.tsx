@@ -348,7 +348,19 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
             odds: bet.odds,
             currency: bet.currency || 'STT',
             createdAt: new Date(bet.timestamp * 1000).toISOString(),
-            timeAgo: `${Math.floor((Date.now() - bet.timestamp * 1000) / 60000)}m ago`,
+            timeAgo: (() => {
+              const timestampMs = bet.timestamp * 1000;
+              const now = Date.now();
+              const diffMs = now - timestampMs;
+              if (isNaN(diffMs) || diffMs < 0) return 'Just now';
+              const diffMins = Math.floor(diffMs / 60000);
+              if (diffMins < 1) return 'Just now';
+              if (diffMins < 60) return `${diffMins}m ago`;
+              const diffHours = Math.floor(diffMins / 60);
+              if (diffHours < 24) return `${diffHours}h ago`;
+              const diffDays = Math.floor(diffHours / 24);
+              return `${diffDays}d ago`;
+            })(),
             pool: {
               predictedOutcome: '',
               league: bet.league || 'Unknown',

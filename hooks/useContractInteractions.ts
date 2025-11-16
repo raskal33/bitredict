@@ -133,7 +133,7 @@ export function usePoolCore() {
 
       // Calculate total required amount (creation fee + creator stake + boost cost)
       // ✅ FIX: Match contract values - BITR = 70e18, STT = 1e18
-      const creationFeeBITR = 70n * 10n**18n; // 70 BITR in wei (contract uses 70e18, not 50e18!)
+      const creationFeeBITR = 50n * 10n**18n; // 50 BITR in wei (contract uses 50e18)
       const creationFeeSTT = 1n * 10n**18n; // 1 STT in wei
       
       // ✅ FIX: Calculate boost cost (always in STT, even for BITR pools)

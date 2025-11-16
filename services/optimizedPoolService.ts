@@ -20,6 +20,7 @@ export interface OptimizedPool {
   creatorStake: string;
   totalBettorStake: string;
   maxPoolSize: string;
+  currentMaxBettorStake?: string; // ✅ Current max bettor stake (remaining capacity)
   fillPercentage: number;
   participants: number;
   eventStartTime: number;
