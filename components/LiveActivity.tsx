@@ -25,7 +25,7 @@ interface ActivityEvent {
 export function LiveActivity() {
   const [events, setEvents] = useState<ActivityEvent[]>([]);
   const [isOpen, setIsOpen] = useState(false);
-  const [position, setPosition] = useState({ x: 16, y: 16 }); // Default bottom-left (16px = 1rem)
+  const [position, setPosition] = useState({ x: 16, y: window.innerHeight - 616 }); // Default bottom-left (16px from left, 16px from bottom)
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const panelRef = useRef<HTMLDivElement>(null);
@@ -206,44 +206,123 @@ export function LiveActivity() {
     }
   };
 
-  // Drag and drop handlers
+  // ✅ IMPROVED: Enhanced drag and drop with better UX
   const handleMouseDown = (e: React.MouseEvent) => {
+    // Allow dragging from anywhere on the panel (not just header)
     if (!panelRef.current) return;
+    
+    // Prevent dragging if clicking on interactive elements
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'BUTTON' || target.closest('button') || target.closest('input') || target.closest('textarea')) {
+      return;
+    }
+    
     setIsDragging(true);
     const rect = panelRef.current.getBoundingClientRect();
+    
+    // Calculate offset from mouse position to panel position
     setDragStart({
       x: e.clientX - rect.left,
       y: e.clientY - rect.top
     });
+    
+    // Add visual feedback
+    if (panelRef.current) {
+      panelRef.current.style.transition = 'none'; // Disable transitions during drag
+      panelRef.current.style.opacity = '0.9';
+      panelRef.current.style.transform = 'scale(0.98)';
+    }
+    
+    e.preventDefault(); // Prevent text selection
   };
 
   useEffect(() => {
     if (!isDragging) return;
     
     const handleMouseMove = (e: MouseEvent) => {
+      if (!panelRef.current) return;
+      
+      // Calculate new position based on mouse position and initial offset
       const newX = e.clientX - dragStart.x;
       const newY = e.clientY - dragStart.y;
       
-      // Constrain to viewport
-      const maxX = window.innerWidth - (panelRef.current?.offsetWidth || 384);
-      const maxY = window.innerHeight - (panelRef.current?.offsetHeight || 600);
+      // Get panel dimensions
+      const panelWidth = panelRef.current.offsetWidth || 384;
+      const panelHeight = panelRef.current.offsetHeight || 600;
+      
+      // Constrain to viewport with padding (10px from edges)
+      const padding = 10;
+      const maxX = window.innerWidth - panelWidth - padding;
+      const maxY = window.innerHeight - panelHeight - padding;
+      
+      // Smooth constraint with boundary detection
+      const constrainedX = Math.max(padding, Math.min(newX, maxX));
+      const constrainedY = Math.max(padding, Math.min(newY, maxY));
       
       setPosition({
-        x: Math.max(0, Math.min(newX, maxX)),
-        y: Math.max(0, Math.min(newY, maxY))
+        x: constrainedX,
+        y: constrainedY
       });
     };
 
     const handleMouseUp = () => {
       setIsDragging(false);
+      
+      // Restore visual feedback
+      if (panelRef.current) {
+        panelRef.current.style.transition = '';
+        panelRef.current.style.opacity = '';
+        panelRef.current.style.transform = '';
+      }
     };
 
-    document.addEventListener('mousemove', handleMouseMove);
+    // ✅ IMPROVED: Use passive listeners for better performance
+    document.addEventListener('mousemove', handleMouseMove, { passive: true });
     document.addEventListener('mouseup', handleMouseUp);
+    
+    // ✅ ADDED: Touch support for mobile with smooth dragging
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!panelRef.current || e.touches.length !== 1) return;
+      
+      const touch = e.touches[0];
+      const newX = touch.clientX - dragStart.x;
+      const newY = touch.clientY - dragStart.y;
+      
+      const panelWidth = panelRef.current.offsetWidth || 384;
+      const panelHeight = panelRef.current.offsetHeight || 600;
+      
+      const padding = 10;
+      const maxX = window.innerWidth - panelWidth - padding;
+      const maxY = window.innerHeight - panelHeight - padding;
+      
+      const constrainedX = Math.max(padding, Math.min(newX, maxX));
+      const constrainedY = Math.max(padding, Math.min(newY, maxY));
+      
+      setPosition({
+        x: constrainedX,
+        y: constrainedY
+      });
+      
+      e.preventDefault(); // Prevent scrolling while dragging
+    };
+
+    const handleTouchEnd = () => {
+      setIsDragging(false);
+      if (panelRef.current) {
+        panelRef.current.style.transition = '';
+        panelRef.current.style.opacity = '';
+        panelRef.current.style.transform = '';
+      }
+    };
+
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleTouchEnd);
     
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
     };
   }, [isDragging, dragStart]);
 
@@ -256,14 +335,22 @@ export function LiveActivity() {
         setPosition({ x, y });
       } catch (e) {
         console.warn('Failed to load saved position:', e);
+        // Set default position
+        setPosition({ x: 16, y: window.innerHeight - 616 });
       }
+    } else {
+      // Set default position on first load
+      setPosition({ x: 16, y: window.innerHeight - 616 });
     }
   }, []);
 
   // Save position to localStorage
   useEffect(() => {
-    if (!isDragging && (position.x !== 16 || position.y !== 16)) {
-      localStorage.setItem('liveActivityPosition', JSON.stringify(position));
+    if (!isDragging) {
+      const defaultY = window.innerHeight - 616;
+      if (position.x !== 16 || position.y !== defaultY) {
+        localStorage.setItem('liveActivityPosition', JSON.stringify(position));
+      }
     }
   }, [position, isDragging]);
 
@@ -272,12 +359,12 @@ export function LiveActivity() {
       <button
         ref={buttonRef}
         onClick={() => setIsOpen(true)}
-        style={{ 
-          position: 'fixed',
-          bottom: `${position.y}px`,
-          left: `${position.x}px`,
-          zIndex: 50
-        }}
+      style={{ 
+        position: 'fixed',
+        top: `${position.y}px`,
+        left: `${position.x}px`,
+        zIndex: 50
+      }}
         className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-semibold flex items-center gap-2 transition-all cursor-pointer"
       >
         <BoltIcon className="w-4 h-4" />
@@ -297,18 +384,46 @@ export function LiveActivity() {
       style={{
         position: 'fixed',
         left: `${position.x}px`,
-        bottom: `${position.y}px`,
+        top: `${position.y}px`,
         zIndex: 50,
-        cursor: isDragging ? 'grabbing' : 'default'
+        cursor: isDragging ? 'grabbing' : 'move',
+        userSelect: 'none', // Prevent text selection during drag
+        WebkitUserSelect: 'none',
+        touchAction: 'none' // Prevent default touch behaviors
       }}
-      className="w-96 max-h-[600px] bg-gray-900 border border-gray-700 rounded-lg shadow-2xl flex flex-col"
+      className={`w-96 max-h-[600px] bg-gray-900 border border-gray-700 rounded-lg shadow-2xl flex flex-col transition-all duration-200 ${isDragging ? 'shadow-cyan-500/50 ring-2 ring-cyan-500/30' : 'hover:shadow-cyan-500/20'}`}
+      onMouseDown={handleMouseDown}
+      onTouchStart={(e) => {
+        // Handle touch start for mobile
+        if (!panelRef.current) return;
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'BUTTON' || target.closest('button')) return;
+        
+        const touch = e.touches[0];
+        const rect = panelRef.current.getBoundingClientRect();
+        setIsDragging(true);
+        setDragStart({
+          x: touch.clientX - rect.left,
+          y: touch.clientY - rect.top
+        });
+        
+        if (panelRef.current) {
+          panelRef.current.style.transition = 'none';
+          panelRef.current.style.opacity = '0.9';
+        }
+      }}
     >
-      {/* Header - Draggable */}
+      {/* Header - Enhanced with drag indicator */}
       <div
-        onMouseDown={handleMouseDown}
-        className={`flex items-center justify-between p-3 border-b border-gray-700 bg-gradient-to-r from-cyan-600/20 to-blue-600/20 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+        className={`flex items-center justify-between p-3 border-b border-gray-700 bg-gradient-to-r from-cyan-600/20 to-blue-600/20 ${isDragging ? 'cursor-grabbing' : 'cursor-move'} select-none`}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-1">
+          {/* ✅ Drag Handle Indicator */}
+          <div className="flex flex-col gap-0.5 cursor-move">
+            <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
+            <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
+            <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
+          </div>
           <BoltIcon className="w-5 h-5 text-cyan-400" />
           <h3 className="text-white font-semibold text-sm">Live Activity</h3>
           {events.length > 0 && (
@@ -322,15 +437,24 @@ export function LiveActivity() {
           </div>
         </div>
         <button
-          onClick={() => setIsOpen(false)}
-          className="text-gray-400 hover:text-white text-xl transition-colors"
+          onClick={(e) => {
+            e.stopPropagation(); // Prevent drag when clicking close
+            setIsOpen(false);
+          }}
+          onMouseDown={(e) => e.stopPropagation()} // Prevent drag
+          className="text-gray-400 hover:text-white text-xl transition-colors cursor-pointer p-1 rounded hover:bg-gray-700/50"
+          title="Close"
         >
           <XMarkIcon className="w-5 h-5" />
         </button>
       </div>
 
-      {/* Events List */}
-      <div className="flex-1 overflow-y-auto p-2 space-y-2">
+      {/* Events List - Prevent drag when scrolling */}
+      <div 
+        className="flex-1 overflow-y-auto p-2 space-y-2"
+        onMouseDown={(e) => e.stopPropagation()} // Prevent drag when clicking on content
+        onTouchStart={(e) => e.stopPropagation()} // Prevent drag when touching content
+      >
         {events.length === 0 ? (
           <div className="text-gray-500 text-xs text-center py-8">
             <BoltIcon className="w-8 h-8 mx-auto mb-2 text-gray-600" />
@@ -384,11 +508,15 @@ export function LiveActivity() {
         )}
       </div>
 
-      {/* Footer */}
-      <div className="p-2 border-t border-gray-700 flex gap-2">
+      {/* Footer - Prevent drag when clicking buttons */}
+      <div 
+        className="p-2 border-t border-gray-700 flex gap-2"
+        onMouseDown={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
+      >
         <button
           onClick={() => setEvents([])}
-          className="flex-1 bg-gray-700 hover:bg-gray-600 text-white text-xs py-1.5 rounded transition-colors"
+          className="flex-1 bg-gray-700 hover:bg-gray-600 text-white text-xs py-1.5 rounded transition-colors cursor-pointer"
         >
           Clear
         </button>
