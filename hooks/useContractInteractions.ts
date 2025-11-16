@@ -214,28 +214,48 @@ export function usePoolCore() {
           shortfall: currentAllowance < totalRequired ? (totalRequired - currentAllowance).toString() : '0'
         });
         
-        if (currentAllowance < totalRequired) {
+        // ✅ FIX: Use unlimited allowance (max uint256) for first-time approval to avoid repeated approvals
+        const MAX_UINT256 = BigInt('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff');
+        const needsApproval = currentAllowance < totalRequired;
+        
+        if (needsApproval) {
           const shortfall = totalRequired - currentAllowance;
           console.log(`⚠️ Insufficient allowance detected!`);
           console.log(`   Current: ${currentAllowance / BigInt(10**18)} BITR`);
           console.log(`   Required: ${totalRequired / BigInt(10**18)} BITR`);
           console.log(`   Shortfall: ${shortfall / BigInt(10**18)} BITR`);
-          console.log(`🔄 Requesting approval for ${totalRequired / BigInt(10**18)} BITR tokens...`);
+          console.log(`🔄 Requesting UNLIMITED approval to avoid future approvals...`);
           
-          toast.loading('Approving BITR tokens for pool creation...', { id: 'bitr-approval' });
+          toast.loading('Approving BITR tokens (unlimited allowance)...', { id: 'bitr-approval' });
           try {
-            const approvalTx = await approve(approvalTarget, totalRequired);
+            // ✅ FIX: Approve unlimited amount (max uint256) for faster future transactions
+            const approvalTx = await approve(approvalTarget, MAX_UINT256);
+            console.log(`✅ Approval transaction submitted: ${approvalTx}`);
+            
+            // Wait for approval confirmation
+            if (!publicClient) {
+              throw new Error('Public client not available');
+            }
+            const approvalReceipt = await publicClient.waitForTransactionReceipt({ hash: approvalTx });
+            
+            if (approvalReceipt.status !== 'success') {
+              throw new Error('Approval transaction failed');
+            }
+            
             console.log(`✅ Approval transaction confirmed: ${approvalTx}`);
             toast.dismiss('bitr-approval');
-            toast.success('BITR tokens approved for pool creation!');
+            toast.success('BITR tokens approved (unlimited allowance)!');
             
             // 🚨 CRITICAL: Verify the approval was successful by checking allowance again
-            const newAllowance = await getAllowance(address as `0x${string}`, CONTRACT_ADDRESSES.POOL_CORE);
-            console.log(`✅ New allowance after approval: ${newAllowance.toString()}`);
+            // Use the correct approval target (FACTORY or POOL_CORE)
+            const newAllowance = await getAllowance(address as `0x${string}`, approvalTarget);
+            console.log(`✅ New allowance after approval: ${newAllowance.toString()} (${newAllowance === MAX_UINT256 ? 'UNLIMITED' : `${newAllowance / BigInt(10**18)} BITR`})`);
             
             if (newAllowance < totalRequired) {
               throw new Error(`Approval failed: Allowance is still insufficient (${newAllowance} < ${totalRequired})`);
             }
+            
+            console.log(`✅ Approval verified successfully - proceeding with pool creation...`);
           } catch (approveError) {
             toast.dismiss('bitr-approval');
             console.error('❌ Error approving BITR tokens:', approveError);
@@ -245,40 +265,29 @@ export function usePoolCore() {
         } else {
           console.log(`✅ Sufficient allowance already exists (${currentAllowance / BigInt(10**18)} BITR >= ${totalRequired / BigInt(10**18)} BITR)`);
           
-          // 🚨 CRITICAL FIX: Even if allowance is "sufficient", it might be EXACTLY equal
-          // If it's exactly equal or close, we should refresh it to avoid edge cases
-          // This happens when a previous pool creation approved exactly this amount
-          if (currentAllowance === totalRequired || currentAllowance < totalRequired + BigInt(10**18)) {
-            console.log(`⚠️ Allowance is exactly equal or very close to required amount`);
-            console.log(`   This might cause issues if there's any rounding or previous consumption`);
-            console.log(`   Refreshing approval to ensure sufficient buffer...`);
-            
-            toast.loading('Refreshing BITR token approval...', { id: 'bitr-approval-refresh' });
+          // ✅ OPTIMIZATION: If allowance is not unlimited, upgrade it to unlimited for future transactions
+          if (currentAllowance < MAX_UINT256) {
+            console.log(`🔄 Upgrading to unlimited allowance for faster future transactions...`);
+            toast.loading('Upgrading to unlimited allowance...', { id: 'bitr-approval-upgrade' });
             try {
-              // Approve a larger amount to avoid this issue in future
-              const bufferAmount = totalRequired * 2n; // Approve 2x to cover multiple pools
-              const approvalTx = await approve(CONTRACT_ADDRESSES.POOL_CORE, bufferAmount);
-              console.log(`✅ Approval refreshed with buffer: ${bufferAmount / BigInt(10**18)} BITR`);
-              toast.dismiss('bitr-approval-refresh');
-              toast.success('BITR tokens approved!');
+              const approvalTx = await approve(approvalTarget, MAX_UINT256);
+              console.log(`✅ Unlimited approval transaction submitted: ${approvalTx}`);
               
-              // Verify the new approval
-              const newAllowance = await getAllowance(address as `0x${string}`, CONTRACT_ADDRESSES.POOL_CORE);
-              console.log(`✅ New allowance after refresh: ${newAllowance / BigInt(10**18)} BITR`);
-              
-              if (newAllowance < totalRequired) {
-                throw new Error(`Approval refresh failed: Allowance is still insufficient`);
-              }
-            } catch (refreshError) {
-              toast.dismiss('bitr-approval-refresh');
-              console.error('❌ Error refreshing approval:', refreshError);
-              toast.error('Failed to refresh BITR token approval');
-              throw refreshError;
+              // Don't wait for confirmation - proceed immediately with pool creation
+              // The current allowance is sufficient, so we can proceed
+              toast.dismiss('bitr-approval-upgrade');
+              console.log(`✅ Unlimited approval submitted (proceeding with pool creation)`);
+            } catch (upgradeError) {
+              // Non-critical - current allowance is sufficient
+              console.warn('⚠️ Failed to upgrade to unlimited allowance (non-critical):', upgradeError);
+              toast.dismiss('bitr-approval-upgrade');
             }
           }
         }
       }
 
+      // ✅ CRITICAL: Ensure we proceed with pool creation after approval
+      console.log('🚀 Proceeding with pool creation transaction...');
       console.log('Creating pool with parameters:', {
         predictedOutcomeBytes32,
         odds: poolData.odds,
@@ -501,14 +510,29 @@ export function usePoolCore() {
     try {
       // For BITR pools, check and handle approval first
       if (useBitr && address) {
+        const MAX_UINT256 = BigInt('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff');
         const currentAllowance = await getAllowance(address, CONTRACT_ADDRESSES.POOL_CORE);
         
         if (currentAllowance < betAmount) {
           console.log('BITR approval needed for bet placement');
-          toast.loading('Approving BITR tokens...', { id: 'bitr-approval' });
+          toast.loading('Approving BITR tokens (unlimited allowance)...', { id: 'bitr-approval' });
           
-          await approve(CONTRACT_ADDRESSES.POOL_CORE, betAmount);
-          toast.success('BITR tokens approved!', { id: 'bitr-approval' });
+          // ✅ FIX: Use unlimited allowance for faster future transactions
+          await approve(CONTRACT_ADDRESSES.POOL_CORE, MAX_UINT256);
+          toast.success('BITR tokens approved (unlimited allowance)!', { id: 'bitr-approval' });
+        } else if (currentAllowance < MAX_UINT256) {
+          // ✅ OPTIMIZATION: Upgrade to unlimited allowance if not already unlimited
+          console.log('Upgrading to unlimited allowance for faster future transactions...');
+          toast.loading('Upgrading to unlimited allowance...', { id: 'bitr-approval-upgrade' });
+          try {
+            await approve(CONTRACT_ADDRESSES.POOL_CORE, MAX_UINT256);
+            toast.dismiss('bitr-approval-upgrade');
+            console.log('✅ Unlimited allowance approved');
+          } catch (upgradeError) {
+            // Non-critical - current allowance is sufficient
+            console.warn('⚠️ Failed to upgrade to unlimited allowance (non-critical):', upgradeError);
+            toast.dismiss('bitr-approval-upgrade');
+          }
         }
       }
       
