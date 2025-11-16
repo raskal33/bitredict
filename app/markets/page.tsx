@@ -23,7 +23,6 @@ import {
 type MarketCategory = "all" | "boosted" | "trending" | "private" | "combo" | "active" | "closed" | "settled";
 type CategoryFilter = "all" | "football" | "crypto" | "basketball" | "other";
 type SortBy = "newest" | "oldest" | "volume" | "ending-soon";
-type PoolStatus = "active" | "closed" | "settled" | "all";
 
 
 
@@ -140,11 +139,13 @@ export default function MarketsPage() {
       try {
         console.log('🚀 Fetching pools from optimized backend API with caching...');
         
+        // ✅ FIX: Always fetch ALL pools, then filter client-side for accurate filtering
+        // This ensures filters work correctly regardless of backend filter support
         const cacheKey = frontendCache.getPoolKey('list', undefined, {
-          category: categoryFilter === "all" ? undefined : categoryFilter,
-          status: activeCategory === "all" ? undefined : (activeCategory as PoolStatus),
+          category: undefined, // Fetch all categories
+          status: undefined, // Fetch all statuses
           sortBy: sortBy,
-          limit: 50,
+          limit: 100, // Fetch more pools to ensure we have data for all filters
           offset: 0
         });
         
@@ -152,10 +153,10 @@ export default function MarketsPage() {
           frontendCache.get(
             cacheKey,
             () => optimizedPoolService.getPools({ 
-              category: categoryFilter === "all" ? undefined : categoryFilter,
-              status: activeCategory === "all" ? undefined : (activeCategory as PoolStatus),
+              category: undefined, // Fetch all
+              status: undefined, // Fetch all
               sortBy: sortBy,
-              limit: 50, 
+              limit: 100, 
               offset: 0 
             })
           ),
@@ -174,7 +175,7 @@ export default function MarketsPage() {
         }));
         
         setEnhancedPools(enhanced);
-        setFilteredPools(enhanced);
+        // Don't set filteredPools here - let the filter useEffect handle it
         
         setStats({
           totalVolume: analyticsData.totalVolume,

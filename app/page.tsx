@@ -173,9 +173,14 @@ export default function HomePage() {
     fetchPools();
   }, [fetchPlatformStats, fetchPools]);
 
-  const filteredPools = enhancedPools.filter(pool => 
-    activeCategory === "" || pool.category === activeCategory
-  );
+  // ✅ FIX: Ensure filters work correctly
+  const filteredPools = enhancedPools.filter(pool => {
+    if (activeCategory === "" || activeCategory === "All") {
+      return true; // Show all pools
+    }
+    // Match category exactly (case-insensitive)
+    return pool.category?.toLowerCase() === activeCategory.toLowerCase();
+  });
 
   const categories = ["All", "football", "crypto", "basketball", "other"];
 

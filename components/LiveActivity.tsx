@@ -7,7 +7,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useBetUpdates, usePoolCreatedUpdates, useLiquidityAddedUpdates } from '@/hooks/useSomniaStreams';
 import { XMarkIcon, BoltIcon } from '@heroicons/react/24/outline';
 
@@ -25,6 +25,11 @@ interface ActivityEvent {
 export function LiveActivity() {
   const [events, setEvents] = useState<ActivityEvent[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [position, setPosition] = useState({ x: 16, y: 16 }); // Default bottom-left (16px = 1rem)
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const panelRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   // Subscribe to bet placed events
   useBetUpdates((betData: {
@@ -114,11 +119,79 @@ export function LiveActivity() {
     }
   };
 
+  // Drag and drop handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!panelRef.current) return;
+    setIsDragging(true);
+    const rect = panelRef.current.getBoundingClientRect();
+    setDragStart({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    });
+  };
+
+  useEffect(() => {
+    if (!isDragging) return;
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      const newX = e.clientX - dragStart.x;
+      const newY = e.clientY - dragStart.y;
+      
+      // Constrain to viewport
+      const maxX = window.innerWidth - (panelRef.current?.offsetWidth || 384);
+      const maxY = window.innerHeight - (panelRef.current?.offsetHeight || 600);
+      
+      setPosition({
+        x: Math.max(0, Math.min(newX, maxX)),
+        y: Math.max(0, Math.min(newY, maxY))
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, dragStart]);
+
+  // Load saved position from localStorage
+  useEffect(() => {
+    const savedPosition = localStorage.getItem('liveActivityPosition');
+    if (savedPosition) {
+      try {
+        const { x, y } = JSON.parse(savedPosition);
+        setPosition({ x, y });
+      } catch (e) {
+        console.warn('Failed to load saved position:', e);
+      }
+    }
+  }, []);
+
+  // Save position to localStorage
+  useEffect(() => {
+    if (!isDragging && (position.x !== 16 || position.y !== 16)) {
+      localStorage.setItem('liveActivityPosition', JSON.stringify(position));
+    }
+  }, [position, isDragging]);
+
   if (!isOpen) {
     return (
       <button
+        ref={buttonRef}
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-4 left-4 z-50 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-semibold flex items-center gap-2 transition-all"
+        style={{ 
+          position: 'fixed',
+          bottom: `${position.y}px`,
+          left: `${position.x}px`,
+          zIndex: 50
+        }}
+        className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white px-4 py-2 rounded-lg shadow-lg text-sm font-semibold flex items-center gap-2 transition-all cursor-pointer"
       >
         <BoltIcon className="w-4 h-4" />
         Live Activity
@@ -132,9 +205,22 @@ export function LiveActivity() {
   }
 
   return (
-    <div className="fixed bottom-4 left-4 z-50 w-96 max-h-[600px] bg-gray-900 border border-gray-700 rounded-lg shadow-2xl flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between p-3 border-b border-gray-700 bg-gradient-to-r from-cyan-600/20 to-blue-600/20">
+    <div
+      ref={panelRef}
+      style={{
+        position: 'fixed',
+        left: `${position.x}px`,
+        bottom: `${position.y}px`,
+        zIndex: 50,
+        cursor: isDragging ? 'grabbing' : 'default'
+      }}
+      className="w-96 max-h-[600px] bg-gray-900 border border-gray-700 rounded-lg shadow-2xl flex flex-col"
+    >
+      {/* Header - Draggable */}
+      <div
+        onMouseDown={handleMouseDown}
+        className={`flex items-center justify-between p-3 border-b border-gray-700 bg-gradient-to-r from-cyan-600/20 to-blue-600/20 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+      >
         <div className="flex items-center gap-2">
           <BoltIcon className="w-5 h-5 text-cyan-400" />
           <h3 className="text-white font-semibold text-sm">Live Activity</h3>

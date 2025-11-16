@@ -751,10 +751,8 @@ function CreateMarketPageContent() {
   const handleNextStep = () => {
     if (validateStep(step)) {
       setStep(step + 1);
-      // Scroll to top when moving to preview/deploy step
-      if (step + 1 === 3) {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
+      // Scroll to top when navigating between steps
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -762,11 +760,9 @@ function CreateMarketPageContent() {
     setStep(step - 1);
   };
 
-  // Scroll to top when step changes to 3 (preview/deploy)
+  // Scroll to top when step changes (especially when navigating from step 1 to step 2)
   useEffect(() => {
-    if (step === 3) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [step]);
 
   // Scroll to top when transaction succeeds
@@ -1012,9 +1008,10 @@ function CreateMarketPageContent() {
           meetsMinimum: useBitr ? poolData.creatorStake >= BigInt('1000000000000000000000') : poolData.creatorStake >= BigInt('5000000000000000000')
         });
         
+        // Show pending immediately - transaction will be triggered right away
         showPending('Creating Market', 'Preparing market creation transaction...');
         
-        // Use direct contract call
+        // Use direct contract call - this will trigger MetaMask immediately
         const txHash = await createPool(poolData);
         
         // Update to confirming state once transaction is submitted

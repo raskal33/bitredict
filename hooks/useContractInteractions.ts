@@ -174,8 +174,14 @@ export function usePoolCore() {
           console.log(`   Boost Cost: ${boostCost / BigInt(10**18)} STT (paid in native STT)`);
         }
         
-        // Check BITR balance first (for creation fee + creator stake only, NOT boost cost)
-        const balance = await getBalance();
+        // ✅ OPTIMIZATION: Do balance checks in parallel for faster execution
+        const approvalTarget = hasBoost ? CONTRACT_ADDRESSES.FACTORY : CONTRACT_ADDRESSES.POOL_CORE;
+        const [balance, currentAllowance, sttBalance] = await Promise.all([
+          getBalance(),
+          getAllowance(address as `0x${string}`, approvalTarget),
+          boostCost > 0n && address ? publicClient?.getBalance({ address }) : Promise.resolve(0n)
+        ]);
+        
         console.log(`🔍 BITR Balance Check: ${balance / BigInt(10**18)} BITR (required: ${totalRequired / BigInt(10**18)} BITR)`);
         console.log(`   Note: Boost cost (${boostCost / BigInt(10**18)} STT) is paid separately in native STT`);
         
@@ -188,23 +194,17 @@ export function usePoolCore() {
         }
         
         // ✅ FIX: For BITR pools with boost, check STT balance for boost payment
-        if (boostCost > 0n && address) {
-          const sttBalance = await publicClient?.getBalance({ address });
-          if (!sttBalance || sttBalance < boostCost) {
-            const errorMsg = `Insufficient STT balance for boost. You need ${boostCost / BigInt(10**18)} STT but have ${sttBalance ? sttBalance / BigInt(10**18) : 0} STT`;
-            console.error(`❌ ${errorMsg}`);
-            toast.error(errorMsg);
-            throw new Error(errorMsg);
-          }
+        if (boostCost > 0n && address && sttBalance && sttBalance < boostCost) {
+          const errorMsg = `Insufficient STT balance for boost. You need ${boostCost / BigInt(10**18)} STT but have ${sttBalance / BigInt(10**18)} STT`;
+          console.error(`❌ ${errorMsg}`);
+          toast.error(errorMsg);
+          throw new Error(errorMsg);
+        }
+        if (boostCost > 0n && sttBalance && sttBalance >= boostCost) {
           console.log(`✅ STT balance check passed for boost: ${sttBalance / BigInt(10**18)} STT >= ${boostCost / BigInt(10**18)} STT`);
         }
         
         console.log(`✅ Balance check passed`);
-        
-        // Check if we need to approve more tokens
-        // ✅ FIX: For boosted pools, approve FACTORY (not POOL_CORE) since we're calling createPoolWithBoost
-        const approvalTarget = hasBoost ? CONTRACT_ADDRESSES.FACTORY : CONTRACT_ADDRESSES.POOL_CORE;
-        const currentAllowance = await getAllowance(address as `0x${string}`, approvalTarget);
         console.log(`🔍 BITR Allowance Check:`, {
           currentAllowance: currentAllowance.toString(),
           currentAllowanceFormatted: `${currentAllowance / BigInt(10**18)} BITR`,
