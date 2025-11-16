@@ -25,7 +25,7 @@ interface ActivityEvent {
 export function LiveActivity() {
   const [events, setEvents] = useState<ActivityEvent[]>([]);
   const [isOpen, setIsOpen] = useState(false);
-  const [position, setPosition] = useState({ x: 16, y: window.innerHeight - 616 }); // Default bottom-left (16px from left, 16px from bottom)
+  const [position, setPosition] = useState({ x: 16, y: 0 }); // Will be set properly in useEffect
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const panelRef = useRef<HTMLDivElement>(null);
@@ -326,7 +326,7 @@ export function LiveActivity() {
     };
   }, [isDragging, dragStart]);
 
-  // Load saved position from localStorage
+  // Load saved position from localStorage or set default
   useEffect(() => {
     const savedPosition = localStorage.getItem('liveActivityPosition');
     if (savedPosition) {
@@ -335,13 +335,28 @@ export function LiveActivity() {
         setPosition({ x, y });
       } catch (e) {
         console.warn('Failed to load saved position:', e);
-        // Set default position
+        // Set default position (bottom-left)
         setPosition({ x: 16, y: window.innerHeight - 616 });
       }
     } else {
-      // Set default position on first load
+      // Set default position on first load (bottom-left: 16px from left, 16px from bottom)
       setPosition({ x: 16, y: window.innerHeight - 616 });
     }
+    
+    // Handle window resize to keep panel in viewport
+    const handleResize = () => {
+      setPosition(prev => {
+        const maxX = window.innerWidth - 384 - 10;
+        const maxY = window.innerHeight - 600 - 10;
+        return {
+          x: Math.min(prev.x, maxX),
+          y: Math.min(prev.y, maxY)
+        };
+      });
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   // Save position to localStorage
