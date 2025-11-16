@@ -8,7 +8,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { useBetUpdates, usePoolCreatedUpdates, useLiquidityAddedUpdates } from '@/hooks/useSomniaStreams';
+import { useBetUpdates, usePoolCreatedUpdates, useLiquidityAddedUpdates, useSomniaStreams } from '@/hooks/useSomniaStreams';
 import { XMarkIcon, BoltIcon } from '@heroicons/react/24/outline';
 
 interface ActivityEvent {
@@ -30,6 +30,20 @@ export function LiveActivity() {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const panelRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const [sdsStatus, setSdsStatus] = useState<{ isConnected: boolean; isSDSActive: boolean; isFallback: boolean }>({
+    isConnected: false,
+    isSDSActive: false,
+    isFallback: false
+  });
+  const processedEventIds = useRef<Set<string>>(new Set()); // ✅ FIX: Prevent duplicate events
+
+  // ✅ FIX: Get SDS connection status from useSomniaStreams directly
+  const { isConnected, isSDSActive, isFallback } = useSomniaStreams({ enabled: true });
+  
+  useEffect(() => {
+    setSdsStatus({ isConnected, isSDSActive, isFallback });
+    console.log(`📡 LiveActivity SDS Status:`, { isConnected, isSDSActive, isFallback });
+  }, [isConnected, isSDSActive, isFallback]);
 
   // Subscribe to bet placed events
   useBetUpdates((betData: {
@@ -40,10 +54,23 @@ export function LiveActivity() {
     poolTitle?: string;
     currency?: string;
   }) => {
-    if (!betData.poolId || !betData.bettor) return;
+    if (!betData.poolId || !betData.bettor) {
+      console.log('⚠️ LiveActivity: Invalid bet data:', betData);
+      return;
+    }
+    
+    // ✅ FIX: Create unique event ID to prevent duplicates
+    const eventId = `bet-${betData.poolId}-${betData.bettor}-${betData.timestamp || Date.now()}`;
+    if (processedEventIds.current.has(eventId)) {
+      console.log(`⚠️ LiveActivity: Duplicate bet event prevented: ${eventId}`);
+      return;
+    }
+    
+    processedEventIds.current.add(eventId);
+    console.log(`✅ LiveActivity: Received bet event:`, betData);
     
     const newEvent: ActivityEvent = {
-      id: `bet-${Date.now()}-${Math.random()}`,
+      id: eventId,
       timestamp: betData.timestamp || Math.floor(Date.now() / 1000),
       type: 'bet' as const,
       poolId: betData.poolId.toString(),
@@ -52,7 +79,19 @@ export function LiveActivity() {
       currency: betData.currency || 'STT',
       poolTitle: betData.poolTitle
     };
-    setEvents(prev => [newEvent, ...prev].slice(0, 50));
+    setEvents(prev => {
+      // ✅ FIX: Also check for duplicates in state
+      if (prev.some(e => e.id === eventId)) {
+        console.log(`⚠️ LiveActivity: Event already in state: ${eventId}`);
+        return prev;
+      }
+      return [newEvent, ...prev].slice(0, 50);
+    });
+    
+    // Clean up old event IDs after 5 minutes
+    setTimeout(() => {
+      processedEventIds.current.delete(eventId);
+    }, 5 * 60 * 1000);
   });
 
   // Subscribe to pool created events
@@ -62,15 +101,39 @@ export function LiveActivity() {
     timestamp?: number;
     title?: string;
   }) => {
+    if (!poolData.poolId || !poolData.creator) {
+      console.log('⚠️ LiveActivity: Invalid pool data:', poolData);
+      return;
+    }
+    
+    const eventId = `pool-${poolData.poolId}-${poolData.timestamp || Date.now()}`;
+    if (processedEventIds.current.has(eventId)) {
+      console.log(`⚠️ LiveActivity: Duplicate pool event prevented: ${eventId}`);
+      return;
+    }
+    
+    processedEventIds.current.add(eventId);
+    console.log(`✅ LiveActivity: Received pool created event:`, poolData);
+    
     const newEvent: ActivityEvent = {
-      id: `pool-${Date.now()}-${Math.random()}`,
+      id: eventId,
       timestamp: poolData.timestamp || Math.floor(Date.now() / 1000),
       type: 'pool_created' as const,
       poolId: poolData.poolId,
       user: poolData.creator,
       poolTitle: poolData.title
     };
-    setEvents(prev => [newEvent, ...prev].slice(0, 50));
+    setEvents(prev => {
+      if (prev.some(e => e.id === eventId)) {
+        console.log(`⚠️ LiveActivity: Event already in state: ${eventId}`);
+        return prev;
+      }
+      return [newEvent, ...prev].slice(0, 50);
+    });
+    
+    setTimeout(() => {
+      processedEventIds.current.delete(eventId);
+    }, 5 * 60 * 1000);
   });
 
   // Subscribe to liquidity added events
@@ -80,8 +143,22 @@ export function LiveActivity() {
     amount?: string;
     timestamp: number;
   }) => {
+    if (!liquidityData.poolId || !liquidityData.provider) {
+      console.log('⚠️ LiveActivity: Invalid liquidity data:', liquidityData);
+      return;
+    }
+    
+    const eventId = `lp-${liquidityData.poolId}-${liquidityData.provider}-${liquidityData.timestamp}`;
+    if (processedEventIds.current.has(eventId)) {
+      console.log(`⚠️ LiveActivity: Duplicate liquidity event prevented: ${eventId}`);
+      return;
+    }
+    
+    processedEventIds.current.add(eventId);
+    console.log(`✅ LiveActivity: Received liquidity event:`, liquidityData);
+    
     const newEvent: ActivityEvent = {
-      id: `lp-${Date.now()}-${Math.random()}`,
+      id: eventId,
       timestamp: liquidityData.timestamp,
       type: 'liquidity_added' as const,
       poolId: liquidityData.poolId,
@@ -89,7 +166,17 @@ export function LiveActivity() {
       amount: liquidityData.amount,
       currency: 'STT'
     };
-    setEvents(prev => [newEvent, ...prev].slice(0, 50));
+    setEvents(prev => {
+      if (prev.some(e => e.id === eventId)) {
+        console.log(`⚠️ LiveActivity: Event already in state: ${eventId}`);
+        return prev;
+      }
+      return [newEvent, ...prev].slice(0, 50);
+    });
+    
+    setTimeout(() => {
+      processedEventIds.current.delete(eventId);
+    }, 5 * 60 * 1000);
   });
 
   const formatTime = (timestamp: number): string => {
@@ -229,6 +316,10 @@ export function LiveActivity() {
               {events.length}
             </span>
           )}
+          {/* ✅ SDS Status Indicator */}
+          <div className="flex items-center gap-1 ml-2">
+            <div className={`w-2 h-2 rounded-full ${sdsStatus.isSDSActive ? 'bg-green-400 animate-pulse' : sdsStatus.isFallback ? 'bg-yellow-400' : 'bg-red-400'}`} title={sdsStatus.isSDSActive ? 'SDS Active' : sdsStatus.isFallback ? 'WebSocket Fallback' : 'Not Connected'} />
+          </div>
         </div>
         <button
           onClick={() => setIsOpen(false)}
@@ -245,6 +336,16 @@ export function LiveActivity() {
             <BoltIcon className="w-8 h-8 mx-auto mb-2 text-gray-600" />
             <p>No activity yet</p>
             <p className="text-[10px] mt-1">Activity will appear here in real-time</p>
+            {/* ✅ SDS Connection Status */}
+            <div className="mt-4 pt-4 border-t border-gray-700">
+              <p className="text-[10px] text-gray-600 mb-1">Connection Status:</p>
+              <div className="flex items-center justify-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${sdsStatus.isSDSActive ? 'bg-green-400' : sdsStatus.isFallback ? 'bg-yellow-400' : 'bg-red-400'}`} />
+                <span className="text-[10px]">
+                  {sdsStatus.isSDSActive ? 'SDS Active' : sdsStatus.isFallback ? 'WebSocket Fallback' : 'Not Connected'}
+                </span>
+              </div>
+            </div>
           </div>
         ) : (
           events.map((event) => (

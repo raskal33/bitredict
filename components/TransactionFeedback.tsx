@@ -394,11 +394,33 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
   );
 };
 
+// ✅ FIX: Module-level deduplication to prevent duplicate notifications
+const notificationDeduplicationMap = new Map<string, number>();
+const NOTIFICATION_DEDUP_WINDOW = 5000; // 5 seconds
+
 // Hook for managing transaction feedback
 export const useTransactionFeedback = () => {
   const [transactionStatus, setTransactionStatus] = useState<TransactionStatus | null>(null);
 
+  // ✅ FIX: Create unique key for deduplication
+  const createNotificationKey = (type: string, hash?: string, title?: string) => {
+    return hash ? `${type}:${hash}` : `${type}:${title}:${Date.now()}`;
+  };
+
   const showSuccess = (title: string, message: string, hash?: string, boostTier?: string, totalCost?: string, poolId?: string) => {
+    const key = createNotificationKey('success', hash, title);
+    const now = Date.now();
+    
+    // ✅ FIX: Check if this notification was shown recently
+    if (notificationDeduplicationMap.has(key)) {
+      const lastShown = notificationDeduplicationMap.get(key)!;
+      if (now - lastShown < NOTIFICATION_DEDUP_WINDOW) {
+        console.log(`⚠️ Duplicate notification prevented: ${key} (shown ${now - lastShown}ms ago)`);
+        return; // Skip duplicate notification
+      }
+    }
+    
+    notificationDeduplicationMap.set(key, now);
     setTransactionStatus({
       type: 'success',
       title,
@@ -408,48 +430,129 @@ export const useTransactionFeedback = () => {
       totalCost,
       poolId
     });
+    
+    // Clean up old entries
+    setTimeout(() => {
+      notificationDeduplicationMap.delete(key);
+    }, NOTIFICATION_DEDUP_WINDOW);
   };
 
   const showError = (title: string, message: string, hash?: string) => {
+    const key = createNotificationKey('error', hash, title);
+    const now = Date.now();
+    
+    if (notificationDeduplicationMap.has(key)) {
+      const lastShown = notificationDeduplicationMap.get(key)!;
+      if (now - lastShown < NOTIFICATION_DEDUP_WINDOW) {
+        console.log(`⚠️ Duplicate notification prevented: ${key} (shown ${now - lastShown}ms ago)`);
+        return;
+      }
+    }
+    
+    notificationDeduplicationMap.set(key, now);
     setTransactionStatus({
       type: 'error',
       title,
       message,
       hash
     });
+    
+    setTimeout(() => {
+      notificationDeduplicationMap.delete(key);
+    }, NOTIFICATION_DEDUP_WINDOW);
   };
 
   const showWarning = (title: string, message: string) => {
+    const key = createNotificationKey('warning', undefined, title);
+    const now = Date.now();
+    
+    if (notificationDeduplicationMap.has(key)) {
+      const lastShown = notificationDeduplicationMap.get(key)!;
+      if (now - lastShown < NOTIFICATION_DEDUP_WINDOW) {
+        return;
+      }
+    }
+    
+    notificationDeduplicationMap.set(key, now);
     setTransactionStatus({
       type: 'warning',
       title,
       message
     });
+    
+    setTimeout(() => {
+      notificationDeduplicationMap.delete(key);
+    }, NOTIFICATION_DEDUP_WINDOW);
   };
 
   const showInfo = (title: string, message: string) => {
+    const key = createNotificationKey('info', undefined, title);
+    const now = Date.now();
+    
+    if (notificationDeduplicationMap.has(key)) {
+      const lastShown = notificationDeduplicationMap.get(key)!;
+      if (now - lastShown < NOTIFICATION_DEDUP_WINDOW) {
+        return;
+      }
+    }
+    
+    notificationDeduplicationMap.set(key, now);
     setTransactionStatus({
       type: 'info',
       title,
       message
     });
+    
+    setTimeout(() => {
+      notificationDeduplicationMap.delete(key);
+    }, NOTIFICATION_DEDUP_WINDOW);
   };
 
   const showPending = (title: string, message: string) => {
+    const key = createNotificationKey('pending', undefined, title);
+    const now = Date.now();
+    
+    if (notificationDeduplicationMap.has(key)) {
+      const lastShown = notificationDeduplicationMap.get(key)!;
+      if (now - lastShown < NOTIFICATION_DEDUP_WINDOW) {
+        return;
+      }
+    }
+    
+    notificationDeduplicationMap.set(key, now);
     setTransactionStatus({
       type: 'pending',
       title,
       message
     });
+    
+    setTimeout(() => {
+      notificationDeduplicationMap.delete(key);
+    }, NOTIFICATION_DEDUP_WINDOW);
   };
 
   const showConfirming = (title: string, message: string, hash?: string) => {
+    const key = createNotificationKey('confirming', hash, title);
+    const now = Date.now();
+    
+    if (notificationDeduplicationMap.has(key)) {
+      const lastShown = notificationDeduplicationMap.get(key)!;
+      if (now - lastShown < NOTIFICATION_DEDUP_WINDOW) {
+        return;
+      }
+    }
+    
+    notificationDeduplicationMap.set(key, now);
     setTransactionStatus({
       type: 'confirming',
       title,
       message,
       hash
     });
+    
+    setTimeout(() => {
+      notificationDeduplicationMap.delete(key);
+    }, NOTIFICATION_DEDUP_WINDOW);
   };
 
   const clearStatus = () => {
