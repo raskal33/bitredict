@@ -10,7 +10,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { optimizedPoolService } from "@/services/optimizedPoolService";
 import { getPoolIcon } from "@/services/crypto-icons";
-import { useBetUpdates } from "@/hooks/useSomniaStreams";
+import { useBetUpdates, usePoolCreatedUpdates, useLiquidityAddedUpdates } from "@/hooks/useSomniaStreams";
 
 interface RecentBet {
   id: number;
@@ -175,7 +175,9 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
   const [apiData, setApiData] = useState<RecentBet[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // ✅ CRITICAL: Use real-time bet updates via SDS/WebSocket
+  // ✅ CRITICAL: Use real-time updates via SDS for all event types
+  
+  // Handle bet placed events
   useBetUpdates((betData: {
     poolId?: string | number;
     bettor?: string;
@@ -186,45 +188,27 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
     category?: string;
     league?: string;
     odds?: number;
-    eventType?: string;
-    action?: string;
-    icon?: string;
     currency?: string;
   }) => {
     console.log('📡 Recent Bets Lane: Received real-time bet update:', betData);
     
-    // Transform bet data to component format
-    const eventType: 'bet' | 'pool_created' | 'liquidity_added' = 
-      (betData.eventType === 'pool_created' ? 'pool_created' :
-       betData.eventType === 'liquidity_added' ? 'liquidity_added' : 'bet') as 'bet' | 'pool_created' | 'liquidity_added';
-    
-    // ✅ FIX: Convert amount from wei to BITR/STT if needed
-    // Backend sends amount in BITR/STT for WebSocket, but check if it's still in wei
+    // Convert amount from wei to token if needed
     let amountInToken = betData.amount || '0';
     const amountNum = parseFloat(amountInToken);
-    
-    // If amount is very large, it's likely in wei - convert to token
-    // LP amounts use 1e15 divisor, bets use 1e18 divisor
     if (amountNum > 1e12) {
-      if (eventType === 'liquidity_added') {
-        // LP amounts are stored as 1e15
-        amountInToken = (amountNum / 1e15).toString();
-      } else {
-        // Bet amounts are stored as 1e18
-        amountInToken = (amountNum / 1e18).toString();
-      }
+      amountInToken = (amountNum / 1e18).toString(); // Bet amounts use 1e18
     }
     
     const newBet: RecentBet = {
-      id: Date.now(), // Use timestamp as ID for new bets
+      id: Date.now(),
       poolId: betData.poolId?.toString() || '',
       bettorAddress: betData.bettor || '',
-      amount: amountInToken, // ✅ FIX: Amount in token (BITR/STT)
+      amount: amountInToken,
       amountFormatted: parseFloat(amountInToken).toFixed(2),
       isForOutcome: betData.isForOutcome !== undefined ? betData.isForOutcome : true,
-      eventType: eventType,
-      action: betData.action || (eventType === 'liquidity_added' ? 'Added liquidity' : 'Placed bet'),
-      icon: betData.icon || (eventType === 'liquidity_added' ? '💧' : '🎯'),
+      eventType: 'bet',
+      action: 'Placed bet',
+      icon: '🎯',
       odds: betData.odds,
       currency: betData.currency || 'STT',
       createdAt: new Date((betData.timestamp || Date.now() / 1000) * 1000).toISOString(),
@@ -242,7 +226,101 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
       }
     };
     
-    // Add to beginning of list (most recent first)
+    setApiData(prev => [newBet, ...prev].slice(0, 20));
+  });
+  
+  // Handle pool created events
+  usePoolCreatedUpdates((poolData: {
+    poolId: string;
+    creator: string;
+    creatorStake: string;
+    title: string;
+    category: string;
+    odds: number;
+    timestamp?: number;
+  }) => {
+    console.log('📡 Recent Bets Lane: Received pool created update:', poolData);
+    
+    // Convert creator stake from wei to token
+    let amountInToken = poolData.creatorStake || '0';
+    const amountNum = parseFloat(amountInToken);
+    if (amountNum > 1e12) {
+      amountInToken = (amountNum / 1e18).toString();
+    }
+    
+    const newBet: RecentBet = {
+      id: Date.now(),
+      poolId: poolData.poolId,
+      bettorAddress: poolData.creator,
+      amount: amountInToken,
+      amountFormatted: parseFloat(amountInToken).toFixed(2),
+      isForOutcome: false,
+      eventType: 'pool_created',
+      action: 'Created pool',
+      icon: '🏗️',
+      odds: poolData.odds,
+      currency: 'STT',
+      createdAt: new Date((poolData.timestamp || Date.now() / 1000) * 1000).toISOString(),
+      timeAgo: 'Just now',
+      pool: {
+        predictedOutcome: '',
+        league: 'Unknown',
+        category: poolData.category || 'Unknown',
+        homeTeam: '',
+        awayTeam: '',
+        title: poolData.title || `Pool #${poolData.poolId}`,
+        useBitr: false,
+        odds: poolData.odds || 0,
+        creatorAddress: poolData.creator
+      }
+    };
+    
+    setApiData(prev => [newBet, ...prev].slice(0, 20));
+  });
+  
+  // Handle liquidity added events
+  useLiquidityAddedUpdates((liquidityData: {
+    poolId: string;
+    provider: string;
+    amount: string;
+    timestamp: number;
+  }) => {
+    console.log('📡 Recent Bets Lane: Received liquidity added update:', liquidityData);
+    
+    // Convert amount from wei to token (LP amounts use 1e18)
+    let amountInToken = liquidityData.amount || '0';
+    const amountNum = parseFloat(amountInToken);
+    if (amountNum > 1e12) {
+      amountInToken = (amountNum / 1e18).toString();
+    }
+    
+    const newBet: RecentBet = {
+      id: Date.now(),
+      poolId: liquidityData.poolId,
+      bettorAddress: liquidityData.provider,
+      amount: amountInToken,
+      amountFormatted: parseFloat(amountInToken).toFixed(2),
+      isForOutcome: false,
+      eventType: 'liquidity_added',
+      action: 'Added liquidity',
+      icon: '💧',
+      odds: undefined,
+      currency: 'STT',
+      createdAt: new Date(liquidityData.timestamp * 1000).toISOString(),
+      timeAgo: 'Just now',
+      pool: {
+        predictedOutcome: '',
+        league: 'Unknown',
+        category: 'Unknown',
+        homeTeam: '',
+        awayTeam: '',
+        title: `Pool #${liquidityData.poolId}`,
+        useBitr: false,
+        odds: 0,
+        creatorAddress: ''
+      }
+    };
+    
     setApiData(prev => [newBet, ...prev].slice(0, 20));
   });
 

@@ -379,19 +379,17 @@ export function useSomniaStreams(
         const subscriptionParams = {
           somniaStreamsEventId: eventSchemaId,
           ethCalls: [],
-          onlyPushChanges: false,
-          context: eventType, 
+          onlyPushChanges: false, 
           onData: (data: any) => {
             console.log(`📦 Received ${eventType} data:`, data);
             console.log(`📦 Data type:`, typeof data, 'Keys:', data ? Object.keys(data) : 'null');
             
-            // ✅ CRITICAL: Decode pool progress data if it's ABI-encoded
+            // ✅ CRITICAL: Decode ABI-encoded data if needed
             let decodedData = data;
+            
+            // Decode pool progress data
             if (eventType === 'pool:progress' && data && typeof data === 'object') {
-              // SDS should already decode the data, but ensure it's in the right format
-              // If data has raw hex, decode it; otherwise use as-is
               if (data.data && typeof data.data === 'string' && data.data.startsWith('0x')) {
-                // Data is ABI-encoded, need to decode
                 try {
                   const decoded = decodeAbiParameters(
                     [
@@ -401,40 +399,30 @@ export function useSomniaStreams(
                       { name: 'totalCreatorSideStake', type: 'uint256' },
                       { name: 'maxPoolSize', type: 'uint256' },
                       { name: 'participantCount', type: 'uint256' },
+                      { name: 'betCount', type: 'uint256' },
+                      { name: 'currentMaxBettorStake', type: 'uint256' },
+                      { name: 'effectiveCreatorSideStake', type: 'uint256' },
                       { name: 'timestamp', type: 'uint256' }
                     ],
                     data.data
                   );
-                  
-                  // ✅ CRITICAL: fillPercentage is already a percentage (0-100), not basis points
-                  const fillPercentage = Number(decoded[1]);
-                  const maxPoolSize = decoded[4];
-                  const totalCreatorSideStake = decoded[3];
-                  
-                  // Calculate currentMaxBettorStake = maxPoolSize - totalCreatorSideStake
-                  const currentMaxBettorStake = maxPoolSize > totalCreatorSideStake 
-                    ? (maxPoolSize - totalCreatorSideStake).toString()
-                    : '0';
-                  
                   decodedData = {
                     poolId: decoded[0].toString(),
-                    fillPercentage: fillPercentage, // Already a percentage (0-100)
+                    fillPercentage: Number(decoded[1]),
                     totalBettorStake: decoded[2].toString(),
-                    totalCreatorSideStake: totalCreatorSideStake.toString(),
-                    maxPoolSize: maxPoolSize.toString(),
+                    totalCreatorSideStake: decoded[3].toString(),
+                    maxPoolSize: decoded[4].toString(),
                     participantCount: Number(decoded[5]),
-                    timestamp: Number(decoded[6]),
-                    // Calculate derived fields
-                    currentMaxBettorStake: currentMaxBettorStake,
-                    effectiveCreatorSideStake: totalCreatorSideStake.toString()
+                    betCount: Number(decoded[6]),
+                    currentMaxBettorStake: decoded[7].toString(),
+                    effectiveCreatorSideStake: decoded[8].toString(),
+                    timestamp: Number(decoded[9])
                   };
                   console.log(`✅ Decoded pool progress data:`, decodedData);
                 } catch (decodeError) {
                   console.warn(`⚠️ Failed to decode pool progress data:`, decodeError);
-                  // Use data as-is if decoding fails
                 }
               } else if (data.poolId || data.fillPercentage !== undefined) {
-                // Data is already decoded, ensure it has all required fields
                 decodedData = {
                   poolId: data.poolId?.toString() || data.pool_id?.toString(),
                   fillPercentage: data.fillPercentage ?? data.fill_percentage ?? 0,
@@ -448,6 +436,116 @@ export function useSomniaStreams(
                   effectiveCreatorSideStake: data.effectiveCreatorSideStake?.toString() || data.effective_creator_side_stake?.toString() || data.totalCreatorSideStake?.toString() || '0'
                 };
                 console.log(`✅ Formatted pool progress data:`, decodedData);
+              }
+            }
+            
+            // Decode pool created data (SDS publishes enriched pool data)
+            if (eventType === 'pool:created' && data && typeof data === 'object') {
+              // SDS may send the data directly or ABI-encoded
+              if (data.data && typeof data.data === 'string' && data.data.startsWith('0x')) {
+                try {
+                  const decoded = decodeAbiParameters(
+                    [
+                      { name: 'poolId', type: 'uint256' },
+                      { name: 'creator', type: 'address' },
+                      { name: 'odds', type: 'uint16' },
+                      { name: 'flags', type: 'uint8' },
+                      { name: 'creatorStake', type: 'uint256' },
+                      { name: 'totalBettorStake', type: 'uint256' },
+                      { name: 'totalCreatorSideStake', type: 'uint256' },
+                      { name: 'maxBettorStake', type: 'uint256' },
+                      { name: 'category', type: 'bytes32' },
+                      { name: 'league', type: 'bytes32' },
+                      { name: 'homeTeam', type: 'bytes32' },
+                      { name: 'awayTeam', type: 'bytes32' },
+                      { name: 'marketId', type: 'string' },
+                      { name: 'eventStartTime', type: 'uint256' },
+                      { name: 'eventEndTime', type: 'uint256' },
+                      { name: 'bettingEndTime', type: 'uint256' },
+                      { name: 'isSettled', type: 'bool' },
+                      { name: 'creatorSideWon', type: 'bool' },
+                      { name: 'title', type: 'string' },
+                      { name: 'fillPercentage', type: 'uint256' },
+                      { name: 'participantCount', type: 'uint256' },
+                      { name: 'currency', type: 'string' }
+                    ],
+                    data.data
+                  );
+                  // Convert bytes32 to string
+                  const bytes32ToString = (bytes: string) => {
+                    if (!bytes || bytes === '0x0000000000000000000000000000000000000000000000000000000000000000') return '';
+                    try {
+                      return Buffer.from(bytes.slice(2), 'hex').toString('utf8').replace(/\0/g, '');
+                    } catch {
+                      return '';
+                    }
+                  };
+                  decodedData = {
+                    poolId: decoded[0].toString(),
+                    creator: decoded[1],
+                    odds: Number(decoded[2]),
+                    creatorStake: decoded[4].toString(),
+                    totalBettorStake: decoded[5].toString(),
+                    totalCreatorSideStake: decoded[6].toString(),
+                    maxBettorStake: decoded[7].toString(),
+                    category: bytes32ToString(decoded[8]),
+                    league: bytes32ToString(decoded[9]),
+                    homeTeam: bytes32ToString(decoded[10]),
+                    awayTeam: bytes32ToString(decoded[11]),
+                    title: decoded[19] || '',
+                    fillPercentage: Number(decoded[20]),
+                    participantCount: Number(decoded[21]),
+                    isSettled: decoded[17],
+                    creatorSideWon: decoded[18],
+                    timestamp: Math.floor(Date.now() / 1000)
+                  };
+                  console.log(`✅ Decoded pool created data:`, decodedData);
+                } catch (decodeError) {
+                  console.warn(`⚠️ Failed to decode pool created data:`, decodeError);
+                }
+              } else {
+                // Data already decoded or sent as object
+                decodedData = {
+                  ...data,
+                  poolId: data.poolId?.toString() || data.pool_id?.toString(),
+                  timestamp: data.timestamp || Math.floor(Date.now() / 1000)
+                };
+              }
+            }
+            
+            // Decode liquidity added data
+            if (eventType === 'liquidity:added' && data && typeof data === 'object') {
+              if (data.data && typeof data.data === 'string' && data.data.startsWith('0x')) {
+                try {
+                  const decoded = decodeAbiParameters(
+                    [
+                      { name: 'poolId', type: 'uint256' },
+                      { name: 'provider', type: 'address' },
+                      { name: 'amount', type: 'uint256' },
+                      { name: 'totalLiquidity', type: 'uint256' },
+                      { name: 'poolFillPercentage', type: 'uint256' },
+                      { name: 'timestamp', type: 'uint256' }
+                    ],
+                    data.data
+                  );
+                  decodedData = {
+                    poolId: decoded[0].toString(),
+                    provider: decoded[1],
+                    amount: decoded[2].toString(),
+                    totalLiquidity: decoded[3].toString(),
+                    poolFillPercentage: Number(decoded[4]),
+                    timestamp: Number(decoded[5])
+                  };
+                  console.log(`✅ Decoded liquidity added data:`, decodedData);
+                } catch (decodeError) {
+                  console.warn(`⚠️ Failed to decode liquidity added data:`, decodeError);
+                }
+              } else {
+                decodedData = {
+                  ...data,
+                  poolId: data.poolId?.toString() || data.pool_id?.toString(),
+                  timestamp: data.timestamp || Math.floor(Date.now() / 1000)
+                };
               }
             }
             
@@ -656,23 +754,30 @@ export function useBetUpdates(callback: (data: SDSBetData) => void, enabled = tr
 
 export function usePoolProgress(poolId: string, callback: (data: SDSPoolProgressData) => void, enabled = true) {
   const { subscribe, ...rest } = useSomniaStreams({ enabled });
+  const callbackRef = useRef(callback);
+  
+  // ✅ FIX: Keep callback ref up to date without causing re-subscriptions
+  useEffect(() => {
+    callbackRef.current = callback;
+  }, [callback]);
   
   useEffect(() => {
     if (!enabled) return;
     
-    const unsubscribe = subscribe('pool:progress', (data) => {
+    const wrappedCallback = (data: SDSEventData) => {
       const progressData = data as SDSPoolProgressData;
       if (progressData.poolId === poolId || progressData.poolId === String(poolId)) {
-        callback({
+        callbackRef.current({
           ...progressData,
           currentMaxBettorStake: progressData.currentMaxBettorStake || progressData.maxPoolSize || "0",
           effectiveCreatorSideStake: progressData.effectiveCreatorSideStake || progressData.totalCreatorSideStake || "0"
         });
       }
-    });
+    };
     
+    const unsubscribe = subscribe('pool:progress', wrappedCallback);
     return unsubscribe;
-  }, [subscribe, poolId, callback, enabled]);
+  }, [subscribe, poolId, enabled]); // ✅ Removed callback from deps
   
   return rest;
 }
@@ -716,6 +821,52 @@ export function useSlipUpdates(callback: (data: SDSSlipEvaluatedData) => void, e
     const unsubscribe = subscribe('slip:evaluated', callback as any);
     return unsubscribe;
   }, [subscribe, callback, enabled]);
+  
+  return rest;
+}
+
+// ✅ Hook for pool created events (for Recent Bets Lane)
+export function usePoolCreatedUpdates(callback: (data: SDSPoolData) => void, enabled = true) {
+  const { subscribe, ...rest } = useSomniaStreams({ enabled });
+  const callbackRef = useRef(callback);
+  
+  useEffect(() => {
+    callbackRef.current = callback;
+  }, [callback]);
+  
+  useEffect(() => {
+    if (!enabled) return;
+    
+    const wrappedCallback = (data: SDSEventData) => {
+      callbackRef.current(data as SDSPoolData);
+    };
+    
+    const unsubscribe = subscribe('pool:created', wrappedCallback);
+    return unsubscribe;
+  }, [subscribe, enabled]);
+  
+  return rest;
+}
+
+// ✅ Hook for liquidity added events (for Recent Bets Lane)
+export function useLiquidityAddedUpdates(callback: (data: SDSLiquidityData) => void, enabled = true) {
+  const { subscribe, ...rest } = useSomniaStreams({ enabled });
+  const callbackRef = useRef(callback);
+  
+  useEffect(() => {
+    callbackRef.current = callback;
+  }, [callback]);
+  
+  useEffect(() => {
+    if (!enabled) return;
+    
+    const wrappedCallback = (data: SDSEventData) => {
+      callbackRef.current(data as SDSLiquidityData);
+    };
+    
+    const unsubscribe = subscribe('liquidity:added', wrappedCallback);
+    return unsubscribe;
+  }, [subscribe, enabled]);
   
   return rest;
 }
