@@ -24,12 +24,14 @@ interface PlaceBetModalProps {
 export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalProps) {
   const { address } = useAccount();
   const router = useRouter();
-  const { placeBet, isConfirmed, isPending, hash } = usePools();
+  const { placeBet, isConfirmed, isPending, hash, isConfirming } = usePools();
   
   const [betAmount, setBetAmount] = useState<string>("");
   const [isPlacing, setIsPlacing] = useState(false);
   const [waitingForApproval, setWaitingForApproval] = useState(false);
   const [betSuccess, setBetSuccess] = useState(false);
+  const [approvalConfirmed, setApprovalConfirmed] = useState(false);
+  const [betHash, setBetHash] = useState<string | null>(null);
   
   // ✅ CRITICAL: Use real-time pool progress updates to get latest max bettor stake
   // ✅ CRITICAL FIX: Calculate initial maxBettorStake correctly if missing or wrong
@@ -98,10 +100,47 @@ export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalPr
     });
   });
   
-  // ✅ FIX: Auto-close modal when transaction is confirmed
+  // ✅ CRITICAL FIX: Track approval vs bet transaction states separately
+  // Track when approval is confirmed (but don't show success yet)
   useEffect(() => {
-    if (isConfirmed && hash) {
-      console.log('✅ Transaction confirmed, closing modal');
+    if (isConfirmed && hash && !approvalConfirmed && !betHash) {
+      // This is likely an approval transaction
+      console.log('✅ Approval confirmed, waiting for bet transaction');
+      setApprovalConfirmed(true);
+      setWaitingForApproval(false);
+      // Don't show success yet - wait for bet transaction
+    }
+  }, [isConfirmed, hash, approvalConfirmed, betHash]);
+  
+  // Track bet transaction hash (separate from approval)
+  useEffect(() => {
+    if (hash && approvalConfirmed && !betHash) {
+      // Approval is confirmed, and we have a new hash - this is the bet transaction
+      console.log('🎯 Bet transaction hash received:', hash);
+      setBetHash(hash);
+      setIsPlacing(true);
+      setWaitingForApproval(false);
+    } else if (hash && !approvalConfirmed && !betHash) {
+      // First transaction - could be approval or bet (if no approval needed)
+      if (pool.usesBitr) {
+        // For BITR, first transaction is always approval
+        console.log('🔄 Approval transaction pending');
+        setWaitingForApproval(true);
+        setIsPlacing(false);
+      } else {
+        // For STT, first transaction is the bet
+        console.log('🎯 Bet transaction hash received (STT):', hash);
+        setBetHash(hash);
+        setIsPlacing(true);
+        setWaitingForApproval(false);
+      }
+    }
+  }, [hash, approvalConfirmed, betHash, pool.usesBitr]);
+  
+  // ✅ CRITICAL FIX: Only show success after BET transaction is confirmed (not approval)
+  useEffect(() => {
+    if (isConfirmed && betHash && hash === betHash) {
+      console.log('✅ Bet transaction confirmed, showing success');
       setBetSuccess(true);
       setIsPlacing(false);
       setWaitingForApproval(false);
@@ -112,17 +151,41 @@ export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalPr
         onClose();
         setBetAmount("");
         setBetSuccess(false);
+        setApprovalConfirmed(false);
+        setBetHash(null);
       }, 1500);
     }
-  }, [isConfirmed, hash, onClose]);
+  }, [isConfirmed, betHash, hash, onClose]);
   
-  // ✅ FIX: Track isPending state from usePools
+  // ✅ FIX: Track isPending state from usePools - distinguish approval vs bet
   useEffect(() => {
     if (isPending) {
-      setWaitingForApproval(false);
-      setIsPlacing(true);
+      if (approvalConfirmed || !pool.usesBitr) {
+        // Bet transaction is pending
+        setIsPlacing(true);
+        setWaitingForApproval(false);
+      } else {
+        // Approval is pending
+        setWaitingForApproval(true);
+        setIsPlacing(false);
+      }
     }
-  }, [isPending]);
+  }, [isPending, approvalConfirmed, pool.usesBitr]);
+  
+  // Track confirming state
+  useEffect(() => {
+    if (isConfirming) {
+      if (approvalConfirmed || !pool.usesBitr) {
+        // Bet transaction is confirming
+        setIsPlacing(true);
+        setWaitingForApproval(false);
+      } else {
+        // Approval is confirming
+        setWaitingForApproval(true);
+        setIsPlacing(false);
+      }
+    }
+  }, [isConfirming, approvalConfirmed, pool.usesBitr]);
   
   // Reset states when modal closes
   useEffect(() => {
@@ -131,6 +194,8 @@ export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalPr
       setBetSuccess(false);
       setIsPlacing(false);
       setWaitingForApproval(false);
+      setApprovalConfirmed(false);
+      setBetHash(null);
     }
   }, [isOpen]);
   
@@ -213,6 +278,7 @@ export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalPr
   // ✅ FIX: Calculate REMAINING capacity (not max pool size!)
   // Remaining = maxBettorStake - totalBettorStake (what's left to bet)
   // CRITICAL: maxBettorStake is the MAX BETTOR STAKE, NOT the total pool size!
+  // ✅ CRITICAL FIX: Subtract creatorStake from remaining to show real bettor stake amount
   const getRemainingCapacity = (): number => {
     // Get total bettor stake (already bet)
     let totalBettorStake = currentPoolData.totalBettorStake;
@@ -221,6 +287,10 @@ export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalPr
       if (stake > 1e15) stake = stake / 1e18;
       totalBettorStake = stake;
     }
+    
+    // Get creator stake (to subtract from remaining)
+    let creatorStake = parseFloat(pool.creatorStake || "0");
+    if (creatorStake > 1e15) creatorStake = creatorStake / 1e18;
     
     // Get max bettor stake (capacity limit) - THIS IS THE KEY!
     // maxBettorStake = (effectiveCreatorSideStake * 100) / (odds - 100)
@@ -248,12 +318,14 @@ export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalPr
       }
     }
     
-    // REMAINING = maxBettorStake - totalBettorStake (NOT maxPoolSize!)
-    const remaining = Math.max(0, maxBettorStake - totalBettorStake);
+    // ✅ CRITICAL FIX: REMAINING = maxBettorStake - totalBettorStake - creatorStake
+    // This shows the real remaining bettor stake amount (excluding creator stake)
+    const remaining = Math.max(0, maxBettorStake - totalBettorStake - creatorStake);
     
     console.log(`🔍 PlaceBetModal REMAINING capacity for pool ${pool.id}:`, {
       maxBettorStake,
       totalBettorStake,
+      creatorStake,
       remaining,
       poolMaxBettorStake: pool.maxBettorStake,
       currentPoolData
@@ -366,7 +438,7 @@ export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalPr
               e.stopPropagation();
               handleClose();
             }}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
           />
           
           {/* Modal */}
@@ -380,7 +452,7 @@ export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalPr
               stiffness: 300
             }}
             onClick={(e) => e.stopPropagation()}
-            className="fixed inset-x-0 bottom-0 z-50 bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 border-t-2 border-primary/30 rounded-t-3xl shadow-2xl max-h-[85vh] overflow-hidden"
+            className="fixed inset-x-0 bottom-0 z-[110] bg-gradient-to-b from-gray-900 via-gray-800 to-gray-900 border-t-2 border-primary/30 rounded-t-3xl shadow-2xl max-h-[85vh] overflow-hidden"
           >
             {/* Drag Handle */}
             <div className="w-full flex justify-center pt-3 pb-2">
@@ -420,7 +492,7 @@ export default function PlaceBetModal({ pool, isOpen, onClose }: PlaceBetModalPr
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.8 }}
-                  className="absolute inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-green-500/20 via-primary/20 to-secondary/20 backdrop-blur-sm rounded-t-3xl"
+                  className="absolute inset-0 z-[120] flex items-center justify-center bg-gradient-to-br from-green-500/20 via-primary/20 to-secondary/20 backdrop-blur-sm rounded-t-3xl"
                 >
                   <motion.div
                     initial={{ scale: 0 }}

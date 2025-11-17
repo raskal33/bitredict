@@ -89,7 +89,8 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
     if (status && !isClosing) {
       setIsVisible(true);
       
-      // ✅ FIX: Prevent scroll jump by saving current position
+      // ✅ FIX: Scroll to top and prevent scroll jump
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       const scrollY = window.scrollY;
       document.body.style.position = 'fixed';
       document.body.style.top = `-${scrollY}px`;
@@ -216,7 +217,7 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto"
+          className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto"
           onClick={handleClose}
           style={{ top: 0, left: 0, right: 0, bottom: 0 }}
         >

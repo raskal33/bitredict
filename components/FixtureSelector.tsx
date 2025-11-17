@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { 
@@ -70,16 +70,29 @@ const FixtureSelector: React.FC<FixtureSelectorProps> = ({
   onMarketSelect,
   selectedFixture
 }) => {
-  const [filteredFixtures, setFilteredFixtures] = useState<Fixture[]>(fixtures);
   const [leagueFilter, setLeagueFilter] = useState<string>('all');
   const [timeFilter, setTimeFilter] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState<string>('');
   const [expandedFixture, setExpandedFixture] = useState<number | null>(null);
 
-  // Get unique leagues
-  const leagues = Array.from(new Set(fixtures.map(f => f.league?.name).filter(Boolean)));
-
+  // ✅ OPTIMIZATION: Debounce search term to reduce filtering operations
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 150); // 150ms debounce delay
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Get unique leagues (memoized)
+  const leagues = useMemo(() => 
+    Array.from(new Set(fixtures.map(f => f.league?.name).filter(Boolean))),
+    [fixtures]
+  );
+
+  // ✅ OPTIMIZATION: Use useMemo for filtered fixtures to avoid unnecessary recalculations
+  const filteredFixtures = useMemo(() => {
     let filtered = fixtures;
 
     // League filter
@@ -115,9 +128,9 @@ const FixtureSelector: React.FC<FixtureSelectorProps> = ({
       });
     }
 
-    // Search filter
-    if (searchTerm) {
-      const lowerSearch = searchTerm.toLowerCase();
+    // Search filter (using debounced term)
+    if (debouncedSearchTerm) {
+      const lowerSearch = debouncedSearchTerm.toLowerCase();
       filtered = filtered.filter(f => 
         f.homeTeam?.name?.toLowerCase().includes(lowerSearch) ||
         f.awayTeam?.name?.toLowerCase().includes(lowerSearch) ||
@@ -125,8 +138,8 @@ const FixtureSelector: React.FC<FixtureSelectorProps> = ({
       );
     }
 
-    setFilteredFixtures(filtered);
-  }, [fixtures, leagueFilter, timeFilter, searchTerm]);
+    return filtered;
+  }, [fixtures, leagueFilter, timeFilter, debouncedSearchTerm]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);

@@ -229,6 +229,9 @@ function CreateMarketPageContent() {
     const newUrl = new URL(window.location.href);
     newUrl.searchParams.set('type', type);
     window.history.replaceState({}, '', newUrl.toString());
+    
+    // ✅ FIX: Scroll to top after selecting market type (both guided and combo)
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleBack = () => {
@@ -478,7 +481,31 @@ function CreateMarketPageContent() {
   useEffect(() => {
     if (isSuccess && hash) {
       console.log('✅ Transaction successful - showing feedback with hash:', hash);
-      showSuccess('Market Created Successfully!', 'Your market has been created and is now live on the blockchain', hash);
+      
+      // Calculate total cost for display
+      const creationFee = useBitr ? '50 BITR' : '1 STT';
+      const boostCost = data.boostTier && data.boostTier !== 'NONE' 
+        ? `${data.boostTier === 'BRONZE' ? '2' : data.boostTier === 'SILVER' ? '3' : '5'} STT`
+        : '0';
+      const totalCost = data.boostTier && data.boostTier !== 'NONE' 
+        ? `${boostCost} + ${creationFee}`
+        : creationFee;
+      
+      const categoryName = data.category === 'football' ? 'football prediction' : 
+                          data.category === 'cryptocurrency' ? 'cryptocurrency prediction' : 
+                          'prediction';
+      
+      showSuccess(
+        'Market Created Successfully!', 
+        `Your ${categoryName} market has been created and is now live on the blockchain!`, 
+        hash,
+        data.boostTier,
+        totalCost
+      );
+      
+      // ✅ FIX: Scroll to top after successful transaction
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      
       setDeploymentHash(hash);
       setIsLoading(false);
       
@@ -486,8 +513,8 @@ function CreateMarketPageContent() {
       if (address) {
         addReputationAction(address, {
           type: 'market_created',
-          points: 8,
-          description: 'Created a guided market',
+          points: 10,
+          description: `Created a ${categoryName} market`,
           marketId: hash
         });
       }
@@ -521,7 +548,7 @@ function CreateMarketPageContent() {
         setStep(1);
       }
     }
-  }, [isSuccess, hash, address, addReputationAction, notifyPoolCreation, showSuccess]);
+  }, [isSuccess, hash, address, addReputationAction, notifyPoolCreation, showSuccess, data, useBitr]);
 
   // Track approval transaction confirmation
   const { isSuccess: isApprovalSuccess } = useWaitForTransactionReceipt({ 
@@ -1008,50 +1035,13 @@ function CreateMarketPageContent() {
           meetsMinimum: useBitr ? poolData.creatorStake >= BigInt('1000000000000000000000') : poolData.creatorStake >= BigInt('5000000000000000000')
         });
         
-        // Show pending immediately - transaction will be triggered right away
-        showPending('Creating Market', 'Preparing market creation transaction...');
-        
+        // ✅ CRITICAL FIX: Don't show success immediately - let useEffect hooks track transaction state
+        // The useEffect hooks will properly track: approval -> pending -> confirming -> success
         // Use direct contract call - this will trigger MetaMask immediately
-        const txHash = await createPool(poolData);
+        await createPool(poolData);
         
-        // Update to confirming state once transaction is submitted
-        if (txHash) {
-          showConfirming('Transaction Submitted', 'Your market creation transaction has been submitted and is being processed on the blockchain...', txHash);
-        }
-        
-        if (txHash) {
-          // Calculate total cost for display
-          const creationFee = useBitr ? '50 BITR' : '1 STT'; // ✅ FIX: Contract uses 50 BITR (50e18)
-        // ✅ FIX: Boost cost is always in STT (not BITR), regardless of pool currency
-        const boostCost = data.boostTier && data.boostTier !== 'NONE' 
-          ? `${data.boostTier === 'BRONZE' ? '2' : data.boostTier === 'SILVER' ? '3' : '5'} STT`
-          : '0';
-          const totalCost = data.boostTier && data.boostTier !== 'NONE' 
-            ? `${boostCost} + ${creationFee}`
-            : creationFee;
-
-          showSuccess(
-            'Market Created Successfully!', 
-            'Your football prediction market has been created and is now live on the blockchain!', 
-            txHash,
-            data.boostTier,
-            totalCost
-          );
-          
-          // Add reputation for market creation
-          if (address) {
-            addReputationAction(address, {
-              type: 'market_created',
-              points: 10,
-              description: 'Created a football prediction market'
-            });
-          }
-          
-          // Reset form and go to success step
-          setStep(3);
-        } else {
-          showError('Market Creation Failed', 'Failed to create football market');
-        }
+        // Transaction state will be tracked by useEffect hooks (lines 456-524)
+        // They will show: pending -> confirming -> success in the correct order
 
       } else if (data.category === 'cryptocurrency' && data.selectedCrypto) {
         // Use direct contract call for crypto markets (same as football)
@@ -1124,49 +1114,13 @@ function CreateMarketPageContent() {
         });
         console.log('Crypto pool data for direct contract call:', poolData);
         
-        showPending('Creating Market', 'Preparing crypto market creation transaction...');
-        
+        // ✅ CRITICAL FIX: Don't show success immediately - let useEffect hooks track transaction state
+        // The useEffect hooks will properly track: approval -> pending -> confirming -> success
         // Use direct contract call
-        const txHash = await createPool(poolData);
+        await createPool(poolData);
         
-        // Update to confirming state once transaction is submitted
-        if (txHash) {
-          showConfirming('Transaction Submitted', 'Your crypto market creation transaction has been submitted and is being processed on the blockchain...', txHash);
-        }
-        
-        if (txHash) {
-        // Calculate total cost for display
-        const creationFee = useBitr ? '50 BITR' : '1 STT';
-        // ✅ FIX: Boost cost is always in STT (not BITR), regardless of pool currency
-        const boostCost = data.boostTier && data.boostTier !== 'NONE' 
-          ? `${data.boostTier === 'BRONZE' ? '2' : data.boostTier === 'SILVER' ? '3' : '5'} STT`
-          : '0';
-        const totalCost = data.boostTier && data.boostTier !== 'NONE' 
-          ? `${boostCost} + ${creationFee}`
-          : creationFee;
-
-        showSuccess(
-          'Market Created Successfully!', 
-          'Your cryptocurrency prediction market has been created and is now live on the blockchain!', 
-            txHash,
-          data.boostTier,
-          totalCost
-        );
-        
-        // Add reputation for market creation
-        if (address) {
-          addReputationAction(address, {
-            type: 'market_created',
-            points: 10,
-            description: 'Created a cryptocurrency prediction market'
-          });
-          }
-          
-          // Reset form and go to success step
-          setStep(3);
-        } else {
-          showError('Market Creation Failed', 'Failed to create crypto market');
-        }
+        // Transaction state will be tracked by useEffect hooks (lines 456-524)
+        // They will show: pending -> confirming -> success in the correct order
 
       } else {
         showError('Invalid Category', 'Please select a valid market category');
