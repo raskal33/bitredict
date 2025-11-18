@@ -12,7 +12,7 @@ import { createPublicClient, webSocket, defineChain, decodeAbiParameters } from 
 // Define Somnia testnet with WebSocket URL
 
 const SOMNIA_TESTNET_RPC_URL = process.env.NEXT_PUBLIC_SDS_RPC_URL || 'https://dream-rpc.somnia.network';
-const SOMNIA_TESTNET_WS_URL = process.env.NEXT_PUBLIC_SDS_WS_URL || 'wss://dream-rpc.somnia.network/ws';
+const SOMNIA_TESTNET_WS_URL = process.env.NEXT_PUBLIC_SDS_WS_URL || 'wss://dream-rpc.somnia.network/ws'; // ✅ /ws suffix required
 
 const somniaTestnet = defineChain({
   id: 50312,
