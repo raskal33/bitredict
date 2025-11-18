@@ -135,6 +135,11 @@ export default function EnhancedPoolCard({
   const [showBoostModal, setShowBoostModal] = useState(false);
   const [showBetModal, setShowBetModal] = useState(false);
   const [showLiquidityModal, setShowLiquidityModal] = useState(false);
+  const [imageErrors, setImageErrors] = useState<{
+    cryptoLogo?: boolean;
+    homeTeamLogo?: boolean;
+    awayTeamLogo?: boolean;
+  }>({});
   
   // ✅ CRITICAL: Use real-time pool progress updates to get latest pool data
   // ✅ CRITICAL FIX: Initialize maxBettorStake correctly
@@ -558,14 +563,17 @@ export default function EnhancedPoolCard({
       </div>
       <div className="flex items-center gap-2 mb-1 sm:mb-1.5 mt-8 sm:mt-10 px-3 sm:px-4 md:px-5">
 
-        {(pool.category === 'cryptocurrency' || pool.category === 'crypto') && pool.cryptoLogo ? (
-          <div className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden border border-yellow-500/30 flex-shrink-0">
+        {(pool.category === 'cryptocurrency' || pool.category === 'crypto') && pool.cryptoLogo && !imageErrors.cryptoLogo ? (
+          <div className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden border border-yellow-500/30 flex-shrink-0 bg-gray-700/50">
             <Image 
               src={pool.cryptoLogo} 
               alt="Crypto logo"
               fill
               className="object-cover"
               unoptimized
+              onError={() => {
+                setImageErrors(prev => ({ ...prev, cryptoLogo: true }));
+              }}
             />
           </div>
         ) : (
@@ -606,33 +614,39 @@ export default function EnhancedPoolCard({
           <div className="flex items-center justify-center gap-2 sm:gap-3 text-xs sm:text-sm text-gray-300">
 
             <div className="flex items-center gap-1.5 sm:gap-2 truncate max-w-[40%]">
-              {pool.homeTeamLogo && (
-                <div className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden flex-shrink-0 border border-gray-600/50">
+              {pool.homeTeamLogo && !imageErrors.homeTeamLogo ? (
+                <div className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden flex-shrink-0 border border-gray-600/50 bg-gray-700/50">
                   <Image 
                     src={pool.homeTeamLogo} 
                     alt={pool.homeTeam || 'Team logo'}
                     fill
                     className="object-cover"
                     unoptimized
+                    onError={() => {
+                      setImageErrors(prev => ({ ...prev, homeTeamLogo: true }));
+                    }}
                   />
                 </div>
-              )}
+              ) : null}
               <span className="font-semibold text-white truncate">{pool.homeTeam}</span>
             </div>
             <span className="text-gray-400 flex-shrink-0">vs</span>
 
             <div className="flex items-center gap-1.5 sm:gap-2 truncate max-w-[40%]">
-              {pool.awayTeamLogo && (
-                <div className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden flex-shrink-0 border border-gray-600/50">
+              {pool.awayTeamLogo && !imageErrors.awayTeamLogo ? (
+                <div className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden flex-shrink-0 border border-gray-600/50 bg-gray-700/50">
                   <Image 
                     src={pool.awayTeamLogo} 
                     alt={pool.awayTeam || 'Team logo'}
                     fill
                     className="object-cover"
                     unoptimized
+                    onError={() => {
+                      setImageErrors(prev => ({ ...prev, awayTeamLogo: true }));
+                    }}
                   />
                 </div>
-              )}
+              ) : null}
               <span className="font-semibold text-white truncate">{pool.awayTeam}</span>
             </div>
           </div>
