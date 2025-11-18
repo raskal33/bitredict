@@ -99,6 +99,11 @@ export const PoolCardNFT = ({ pool, onClick }: PoolCardProps) => {
   // ✅ CRITICAL: Subscribe to real-time pool progress updates
   const [dynamicFillPercentage, setDynamicFillPercentage] = useState(pool.indexedData?.fillPercentage || 0);
   const [dynamicParticipants, setDynamicParticipants] = useState(pool.indexedData?.participantCount || 0);
+  const [imageErrors, setImageErrors] = useState<{
+    cryptoLogo?: boolean;
+    homeTeamLogo?: boolean;
+    awayTeamLogo?: boolean;
+  }>({});
   
   usePoolProgress(pool.id.toString(), (progressData) => {
     console.log(`🔄 PoolCard: Received progress update for pool ${pool.id}:`, progressData);
@@ -307,45 +312,60 @@ export const PoolCardNFT = ({ pool, onClick }: PoolCardProps) => {
           {/* Team Logos for Football Pools - Positioned at top left */}
           {pool.homeTeam && pool.awayTeam && (pool.homeTeamLogo || pool.awayTeamLogo) && (
             <div className="absolute top-3 left-3 flex items-center gap-1.5 z-10">
-              {pool.homeTeamLogo && (
-                <div className="relative w-8 h-8 rounded-full overflow-hidden border border-white/20 shadow-lg backdrop-blur-sm">
+              {pool.homeTeamLogo && !imageErrors.homeTeamLogo ? (
+                <div className="relative w-8 h-8 rounded-full overflow-hidden border border-white/20 shadow-lg backdrop-blur-sm bg-gray-700/50">
                   <Image 
                     src={pool.homeTeamLogo} 
                     alt={pool.homeTeam || 'Team logo'}
-                    fill
-                    className="object-cover"
+                    width={32}
+                    height={32}
+                    className="object-cover w-full h-full"
                     unoptimized
+                    onError={() => {
+                      console.warn('Failed to load home team logo:', pool.homeTeamLogo);
+                      setImageErrors(prev => ({ ...prev, homeTeamLogo: true }));
+                    }}
                   />
                 </div>
-              )}
-              {pool.awayTeamLogo && (
-                <div className="relative w-8 h-8 rounded-full overflow-hidden border border-white/20 shadow-lg backdrop-blur-sm">
+              ) : null}
+              {pool.awayTeamLogo && !imageErrors.awayTeamLogo ? (
+                <div className="relative w-8 h-8 rounded-full overflow-hidden border border-white/20 shadow-lg backdrop-blur-sm bg-gray-700/50">
                   <Image 
                     src={pool.awayTeamLogo} 
                     alt={pool.awayTeam || 'Team logo'}
-                    fill
-                    className="object-cover"
+                    width={32}
+                    height={32}
+                    className="object-cover w-full h-full"
                     unoptimized
+                    onError={() => {
+                      console.warn('Failed to load away team logo:', pool.awayTeamLogo);
+                      setImageErrors(prev => ({ ...prev, awayTeamLogo: true }));
+                    }}
                   />
                 </div>
-              )}
+              ) : null}
             </div>
           )}
           
           {/* Crypto Logo for Cryptocurrency Pools - Positioned at top left */}
-          {(pool.category === 'cryptocurrency' || pool.category === 'crypto') && pool.cryptoLogo && (
+          {(pool.category === 'cryptocurrency' || pool.category === 'crypto') && pool.cryptoLogo && !imageErrors.cryptoLogo ? (
             <div className="absolute top-3 left-3 z-10">
-              <div className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-amber-400/40 shadow-lg backdrop-blur-sm">
+              <div className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-amber-400/40 shadow-lg backdrop-blur-sm bg-gray-700/50">
                 <Image 
                   src={pool.cryptoLogo} 
                   alt={pool.homeTeam || 'Crypto logo'}
-                  fill
-                  className="object-cover"
+                  width={32}
+                  height={32}
+                  className="object-cover w-full h-full"
                   unoptimized
+                  onError={() => {
+                    console.warn('Failed to load crypto logo:', pool.cryptoLogo);
+                    setImageErrors(prev => ({ ...prev, cryptoLogo: true }));
+                  }}
                 />
               </div>
             </div>
-          )}
+          ) : null}
           
           {/* Category & Title Section */}
           <div className="absolute bottom-0 left-0 right-0 p-3 space-y-1">
