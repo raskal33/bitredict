@@ -568,10 +568,12 @@ export default function EnhancedPoolCard({
             <Image 
               src={pool.cryptoLogo} 
               alt="Crypto logo"
-              fill
-              className="object-cover"
+              width={40}
+              height={40}
+              className="object-cover w-full h-full"
               unoptimized
               onError={() => {
+                console.warn('Failed to load crypto logo:', pool.cryptoLogo);
                 setImageErrors(prev => ({ ...prev, cryptoLogo: true }));
               }}
             />
@@ -619,10 +621,12 @@ export default function EnhancedPoolCard({
                   <Image 
                     src={pool.homeTeamLogo} 
                     alt={pool.homeTeam || 'Team logo'}
-                    fill
-                    className="object-cover"
+                    width={40}
+                    height={40}
+                    className="object-cover w-full h-full"
                     unoptimized
                     onError={() => {
+                      console.warn('Failed to load home team logo:', pool.homeTeamLogo);
                       setImageErrors(prev => ({ ...prev, homeTeamLogo: true }));
                     }}
                   />
@@ -638,10 +642,12 @@ export default function EnhancedPoolCard({
                   <Image 
                     src={pool.awayTeamLogo} 
                     alt={pool.awayTeam || 'Team logo'}
-                    fill
-                    className="object-cover"
+                    width={40}
+                    height={40}
+                    className="object-cover w-full h-full"
                     unoptimized
                     onError={() => {
+                      console.warn('Failed to load away team logo:', pool.awayTeamLogo);
                       setImageErrors(prev => ({ ...prev, awayTeamLogo: true }));
                     }}
                   />

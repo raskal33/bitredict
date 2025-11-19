@@ -72,7 +72,7 @@ export function LiveReputationBadge({ initialReputation }: LiveReputationBadgePr
     const change = newRep - oldRep;
     
     if (change !== 0) {
-      setReputationChange(change);
+    setReputationChange(change);
       setLastAction(repData.actionName || '');
       setReputation(newRep);
       
@@ -84,18 +84,18 @@ export function LiveReputationBadge({ initialReputation }: LiveReputationBadgePr
       else if (newRep >= 40) setTier('ACTIVE');
       else setTier('NEWCOMER');
 
-      // Play sound based on change
-      if (change > 0) {
-        playSuccess();
-      } else {
-        playNotification();
-      }
+    // Play sound based on change
+    if (change > 0) {
+      playSuccess();
+    } else {
+      playNotification();
+    }
 
-      // Clear the change indicator after animation
-      setTimeout(() => {
-        setReputationChange(null);
-        setLastAction(null);
-      }, 3000);
+    // Clear the change indicator after animation
+    setTimeout(() => {
+      setReputationChange(null);
+      setLastAction(null);
+    }, 3000);
     }
   });
 

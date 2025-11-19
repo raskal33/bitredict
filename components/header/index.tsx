@@ -374,34 +374,34 @@ export default function Header() {
                                 }}
                                 onClick={(e) => e.stopPropagation()}
                               >
-                                <div className="py-2 px-1">
-                                  {!isOnSomnia && (
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        switchToSomnia();
-                                        handleWalletDropdownClose();
-                                      }}
-                                      className="w-full flex items-center gap-2 px-3 py-2 mx-1 text-sm font-medium transition-all duration-200 rounded-xl text-orange-400 hover:text-orange-300 hover:bg-[rgba(255,255,255,0.08)]"
-                                    >
-                                      <span>Switch to Somnia</span>
-                                    </button>
-                                  )}
+                              <div className="py-2 px-1">
+                                {!isOnSomnia && (
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      disconnectWallet();
+                                      switchToSomnia();
                                       handleWalletDropdownClose();
                                     }}
-                                    className="w-full flex items-center gap-2 px-3 py-2 mx-1 text-sm font-medium transition-all duration-200 rounded-xl text-text-secondary hover:text-text-primary hover:bg-[rgba(255,255,255,0.08)]"
+                                    className="w-full flex items-center gap-2 px-3 py-2 mx-1 text-sm font-medium transition-all duration-200 rounded-xl text-orange-400 hover:text-orange-300 hover:bg-[rgba(255,255,255,0.08)]"
                                   >
-                                    <span>Disconnect</span>
+                                    <span>Switch to Somnia</span>
                                   </button>
-                                </div>
-                                <div className="h-0.5 bg-gradient-to-r from-primary via-secondary to-accent" />
-                              </motion.div>
-                              );
-                            })()}
+                                )}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    disconnectWallet();
+                                    handleWalletDropdownClose();
+                                  }}
+                                  className="w-full flex items-center gap-2 px-3 py-2 mx-1 text-sm font-medium transition-all duration-200 rounded-xl text-text-secondary hover:text-text-primary hover:bg-[rgba(255,255,255,0.08)]"
+                                >
+                                  <span>Disconnect</span>
+                                </button>
+                              </div>
+                              <div className="h-0.5 bg-gradient-to-r from-primary via-secondary to-accent" />
+                            </motion.div>
+                            );
+                          })()}
                         </AnimatePresence>
                       </div>
                     ) : (

@@ -198,6 +198,9 @@ function CreateMarketPageContent() {
   };
 
   const getMarketTypeEnum = (marketType: string): number => {
+    // Normalize to uppercase for case-insensitive matching
+    const normalizedType = marketType.toUpperCase();
+    
     const marketTypeMap: Record<string, number> = {
       '1X2': 0,           // MONEYLINE
       'OU25': 1,          // OVER_UNDER (2.5)
@@ -206,13 +209,14 @@ function CreateMarketPageContent() {
       'HT_OU15': 1,       // HALF_TIME_OVER_UNDER (1.5)
       'BTTS': 3,          // PROPOSITION (Both Teams To Score)
       'HT_1X2': 3,        // PROPOSITION (Half Time Result)
+      'HT_MONEYLINE': 3,  // PROPOSITION (Half Time Result) - alternative name
       'DC': 3,            // PROPOSITION (Double Chance)
       'CS': 4,            // CORRECT_SCORE
       'FG': 3,            // PROPOSITION (First Goal)
       'CUSTOM': 5         // CUSTOM
     };
     
-    return marketTypeMap[marketType] || 0; // Default to MONEYLINE
+    return marketTypeMap[normalizedType] || 0; // Default to MONEYLINE
   };
 
   // Check URL params for pre-selected type
@@ -624,15 +628,27 @@ function CreateMarketPageContent() {
     
     // Set the market type enum
     const marketTypeEnum = getMarketTypeEnum(marketType);
+    
+    // ✅ FIX: Normalize BTTS outcomes from 'yes'/'no' to 'bttsYes'/'bttsNo'
+    let normalizedOutcome = outcome;
+    if (marketType.toLowerCase() === 'btts') {
+      if (outcome.toLowerCase() === 'yes') {
+        normalizedOutcome = 'bttsYes';
+      } else if (outcome.toLowerCase() === 'no') {
+        normalizedOutcome = 'bttsNo';
+      }
+    }
+    
     console.log('🔍 Market Selection Debug:', {
       selectedMarketType: marketType,
       mappedEnum: marketTypeEnum,
-      outcome: outcome
+      originalOutcome: outcome,
+      normalizedOutcome: normalizedOutcome
     });
     handleInputChange('marketType', marketTypeEnum);
     
     // Set the outcome based on market type and outcome
-    handleInputChange('outcome', outcome as 'home' | 'away' | 'draw' | 'over15' | 'under15' | 'over25' | 'under25' | 'over35' | 'under35' | 'bttsYes' | 'bttsNo' | 'htHome' | 'htDraw' | 'htAway' | 'ht_over_05' | 'ht_under_05' | 'ht_over_15' | 'ht_under_15');
+    handleInputChange('outcome', normalizedOutcome as 'home' | 'away' | 'draw' | 'over15' | 'under15' | 'over25' | 'under25' | 'over35' | 'under35' | 'bttsYes' | 'bttsNo' | 'htHome' | 'htDraw' | 'htAway' | 'ht_over_05' | 'ht_under_05' | 'ht_over_15' | 'ht_under_15');
     
     // Auto-populate odds based on the selected market
     if (fixture.odds) {
@@ -640,21 +656,22 @@ function CreateMarketPageContent() {
       
       switch (marketType) {
         case 'moneyline':
-          if (outcome === 'home' && fixture.odds.home) selectedOdds = Math.floor(fixture.odds.home * 100);
-          else if (outcome === 'draw' && fixture.odds.draw) selectedOdds = Math.floor(fixture.odds.draw * 100);
-          else if (outcome === 'away' && fixture.odds.away) selectedOdds = Math.floor(fixture.odds.away * 100);
+          if (normalizedOutcome === 'home' && fixture.odds.home) selectedOdds = Math.floor(fixture.odds.home * 100);
+          else if (normalizedOutcome === 'draw' && fixture.odds.draw) selectedOdds = Math.floor(fixture.odds.draw * 100);
+          else if (normalizedOutcome === 'away' && fixture.odds.away) selectedOdds = Math.floor(fixture.odds.away * 100);
           break;
         case 'over_under':
-          if (outcome === 'over15' && fixture.odds.over15) selectedOdds = Math.floor(fixture.odds.over15 * 100);
-          else if (outcome === 'under15' && fixture.odds.under15) selectedOdds = Math.floor(fixture.odds.under15 * 100);
-          else if (outcome === 'over25' && fixture.odds.over25) selectedOdds = Math.floor(fixture.odds.over25 * 100);
-          else if (outcome === 'under25' && fixture.odds.under25) selectedOdds = Math.floor(fixture.odds.under25 * 100);
-          else if (outcome === 'over35' && fixture.odds.over35) selectedOdds = Math.floor(fixture.odds.over35 * 100);
-          else if (outcome === 'under35' && fixture.odds.under35) selectedOdds = Math.floor(fixture.odds.under35 * 100);
+          if (normalizedOutcome === 'over15' && fixture.odds.over15) selectedOdds = Math.floor(fixture.odds.over15 * 100);
+          else if (normalizedOutcome === 'under15' && fixture.odds.under15) selectedOdds = Math.floor(fixture.odds.under15 * 100);
+          else if (normalizedOutcome === 'over25' && fixture.odds.over25) selectedOdds = Math.floor(fixture.odds.over25 * 100);
+          else if (normalizedOutcome === 'under25' && fixture.odds.under25) selectedOdds = Math.floor(fixture.odds.under25 * 100);
+          else if (normalizedOutcome === 'over35' && fixture.odds.over35) selectedOdds = Math.floor(fixture.odds.over35 * 100);
+          else if (normalizedOutcome === 'under35' && fixture.odds.under35) selectedOdds = Math.floor(fixture.odds.under35 * 100);
           break;
         case 'btts':
-          if (outcome === 'yes' && fixture.odds.bttsYes) selectedOdds = Math.floor(fixture.odds.bttsYes * 100);
-          else if (outcome === 'no' && fixture.odds.bttsNo) selectedOdds = Math.floor(fixture.odds.bttsNo * 100);
+          // ✅ FIX: Use normalized outcome (bttsYes/bttsNo) instead of yes/no
+          if (normalizedOutcome === 'bttsYes' && fixture.odds.bttsYes) selectedOdds = Math.floor(fixture.odds.bttsYes * 100);
+          else if (normalizedOutcome === 'bttsNo' && fixture.odds.bttsNo) selectedOdds = Math.floor(fixture.odds.bttsNo * 100);
           break;
         case 'ht_moneyline':
           if (outcome === 'htHome' && fixture.odds.htHome) selectedOdds = Math.floor(fixture.odds.htHome * 100);

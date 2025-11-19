@@ -218,7 +218,7 @@ export function useSomniaStreams(
   // Initialize SDS SDK (only once globally)
   const initializeSDK = useCallback(async () => {
     if (!enabled) return;
-    
+
     // ✅ If SDK already initialized globally, reuse it
     if (globalSDKInstance) {
       sdkRef.current = globalSDKInstance;
@@ -250,7 +250,7 @@ export function useSomniaStreams(
       const sdk = new SDK({
         public: publicClient
       });
-      
+
       console.log('✅ SDK initialized successfully');
       
       // ✅ Store globally to prevent multiple SDK instances
@@ -638,7 +638,7 @@ export function useSomniaStreams(
                 unsubscribeFn();
                 globalUnsubscribeFunctionsMap.delete(eventType as any);
                 console.log(`🔌 Unsubscribed from ${eventType} (no more subscribers after delay)`);
-              }
+      }
             }
           }, 30000); // 30 second delay to handle React re-renders and modal interactions
           
