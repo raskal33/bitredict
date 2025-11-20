@@ -48,6 +48,11 @@ const globalUnsubscribeFunctionsMap = new Map<string, () => void>();
 const globalPendingSubscriptions = new Set<SDSEventType>(); // ✅ Shared lock
 let globalSDKInstance: SDK | null = null; // ✅ Shared SDK instance
 
+// ✅ CRITICAL: Track desired WebSocket channels globally to avoid duplicate subscriptions
+const desiredWebSocketChannels = new Set<string>();
+const subscribedWebSocketChannels = new Set<string>();
+let isWebSocketConnecting = false;
+
 // Get WebSocket URL from chain config 
 const getWSURL = (): string => {
   const wsUrl = somniaTestnet.rpcUrls.default.webSocket?.[0];
@@ -183,6 +188,7 @@ interface UseSomniaStreamsReturn {
   subscribe: (eventType: SDSEventType, callback: (data: SDSEventData) => void) => () => void;
   subscribeToChannel: (channel: string) => void;
   subscribeToWebSocketChannel: (eventType: SDSEventType, poolId?: string) => void;
+  unsubscribeFromWebSocketChannel: (eventType: SDSEventType, poolId?: string) => void;
   reconnect: () => void;
 }
 
@@ -273,71 +279,49 @@ export function useSomniaStreams(
     }
   }, [enabled, useFallback]);
 
-  // ✅ CRITICAL FIX: Subscribe to WebSocket channel
-  const subscribeToWebSocketChannel = useCallback((eventType: SDSEventType, poolId?: string) => {
-    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-      return;
-    }
-    
-    const channels = new Set<string>();
+  const getChannelsForEvent = useCallback((eventType: SDSEventType, poolId?: string): string[] => {
     if (eventType === 'bet:placed') {
-      channels.add('bet:placed');
-      channels.add('recent_bets'); // legacy channel for moving lane
-    } else if (eventType === 'pool:progress' && poolId) {
-      // ✅ CRITICAL FIX: Subscribe to per-pool progress channel
-      channels.add(`pool:${poolId}:progress`);
-      // Also subscribe to general pool:progress if backend supports it
-      channels.add('pool:progress');
-    } else if (eventType === 'pool:progress') {
-      // General pool progress subscription (for all pools)
-      channels.add('pool:progress');
-    } else {
-      channels.add(eventType);
+      return ['bet:placed', 'recent_bets'];
     }
-    
-    channels.forEach(channel => {
-      console.log(`📡 [WebSocket] Subscribing to channel: ${channel} (for event: ${eventType}${poolId ? `, pool: ${poolId}` : ''})`);
-      wsRef.current?.send(JSON.stringify({ type: 'subscribe', channel }));
+    if (eventType === 'pool:progress' && poolId) {
+      return [`pool:${poolId}:progress`, 'pool:progress'];
+    }
+    if (eventType === 'pool:progress') {
+      return ['pool:progress'];
+    }
+    return [eventType];
+  }, []);
+
+  const flushWebSocketSubscriptions = useCallback(() => {
+    if (wsRef.current?.readyState !== WebSocket.OPEN) return;
+    desiredWebSocketChannels.forEach(channel => {
+      if (!subscribedWebSocketChannels.has(channel)) {
+        console.log(`📡 [WebSocket] Subscribing to channel: ${channel}`);
+        wsRef.current?.send(JSON.stringify({ type: 'subscribe', channel }));
+        subscribedWebSocketChannels.add(channel);
+      }
     });
   }, []);
 
   // WebSocket fallback
   const initializeWebSocketFallback = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+    if (wsRef.current || isWebSocketConnecting) return;
     
     try {
       const wsUrl = process.env.NEXT_PUBLIC_WS_URL || 'wss://bitredict-backend.fly.dev/ws';
       console.log(`📡 [WebSocket] Initializing fallback connection to: ${wsUrl}`);
       const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+      isWebSocketConnecting = true;
 
       ws.onopen = () => {
+        isWebSocketConnecting = false;
         console.log(`✅ [WebSocket] Connected successfully`);
         setIsConnected(true);
         setIsFallback(true);
         setError(null);
-        
-        // ✅ CRITICAL FIX: Subscribe to all existing channels that components have requested
-        const channels = new Set<string>();
-        globalSubscribersMap.forEach((callbacks, eventType) => {
-          if (callbacks.size > 0) { // Only subscribe if there are active callbacks
-            if (eventType === 'bet:placed') {
-              channels.add('bet:placed');
-              channels.add('recent_bets'); // legacy channel for moving lane
-            } else if (eventType === 'pool:progress') {
-              channels.add('pool:progress');
-            } else {
-              channels.add(eventType);
-            }
-          }
-        });
-        
-        console.log(`📡 [WebSocket] Subscribing to ${channels.size} channels:`, Array.from(channels));
-        channels.forEach(channel => {
-          ws.send(JSON.stringify({ type: 'subscribe', channel }));
-        });
-        
-        // ✅ CRITICAL FIX: Also subscribe to any new channels that get added after connection
-        // This is handled by subscribeToWebSocketChannel being called when new subscriptions are added
+        subscribedWebSocketChannels.clear();
+        flushWebSocketSubscriptions();
       };
 
       ws.onmessage = (event) => {
@@ -408,22 +392,58 @@ export function useSomniaStreams(
 
       ws.onclose = (event) => {
         console.log(`🔌 [WebSocket] Connection closed:`, event.code, event.reason);
+        isWebSocketConnecting = false;
+        wsRef.current = null;
+        subscribedWebSocketChannels.clear();
         setIsConnected(false);
         setIsFallback(false);
         // ✅ CRITICAL FIX: Attempt to reconnect after delay
         setTimeout(() => {
-          if (useFallback && !wsRef.current) {
+          if (useFallback) {
             console.log(`🔄 [WebSocket] Attempting to reconnect...`);
             initializeWebSocketFallback();
-          }
+        }
         }, 3000);
       };
 
-      wsRef.current = ws;
     } catch (err) {
       setError(err instanceof Error ? err : new Error(String(err)));
     }
-  }, []);
+  }, [flushWebSocketSubscriptions, useFallback]);
+
+  // ✅ CRITICAL FIX: Subscribe to WebSocket channel
+  const subscribeToWebSocketChannel = useCallback((eventType: SDSEventType, poolId?: string) => {
+    const channels = getChannelsForEvent(eventType, poolId);
+    let added = false;
+    channels.forEach(channel => {
+      if (!desiredWebSocketChannels.has(channel)) {
+        desiredWebSocketChannels.add(channel);
+        added = true;
+      }
+    });
+
+    if (added && wsRef.current?.readyState === WebSocket.OPEN) {
+      flushWebSocketSubscriptions();
+    }
+
+    if (!wsRef.current && useFallback && !isWebSocketConnecting) {
+      initializeWebSocketFallback();
+    }
+  }, [getChannelsForEvent, flushWebSocketSubscriptions, initializeWebSocketFallback, useFallback]);
+
+  const unsubscribeFromWebSocketChannel = useCallback((eventType: SDSEventType, poolId?: string) => {
+    const channels = getChannelsForEvent(eventType, poolId);
+    channels.forEach(channel => {
+      if (desiredWebSocketChannels.has(channel)) {
+        desiredWebSocketChannels.delete(channel);
+      }
+      if (wsRef.current?.readyState === WebSocket.OPEN && subscribedWebSocketChannels.has(channel)) {
+        console.log(`📡 [WebSocket] Unsubscribing from channel: ${channel}`);
+        wsRef.current?.send(JSON.stringify({ type: 'unsubscribe', channel }));
+        subscribedWebSocketChannels.delete(channel);
+      }
+    });
+  }, [getChannelsForEvent]);
 
   // Subscribe to SDS events (using global state to prevent duplicates across components)
   const subscribe = useCallback((
@@ -446,7 +466,7 @@ export function useSomniaStreams(
     
     // ✅ CRITICAL FIX: Always initialize WebSocket fallback (even if SDS is working)
     // This ensures we have a backup connection
-    if (useFallback && !wsRef.current) {
+    if (useFallback && !wsRef.current && !isWebSocketConnecting) {
       console.log(`📡 [WebSocket] Initializing fallback for event: ${eventType}`);
       initializeWebSocketFallback();
     }
@@ -908,6 +928,7 @@ export function useSomniaStreams(
                 globalUnsubscribeFunctionsMap.delete(eventType as any);
                 console.log(`🔌 Unsubscribed from ${eventType} (no more subscribers after delay)`);
       }
+              unsubscribeFromWebSocketChannel(eventType);
             }
           }, 30000); // 30 second delay to handle React re-renders and modal interactions
           
@@ -923,19 +944,31 @@ export function useSomniaStreams(
         }
       }
     };
-  }, [isSDSActive, useFallback, subscribeToWebSocketChannel, initializeWebSocketFallback]);
+  }, [isSDSActive, useFallback, subscribeToWebSocketChannel, unsubscribeFromWebSocketChannel, initializeWebSocketFallback]);
 
   const subscribeToChannel = useCallback((channel: string) => {
-    if (isFallback && wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ type: 'subscribe', channel }));
+    if (!channel) return;
+    if (!desiredWebSocketChannels.has(channel)) {
+      desiredWebSocketChannels.add(channel);
     }
-  }, [isFallback]);
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      if (!subscribedWebSocketChannels.has(channel)) {
+        console.log(`📡 [WebSocket] Subscribing to channel: ${channel}`);
+        wsRef.current.send(JSON.stringify({ type: 'subscribe', channel }));
+        subscribedWebSocketChannels.add(channel);
+      }
+    } else if (useFallback && !wsRef.current && !isWebSocketConnecting) {
+      initializeWebSocketFallback();
+    }
+  }, [useFallback, initializeWebSocketFallback]);
 
   const reconnect = useCallback(() => {
     if (wsRef.current) {
       wsRef.current.close();
       wsRef.current = null;
     }
+    isWebSocketConnecting = false;
+    subscribedWebSocketChannels.clear();
     setIsConnected(false);
     setIsSDSActive(false);
     setIsFallback(false);
@@ -981,7 +1014,8 @@ export function useSomniaStreams(
     error,
     subscribe,
     subscribeToChannel,
-    subscribeToWebSocketChannel, // ✅ Export for usePoolProgress to subscribe to per-pool channels
+  subscribeToWebSocketChannel,
+  unsubscribeFromWebSocketChannel,
     reconnect
   };
 }
@@ -1038,7 +1072,7 @@ export function useBetUpdates(callback: (data: SDSBetData) => void, enabled = tr
 }
 
 export function usePoolProgress(poolId: string, callback: (data: SDSPoolProgressData) => void, enabled = true) {
-  const { subscribe, subscribeToWebSocketChannel, ...rest } = useSomniaStreams({ enabled });
+  const { subscribe, subscribeToWebSocketChannel, unsubscribeFromWebSocketChannel, ...rest } = useSomniaStreams({ enabled });
   const callbackRef = useRef(callback);
   
   // ✅ FIX: Keep callback ref up to date without causing re-subscriptions
@@ -1064,12 +1098,13 @@ export function usePoolProgress(poolId: string, callback: (data: SDSPoolProgress
     const unsubscribe = subscribe('pool:progress', wrappedCallback);
     
     // ✅ CRITICAL FIX: Also subscribe to WebSocket per-pool channel
-    if (subscribeToWebSocketChannel) {
-      subscribeToWebSocketChannel('pool:progress', poolId);
-    }
+    subscribeToWebSocketChannel('pool:progress', poolId);
     
-    return unsubscribe;
-  }, [subscribe, subscribeToWebSocketChannel, poolId, enabled]); // ✅ Removed callback from deps
+    return () => {
+      unsubscribe();
+      unsubscribeFromWebSocketChannel('pool:progress', poolId);
+    };
+  }, [subscribe, subscribeToWebSocketChannel, unsubscribeFromWebSocketChannel, poolId, enabled]); // ✅ Removed callback from deps
   
   return rest;
 }
