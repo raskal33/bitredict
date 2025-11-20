@@ -516,8 +516,53 @@ export function useSomniaStreams(
             
             console.log(`📦 [SDS] Actual data:`, actualData);
             
-            // ✅ Use data as-is (no ABI decoding for context-based subscriptions)
+            // ✅ CRITICAL FIX: SDS returns on-chain event logs, need to decode topics + data
             let decodedData = actualData;
+            
+            // Check if this is an on-chain event log (has address, topics, data fields)
+            if (actualData.address && actualData.topics && Array.isArray(actualData.topics)) {
+              console.log(`📦 [SDS] Detected on-chain event log - decoding topics...`);
+              
+              // Extract poolId from first topic (indexed parameter)
+              if (actualData.topics.length >= 1) {
+                try {
+                  const poolIdHex = actualData.topics[0];
+                  const poolId = BigInt(poolIdHex).toString();
+                  decodedData.poolId = poolId;
+                  console.log(`   ✅ Decoded poolId from topic[0]: ${poolId}`);
+                } catch (e) {
+                  console.warn(`   ⚠️ Failed to decode poolId from topic[0]:`, e);
+                }
+              }
+              
+              // Extract bettor/provider from second topic (indexed parameter) for bet/liquidity events
+              if (actualData.topics.length >= 2 && (eventType === 'bet:placed' || eventType === 'liquidity:added')) {
+                try {
+                  const addressHex = actualData.topics[1];
+                  // Extract address from bytes32 (last 20 bytes)
+                  const address = '0x' + addressHex.slice(-40).toLowerCase();
+                  if (eventType === 'bet:placed') {
+                    decodedData.bettor = address;
+                    console.log(`   ✅ Decoded bettor from topic[1]: ${address}`);
+                  } else if (eventType === 'liquidity:added') {
+                    decodedData.provider = address;
+                    console.log(`   ✅ Decoded provider from topic[1]: ${address}`);
+                  }
+                } catch (e) {
+                  console.warn(`   ⚠️ Failed to decode address from topic[1]:`, e);
+                }
+              }
+              
+              // Decode non-indexed parameters from data field if present
+              if (actualData.data && actualData.data !== '0x' && actualData.data.length > 2) {
+                console.log(`   📦 Event has data field, length: ${actualData.data.length}`);
+                // Data field contains non-indexed parameters - we can decode based on event type
+                // For now, just log it - the poolId and bettor/provider are the critical fields
+              }
+              
+              decodedData.timestamp = Math.floor(Date.now() / 1000);
+              console.log(`✅ Decoded on-chain event:`, decodedData);
+            }
             
             // Decode pool progress data
             if (eventType === 'pool:progress' && data && typeof data === 'object') {
