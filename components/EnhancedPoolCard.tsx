@@ -180,15 +180,22 @@ export default function EnhancedPoolCard({
       return newData;
     });
     
-    // Also update indexedData for participant count and bet count
-    if (progressData.participantCount !== undefined || progressData.betCount !== undefined) {
+    // Also update indexedData for participant count, bet count, and avgBetSize
+    if (progressData.participantCount !== undefined || progressData.betCount !== undefined || progressData.totalBettorStake) {
+      const totalBettorStake = parseFloat(progressData.totalBettorStake || "0");
+      const betCount = progressData.betCount ?? indexedData?.betCount ?? 0;
+      // ✅ CRITICAL FIX: Calculate avgBetSize dynamically from progress data
+      const avgBetSize = betCount > 0 && totalBettorStake > 0 
+        ? (totalBettorStake / betCount).toString() 
+        : (indexedData?.avgBetSize ?? '0');
+      
       setIndexedData(prev => ({
         participantCount: progressData.participantCount ?? prev?.participantCount ?? 0,
-        betCount: progressData.betCount ?? prev?.betCount ?? 0,
+        betCount: betCount,
         fillPercentage: progressData.fillPercentage ?? prev?.fillPercentage ?? 0,
         totalVolume: prev?.totalVolume ?? '0',
         timeToFill: prev?.timeToFill,
-        avgBetSize: prev?.avgBetSize ?? '0',
+        avgBetSize: avgBetSize, // ✅ Use calculated avgBetSize
         creatorReputation: prev?.creatorReputation ?? 0,
         categoryRank: prev?.categoryRank ?? 0,
         isHot: prev?.isHot ?? false,
@@ -661,9 +668,9 @@ export default function EnhancedPoolCard({
         <div className="mb-1 sm:mb-1.5 flex-shrink-0 px-3 sm:px-4 md:px-5">
           <RealtimePoolProgress 
             poolId={pool.id.toString()}
-            initialFillPercentage={indexedData?.fillPercentage || 0}
-            initialParticipants={pool.totalBets || indexedData?.participantCount || 0}
-            initialBetCount={pool.betCount || pool.totalBets || indexedData?.betCount || 0}
+            initialFillPercentage={currentPoolData.fillPercentage || indexedData?.fillPercentage || 0}
+            initialParticipants={indexedData?.participantCount || pool.totalBets || pool.betCount || 0}
+            initialBetCount={indexedData?.betCount || pool.betCount || pool.totalBets || 0}
           />
         </div>
       {pool.isComboPool ? (
@@ -800,10 +807,8 @@ export default function EnhancedPoolCard({
           </div>
           <div className="text-sm font-bold text-white">
             {(() => {
-              // ✅ FIX: Use real-time participant count from RealtimePoolProgress
-              // Don't use indexedData.participantCount as it might be wrong
-              // RealtimePoolProgress component handles the display correctly
-              const participantCount = pool.totalBets || pool.betCount || indexedData?.participantCount || 0;
+              // ✅ CRITICAL FIX: Use real-time participant count from indexedData (updated via usePoolProgress)
+              const participantCount = indexedData?.participantCount ?? pool.totalBets ?? pool.betCount ?? 0;
               return participantCount.toString();
             })()}
           </div>
@@ -858,23 +863,25 @@ export default function EnhancedPoolCard({
         <div>
           <div className="text-xs text-gray-400">Total Bets</div>
           <div className="text-xs font-bold text-white">
-            {indexedData?.betCount ?? pool.totalBets ?? 0}
+            {indexedData?.betCount ?? pool.betCount ?? pool.totalBets ?? 0}
           </div>
         </div>
         <div>
           <div className="text-xs text-gray-400">Avg Bet</div>
           <div className="text-xs font-bold text-white">
             {(() => {
+              // ✅ CRITICAL FIX: Use real-time values from currentPoolData and indexedData
+              const totalBettorStake = currentPoolData.totalBettorStake || parseFloat(pool.totalBettorStake || "0");
+              const betCount = indexedData?.betCount ?? pool.betCount ?? pool.totalBets ?? 0;
 
-              const totalBettorStake = parseFloat(pool.totalBettorStake || "0");
-              const betCount = indexedData?.betCount ?? pool.totalBets ?? 0;
-
+              // ✅ Calculate avgBet dynamically from real-time data
               if (betCount > 0 && totalBettorStake > 0) {
                 const avgBet = totalBettorStake / betCount;
                 if (avgBet >= 1000000) return `${(avgBet / 1000000).toFixed(1)}M`;
                 if (avgBet >= 1000) return `${(avgBet / 1000).toFixed(1)}K`;
                 return avgBet.toFixed(2);
               }
+              // Fallback to indexedData.avgBetSize if available
               const avgBet = indexedData?.avgBetSize ? parseFloat(indexedData.avgBetSize) : parseFloat(pool.avgBet || "0");
               if (avgBet >= 1000000) return `${(avgBet / 1000000).toFixed(1)}M`;
               if (avgBet >= 1000) return `${(avgBet / 1000).toFixed(1)}K`;

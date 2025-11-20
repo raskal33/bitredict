@@ -54,8 +54,9 @@ export function LiveActivity() {
     poolTitle?: string;
     currency?: string;
   }) => {
+    console.log('📡 LiveActivity: useBetUpdates callback triggered with data:', betData);
     if (!betData.poolId || !betData.bettor) {
-      console.log('⚠️ LiveActivity: Invalid bet data:', betData);
+      console.log('⚠️ LiveActivity: Invalid bet data (missing poolId or bettor):', betData);
       return;
     }
     
@@ -101,8 +102,9 @@ export function LiveActivity() {
     timestamp?: number;
     title?: string;
   }) => {
+    console.log('📡 LiveActivity: usePoolCreatedUpdates callback triggered with data:', poolData);
     if (!poolData.poolId || !poolData.creator) {
-      console.log('⚠️ LiveActivity: Invalid pool data:', poolData);
+      console.log('⚠️ LiveActivity: Invalid pool data (missing poolId or creator):', poolData);
       return;
     }
     
@@ -143,8 +145,9 @@ export function LiveActivity() {
     amount?: string;
     timestamp: number;
   }) => {
+    console.log('📡 LiveActivity: useLiquidityAddedUpdates callback triggered with data:', liquidityData);
     if (!liquidityData.poolId || !liquidityData.provider) {
-      console.log('⚠️ LiveActivity: Invalid liquidity data:', liquidityData);
+      console.log('⚠️ LiveActivity: Invalid liquidity data (missing poolId or provider):', liquidityData);
       return;
     }
     

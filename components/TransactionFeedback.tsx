@@ -397,7 +397,41 @@ export const TransactionFeedback: React.FC<TransactionFeedbackProps> = ({
 
 // ✅ FIX: Module-level deduplication to prevent duplicate notifications
 const notificationDeduplicationMap = new Map<string, number>();
-const NOTIFICATION_DEDUP_WINDOW = 5000; // 5 seconds
+const NOTIFICATION_DEDUP_WINDOW = 30000; // 30 seconds (increased from 5s)
+const STORAGE_KEY_PREFIX = 'bitredict_notification_';
+
+// ✅ FIX: Load seen notifications from localStorage on module load
+const loadSeenNotifications = (): Set<string> => {
+  try {
+    const stored = localStorage.getItem(`${STORAGE_KEY_PREFIX}seen`);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      // Only keep notifications from last 24 hours
+      const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+      const filtered = parsed.filter((item: { key: string; timestamp: number }) => item.timestamp > oneDayAgo);
+      return new Set(filtered.map((item: { key: string }) => item.key));
+    }
+  } catch (e) {
+    console.warn('Failed to load seen notifications from localStorage:', e);
+  }
+  return new Set();
+};
+
+// ✅ FIX: Save seen notification to localStorage
+const saveSeenNotification = (key: string) => {
+  try {
+    const stored = localStorage.getItem(`${STORAGE_KEY_PREFIX}seen`);
+    const seen = stored ? JSON.parse(stored) : [];
+    const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+    const filtered = seen.filter((item: { key: string; timestamp: number }) => item.timestamp > oneDayAgo);
+    filtered.push({ key, timestamp: Date.now() });
+    localStorage.setItem(`${STORAGE_KEY_PREFIX}seen`, JSON.stringify(filtered.slice(-1000))); // Keep last 1000
+  } catch (e) {
+    console.warn('Failed to save seen notification to localStorage:', e);
+  }
+};
+
+const seenNotifications = loadSeenNotifications();
 
 // Hook for managing transaction feedback
 export const useTransactionFeedback = () => {
@@ -409,19 +443,30 @@ export const useTransactionFeedback = () => {
   };
 
   const showSuccess = (title: string, message: string, hash?: string, boostTier?: string, totalCost?: string, poolId?: string) => {
-    const key = createNotificationKey('success', hash, title);
+    // ✅ FIX: Create stable key based on hash (if available) or title+message
+    const key = hash ? `success:${hash}` : `success:${title}:${message}`;
     const now = Date.now();
     
-    // ✅ FIX: Check if this notification was shown recently
+    // ✅ FIX: Check if this notification was shown recently (in-memory)
     if (notificationDeduplicationMap.has(key)) {
       const lastShown = notificationDeduplicationMap.get(key)!;
       if (now - lastShown < NOTIFICATION_DEDUP_WINDOW) {
-        console.log(`⚠️ Duplicate notification prevented: ${key} (shown ${now - lastShown}ms ago)`);
+        console.log(`⚠️ Duplicate notification prevented (in-memory): ${key} (shown ${now - lastShown}ms ago)`);
         return; // Skip duplicate notification
       }
     }
     
+    // ✅ FIX: Check if this notification was shown before (localStorage - persists across refreshes)
+    if (seenNotifications.has(key)) {
+      console.log(`⚠️ Duplicate notification prevented (localStorage): ${key} (already shown)`);
+      return; // Skip notification that was already shown
+    }
+    
+    // ✅ FIX: Mark as seen in both maps
     notificationDeduplicationMap.set(key, now);
+    seenNotifications.add(key);
+    saveSeenNotification(key);
+    
     setTransactionStatus({
       type: 'success',
       title,
@@ -432,25 +477,37 @@ export const useTransactionFeedback = () => {
       poolId
     });
     
-    // Clean up old entries
+    // Clean up old entries from in-memory map
     setTimeout(() => {
       notificationDeduplicationMap.delete(key);
     }, NOTIFICATION_DEDUP_WINDOW);
   };
 
   const showError = (title: string, message: string, hash?: string) => {
-    const key = createNotificationKey('error', hash, title);
+    // ✅ FIX: Create stable key based on hash (if available) or title+message
+    const key = hash ? `error:${hash}` : `error:${title}:${message}`;
     const now = Date.now();
     
+    // ✅ FIX: Check if this notification was shown recently (in-memory)
     if (notificationDeduplicationMap.has(key)) {
       const lastShown = notificationDeduplicationMap.get(key)!;
       if (now - lastShown < NOTIFICATION_DEDUP_WINDOW) {
-        console.log(`⚠️ Duplicate notification prevented: ${key} (shown ${now - lastShown}ms ago)`);
+        console.log(`⚠️ Duplicate notification prevented (in-memory): ${key} (shown ${now - lastShown}ms ago)`);
         return;
       }
     }
     
+    // ✅ FIX: Check if this notification was shown before (localStorage - persists across refreshes)
+    if (seenNotifications.has(key)) {
+      console.log(`⚠️ Duplicate notification prevented (localStorage): ${key} (already shown)`);
+      return; // Skip notification that was already shown
+    }
+    
+    // ✅ FIX: Mark as seen in both maps
     notificationDeduplicationMap.set(key, now);
+    seenNotifications.add(key);
+    saveSeenNotification(key);
+    
     setTransactionStatus({
       type: 'error',
       title,
@@ -572,23 +629,67 @@ export const useTransactionFeedback = () => {
   };
 };
 
+// ✅ FIX: Toast deduplication map
+const toastDeduplicationMap = new Map<string, number>();
+const TOAST_DEDUP_WINDOW = 30000; // 30 seconds
+
+// ✅ FIX: Check if toast was shown recently
+const shouldShowToast = (key: string): boolean => {
+  const now = Date.now();
+  if (toastDeduplicationMap.has(key)) {
+    const lastShown = toastDeduplicationMap.get(key)!;
+    if (now - lastShown < TOAST_DEDUP_WINDOW) {
+      console.log(`⚠️ Duplicate toast prevented: ${key} (shown ${now - lastShown}ms ago)`);
+      return false;
+    }
+  }
+  
+  // ✅ FIX: Also check localStorage for persistence across refreshes
+  if (seenNotifications.has(key)) {
+    console.log(`⚠️ Duplicate toast prevented (localStorage): ${key} (already shown)`);
+    return false;
+  }
+  
+  toastDeduplicationMap.set(key, now);
+  seenNotifications.add(key);
+  saveSeenNotification(key);
+  
+  setTimeout(() => {
+    toastDeduplicationMap.delete(key);
+  }, TOAST_DEDUP_WINDOW);
+  
+  return true;
+};
+
 // Toast wrapper for quick notifications
 export const showTransactionToast = {
-  success: (message: string) => toast.success(message, {
-    duration: 4000,
-    style: {
-      background: '#10B981',
-      color: '#fff',
-    },
-  }),
+  success: (message: string, id?: string) => {
+    const key = id || `toast:success:${message}`;
+    if (!shouldShowToast(key)) return;
+    
+    toast.success(message, {
+      id, // Use id for react-hot-toast deduplication
+      duration: 4000,
+      style: {
+        background: '#10B981',
+        color: '#fff',
+      },
+    });
+  },
   
-  error: (message: string) => toast.error(message, {
-    duration: 6000,
-    style: {
-      background: '#EF4444',
-      color: '#fff',
-    },
-  }),
+  error: (message: string, id?: string) => {
+    const key = id || `toast:error:${message}`;
+    if (!shouldShowToast(key)) return;
+    
+    toast.error(message, {
+      id, // Use id for react-hot-toast deduplication
+      duration: 6000,
+      style: {
+        background: '#EF4444',
+        color: '#fff',
+      },
+    });
+  },
   
   warning: (message: string) => toast(message, {
     duration: 4000,

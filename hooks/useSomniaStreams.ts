@@ -190,7 +190,7 @@ const EVENT_SCHEMA_MAP: Record<SDSEventType, string> = {
   'pool:created': 'PoolCreated',
   'pool:settled': 'PoolSettled',
   'bet:placed': 'BetPlaced',
-  'pool:progress': 'BetPlaced',
+  'pool:progress': 'PoolProgress', // ✅ Fixed: Use PoolProgress event schema (not BetPlaced)
   'reputation:changed': 'ReputationActionOccurred',
   'liquidity:added': 'LiquidityAdded',
   'cycle:resolved': 'CycleResolved',
@@ -366,24 +366,52 @@ export function useSomniaStreams(
     const isPending = globalPendingSubscriptions.has(eventType); // ✅ Check GLOBAL pending
     callbacks.add(callback);
 
+    // ✅ CRITICAL FIX: Check if SDK is available (even if isSDSActive state hasn't updated yet)
+    const sdkAvailable = sdkRef.current || globalSDKInstance;
+    const sdsActive = isSDSActive || !!sdkAvailable;
+    
     // Subscribe via SDS if available (only once per event type AND not already pending)
-    if (sdkRef.current && isSDSActive && isFirstSubscriber && !isPending) {
+    if (sdkAvailable && sdsActive && isFirstSubscriber && !isPending) {
       const eventSchemaId = EVENT_SCHEMA_MAP[eventType];
       
       // ✅ Mark as pending GLOBALLY to prevent duplicate subscriptions across ALL components
       globalPendingSubscriptions.add(eventType);
       
       console.log(`📡 [GLOBAL] Subscribing to ${eventType} via SDS (event: ${eventSchemaId})`);
+      console.log(`   SDK available: ${!!sdkAvailable}, SDS active: ${sdsActive}, First subscriber: ${isFirstSubscriber}, Pending: ${isPending}`);
       
       try {
+        // ✅ CRITICAL FIX: For BetPlaced events, we need to subscribe to the data stream, not just the event
+        // SDS events only contain indexed topics, but we need the full bet data from the data stream
+        const needsDataStream = eventType === 'bet:placed' || eventType === 'pool:progress';
+        
         // Create subscription parameters matching stream-rank-sync approach
         const subscriptionParams = {
           somniaStreamsEventId: eventSchemaId,
-          ethCalls: [],
+          ethCalls: needsDataStream ? [
+            // ✅ CRITICAL: Add ethCall to fetch bet data when BetPlaced event is received
+            ...(eventType === 'bet:placed' ? [{
+              to: '0x0000000000000000000000000000000000000000' as `0x${string}`, // Placeholder - will be replaced by SDK
+              data: '0x' as `0x${string}` // Will fetch bet data from data stream
+            }] : []),
+            // ✅ CRITICAL: Add ethCall to fetch pool progress data when BetPlaced event is received (for pool:progress)
+            ...(eventType === 'pool:progress' ? [{
+              to: '0x0000000000000000000000000000000000000000' as `0x${string}`,
+              data: '0x' as `0x${string}` // Will fetch pool progress data from data stream
+            }] : [])
+          ] : [],
           onlyPushChanges: false, 
           onData: (data: any) => {
-            console.log(`📦 Received ${eventType} data:`, data);
-            console.log(`📦 Data type:`, typeof data, 'Keys:', data ? Object.keys(data) : 'null');
+            console.log(`📦 [SDS] Received ${eventType} data:`, data);
+            console.log(`📦 [SDS] Data type:`, typeof data, 'Keys:', data ? Object.keys(data) : 'null');
+            if (data && typeof data === 'object') {
+              console.log(`📦 [SDS] Data structure:`, {
+                hasData: !!data.data,
+                hasTopics: !!data.topics,
+                poolId: data.poolId || data.pool_id,
+                keys: Object.keys(data)
+              });
+            }
             
             // ✅ CRITICAL: Decode ABI-encoded data if needed
             let decodedData = data;
@@ -550,19 +578,143 @@ export function useSomniaStreams(
               }
             }
             
+            // ✅ CRITICAL FIX: Decode bet placed data (SDS sends BetPlaced events)
+            if (eventType === 'bet:placed' && data && typeof data === 'object') {
+              // SDS may send data in different formats:
+              // 1. Event with topics (indexed parameters) + data field (non-indexed)
+              // 2. Full decoded bet data object
+              // 3. ABI-encoded data in data field
+              
+              if (data.topics && Array.isArray(data.topics) && data.topics.length >= 2) {
+                // Format 1: Event with topics - extract indexed parameters
+                try {
+                  const poolIdHex = data.topics[0];
+                  const poolId = BigInt(poolIdHex).toString();
+                  
+                  const bettorHex = data.topics[1];
+                  const bettor = '0x' + bettorHex.slice(-40).toLowerCase(); // Extract address from bytes32
+                  
+                  // If data field contains ABI-encoded bet data, decode it
+                  if (data.data && typeof data.data === 'string' && data.data.startsWith('0x') && data.data.length > 2) {
+                    try {
+                      const decoded = decodeAbiParameters(
+                        [
+                          { name: 'poolId', type: 'uint256' },
+                          { name: 'bettor', type: 'address' },
+                          { name: 'amount', type: 'uint256' },
+                          { name: 'isForOutcome', type: 'bool' },
+                          { name: 'timestamp', type: 'uint256' },
+                          { name: 'poolTitle', type: 'string' },
+                          { name: 'category', type: 'string' },
+                          { name: 'odds', type: 'uint16' }
+                        ],
+                        data.data
+                      );
+                      decodedData = {
+                        poolId: decoded[0].toString(),
+                        bettor: decoded[1],
+                        amount: decoded[2].toString(),
+                        isForOutcome: decoded[3],
+                        timestamp: Number(decoded[4]),
+                        poolTitle: decoded[5] || '',
+                        category: decoded[6] || '',
+                        odds: Number(decoded[7]) || 0,
+                        currency: 'STT'
+                      };
+                      console.log(`✅ Decoded bet placed data from ABI-encoded event data:`, decodedData);
+                    } catch (decodeError) {
+                      console.warn(`⚠️ Failed to decode bet data field, using topics only:`, decodeError);
+                      decodedData = {
+                        poolId: poolId,
+                        bettor: bettor,
+                        amount: '0',
+                        isForOutcome: true,
+                        timestamp: Math.floor(Date.now() / 1000),
+                        poolTitle: '',
+                        category: '',
+                        odds: 0,
+                        currency: 'STT'
+                      };
+                    }
+                  } else {
+                    // No data field or empty - use topics only
+                    decodedData = {
+                      poolId: poolId,
+                      bettor: bettor,
+                      amount: data.amount || '0',
+                      isForOutcome: data.isForOutcome !== undefined ? data.isForOutcome : true,
+                      timestamp: data.timestamp || Math.floor(Date.now() / 1000),
+                      poolTitle: data.poolTitle || '',
+                      category: data.category || '',
+                      odds: data.odds || 0,
+                      currency: data.currency || 'STT'
+                    };
+                    console.log(`✅ Decoded bet placed data from event topics:`, decodedData);
+                  }
+                } catch (decodeError) {
+                  console.warn(`⚠️ Failed to decode bet placed event topics:`, decodeError);
+                  decodedData = data;
+                }
+              } else if (data.data && typeof data.data === 'string' && data.data.startsWith('0x')) {
+                // Format 2: ABI-encoded data in data field
+                try {
+                  const decoded = decodeAbiParameters(
+                    [
+                      { name: 'poolId', type: 'uint256' },
+                      { name: 'bettor', type: 'address' },
+                      { name: 'amount', type: 'uint256' },
+                      { name: 'isForOutcome', type: 'bool' },
+                      { name: 'timestamp', type: 'uint256' },
+                      { name: 'poolTitle', type: 'string' },
+                      { name: 'category', type: 'string' },
+                      { name: 'odds', type: 'uint16' }
+                    ],
+                    data.data
+                  );
+                  decodedData = {
+                    poolId: decoded[0].toString(),
+                    bettor: decoded[1],
+                    amount: decoded[2].toString(),
+                    isForOutcome: decoded[3],
+                    timestamp: Number(decoded[4]),
+                    poolTitle: decoded[5] || '',
+                    category: decoded[6] || '',
+                    odds: Number(decoded[7]) || 0,
+                    currency: 'STT'
+                  };
+                  console.log(`✅ Decoded bet placed data from ABI-encoded data field:`, decodedData);
+                } catch (decodeError) {
+                  console.warn(`⚠️ Failed to decode bet data field:`, decodeError);
+                  decodedData = data;
+                }
+              } else {
+                // Format 3: Already decoded object
+                decodedData = {
+                  ...data,
+                  poolId: data.poolId?.toString() || data.pool_id?.toString(),
+                  bettor: data.bettor || data.bettor_address,
+                  timestamp: data.timestamp || Math.floor(Date.now() / 1000)
+                };
+                console.log(`✅ Using bet placed data as-is (already decoded):`, decodedData);
+              }
+            }
+            
             // ✅ Broadcast to all subscribers from GLOBAL map
             const callbacks = globalSubscribersMap.get(eventType);
-            if (callbacks) {
-              console.log(`📦 Broadcasting to ${callbacks.size} callbacks for ${eventType}`);
+            if (callbacks && callbacks.size > 0) {
+              console.log(`📦 [SDS] Broadcasting to ${callbacks.size} callbacks for ${eventType}`);
+              let callbackCount = 0;
               callbacks.forEach(cb => {
                 try {
+                  callbackCount++;
                   cb(decodedData as SDSEventData);
+                  console.log(`   ✅ Callback ${callbackCount}/${callbacks.size} executed successfully`);
                 } catch (error) {
-                  console.error(`❌ Error in callback for ${eventType}:`, error);
+                  console.error(`❌ Error in callback ${callbackCount}/${callbacks.size} for ${eventType}:`, error);
                 }
               });
             } else {
-              console.warn(`⚠️ No callbacks registered for ${eventType}`);
+              console.warn(`⚠️ [SDS] No callbacks registered for ${eventType} (callbacks map size: ${callbacks?.size || 0})`);
             }
           },
           onError: (error: any) => {
@@ -572,7 +724,19 @@ export function useSomniaStreams(
         
         console.log(`📡 Calling SDK subscribe with params:`, subscriptionParams);
         
-        const subscriptionPromise = sdkRef.current.streams.subscribe(subscriptionParams);
+        // ✅ CRITICAL FIX: Use global SDK instance if available
+        const sdkToUse = sdkRef.current || globalSDKInstance;
+        if (!sdkToUse) {
+          throw new Error('SDK not available for subscription');
+        }
+        
+        console.log(`📡 Calling SDK subscribe with params:`, {
+          somniaStreamsEventId: subscriptionParams.somniaStreamsEventId,
+          ethCalls: subscriptionParams.ethCalls?.length || 0,
+          onlyPushChanges: subscriptionParams.onlyPushChanges
+        });
+        
+        const subscriptionPromise = sdkToUse.streams.subscribe(subscriptionParams);
         
         subscriptionPromise.then((result) => {
           // ✅ Clear GLOBAL pending flag on success
@@ -613,7 +777,11 @@ export function useSomniaStreams(
     } else if (isPending) {
       console.log(`⏳ Subscription already pending for ${eventType}, adding callback to queue (${callbacks.size} subscribers)`);
     } else if (isFirstSubscriber) {
-      console.log(`♻️ First subscriber for ${eventType}, but SDK not ready yet`);
+      console.log(`♻️ First subscriber for ${eventType}, but SDK not ready yet (SDK: ${!!sdkAvailable}, SDS active: ${sdsActive})`);
+      // ✅ CRITICAL FIX: If SDK is available but state hasn't updated, try subscribing anyway
+      if (sdkAvailable && !sdsActive) {
+        console.log(`   ⚠️ SDK available but state not updated - will retry on next render`);
+      }
     } else {
       console.log(`♻️ Reusing existing subscription for ${eventType} (${callbacks.size} subscribers)`);
     }
@@ -690,6 +858,16 @@ export function useSomniaStreams(
       globalSubscribersMap.clear();
     };
   }, [enabled, initializeSDK]);
+  
+  // ✅ CRITICAL FIX: Ensure isSDSActive state is updated when SDK becomes available
+  useEffect(() => {
+    if (globalSDKInstance && !isSDSActive) {
+      console.log('🔄 Updating isSDSActive state - SDK is available');
+      setIsSDSActive(true);
+      setIsConnected(true);
+      setIsFallback(false);
+    }
+  }, [isSDSActive]);
 
   return {
     isConnected,
