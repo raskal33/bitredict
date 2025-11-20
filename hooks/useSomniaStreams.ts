@@ -288,7 +288,8 @@ export function useSomniaStreams(
         const channels = new Set<string>();
         globalSubscribersMap.forEach((_, eventType) => {
           if (eventType === 'bet:placed') {
-            channels.add('recent_bets');
+            channels.add('bet:placed');
+            channels.add('recent_bets'); // legacy channel for moving lane
           } else {
             channels.add(eventType);
           }
