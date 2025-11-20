@@ -564,8 +564,11 @@ export function useSomniaStreams(
               console.log(`✅ Decoded on-chain event:`, decodedData);
             }
             
-            // Decode pool progress data
-            if (eventType === 'pool:progress' && data && typeof data === 'object') {
+            // ✅ All decoding done above - skip old ABI decoding logic
+            // The decodedData now has poolId, bettor/provider extracted from topics
+            
+            // Decode pool progress data (still needed for non-event-log data)
+            if (eventType === 'pool:progress' && !actualData.address && data && typeof data === 'object') {
               if (data.data && typeof data.data === 'string' && data.data.startsWith('0x')) {
                 try {
                   const decoded = decodeAbiParameters(
@@ -616,8 +619,8 @@ export function useSomniaStreams(
               }
             }
             
-            // Decode pool created data (SDS publishes enriched pool data)
-            if (eventType === 'pool:created' && data && typeof data === 'object') {
+            // Decode pool created data (only for non-event-log data)
+            if (eventType === 'pool:created' && !actualData.address && data && typeof data === 'object') {
               // SDS may send the data directly or ABI-encoded
               if (data.data && typeof data.data === 'string' && data.data.startsWith('0x')) {
                 try {
@@ -690,8 +693,8 @@ export function useSomniaStreams(
               }
             }
             
-            // Decode liquidity added data
-            if (eventType === 'liquidity:added' && data && typeof data === 'object') {
+            // Decode liquidity added data (only for non-event-log data)
+            if (eventType === 'liquidity:added' && !actualData.address && data && typeof data === 'object') {
               if (data.data && typeof data.data === 'string' && data.data.startsWith('0x')) {
                 try {
                   const decoded = decodeAbiParameters(
@@ -726,8 +729,8 @@ export function useSomniaStreams(
               }
             }
             
-            // ✅ CRITICAL FIX: Decode bet placed data (SDS sends BetPlaced events)
-            if (eventType === 'bet:placed' && data && typeof data === 'object') {
+            // ✅ Decode bet placed data (only for non-event-log data, already decoded above)
+            if (eventType === 'bet:placed' && !actualData.address && data && typeof data === 'object') {
               // SDS may send data in different formats:
               // 1. Event with topics (indexed parameters) + data field (non-indexed)
               // 2. Full decoded bet data object
