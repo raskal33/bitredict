@@ -131,6 +131,91 @@ interface GuidedMarketData {
 
 type MarketType = 'guided' | 'combo' | null;
 
+const CRYPTO_TIMEFRAME_OPTIONS = [
+  { value: '1h', label: '1 Hour' },
+  { value: '4h', label: '4 Hours' },
+  { value: '1d', label: '1 Day' },
+  { value: '3d', label: '3 Days' },
+  { value: '1w', label: '1 Week' },
+  { value: '1m', label: '1 Month' }
+] as const;
+
+const normalizeTimeframeValue = (timeframe?: string): string => {
+  if (!timeframe) {
+    return '';
+  }
+
+  const normalized = timeframe.toLowerCase().replace(/\s+/g, '');
+  const aliasMap: Record<string, string> = {
+    '1hour': '1h',
+    '1hours': '1h',
+    '4hours': '4h',
+    '4hour': '4h',
+    '1day': '1d',
+    '1days': '1d',
+    '3day': '3d',
+    '3days': '3d',
+    '7days': '7d',
+    '1week': '1w',
+    '1weeks': '1w',
+    'oneweek': '1w',
+    '1month': '1m',
+    '1months': '1m',
+    '30days': '1m',
+    '30day': '1m'
+  };
+
+  return aliasMap[normalized] || normalized;
+};
+
+const getTimeframeHours = (timeframe?: string): number => {
+  const normalized = normalizeTimeframeValue(timeframe) || '1d';
+  const hoursMap: Record<string, number> = {
+    '1h': 1,
+    '4h': 4,
+    '24h': 24,
+    '1d': 24,
+    '2d': 48,
+    '3d': 72,
+    '7d': 168,
+    '1w': 168,
+    '30d': 720,
+    '1m': 720
+  };
+
+  if (hoursMap[normalized] !== undefined) {
+    return hoursMap[normalized];
+  }
+
+  const match = normalized.match(/^(\d+)([hdwm])$/);
+  if (match) {
+    const value = parseInt(match[1], 10);
+    const unit = match[2];
+    const multipliers: Record<string, number> = {
+      h: 1,
+      d: 24,
+      w: 24 * 7,
+      m: 24 * 30
+    };
+
+    if (multipliers[unit]) {
+      return value * multipliers[unit];
+    }
+  }
+
+  return 24;
+};
+
+const getTimeframeLabel = (timeframe?: string): string => {
+  const normalized = normalizeTimeframeValue(timeframe);
+  if (!normalized) {
+    return '';
+  }
+
+  const option = CRYPTO_TIMEFRAME_OPTIONS.find(opt => opt.value === normalized);
+  return option ? option.label : normalized;
+};
+
 function CreateMarketPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -178,19 +263,6 @@ function CreateMarketPageContent() {
   const canCreate = address ? canCreateMarket(address) : false;
 
   const token = useBITRToken();
-
-  // Helper functions for crypto market creation
-  const getTimeframeHours = (timeframe: string): number => {
-    const hoursMap: Record<string, number> = {
-      '1h': 1,
-      '4h': 4,
-      '1d': 24,
-      '3d': 72,
-      '7d': 168,
-      '30d': 720
-    };
-    return hoursMap[timeframe] || 24;
-  };
 
   const getDateString = (): string => {
     const now = new Date();
@@ -595,6 +667,11 @@ function CreateMarketPageContent() {
     setData(prev => {
       const updated = { ...prev, [field]: value };
       
+      if (field === 'timeframe') {
+        const normalized = typeof value === 'string' ? normalizeTimeframeValue(value) : '';
+        updated.timeframe = (normalized || '') as GuidedMarketData['timeframe'];
+      }
+      
       // Auto-generate title and timing for football matches
       if (field === 'selectedFixture' && value) {
         const fixture = value as Fixture;
@@ -757,9 +834,9 @@ function CreateMarketPageContent() {
           newErrors.userEventStartTime = 'Please select an event start time';
         } else {
           const now = new Date();
-          const minTime = new Date(now.getTime() + 60000); // 1 minute from now
+          const minTime = new Date(now.getTime() + 120000); // 2 minutes from now (includes buffer)
           if (data.userEventStartTime < minTime) {
-            newErrors.userEventStartTime = 'Event start time must be at least 1 minute from now';
+            newErrors.userEventStartTime = 'Event start time must be at least 2 minutes from now';
           }
         }
       }
@@ -844,8 +921,10 @@ function CreateMarketPageContent() {
     
     if (data.category === 'cryptocurrency' && data.userEventStartTime) {
       // For crypto, use user-selected event start time
+      const normalizedTimeframe = normalizeTimeframeValue(data.timeframe) || '1d';
+      const hours = getTimeframeHours(normalizedTimeframe);
       const eventStartTime = Math.floor(data.userEventStartTime.getTime() / 1000);
-      const eventEndTime = eventStartTime + (60 * 60); // 1 hour after start
+      const eventEndTime = eventStartTime + (hours * 60 * 60); // Duration based on timeframe selection
       const bettingEndTime = eventStartTime - bettingGracePeriod;
       
       return { eventStartTime, eventEndTime, bettingEndTime };
@@ -1066,12 +1145,30 @@ function CreateMarketPageContent() {
         
         // Calculate event times based on timeframe with proper validation
         const now = new Date();
-        const hours = getTimeframeHours(data.timeframe || '1d');
+        const normalizedTimeframe = normalizeTimeframeValue(data.timeframe) || '1d';
+        const hours = getTimeframeHours(normalizedTimeframe);
+        const userSelectedStart = data.userEventStartTime ? new Date(data.userEventStartTime) : null;
         
         // Ensure event starts at least 120 seconds from now (bettingGracePeriod + buffer for block time)
         const minStartTime = new Date(now.getTime() + 120 * 1000); // 120 seconds from now (60s grace + 60s buffer)
-        const defaultStartTime = new Date(now.getTime() + (60 * 60 * 1000)); // 1 hour from now (default)
-        const eventStartTime = defaultStartTime > minStartTime ? defaultStartTime : minStartTime;
+        
+        if (!userSelectedStart) {
+          const errorMsg = 'Please select an event start time for your cryptocurrency market.';
+          setErrors(prev => ({ ...prev, userEventStartTime: errorMsg }));
+          showError('Event Start Required', errorMsg);
+          setIsLoading(false);
+          return;
+        }
+
+        if (userSelectedStart <= minStartTime) {
+          const errorMsg = 'Event start time must be at least 2 minutes from now to allow for betting grace period.';
+          setErrors(prev => ({ ...prev, userEventStartTime: errorMsg }));
+          showError('Invalid Event Start', errorMsg);
+          setIsLoading(false);
+          return;
+        }
+
+        const eventStartTime = userSelectedStart;
         const eventEndTime = new Date(eventStartTime.getTime() + (hours * 60 * 60 * 1000)); // Event Start + Timeframe
         
         // Validate minimum stake requirements
@@ -1405,11 +1502,11 @@ function CreateMarketPageContent() {
                   className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-cyan-500"
                 >
                   <option value="">Select timeframe</option>
-                  <option value="1hour">1 Hour</option>
-                  <option value="4hours">4 Hours</option>
-                  <option value="1day">1 Day</option>
-                  <option value="3days">3 Days</option>
-                  <option value="1week">1 Week</option>
+                  {CRYPTO_TIMEFRAME_OPTIONS.map(({ value, label }) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
                 </select>
                 {errors.timeframe && (
                   <p className="text-red-400 text-sm mt-2">{errors.timeframe}</p>
@@ -2244,7 +2341,7 @@ function CreateMarketPageContent() {
               {data.timeframe && (
                 <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
                   <span className="text-gray-300">Timeframe:</span>
-                  <span className="text-white font-medium">{data.timeframe}</span>
+                  <span className="text-white font-medium">{getTimeframeLabel(data.timeframe)}</span>
                 </div>
               )}
               <div className="flex flex-col sm:flex-row sm:justify-between gap-1">
