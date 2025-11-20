@@ -192,17 +192,19 @@ interface UseSomniaStreamsReturn {
   reconnect: () => void;
 }
 
-// Event schema mapping - must match backend registered schemas
-const EVENT_SCHEMA_MAP: Record<SDSEventType, string> = {
-  'pool:created': 'PoolCreated',
-  'pool:settled': 'PoolSettled',
-  'bet:placed': 'BetPlaced',
-  'pool:progress': 'PoolProgress', // ✅ Fixed: Use PoolProgress event schema (not BetPlaced)
-  'reputation:changed': 'ReputationActionOccurred',
-  'liquidity:added': 'LiquidityAdded',
-  'cycle:resolved': 'CycleResolved',
-  'slip:evaluated': 'SlipEvaluated',
-  'prize:claimed': 'PrizeClaimed'
+// ✅ CRITICAL FIX: Use context-based subscriptions (data streams) instead of event schemas
+// Event schemas require on-chain smart contract event emission which causes "Failed to get event schemas" error
+// Context-based subscriptions read from data streams published via sdk.streams.set()
+const EVENT_CONTEXT_MAP: Record<SDSEventType, string> = {
+  'pool:created': 'pools:created',
+  'pool:settled': 'pools:settled',
+  'bet:placed': 'bets',
+  'pool:progress': 'pools:progress',
+  'reputation:changed': 'reputation',
+  'liquidity:added': 'liquidity',
+  'cycle:resolved': 'cycles',
+  'slip:evaluated': 'slips',
+  'prize:claimed': 'prizes'
 };
 
 export function useSomniaStreams(
@@ -419,7 +421,7 @@ export function useSomniaStreams(
       if (!desiredWebSocketChannels.has(channel)) {
         desiredWebSocketChannels.add(channel);
         added = true;
-      }
+    }
     });
 
     if (added && wsRef.current?.readyState === WebSocket.OPEN) {
@@ -441,7 +443,7 @@ export function useSomniaStreams(
         console.log(`📡 [WebSocket] Unsubscribing from channel: ${channel}`);
         wsRef.current?.send(JSON.stringify({ type: 'unsubscribe', channel }));
         subscribedWebSocketChannels.delete(channel);
-      }
+    }
     });
   }, [getChannelsForEvent]);
 
@@ -476,38 +478,26 @@ export function useSomniaStreams(
       subscribeToWebSocketChannel(eventType);
     }
     
-    // Subscribe via SDS if available (only once per event type AND not already pending)
-    if (sdkAvailable && sdsActive && isFirstSubscriber && !isPending) {
-      const eventSchemaId = EVENT_SCHEMA_MAP[eventType];
-      
-      // ✅ Mark as pending GLOBALLY to prevent duplicate subscriptions across ALL components
-      globalPendingSubscriptions.add(eventType);
-      
-      console.log(`📡 [GLOBAL] Subscribing to ${eventType} via SDS (event: ${eventSchemaId})`);
-      console.log(`   SDK available: ${!!sdkAvailable}, SDS active: ${sdsActive}, First subscriber: ${isFirstSubscriber}, Pending: ${isPending}`);
-      
-      try {
-        // ✅ CRITICAL FIX: For BetPlaced events, we need to subscribe to the data stream, not just the event
-        // SDS events only contain indexed topics, but we need the full bet data from the data stream
-        const needsDataStream = eventType === 'bet:placed' || eventType === 'pool:progress';
+      // Subscribe via SDS if available (only once per event type AND not already pending)
+      // ✅ FIX: Use context-based subscriptions (data streams) instead of event schemas
+      // Falls back to WebSocket if SDS subscription fails
+      if (sdkAvailable && sdsActive && isFirstSubscriber && !isPending) {
+        const contextConfig = EVENT_CONTEXT_MAP[eventType];
         
-        // Create subscription parameters matching stream-rank-sync approach
-        const subscriptionParams = {
-          somniaStreamsEventId: eventSchemaId,
-          ethCalls: needsDataStream ? [
-            // ✅ CRITICAL: Add ethCall to fetch bet data when BetPlaced event is received
-            ...(eventType === 'bet:placed' ? [{
-              to: '0x0000000000000000000000000000000000000000' as `0x${string}`, // Placeholder - will be replaced by SDK
-              data: '0x' as `0x${string}` // Will fetch bet data from data stream
-            }] : []),
-            // ✅ CRITICAL: Add ethCall to fetch pool progress data when BetPlaced event is received (for pool:progress)
-            ...(eventType === 'pool:progress' ? [{
-              to: '0x0000000000000000000000000000000000000000' as `0x${string}`,
-              data: '0x' as `0x${string}` // Will fetch pool progress data from data stream
-            }] : [])
-          ] : [],
-          onlyPushChanges: false, 
-          onData: (data: any) => {
+        // ✅ Mark as pending GLOBALLY to prevent duplicate subscriptions across ALL components
+        globalPendingSubscriptions.add(eventType);
+        
+        console.log(`📡 [GLOBAL] Subscribing to ${eventType} via SDS (context: ${contextConfig})`);
+        console.log(`   SDK available: ${!!sdkAvailable}, SDS active: ${sdsActive}, First subscriber: ${isFirstSubscriber}, Pending: ${isPending}`);
+        
+        try {
+          // ✅ CRITICAL FIX: Use context-based subscriptions (data streams) instead of event schemas
+          // This matches the working Somnia examples and avoids "Failed to get event schemas" error
+          const subscriptionParams = {
+            context: contextConfig,
+            ethCalls: [], // Empty array for context-based subscriptions
+            onlyPushChanges: false,
+            onData: (data: any) => {
             console.log(`📦 [SDS] Received ${eventType} data:`, data);
             console.log(`📦 [SDS] Data type:`, typeof data, 'Keys:', data ? Object.keys(data) : 'null');
             if (data && typeof data === 'object') {
@@ -828,17 +818,14 @@ export function useSomniaStreams(
           }
         };
         
-        console.log(`📡 Calling SDK subscribe with params:`, subscriptionParams);
-        
         // ✅ CRITICAL FIX: Use global SDK instance if available
         const sdkToUse = sdkRef.current || globalSDKInstance;
         if (!sdkToUse) {
           throw new Error('SDK not available for subscription');
         }
         
-        console.log(`📡 Calling SDK subscribe with params:`, {
-          somniaStreamsEventId: subscriptionParams.somniaStreamsEventId,
-          ethCalls: subscriptionParams.ethCalls?.length || 0,
+        console.log(`📡 Calling SDK subscribe with context-based subscription:`, {
+          context: subscriptionParams.context,
           onlyPushChanges: subscriptionParams.onlyPushChanges
         });
         
@@ -865,9 +852,10 @@ export function useSomniaStreams(
             stack: error.stack,
             name: error.name
           });
-          // Try fallback if SDS subscription fails
+          // ✅ CRITICAL FIX: Immediately fallback to WebSocket when SDS subscription fails
           if (useFallback) {
             console.log(`🔄 Falling back to WebSocket for ${eventType}`);
+            subscribeToWebSocketChannel(eventType);
           }
         });
       } catch (error) {

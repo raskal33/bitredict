@@ -669,11 +669,11 @@ export const showTransactionToast = {
     
     toast.success(message, {
       id, // Use id for react-hot-toast deduplication
-      duration: 4000,
-      style: {
-        background: '#10B981',
-        color: '#fff',
-      },
+    duration: 4000,
+    style: {
+      background: '#10B981',
+      color: '#fff',
+    },
     });
   },
   
@@ -683,11 +683,11 @@ export const showTransactionToast = {
     
     toast.error(message, {
       id, // Use id for react-hot-toast deduplication
-      duration: 6000,
-      style: {
-        background: '#EF4444',
-        color: '#fff',
-      },
+    duration: 6000,
+    style: {
+      background: '#EF4444',
+      color: '#fff',
+    },
     });
   },
   
