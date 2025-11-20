@@ -186,9 +186,6 @@ interface UseSomniaStreamsReturn {
   isFallback: boolean;
   error: Error | null;
   subscribe: (eventType: SDSEventType, callback: (data: SDSEventData) => void) => () => void;
-  subscribeToChannel: (channel: string) => void;
-  subscribeToWebSocketChannel: (eventType: SDSEventType, poolId?: string) => void;
-  unsubscribeFromWebSocketChannel: (eventType: SDSEventType, poolId?: string) => void;
   reconnect: () => void;
 }
 
@@ -212,7 +209,7 @@ export function useSomniaStreams(
 ): UseSomniaStreamsReturn {
   const {
     enabled = true,
-    useFallback = true
+    useFallback = false // ✅ DISABLED: Using pure SDS with context-based subscriptions
   } = options;
 
   const [isConnected, setIsConnected] = useState(false);
@@ -852,11 +849,7 @@ export function useSomniaStreams(
             stack: error.stack,
             name: error.name
           });
-          // ✅ CRITICAL FIX: Immediately fallback to WebSocket when SDS subscription fails
-          if (useFallback) {
-            console.log(`🔄 Falling back to WebSocket for ${eventType}`);
-            subscribeToWebSocketChannel(eventType);
-          }
+          // WebSocket fallback disabled - using pure SDS
         });
       } catch (error) {
         // ✅ Clear GLOBAL pending flag on sync error
@@ -870,28 +863,15 @@ export function useSomniaStreams(
       }
     } else if (isPending) {
       console.log(`⏳ Subscription already pending for ${eventType}, adding callback to queue (${callbacks.size} subscribers)`);
-      // ✅ CRITICAL FIX: Still subscribe to WebSocket even if SDS subscription is pending
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        subscribeToWebSocketChannel(eventType);
-      }
+      // Callback added to queue, will receive data when subscription completes
     } else if (isFirstSubscriber) {
       console.log(`♻️ First subscriber for ${eventType}, but SDK not ready yet (SDK: ${!!sdkAvailable}, SDS active: ${sdsActive})`);
-      // ✅ CRITICAL FIX: If SDK is available but state hasn't updated, try subscribing anyway
+      // ✅ FIX: If SDK is available but state hasn't updated, try subscribing anyway
       if (sdkAvailable && !sdsActive) {
         console.log(`   ⚠️ SDK available but state not updated - will retry on next render`);
       }
-      // ✅ CRITICAL FIX: Subscribe to WebSocket fallback immediately
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        subscribeToWebSocketChannel(eventType);
-      } else if (useFallback && !wsRef.current) {
-        initializeWebSocketFallback();
-      }
     } else {
       console.log(`♻️ Reusing existing subscription for ${eventType} (${callbacks.size} subscribers)`);
-      // ✅ CRITICAL FIX: Ensure WebSocket is subscribed even for existing subscriptions
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        subscribeToWebSocketChannel(eventType);
-      }
     }
 
     // Return unsubscribe function
@@ -915,8 +895,7 @@ export function useSomniaStreams(
                 unsubscribeFn();
                 globalUnsubscribeFunctionsMap.delete(eventType as any);
                 console.log(`🔌 Unsubscribed from ${eventType} (no more subscribers after delay)`);
-      }
-              unsubscribeFromWebSocketChannel(eventType);
+              }
             }
           }, 30000); // 30 second delay to handle React re-renders and modal interactions
           
@@ -966,10 +945,7 @@ export function useSomniaStreams(
   useEffect(() => {
     if (enabled) {
       initializeSDK();
-      // ✅ CRITICAL FIX: Always initialize WebSocket fallback
-      if (useFallback) {
-        initializeWebSocketFallback();
-      }
+      // WebSocket fallback disabled - using pure SDS
     }
 
     return () => {
@@ -983,7 +959,7 @@ export function useSomniaStreams(
       globalUnsubscribeFunctionsMap.clear();
       // Don't clear globalSubscribersMap - it's shared across components
     };
-  }, [enabled, initializeSDK, useFallback, initializeWebSocketFallback]);
+  }, [enabled, initializeSDK]);
   
   // ✅ CRITICAL FIX: Ensure isSDSActive state is updated when SDK becomes available
   useEffect(() => {
@@ -1001,9 +977,6 @@ export function useSomniaStreams(
     isFallback,
     error,
     subscribe,
-    subscribeToChannel,
-  subscribeToWebSocketChannel,
-  unsubscribeFromWebSocketChannel,
     reconnect
   };
 }
@@ -1060,7 +1033,7 @@ export function useBetUpdates(callback: (data: SDSBetData) => void, enabled = tr
 }
 
 export function usePoolProgress(poolId: string, callback: (data: SDSPoolProgressData) => void, enabled = true) {
-  const { subscribe, subscribeToWebSocketChannel, unsubscribeFromWebSocketChannel, ...rest } = useSomniaStreams({ enabled });
+  const { subscribe, ...rest } = useSomniaStreams({ enabled });
   const callbackRef = useRef(callback);
   
   // ✅ FIX: Keep callback ref up to date without causing re-subscriptions
@@ -1085,14 +1058,8 @@ export function usePoolProgress(poolId: string, callback: (data: SDSPoolProgress
     
     const unsubscribe = subscribe('pool:progress', wrappedCallback);
     
-    // ✅ CRITICAL FIX: Also subscribe to WebSocket per-pool channel
-    subscribeToWebSocketChannel('pool:progress', poolId);
-    
-    return () => {
-      unsubscribe();
-      unsubscribeFromWebSocketChannel('pool:progress', poolId);
-    };
-  }, [subscribe, subscribeToWebSocketChannel, unsubscribeFromWebSocketChannel, poolId, enabled]); // ✅ Removed callback from deps
+    return unsubscribe;
+  }, [subscribe, poolId, enabled]); // ✅ Removed callback from deps
   
   return rest;
 }
