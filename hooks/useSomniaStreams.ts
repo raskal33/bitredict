@@ -543,6 +543,7 @@ export function useSomniaStreams(
                   const address = '0x' + addressHex.slice(-40).toLowerCase();
                   if (eventType === 'bet:placed') {
                     decodedData.bettor = address;
+                    decodedData.bettorAddress = address; // Add alias for component compatibility
                     console.log(`   ✅ Decoded bettor from topic[1]: ${address}`);
                   } else if (eventType === 'liquidity:added') {
                     decodedData.provider = address;
@@ -557,74 +558,115 @@ export function useSomniaStreams(
               if (actualData.data && actualData.data !== '0x' && actualData.data.length > 2) {
                 console.log(`   📦 Event has data field, length: ${actualData.data.length}`);
                 
-                // Decode based on event type
-                if (eventType === 'bet:placed') {
-                  try {
-                    // BetPlaced event typically has: poolId (indexed), bettor (indexed), amount, isForOutcome, timestamp (non-indexed)
-                    // If bettor is NOT in topics, it might be in data field
-                    const decoded = decodeAbiParameters(
-                      [
-                        { name: 'bettor', type: 'address' },
-                        { name: 'amount', type: 'uint256' },
-                        { name: 'isForOutcome', type: 'bool' },
-                        { name: 'timestamp', type: 'uint256' }
-                      ],
-                      actualData.data
-                    );
-                    if (!decodedData.bettor) {
-                      decodedData.bettor = decoded[0];
-                      console.log(`   ✅ Decoded bettor from data field: ${decoded[0]}`);
-                    }
-                    decodedData.amount = decoded[1].toString();
-                    decodedData.isForOutcome = decoded[2];
-                    decodedData.timestamp = Number(decoded[3]);
-                    console.log(`   ✅ Decoded bet data: amount=${decodedData.amount}, isForOutcome=${decodedData.isForOutcome}`);
-                  } catch (e) {
-                    console.warn(`   ⚠️ Failed to decode bet data field:`, e);
+                // Check if data field contains JSON (starts with '{' when decoded) vs ABI-encoded
+                let isJsonData = false;
+                try {
+                  const decodedBytes = Buffer.from(actualData.data.slice(2), 'hex');
+                  const decodedString = decodedBytes.toString('utf8').replace(/\0/g, '');
+                  if (decodedString.trim().startsWith('{')) {
+                    isJsonData = true;
+                    console.log(`   📄 Data field contains JSON, skipping ABI decoding`);
                   }
-                } else if (eventType === 'liquidity:added') {
-                  try {
-                    const decoded = decodeAbiParameters(
-                      [
-                        { name: 'provider', type: 'address' },
-                        { name: 'amount', type: 'uint256' },
-                        { name: 'timestamp', type: 'uint256' }
-                      ],
-                      actualData.data
-                    );
-                    if (!decodedData.provider) {
-                      decodedData.provider = decoded[0];
-                      console.log(`   ✅ Decoded provider from data field: ${decoded[0]}`);
+                } catch (e) {
+                  // Not JSON, continue with ABI decoding
+                }
+                
+                // Only decode ABI if it's not JSON
+                if (!isJsonData) {
+                  // Decode based on event type
+                  if (eventType === 'bet:placed') {
+                    try {
+                      // BetPlaced event typically has: poolId (indexed), bettor (indexed), amount, isForOutcome, timestamp (non-indexed)
+                      // If bettor is NOT in topics, it might be in data field
+                      const decoded = decodeAbiParameters(
+                        [
+                          { name: 'bettor', type: 'address' },
+                          { name: 'amount', type: 'uint256' },
+                          { name: 'isForOutcome', type: 'bool' },
+                          { name: 'timestamp', type: 'uint256' }
+                        ],
+                        actualData.data
+                      );
+                      if (!decodedData.bettor) {
+                        decodedData.bettor = decoded[0];
+                        console.log(`   ✅ Decoded bettor from data field: ${decoded[0]}`);
+                      }
+                      decodedData.amount = decoded[1].toString();
+                      decodedData.isForOutcome = decoded[2];
+                      const ts = Number(decoded[3]);
+                      // Validate timestamp (must be reasonable Unix timestamp)
+                      if (ts > 0 && ts < 2147483647) {
+                        decodedData.timestamp = ts;
+                      }
+                      console.log(`   ✅ Decoded bet data: amount=${decodedData.amount}, isForOutcome=${decodedData.isForOutcome}`);
+                    } catch (e) {
+                      console.warn(`   ⚠️ Failed to decode bet data field:`, e);
                     }
-                    decodedData.amount = decoded[1].toString();
-                    decodedData.timestamp = Number(decoded[2]);
-                    console.log(`   ✅ Decoded liquidity data: amount=${decodedData.amount}`);
-                  } catch (e) {
-                    console.warn(`   ⚠️ Failed to decode liquidity data field:`, e);
-                  }
-                } else if (eventType === 'pool:created') {
-                  try {
-                    const decoded = decodeAbiParameters(
-                      [
-                        { name: 'creator', type: 'address' },
-                        { name: 'creatorStake', type: 'uint256' },
-                        { name: 'odds', type: 'uint16' },
-                        { name: 'timestamp', type: 'uint256' }
-                      ],
-                      actualData.data
-                    );
-                    decodedData.creator = decoded[0];
-                    decodedData.creatorStake = decoded[1].toString();
-                    decodedData.odds = Number(decoded[2]);
-                    decodedData.timestamp = Number(decoded[3]);
-                    console.log(`   ✅ Decoded pool created data: creator=${decodedData.creator}, stake=${decodedData.creatorStake}`);
-                  } catch (e) {
-                    console.warn(`   ⚠️ Failed to decode pool created data field:`, e);
+                  } else if (eventType === 'liquidity:added') {
+                    try {
+                      const decoded = decodeAbiParameters(
+                        [
+                          { name: 'provider', type: 'address' },
+                          { name: 'amount', type: 'uint256' },
+                          { name: 'timestamp', type: 'uint256' }
+                        ],
+                        actualData.data
+                      );
+                      if (!decodedData.provider) {
+                        decodedData.provider = decoded[0];
+                        console.log(`   ✅ Decoded provider from data field: ${decoded[0]}`);
+                      }
+                      decodedData.amount = decoded[1].toString();
+                      const ts = Number(decoded[2]);
+                      // Validate timestamp
+                      if (ts > 0 && ts < 2147483647) {
+                        decodedData.timestamp = ts;
+                      }
+                      console.log(`   ✅ Decoded liquidity data: amount=${decodedData.amount}`);
+                    } catch (e) {
+                      console.warn(`   ⚠️ Failed to decode liquidity data field:`, e);
+                    }
+                  } else if (eventType === 'pool:created') {
+                    try {
+                      const decoded = decodeAbiParameters(
+                        [
+                          { name: 'creator', type: 'address' },
+                          { name: 'creatorStake', type: 'uint256' },
+                          { name: 'odds', type: 'uint16' },
+                          { name: 'timestamp', type: 'uint256' }
+                        ],
+                        actualData.data
+                      );
+                      // Validate creator address (must be valid Ethereum address)
+                      const creatorAddr = decoded[0];
+                      if (creatorAddr && creatorAddr.startsWith('0x') && creatorAddr.length === 42) {
+                        decodedData.creator = creatorAddr;
+                      }
+                      decodedData.creatorStake = decoded[1].toString();
+                      decodedData.odds = Number(decoded[2]);
+                      const ts = Number(decoded[3]);
+                      // Validate timestamp
+                      if (ts > 0 && ts < 2147483647) {
+                        decodedData.timestamp = ts;
+                      }
+                      console.log(`   ✅ Decoded pool created data: creator=${decodedData.creator}, stake=${decodedData.creatorStake}`);
+                    } catch (e) {
+                      console.warn(`   ⚠️ Failed to decode pool created data field:`, e);
+                    }
                   }
                 }
               }
               
-              if (!decodedData.timestamp) {
+              // Add field aliases for component compatibility
+              if (decodedData.bettor && !decodedData.bettorAddress) {
+                decodedData.bettorAddress = decodedData.bettor;
+              }
+              if (decodedData.bettorAddress && !decodedData.bettor) {
+                decodedData.bettor = decodedData.bettorAddress;
+              }
+              
+              // Validate and set timestamp
+              if (!decodedData.timestamp || decodedData.timestamp <= 0 || decodedData.timestamp > 2147483647) {
                 decodedData.timestamp = Math.floor(Date.now() / 1000);
               }
               console.log(`✅ Decoded on-chain event:`, decodedData);
