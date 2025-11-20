@@ -496,18 +496,28 @@ export function useSomniaStreams(
             onlyPushChanges: false,
             onData: (data: any) => {
             console.log(`📦 [SDS] Received ${eventType} data:`, data);
-            console.log(`📦 [SDS] Data type:`, typeof data, 'Keys:', data ? Object.keys(data) : 'null');
-            if (data && typeof data === 'object') {
-              console.log(`📦 [SDS] Data structure:`, {
-                hasData: !!data.data,
-                hasTopics: !!data.topics,
-                poolId: data.poolId || data.pool_id,
-                keys: Object.keys(data)
-              });
+            
+            // ✅ CRITICAL FIX: Extract data from result field (SDS wraps data in {subscription, result})
+            let actualData = data;
+            if (data && typeof data === 'object' && data.result) {
+              console.log(`📦 [SDS] Extracting data from result field`);
+              actualData = data.result;
             }
             
-            // ✅ CRITICAL: Decode ABI-encoded data if needed
-            let decodedData = data;
+            // Parse JSON string if backend sent JSON
+            if (typeof actualData === 'string') {
+              try {
+                actualData = JSON.parse(actualData);
+                console.log(`📦 [SDS] Parsed JSON string to object`);
+              } catch (e) {
+                console.warn(`⚠️ Failed to parse JSON:`, e);
+              }
+            }
+            
+            console.log(`📦 [SDS] Actual data:`, actualData);
+            
+            // ✅ Use data as-is (no ABI decoding for context-based subscriptions)
+            let decodedData = actualData;
             
             // Decode pool progress data
             if (eventType === 'pool:progress' && data && typeof data === 'object') {
