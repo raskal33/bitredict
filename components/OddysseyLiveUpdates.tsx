@@ -6,7 +6,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useCycleUpdates, useSlipUpdates } from '@/hooks/useSomniaStreams';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
@@ -23,23 +23,15 @@ export function OddysseyLiveUpdates() {
   } | null>(null);
   const { playNotification, playWin } = useSoundEffects({ volume: 0.5 });
 
+  // ✅ Rate limiting: Track last notification to prevent bombing
+  const lastCycleNotificationRef = useRef<Map<string, number>>(new Map());
+  const CYCLE_NOTIFICATION_RATE_LIMIT_MS = 5000; // Max 1 notification per 5 seconds per cycle
+
   // Listen for cycle resolutions
   useCycleUpdates((cycleData) => {
-    // ✅ Normalize cycleId (convert BigInt/hex to readable number)
-    const normalizeId = (id: unknown): string => {
-      if (!id || id === '0') return 'Unknown';
-      if (typeof id === 'string' && id.startsWith('0x')) {
-        try {
-          return BigInt(id).toString();
-        } catch {
-          return id;
-        }
-      }
-      return String(id);
-    };
-    
-    const cycleId = normalizeId(cycleData.cycleId);
-    if (cycleId === 'Unknown' || cycleId === '0') {
+    // ✅ cycleId is already normalized by useSomniaStreams hook
+    const cycleId = String(cycleData.cycleId || '0');
+    if (cycleId === '0' || !cycleId || cycleId === 'Unknown') {
       console.warn('⚠️ OddysseyLiveUpdates: Invalid cycleId:', cycleData.cycleId);
       return;
     }
@@ -53,6 +45,15 @@ export function OddysseyLiveUpdates() {
       return;
     }
     
+    // ✅ Rate limiting: Prevent duplicate notifications for the same cycle
+    const lastTime = lastCycleNotificationRef.current.get(cycleId);
+    const currentTime = Date.now();
+    if (lastTime && (currentTime - lastTime) < CYCLE_NOTIFICATION_RATE_LIMIT_MS) {
+      console.log(`⚠️ OddysseyLiveUpdates: Rate limit: Skipping cycle ${cycleId} notification (last ${currentTime - lastTime}ms ago)`);
+      return;
+    }
+    lastCycleNotificationRef.current.set(cycleId, currentTime);
+    
     // ✅ Normalize prizePool from wei to STT (like RecentBetsLane)
     let prizePoolInSTT = cycleData.prizePool || '0';
     const prizePoolNum = parseFloat(prizePoolInSTT);
@@ -63,13 +64,13 @@ export function OddysseyLiveUpdates() {
     
     setCycleStatus(`Cycle ${cycleId} resolved! 🎉 Prize pool: ${formattedPrizePool} STT`);
     
-    // ✅ Use unique toast ID with timestamp to prevent duplicates
-    const toastId = `cycle-resolved-${cycleId}-${eventTimestamp}`;
+    // ✅ Use unique toast ID with normalized cycleId to prevent duplicates
+    const toastId = `cycle-resolved-${cycleId}`;
     toast.success(
       `🏆 Cycle ${cycleId} Results Are In!`,
       { 
         duration: 5000,
-        id: toastId // ✅ Unique deduplication key for toast
+        id: toastId // ✅ Unique deduplication key for toast (react-hot-toast handles deduplication)
       }
     );
     playNotification();

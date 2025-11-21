@@ -51,6 +51,10 @@ let globalSDKInstance: SDK | null = null; // ✅ Shared SDK instance
 // ✅ Global deduplication: Track seen events to prevent duplicate processing
 const globalSeenEvents = new Map<SDSEventType, Set<string>>();
 
+// ✅ Rate limiting: Track last notification time per event type to prevent bombing
+const lastNotificationTime = new Map<string, number>();
+const NOTIFICATION_RATE_LIMIT_MS = 2000; // Max 1 notification per 2 seconds per unique event
+
 // ✅ Helper to normalize IDs (convert BigInt/hex to readable numbers)
 const normalizeId = (id: any): string => {
   if (!id) return '0';
@@ -73,14 +77,14 @@ const normalizeId = (id: any): string => {
   return String(id);
 };
 
-// ✅ Helper to check if timestamp is recent (within last 5 minutes)
+// ✅ Helper to check if timestamp is recent (within last 1 minute for real-time)
 const isRecentEvent = (timestamp: number | string | undefined): boolean => {
-  if (!timestamp) return true; // If no timestamp, allow it (will use current time)
+  if (!timestamp) return false; // ✅ CRITICAL: Reject events without timestamp
   const ts = typeof timestamp === 'string' ? parseInt(timestamp, 10) : timestamp;
-  if (isNaN(ts) || ts <= 0) return true; // Invalid timestamp, allow it
+  if (isNaN(ts) || ts <= 0) return false; // ✅ CRITICAL: Reject invalid timestamps
   const now = Math.floor(Date.now() / 1000);
-  const fiveMinutesAgo = now - (5 * 60); // 5 minutes in seconds
-  return ts >= fiveMinutesAgo;
+  const oneMinuteAgo = now - (1 * 60); // ✅ Changed from 5 minutes to 1 minute for real-time only
+  return ts >= oneMinuteAgo;
 };
 
 // Helper to create unique event key for deduplication
@@ -479,6 +483,46 @@ export function useSomniaStreams(
             }
             
             if (eventType) {
+              // ✅ Normalize IDs in WebSocket data before broadcasting
+              if (message.data) {
+                if (message.data.poolId) {
+                  message.data.poolId = normalizeId(message.data.poolId);
+                }
+                if (message.data.cycleId || message.data.cycle_id) {
+                  message.data.cycleId = normalizeId(message.data.cycleId || message.data.cycle_id);
+                }
+                if (message.data.slipId) {
+                  message.data.slipId = normalizeId(message.data.slipId);
+                }
+                
+                // ✅ TIME FILTERING: Only process recent events (within last 5 minutes)
+                const eventTimestamp = message.data.timestamp || Math.floor(Date.now() / 1000);
+                if (!isRecentEvent(eventTimestamp)) {
+                  console.log(`⚠️ [WebSocket] Skipping old ${eventType} event (timestamp: ${eventTimestamp})`);
+                  return;
+                }
+                
+                // ✅ Rate limiting: Prevent notification bombing
+                const now = Date.now();
+                const rateLimitKey = `${eventType}:${message.data.poolId || message.data.cycleId || 'unknown'}`;
+                const lastTime = lastNotificationTime.get(rateLimitKey);
+                if (lastTime && (now - lastTime) < NOTIFICATION_RATE_LIMIT_MS) {
+                  console.log(`⚠️ [WebSocket] Rate limit: Skipping ${eventType} event (last notification ${now - lastTime}ms ago)`);
+                  return;
+                }
+                lastNotificationTime.set(rateLimitKey, now);
+                
+                // ✅ Deduplication: Check if we've already seen this event
+                const dedupeKey = createEventDedupeKey(eventType, message.data);
+                if (isEventSeen(eventType, dedupeKey)) {
+                  console.log(`⚠️ [WebSocket] Skipping duplicate ${eventType} event: ${dedupeKey}`);
+                  return;
+                }
+                
+                // Mark as seen BEFORE broadcasting
+                markEventSeen(eventType, dedupeKey);
+              }
+              
               const callbacks = globalSubscribersMap.get(eventType);
               console.log(`📦 [WebSocket] Broadcasting ${eventType} to ${callbacks?.size || 0} callbacks`);
               if (callbacks && callbacks.size > 0) {
@@ -612,7 +656,7 @@ export function useSomniaStreams(
           const subscriptionParams = {
             context: contextConfig,
             ethCalls: [], // Empty array for context-based subscriptions
-            onlyPushChanges: false,
+            onlyPushChanges: true, // ✅ CRITICAL: Only receive new events, not historical ones
             onData: (data: any) => {
             console.log(`📦 [SDS] Received ${eventType} data:`, data);
             
@@ -642,28 +686,31 @@ export function useSomniaStreams(
             if (actualData.address && actualData.topics && Array.isArray(actualData.topics)) {
               console.log(`📦 [SDS] Detected on-chain event log - decoding topics...`);
               
-              // Extract poolId or cycleId from first topic (indexed parameter)
-              if (actualData.topics.length >= 1) {
+              // Extract poolId or cycleId from first indexed param - topics[1] (topics[0] is event signature)
+              if (actualData.topics.length >= 2) {
                 try {
-                  const idHex = actualData.topics[0];
-                  const id = BigInt(idHex).toString();
+                  const idHex = actualData.topics[1]; // ✅ FIX: Use topics[1] for first indexed param (ID)
+                  console.log(`   📊 Raw ID hex from topic[1]: ${idHex}`);
+                  const id = normalizeId(idHex); // ✅ CRITICAL: Normalize immediately after extraction
                   
                   if (eventType === 'cycle:resolved') {
                     decodedData.cycleId = id;
-                    console.log(`   ✅ Decoded cycleId from topic[0]: ${id}`);
+                    console.log(`   ✅ Decoded and normalized cycleId from topic[1]: ${id} (from hex: ${idHex})`);
                   } else {
                     decodedData.poolId = id;
-                    console.log(`   ✅ Decoded poolId from topic[0]: ${id}`);
+                    console.log(`   ✅ Decoded and normalized poolId from topic[1]: ${id} (from hex: ${idHex})`);
                   }
                 } catch (e) {
-                  console.warn(`   ⚠️ Failed to decode ID from topic[0]:`, e);
+                  console.warn(`   ⚠️ Failed to decode ID from topic[1]:`, e);
                 }
+              } else {
+                console.warn(`   ⚠️ Not enough topics for ${eventType} (need at least 2, got ${actualData.topics.length})`);
               }
               
-              // Extract bettor/provider/creator from second topic (indexed parameter) for various events
-              if (actualData.topics.length >= 2) {
+              // Extract bettor/provider/creator from second topic (indexed parameter) - topics[2]
+              if (actualData.topics.length >= 3) {
                 try {
-                  const addressHex = actualData.topics[1];
+                  const addressHex = actualData.topics[2]; // ✅ FIX: Use topics[2] for second indexed param (Address)
                   // Extract address from bytes32 (last 20 bytes)
                   const address = '0x' + addressHex.slice(-40).toLowerCase();
                   
@@ -680,27 +727,27 @@ export function useSomniaStreams(
                     if (eventType === 'bet:placed') {
                       decodedData.bettor = address;
                       decodedData.bettorAddress = address; // Add alias for component compatibility
-                      console.log(`   ✅ Decoded bettor from topic[1]: ${address}`);
+                      console.log(`   ✅ Decoded bettor from topic[2]: ${address}`);
                     } else if (eventType === 'liquidity:added') {
                       decodedData.provider = address;
-                      console.log(`   ✅ Decoded provider from topic[1]: ${address}`);
+                      console.log(`   ✅ Decoded provider from topic[2]: ${address}`);
                     } else if (eventType === 'pool:created') {
                       decodedData.creator = address;
-                      console.log(`   ✅ Decoded creator from topic[1]: ${address}`);
+                      console.log(`   ✅ Decoded creator from topic[2]: ${address}`);
                     } else if (eventType === 'slip:evaluated') {
                       decodedData.player = address;
-                      console.log(`   ✅ Decoded player from topic[1]: ${address}`);
+                      console.log(`   ✅ Decoded player from topic[2]: ${address}`);
                     }
                   } else {
-                    console.warn(`   ⚠️ Invalid address decoded from topic[1] for ${eventType}: ${address} (likely an offset, not an address)`);
+                    console.warn(`   ⚠️ Invalid address decoded from topic[2] for ${eventType}: ${address} (likely an offset, not an address)`);
                   }
                 } catch (e) {
-                  console.warn(`   ⚠️ Failed to decode address from topic[1] for ${eventType}:`, e);
+                  console.warn(`   ⚠️ Failed to decode address from topic[2] for ${eventType}:`, e);
                 }
               } else {
-                // Only 1 topic - log for debugging
+                // Only 1-2 topics - log for debugging
                 if (eventType === 'bet:placed' || eventType === 'pool:created' || eventType === 'liquidity:added') {
-                  console.log(`   ℹ️ Only 1 topic for ${eventType}, will try to extract from data field or JSON`);
+                  console.log(`   ℹ️ Only ${actualData.topics.length} topics for ${eventType}, will try to extract from data field or JSON`);
                 }
               }
               
@@ -1213,22 +1260,23 @@ export function useSomniaStreams(
                 decodedData = {
                   ...data,
                   poolId: data.poolId?.toString() || data.pool_id?.toString(),
-                  timestamp: data.timestamp || Math.floor(Date.now() / 1000)
+                  timestamp: data.timestamp // ✅ CRITICAL: Don't default to current time
                 };
               }
             }
             
             // Decode cycle resolved data (only for non-event-log data)
             if (eventType === 'cycle:resolved' && !actualData.address && data && typeof data === 'object') {
+              const rawCycleId = data.cycleId?.toString() || data.cycle_id?.toString() || decodedData.cycleId || decodedData.poolId || '0';
               decodedData = {
                 ...data,
-                cycleId: data.cycleId?.toString() || data.cycle_id?.toString() || decodedData.cycleId || decodedData.poolId || '0',
+                cycleId: normalizeId(rawCycleId), // ✅ CRITICAL: Normalize cycle ID
                 prizePool: data.prizePool?.toString() || data.prize_pool?.toString() || '0',
                 totalSlips: data.totalSlips ?? data.total_slips ?? 0,
                 status: data.status || 'resolved',
-                timestamp: data.timestamp || Math.floor(Date.now() / 1000)
+                timestamp: data.timestamp // ✅ CRITICAL: Don't default to current time
               };
-              console.log(`✅ Formatted cycle resolved data:`, decodedData);
+              console.log(`✅ Formatted cycle resolved data (cycleId normalized from ${rawCycleId} to ${decodedData.cycleId}):`, decodedData);
             }
             
             // ✅ Decode bet placed data (only for non-event-log data, already decoded above)
@@ -1346,16 +1394,22 @@ export function useSomniaStreams(
                   ...data,
                   poolId: data.poolId?.toString() || data.pool_id?.toString(),
                   bettor: data.bettor || data.bettor_address,
-                  timestamp: data.timestamp || Math.floor(Date.now() / 1000)
+                  timestamp: data.timestamp // ✅ CRITICAL: Don't default to current time - require valid timestamp
                 };
                 console.log(`✅ Using bet placed data as-is (already decoded):`, decodedData);
               }
             }
             
-            // ✅ TIME FILTERING: Only process recent events (within last 5 minutes)
-            const eventTimestamp = decodedData.timestamp || Math.floor(Date.now() / 1000);
+            // ✅ CRITICAL: Require valid timestamp - reject events without timestamp
+            const eventTimestamp = decodedData.timestamp;
+            if (!eventTimestamp || typeof eventTimestamp !== 'number' || eventTimestamp <= 0) {
+              console.log(`⚠️ [SDS] Rejecting ${eventType} event without valid timestamp:`, decodedData);
+              return; // Reject events without valid timestamp
+            }
+            
+            // ✅ TIME FILTERING: Only process recent events (within last 1 minute for real-time)
             if (!isRecentEvent(eventTimestamp)) {
-              console.log(`⚠️ [SDS] Skipping old ${eventType} event (timestamp: ${eventTimestamp}, now: ${Math.floor(Date.now() / 1000)})`);
+              console.log(`⚠️ [SDS] Skipping old ${eventType} event (timestamp: ${eventTimestamp}, now: ${Math.floor(Date.now() / 1000)}, age: ${Math.floor(Date.now() / 1000) - eventTimestamp}s)`);
               return; // Skip old events
             }
             
@@ -1369,6 +1423,16 @@ export function useSomniaStreams(
             if (decodedData.slipId) {
               decodedData.slipId = normalizeId(decodedData.slipId);
             }
+            
+            // ✅ Rate limiting: Prevent notification bombing
+            const now = Date.now();
+            const rateLimitKey = `${eventType}:${decodedData.poolId || decodedData.cycleId || 'unknown'}`;
+            const lastTime = lastNotificationTime.get(rateLimitKey);
+            if (lastTime && (now - lastTime) < NOTIFICATION_RATE_LIMIT_MS) {
+              console.log(`⚠️ [SDS] Rate limit: Skipping ${eventType} event (last notification ${now - lastTime}ms ago)`);
+              return; // Skip if rate limited
+            }
+            lastNotificationTime.set(rateLimitKey, now);
             
             // ✅ Deduplication: Check if we've already seen this event
             const dedupeKey = createEventDedupeKey(eventType, decodedData);
@@ -1709,10 +1773,16 @@ export function useCycleUpdates(callback: (data: SDSCycleResolvedData) => void, 
         return;
       }
       
-      // ✅ TIME FILTERING: Only process recent events (within last 5 minutes)
-      const eventTimestamp = (data as any).timestamp || Math.floor(Date.now() / 1000);
+      // ✅ CRITICAL: Require valid timestamp - reject events without timestamp
+      const eventTimestamp = (data as any).timestamp;
+      if (!eventTimestamp || typeof eventTimestamp !== 'number' || eventTimestamp <= 0) {
+        console.log(`⚠️ Skipping cycle:resolved event without valid timestamp:`, data);
+        return;
+      }
+      
+      // ✅ TIME FILTERING: Only process recent events (within last 1 minute for real-time)
       if (!isRecentEvent(eventTimestamp)) {
-        console.log(`⚠️ Skipping old cycle:resolved event (cycle: ${cycleId}, timestamp: ${eventTimestamp})`);
+        console.log(`⚠️ Skipping old cycle:resolved event (cycle: ${cycleId}, timestamp: ${eventTimestamp}, age: ${Math.floor(Date.now() / 1000) - eventTimestamp}s)`);
         return;
       }
       

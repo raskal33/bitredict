@@ -83,13 +83,18 @@ export function LiveActivity() {
       return;
     }
     
-    const timestamp = betData.timestamp || Math.floor(Date.now() / 1000);
+    // ✅ CRITICAL: Require valid timestamp - reject events without timestamp
+    const timestamp = betData.timestamp;
+    if (!timestamp || typeof timestamp !== 'number' || timestamp <= 0) {
+      console.log(`⚠️ LiveActivity: Rejecting bet event without valid timestamp:`, betData);
+      return;
+    }
     
-    // ✅ TIME FILTERING: Only show recent events (within last 5 minutes)
+    // ✅ TIME FILTERING: Only show recent events (within last 1 minute for real-time)
     const now = Math.floor(Date.now() / 1000);
-    const fiveMinutesAgo = now - (5 * 60);
-    if (timestamp < fiveMinutesAgo) {
-      console.log(`⚠️ LiveActivity: Skipping old bet event (poolId: ${poolIdStr}, timestamp: ${timestamp})`);
+    const oneMinuteAgo = now - (1 * 60); // ✅ Changed from 5 minutes to 1 minute for real-time only
+    if (timestamp < oneMinuteAgo) {
+      console.log(`⚠️ LiveActivity: Skipping old bet event (poolId: ${poolIdStr}, timestamp: ${timestamp}, age: ${now - timestamp}s)`);
       return;
     }
     
@@ -163,13 +168,18 @@ export function LiveActivity() {
       return;
     }
     
-    const timestamp = poolData.timestamp || Math.floor(Date.now() / 1000);
+    // ✅ CRITICAL: Require valid timestamp - reject events without timestamp
+    const timestamp = poolData.timestamp;
+    if (!timestamp || typeof timestamp !== 'number' || timestamp <= 0) {
+      console.log(`⚠️ LiveActivity: Rejecting pool event without valid timestamp:`, poolData);
+      return;
+    }
     
-    // ✅ TIME FILTERING: Only show recent events (within last 5 minutes)
+    // ✅ TIME FILTERING: Only show recent events (within last 1 minute for real-time)
     const now = Math.floor(Date.now() / 1000);
-    const fiveMinutesAgo = now - (5 * 60);
-    if (timestamp < fiveMinutesAgo) {
-      console.log(`⚠️ LiveActivity: Skipping old pool event (poolId: ${poolIdStr}, timestamp: ${timestamp})`);
+    const oneMinuteAgo = now - (1 * 60); // ✅ Changed from 5 minutes to 1 minute for real-time only
+    if (timestamp < oneMinuteAgo) {
+      console.log(`⚠️ LiveActivity: Skipping old pool event (poolId: ${poolIdStr}, timestamp: ${timestamp}, age: ${now - timestamp}s)`);
       return;
     }
     
@@ -239,13 +249,18 @@ export function LiveActivity() {
       return;
     }
     
-    const timestamp = liquidityData.timestamp || Math.floor(Date.now() / 1000);
+    // ✅ CRITICAL: Require valid timestamp - reject events without timestamp
+    const timestamp = liquidityData.timestamp;
+    if (!timestamp || typeof timestamp !== 'number' || timestamp <= 0) {
+      console.log(`⚠️ LiveActivity: Rejecting liquidity event without valid timestamp:`, liquidityData);
+      return;
+    }
     
-    // ✅ TIME FILTERING: Only show recent events (within last 5 minutes)
+    // ✅ TIME FILTERING: Only show recent events (within last 1 minute for real-time)
     const now = Math.floor(Date.now() / 1000);
-    const fiveMinutesAgo = now - (5 * 60);
-    if (timestamp < fiveMinutesAgo) {
-      console.log(`⚠️ LiveActivity: Skipping old liquidity event (poolId: ${poolIdStr}, timestamp: ${timestamp})`);
+    const oneMinuteAgo = now - (1 * 60); // ✅ Changed from 5 minutes to 1 minute for real-time only
+    if (timestamp < oneMinuteAgo) {
+      console.log(`⚠️ LiveActivity: Skipping old liquidity event (poolId: ${poolIdStr}, timestamp: ${timestamp}, age: ${now - timestamp}s)`);
       return;
     }
     
@@ -289,6 +304,24 @@ export function LiveActivity() {
       processedEventIds.current.delete(eventId);
     }, 5 * 60 * 1000);
   });
+
+  // ✅ CRITICAL: Periodically clean up old events from the display
+  useEffect(() => {
+    const cleanupInterval = setInterval(() => {
+      const now = Math.floor(Date.now() / 1000);
+      const oneMinuteAgo = now - (1 * 60);
+      
+      setEvents(prev => {
+        const filtered = prev.filter(event => event.timestamp >= oneMinuteAgo);
+        if (filtered.length !== prev.length) {
+          console.log(`🧹 LiveActivity: Cleaned up ${prev.length - filtered.length} old events`);
+        }
+        return filtered;
+      });
+    }, 30000); // Check every 30 seconds
+    
+    return () => clearInterval(cleanupInterval);
+  }, []);
 
   const formatTime = (timestamp: number): string => {
     const now = Math.floor(Date.now() / 1000);
