@@ -164,10 +164,11 @@ class OddysseyService {
   // Get current cycle ID
   async getCurrentCycle(): Promise<bigint> {
     try {
+      // Use getCurrentCycle() function from contract instead of reading dailyCycleId directly
       const result = await this.publicClient.readContract({
         address: CONTRACTS.ODDYSSEY.address,
         abi: CONTRACTS.ODDYSSEY.abi,
-        functionName: 'dailyCycleId',
+        functionName: 'getCurrentCycle',
       });
       const cycleId = result as bigint;
       console.log('📅 Current cycle ID:', cycleId.toString());
