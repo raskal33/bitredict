@@ -274,7 +274,8 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
     }
     
     // Extract bettor address from multiple possible fields
-    const bettorAddress = (betData as any).bettorAddress || betData.bettor || (betData as any).bettor_address || '';
+    const betDataAny = betData as unknown as Record<string, unknown>;
+    const bettorAddress = (betDataAny.bettorAddress as string) || betData.bettor || (betDataAny.bettor_address as string) || '';
     
     // Skip if bettor address is invalid (looks like an offset)
     if (bettorAddress && /^0x0{30,39}[0-9a-f]{1,9}$/i.test(bettorAddress) && parseInt(bettorAddress, 16) < 1000) {
@@ -307,7 +308,7 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
       amountInToken = (amountNum / 1e18).toString(); // Bet amounts use 1e18
     }
     
-    const currency = betData.currency || (betData as any).useBitr ? 'BITR' : 'STT';
+    const currency = betData.currency || (betDataAny.useBitr ? 'BITR' : 'STT');
     
     // Create unique ID using poolId + bettor + timestamp
     const uniqueId = `${poolIdStr}-${bettorAddress}-${timestamp}`;
@@ -385,7 +386,8 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
     }
     
     // Extract creator address from multiple possible fields
-    const creatorAddress = (poolData as any).creatorAddress || poolData.creator || (poolData as any).creator_address || '';
+    const poolDataAny = poolData as unknown as Record<string, unknown>;
+    const creatorAddress = (poolDataAny.creatorAddress as string) || poolData.creator || (poolDataAny.creator_address as string) || '';
     
     // Skip if creator address is invalid (looks like an offset)
     if (creatorAddress && /^0x0{30,39}[0-9a-f]{1,9}$/i.test(creatorAddress) && parseInt(creatorAddress, 16) < 1000) {
@@ -418,7 +420,7 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
       amountInToken = (amountNum / 1e18).toString();
     }
     
-    const currency = poolData.currency || (poolData.useBitr || (poolData as any).use_bitr ? 'BITR' : 'STT');
+    const currency = poolData.currency || (poolData.useBitr || (poolDataAny.use_bitr as boolean) ? 'BITR' : 'STT');
     
     // Create unique ID using poolId + creator + timestamp
     const uniqueId = `pool-${poolIdStr}-${creatorAddress}-${timestamp}`;
@@ -492,7 +494,8 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
     }
     
     // Extract provider address from multiple possible fields
-    const providerAddress = (liquidityData as any).providerAddress || liquidityData.provider || (liquidityData as any).provider_address || '';
+    const liquidityDataAny = liquidityData as unknown as Record<string, unknown>;
+    const providerAddress = (liquidityDataAny.providerAddress as string) || liquidityData.provider || (liquidityDataAny.provider_address as string) || '';
     
     // Skip if provider address is invalid (looks like an offset)
     if (providerAddress && /^0x0{30,39}[0-9a-f]{1,9}$/i.test(providerAddress) && parseInt(providerAddress, 16) < 1000) {
@@ -589,11 +592,12 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
         const bets = await optimizedPoolService.getRecentBets(20);
         
         // Transform API data to component format
-        const transformedBets: RecentBet[] = bets.map((bet, index) => {
+        const transformedBets: RecentBet[] = bets.map((bet) => {
           // ✅ FIX: Backend already converts amounts, but ensure they're formatted correctly
           const amount = parseFloat(bet.amount || '0');
           // Extract bettor address from multiple possible fields
-          const bettorAddress = (bet as any).bettorAddress || bet.bettor || (bet as any).bettor_address || '0x0000000000000000000000000000000000000000';
+          const betAny = bet as unknown as Record<string, unknown>;
+          const bettorAddress = (betAny.bettorAddress as string) || bet.bettor || (betAny.bettor_address as string) || '0x0000000000000000000000000000000000000000';
           const poolIdStr = bet.poolId?.toString() || '';
           const eventType = bet.eventType || 'bet';
           const timestamp = bet.timestamp || Math.floor(Date.now() / 1000);
