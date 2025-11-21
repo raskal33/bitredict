@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // ✅ Static export for Vercel (replaces deprecated 'next export')
+  output: 'export',
+  
   // Improved experimental features for stability
   experimental: {
     // Optimize chunk loading to prevent build manifest issues

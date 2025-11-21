@@ -20,12 +20,15 @@ export function OddysseyLiveUpdates() {
     isWinner: boolean;
     rank: number;
     prize: string;
+    currency: string; // ✅ Add currency to state
   } | null>(null);
   const { playNotification, playWin } = useSoundEffects({ volume: 0.5 });
 
   // ✅ Rate limiting: Track last notification to prevent bombing
   const lastCycleNotificationRef = useRef<Map<string, number>>(new Map());
+  const lastSlipNotificationRef = useRef<Map<string, number>>(new Map());
   const CYCLE_NOTIFICATION_RATE_LIMIT_MS = 5000; // Max 1 notification per 5 seconds per cycle
+  const SLIP_NOTIFICATION_RATE_LIMIT_MS = 10000; // Max 1 notification per 10 seconds per slip
 
   // ✅ Helper to normalize IDs (convert BigInt/hex to readable numbers) - safety check
   const normalizeId = (id: unknown): string => {
@@ -52,7 +55,7 @@ export function OddysseyLiveUpdates() {
   // Listen for cycle resolutions
   useCycleUpdates((cycleData) => {
     // ✅ CRITICAL: Normalize cycleId explicitly (safety check even if useSomniaStreams normalizes)
-    const cycleDataRecord = cycleData as Record<string, unknown>;
+    const cycleDataRecord = cycleData as unknown as Record<string, unknown>;
     const rawCycleId = cycleData.cycleId || (cycleDataRecord.cycle_id as string) || '0';
     const cycleId = normalizeId(rawCycleId);
     
@@ -85,28 +88,33 @@ export function OddysseyLiveUpdates() {
     }
     lastCycleNotificationRef.current.set(cycleId, currentTime);
     
-    // ✅ Normalize prizePool from wei to STT (only if it's in wei format)
-    let prizePoolInSTT = cycleData.prizePool || '0';
-    const prizePoolNum = parseFloat(prizePoolInSTT);
+    // ✅ CRITICAL: Detect currency from cycle data (useBitr flag or currency field)
+    const useBitr = (cycleDataRecord.useBitr as boolean) ?? (cycleDataRecord.use_bitr as boolean) ?? false;
+    const currency = (cycleDataRecord.currency as string) || (useBitr ? 'BITR' : 'STT');
+    const currencySymbol = currency.toUpperCase();
+    
+    // ✅ Normalize prizePool from wei to token (only if it's in wei format)
+    let prizePoolInToken = cycleData.prizePool || '0';
+    const prizePoolNum = parseFloat(prizePoolInToken);
     
     // ✅ CRITICAL: Only convert if it's clearly in wei (very large number > 1e12)
-    // If it's already in STT format (small number), don't convert
+    // If it's already in token format (small number), don't convert
     if (prizePoolNum > 1e12 && prizePoolNum < 1e30) {
-      // Likely in wei, convert to STT
-      prizePoolInSTT = (prizePoolNum / 1e18).toString();
-      console.log(`   💰 Converted prize pool from wei: ${prizePoolNum} → ${prizePoolInSTT} STT`);
+      // Likely in wei, convert to token
+      prizePoolInToken = (prizePoolNum / 1e18).toString();
+      console.log(`   💰 Converted prize pool from wei: ${prizePoolNum} → ${prizePoolInToken} ${currencySymbol}`);
     } else if (prizePoolNum >= 1e30) {
       // Extremely large number, might be a hash or invalid - log warning
       console.warn(`   ⚠️ Prize pool value seems invalid (too large): ${prizePoolNum}, using 0`);
-      prizePoolInSTT = '0';
+      prizePoolInToken = '0';
     } else {
-      // Already in STT format or small number, use as-is
-      console.log(`   💰 Prize pool already in STT format: ${prizePoolInSTT}`);
+      // Already in token format or small number, use as-is
+      console.log(`   💰 Prize pool already in ${currencySymbol} format: ${prizePoolInToken}`);
     }
     
-    const formattedPrizePool = parseFloat(prizePoolInSTT).toFixed(2);
+    const formattedPrizePool = parseFloat(prizePoolInToken).toFixed(2);
     
-    setCycleStatus(`Cycle ${cycleId} resolved! 🎉 Prize pool: ${formattedPrizePool} STT`);
+    setCycleStatus(`Cycle ${cycleId} resolved! 🎉 Prize pool: ${formattedPrizePool} ${currencySymbol}`);
     
     // ✅ Use unique toast ID with normalized cycleId to prevent duplicates
     const toastId = `cycle-resolved-${cycleId}`;
@@ -143,14 +151,34 @@ export function OddysseyLiveUpdates() {
     
     // Only show if it's the current user's slip
     if (slipData.player.toLowerCase() === address?.toLowerCase()) {
-      // ✅ Normalize prizeAmount from wei to STT (like RecentBetsLane)
+      // ✅ CRITICAL: Detect currency from slip data (useBitr flag or currency field)
       const slipDataRecord = slipData as unknown as Record<string, unknown>;
-      let prizeAmountInSTT = (slipDataRecord.prizeAmount as string) || (slipDataRecord.prize as string) || '0';
-      const prizeAmountNum = parseFloat(prizeAmountInSTT.toString());
-      if (prizeAmountNum > 1e12) {
-        prizeAmountInSTT = (prizeAmountNum / 1e18).toString(); // Convert from wei to STT
+      const slipUseBitr = (slipDataRecord.useBitr as boolean) ?? (slipDataRecord.use_bitr as boolean) ?? false;
+      const slipCurrency = (slipDataRecord.currency as string) || (slipUseBitr ? 'BITR' : 'STT');
+      const slipCurrencySymbol = slipCurrency.toUpperCase();
+      
+      // ✅ Normalize slipId for deduplication
+      const slipId = normalizeId((slipDataRecord.slipId as string) || (slipDataRecord.slip_id as string) || '0');
+      
+      // ✅ Rate limiting: Prevent duplicate notifications for the same slip
+      const lastTime = lastSlipNotificationRef.current.get(slipId);
+      const currentTime = Date.now();
+      if (lastTime && (currentTime - lastTime) < SLIP_NOTIFICATION_RATE_LIMIT_MS) {
+        console.log(`⚠️ OddysseyLiveUpdates: Rate limit: Skipping slip ${slipId} notification (last ${currentTime - lastTime}ms ago)`);
+        return;
       }
-      const formattedPrize = parseFloat(prizeAmountInSTT.toString()).toFixed(2);
+      lastSlipNotificationRef.current.set(slipId, currentTime);
+      
+      // ✅ Normalize prizeAmount from wei to token (like RecentBetsLane)
+      let prizeAmountInToken = (slipDataRecord.prizeAmount as string) || (slipDataRecord.prize as string) || '0';
+      const prizeAmountNum = parseFloat(prizeAmountInToken.toString());
+      if (prizeAmountNum > 1e12 && prizeAmountNum < 1e30) {
+        prizeAmountInToken = (prizeAmountNum / 1e18).toString(); // Convert from wei to token
+      } else if (prizeAmountNum >= 1e30) {
+        console.warn(`   ⚠️ Prize amount seems invalid (too large): ${prizeAmountNum}, using 0`);
+        prizeAmountInToken = '0';
+      }
+      const formattedPrize = parseFloat(prizeAmountInToken.toString()).toFixed(2);
       
       // ✅ Normalize rank and winner status
       const rank = (slipDataRecord.rank as number) ?? (slipDataRecord.leaderboard_rank as number) ?? 0;
@@ -163,25 +191,37 @@ export function OddysseyLiveUpdates() {
       setUserSlipResult({
         isWinner: isWinner,
         rank: Number(rank),
-        prize: formattedPrize
+        prize: formattedPrize,
+        currency: slipCurrencySymbol // ✅ Store currency in state
       });
 
       if (isWinner) {
+        // ✅ Use unique toast ID with slipId to prevent duplicates
+        const toastId = `slip-won-${slipId}`;
         // Winner notification + BIG sound
         toast.success(
           <div>
             <div className="font-bold">🎉 You Won!</div>
             <div>Rank #{rank}</div>
-            <div>Prize: {formattedPrize} STT</div>
+            <div>Prize: {formattedPrize} {slipCurrencySymbol}</div>
           </div>,
-          { duration: 8000 }
+          { 
+            duration: 8000,
+            id: toastId // ✅ Unique deduplication key for toast
+          }
         );
         playWin();
       } else {
+        // ✅ Use unique toast ID with slipId to prevent duplicates
+        const toastId = `slip-evaluated-${slipId}`;
         // Participation notification
         toast(
           `Your slip evaluated: ${correctCount}/${totalPredictions} correct`,
-          { icon: '📊', duration: 5000 }
+          { 
+            icon: '📊', 
+            duration: 5000,
+            id: toastId // ✅ Unique deduplication key for toast
+          }
         );
         playNotification();
       }
@@ -248,7 +288,7 @@ export function OddysseyLiveUpdates() {
                   <div className="bg-white/20 backdrop-blur rounded-lg p-4 mb-4">
                     <p className="text-sm text-white/70 mb-1">Your Prize</p>
                     <p className="text-3xl font-bold text-white">
-                      {userSlipResult.prize} STT
+                      {userSlipResult.prize} {userSlipResult.currency || 'STT'}
                     </p>
                   </div>
                   <button
