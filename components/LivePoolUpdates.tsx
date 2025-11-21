@@ -75,7 +75,7 @@ export function LivePoolUpdates() {
     }
     
     // ✅ Safety check: Ensure bettor is a string
-    const bettorAddress = (betData.bettor || betData.bettorAddress || '').toString();
+    const bettorAddress = (betData.bettor || (betData as Record<string, unknown>).bettorAddress || '').toString();
     if (!bettorAddress || bettorAddress.length < 10) {
       console.warn('⚠️ LivePoolUpdates: Invalid bettor address:', bettorAddress);
       return;

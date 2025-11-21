@@ -48,6 +48,92 @@ const globalUnsubscribeFunctionsMap = new Map<string, () => void>();
 const globalPendingSubscriptions = new Set<SDSEventType>(); // ✅ Shared lock
 let globalSDKInstance: SDK | null = null; // ✅ Shared SDK instance
 
+// ✅ Global deduplication: Track seen events to prevent duplicate processing
+const globalSeenEvents = new Map<SDSEventType, Set<string>>();
+
+// Helper to create unique event key for deduplication
+const createEventDedupeKey = (eventType: SDSEventType, decodedData: any): string => {
+  const poolId = decodedData.poolId?.toString() || '';
+  const timestamp = decodedData.timestamp?.toString() || '';
+  
+  if (eventType === 'bet:placed') {
+    const bettor = decodedData.bettor?.toString() || decodedData.bettorAddress?.toString() || '';
+    return `${eventType}:${poolId}:${bettor}:${timestamp}`;
+  } else if (eventType === 'pool:created') {
+    const creator = decodedData.creator?.toString() || decodedData.creatorAddress?.toString() || '';
+    return `${eventType}:${poolId}:${creator}:${timestamp}`;
+  } else if (eventType === 'liquidity:added') {
+    const provider = decodedData.provider?.toString() || decodedData.providerAddress?.toString() || '';
+    return `${eventType}:${poolId}:${provider}:${timestamp}`;
+  } else if (eventType === 'cycle:resolved') {
+    const cycleId = decodedData.cycleId?.toString() || poolId || '';
+    return `${eventType}:${cycleId}:${timestamp}`;
+  } else if (eventType === 'slip:evaluated') {
+    const player = decodedData.player?.toString() || decodedData.user?.toString() || '';
+    const slipId = decodedData.slipId?.toString() || '';
+    return `${eventType}:${slipId}:${player}:${timestamp}`;
+  }
+  
+  // Fallback: use poolId + timestamp
+  return `${eventType}:${poolId}:${timestamp}`;
+};
+
+// Helper to check if event was already seen
+const isEventSeen = (eventType: SDSEventType, key: string): boolean => {
+  const seenSet = globalSeenEvents.get(eventType);
+  if (!seenSet) return false;
+  return seenSet.has(key);
+};
+
+// Helper to mark event as seen
+const markEventSeen = (eventType: SDSEventType, key: string) => {
+  if (!globalSeenEvents.has(eventType)) {
+    globalSeenEvents.set(eventType, new Set());
+  }
+  const seenSet = globalSeenEvents.get(eventType)!;
+  seenSet.add(key);
+  
+  // Clean up old entries (keep last 500 per event type)
+  if (seenSet.size > 500) {
+    const firstKey = seenSet.values().next().value;
+    if (firstKey) {
+      seenSet.delete(firstKey);
+    }
+  }
+  
+  // Persist to localStorage
+  try {
+    const storageKey = `seen_events_${eventType}`;
+    const eventsArray = Array.from(seenSet);
+    localStorage.setItem(storageKey, JSON.stringify(eventsArray));
+  } catch (e) {
+    console.warn(`Failed to save seen events for ${eventType} to localStorage:`, e);
+  }
+};
+
+// Load seen events from localStorage on module load
+if (typeof window !== 'undefined') {
+  try {
+    const eventTypes: SDSEventType[] = ['bet:placed', 'pool:created', 'liquidity:added', 'cycle:resolved', 'slip:evaluated'];
+    eventTypes.forEach(eventType => {
+      const storageKey = `seen_events_${eventType}`;
+      const stored = localStorage.getItem(storageKey);
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            globalSeenEvents.set(eventType, new Set(parsed));
+          }
+        } catch (e) {
+          console.warn(`Failed to parse seen events for ${eventType}:`, e);
+        }
+      }
+    });
+  } catch (e) {
+    console.warn('Failed to load seen events from localStorage:', e);
+  }
+}
+
 // ✅ CRITICAL: Track desired WebSocket channels globally to avoid duplicate subscriptions
 const desiredWebSocketChannels = new Set<string>();
 const subscribedWebSocketChannels = new Set<string>();
@@ -548,11 +634,14 @@ export function useSomniaStreams(
                   // Extract address from bytes32 (last 20 bytes)
                   const address = '0x' + addressHex.slice(-40).toLowerCase();
                   
-                  // Validate address (must not be all zeros or invalid)
+                  // Validate address (must not be all zeros, invalid patterns, or too small)
+                  // Skip addresses like 0x0000...0001, 0x0000...0020, etc. (these are likely offsets, not addresses)
                   const isValidAddress = address && 
-                    address !== '0x0000000000000000000000000000000000000000' &&
                     address.length === 42 &&
-                    /^0x[0-9a-f]{40}$/i.test(address);
+                    /^0x[0-9a-f]{40}$/i.test(address) &&
+                    address !== '0x0000000000000000000000000000000000000000' &&
+                    // Skip addresses that look like offsets (have many leading zeros and small value)
+                    !(/^0x0{30,39}[0-9a-f]{1,9}$/i.test(address) && parseInt(address, 16) < 1000);
                   
                   if (isValidAddress) {
                     if (eventType === 'bet:placed') {
@@ -570,7 +659,7 @@ export function useSomniaStreams(
                       console.log(`   ✅ Decoded player from topic[1]: ${address}`);
                     }
                   } else {
-                    console.warn(`   ⚠️ Invalid address decoded from topic[1] for ${eventType}: ${address} (length: ${address?.length}, hex: ${addressHex?.substring(0, 20)}...)`);
+                    console.warn(`   ⚠️ Invalid address decoded from topic[1] for ${eventType}: ${address} (likely an offset, not an address)`);
                   }
                 } catch (e) {
                   console.warn(`   ⚠️ Failed to decode address from topic[1] for ${eventType}:`, e);
@@ -654,6 +743,33 @@ export function useSomniaStreams(
                       console.log(`   ⚠️ Could not find provider in JSON data, keys:`, Object.keys(jsonData));
                     }
                   }
+                  
+                  // Extract currency from JSON for all event types
+                  if (jsonData.currency) {
+                    decodedData.currency = jsonData.currency;
+                    console.log(`   ✅ Extracted currency from JSON: ${jsonData.currency}`);
+                  } else if (jsonData.useBitr !== undefined) {
+                    decodedData.currency = jsonData.useBitr ? 'BITR' : 'STT';
+                    decodedData.useBitr = jsonData.useBitr;
+                    console.log(`   ✅ Extracted currency from useBitr flag: ${decodedData.currency}`);
+                  } else if (jsonData.use_bitr !== undefined) {
+                    decodedData.currency = jsonData.use_bitr ? 'BITR' : 'STT';
+                    decodedData.useBitr = jsonData.use_bitr;
+                    console.log(`   ✅ Extracted currency from use_bitr flag: ${decodedData.currency}`);
+                  }
+                  
+                  // Extract amount from JSON if available
+                  if (jsonData.amount && !decodedData.amount) {
+                    decodedData.amount = jsonData.amount.toString();
+                    console.log(`   ✅ Extracted amount from JSON: ${decodedData.amount}`);
+                  }
+                  
+                  // Extract pool title from JSON if available
+                  if (jsonData.title && !decodedData.poolTitle && !decodedData.title) {
+                    decodedData.poolTitle = jsonData.title;
+                    decodedData.title = jsonData.title;
+                    console.log(`   ✅ Extracted pool title from JSON: ${jsonData.title}`);
+                  }
                 }
                 
                 // Only decode ABI if it's not JSON
@@ -672,9 +788,19 @@ export function useSomniaStreams(
                         ],
                         actualData.data
                       );
-                      if (!decodedData.bettor) {
-                        decodedData.bettor = decoded[0];
-                        console.log(`   ✅ Decoded bettor from data field: ${decoded[0]}`);
+                      // Validate bettor address
+                      const bettorAddr = decoded[0];
+                      const isValidBettor = bettorAddr && 
+                        bettorAddr.startsWith('0x') && 
+                        bettorAddr.length === 42 &&
+                        bettorAddr !== '0x0000000000000000000000000000000000000000' &&
+                        /^0x[0-9a-f]{40}$/i.test(bettorAddr) &&
+                        !(/^0x0{30,39}[0-9a-f]{1,9}$/i.test(bettorAddr) && parseInt(bettorAddr, 16) < 1000);
+                      
+                      if (isValidBettor && !decodedData.bettor) {
+                        decodedData.bettor = bettorAddr;
+                        decodedData.bettorAddress = bettorAddr;
+                        console.log(`   ✅ Decoded bettor from data field: ${bettorAddr}`);
                       }
                       decodedData.amount = decoded[1].toString();
                       decodedData.isForOutcome = decoded[2];
@@ -683,7 +809,11 @@ export function useSomniaStreams(
                       if (ts > 0 && ts < 2147483647) {
                         decodedData.timestamp = ts;
                       }
-                      console.log(`   ✅ Decoded bet data: amount=${decodedData.amount}, isForOutcome=${decodedData.isForOutcome}`);
+                      // Default currency to STT (can be overridden by pool data)
+                      if (!decodedData.currency) {
+                        decodedData.currency = 'STT';
+                      }
+                      console.log(`   ✅ Decoded bet data: amount=${decodedData.amount}, isForOutcome=${decodedData.isForOutcome}, currency=${decodedData.currency}`);
                     } catch (e) {
                       console.warn(`   ⚠️ Failed to decode bet data field:`, e);
                     }
@@ -697,9 +827,18 @@ export function useSomniaStreams(
                         ],
                         actualData.data
                       );
-                      if (!decodedData.provider) {
-                        decodedData.provider = decoded[0];
-                        console.log(`   ✅ Decoded provider from data field: ${decoded[0]}`);
+                      // Validate provider address
+                      const providerAddr = decoded[0];
+                      const isValidProvider = providerAddr && 
+                        providerAddr.startsWith('0x') && 
+                        providerAddr.length === 42 &&
+                        providerAddr !== '0x0000000000000000000000000000000000000000' &&
+                        /^0x[0-9a-f]{40}$/i.test(providerAddr) &&
+                        !(/^0x0{30,39}[0-9a-f]{1,9}$/i.test(providerAddr) && parseInt(providerAddr, 16) < 1000);
+                      
+                      if (isValidProvider && !decodedData.provider) {
+                        decodedData.provider = providerAddr;
+                        console.log(`   ✅ Decoded provider from data field: ${providerAddr}`);
                       }
                       decodedData.amount = decoded[1].toString();
                       const ts = Number(decoded[2]);
@@ -707,41 +846,83 @@ export function useSomniaStreams(
                       if (ts > 0 && ts < 2147483647) {
                         decodedData.timestamp = ts;
                       }
-                      console.log(`   ✅ Decoded liquidity data: amount=${decodedData.amount}`);
+                      // Default currency to STT
+                      if (!decodedData.currency) {
+                        decodedData.currency = 'STT';
+                      }
+                      console.log(`   ✅ Decoded liquidity data: amount=${decodedData.amount}, currency=${decodedData.currency}`);
                     } catch (e) {
                       console.warn(`   ⚠️ Failed to decode liquidity data field:`, e);
                     }
                   } else if (eventType === 'pool:created') {
                     try {
-                      const decoded = decodeAbiParameters(
-                        [
-                          { name: 'creator', type: 'address' },
-                          { name: 'creatorStake', type: 'uint256' },
-                          { name: 'odds', type: 'uint16' },
-                          { name: 'timestamp', type: 'uint256' }
-                        ],
-                        actualData.data
-                      );
-                      // Validate creator address (must be valid Ethereum address, not all zeros)
-                      const creatorAddr = decoded[0];
-                      if (creatorAddr && 
+                      // PoolCreated event has more fields - try full decoding first
+                      try {
+                        const decoded = decodeAbiParameters(
+                          [
+                            { name: 'creator', type: 'address' },
+                            { name: 'creatorStake', type: 'uint256' },
+                            { name: 'odds', type: 'uint16' },
+                            { name: 'flags', type: 'uint8' },
+                            { name: 'timestamp', type: 'uint256' }
+                          ],
+                          actualData.data
+                        );
+                        // Validate creator address
+                        const creatorAddr = decoded[0];
+                        const isValidCreator = creatorAddr && 
                           creatorAddr.startsWith('0x') && 
                           creatorAddr.length === 42 &&
                           creatorAddr !== '0x0000000000000000000000000000000000000000' &&
-                          /^0x[0-9a-f]{40}$/i.test(creatorAddr)) {
-                        // Only set if we don't already have a creator from topics
-                        if (!decodedData.creator) {
+                          /^0x[0-9a-f]{40}$/i.test(creatorAddr) &&
+                          !(/^0x0{30,39}[0-9a-f]{1,9}$/i.test(creatorAddr) && parseInt(creatorAddr, 16) < 1000);
+                        
+                        if (isValidCreator && !decodedData.creator) {
                           decodedData.creator = creatorAddr;
                         }
+                        decodedData.creatorStake = decoded[1].toString();
+                        decodedData.odds = Number(decoded[2]);
+                        // Extract useBitr from flags (bit 3 = 8)
+                        const flags = Number(decoded[3] || 0);
+                        decodedData.useBitr = Boolean(flags & 8);
+                        decodedData.currency = decodedData.useBitr ? 'BITR' : 'STT';
+                        const ts = Number(decoded[4] || decoded[3]); // Try index 4, fallback to 3
+                        // Validate timestamp
+                        if (ts > 0 && ts < 2147483647) {
+                          decodedData.timestamp = ts;
+                        }
+                        console.log(`   ✅ Decoded pool created data: creator=${decodedData.creator}, stake=${decodedData.creatorStake}, currency=${decodedData.currency}`);
+                      } catch (fullDecodeError) {
+                        // Fallback to shorter decoding
+                        const decoded = decodeAbiParameters(
+                          [
+                            { name: 'creator', type: 'address' },
+                            { name: 'creatorStake', type: 'uint256' },
+                            { name: 'odds', type: 'uint16' },
+                            { name: 'timestamp', type: 'uint256' }
+                          ],
+                          actualData.data
+                        );
+                        const creatorAddr = decoded[0];
+                        const isValidCreator = creatorAddr && 
+                          creatorAddr.startsWith('0x') && 
+                          creatorAddr.length === 42 &&
+                          creatorAddr !== '0x0000000000000000000000000000000000000000' &&
+                          /^0x[0-9a-f]{40}$/i.test(creatorAddr) &&
+                          !(/^0x0{30,39}[0-9a-f]{1,9}$/i.test(creatorAddr) && parseInt(creatorAddr, 16) < 1000);
+                        
+                        if (isValidCreator && !decodedData.creator) {
+                          decodedData.creator = creatorAddr;
+                        }
+                        decodedData.creatorStake = decoded[1].toString();
+                        decodedData.odds = Number(decoded[2]);
+                        decodedData.currency = 'STT'; // Default to STT if flags not available
+                        const ts = Number(decoded[3]);
+                        if (ts > 0 && ts < 2147483647) {
+                          decodedData.timestamp = ts;
+                        }
+                        console.log(`   ✅ Decoded pool created data (fallback): creator=${decodedData.creator}, stake=${decodedData.creatorStake}`);
                       }
-                      decodedData.creatorStake = decoded[1].toString();
-                      decodedData.odds = Number(decoded[2]);
-                      const ts = Number(decoded[3]);
-                      // Validate timestamp
-                      if (ts > 0 && ts < 2147483647) {
-                        decodedData.timestamp = ts;
-                      }
-                      console.log(`   ✅ Decoded pool created data: creator=${decodedData.creator}, stake=${decodedData.creatorStake}`);
                     } catch (e) {
                       console.warn(`   ⚠️ Failed to decode pool created data field:`, e);
                     }
@@ -1137,6 +1318,16 @@ export function useSomniaStreams(
                 console.log(`✅ Using bet placed data as-is (already decoded):`, decodedData);
               }
             }
+            
+            // ✅ Deduplication: Check if we've already seen this event
+            const dedupeKey = createEventDedupeKey(eventType, decodedData);
+            if (isEventSeen(eventType, dedupeKey)) {
+              console.log(`⚠️ [SDS] Skipping duplicate ${eventType} event: ${dedupeKey}`);
+              return; // Skip broadcasting duplicate event
+            }
+            
+            // Mark as seen before broadcasting
+            markEventSeen(eventType, dedupeKey);
             
             // ✅ Broadcast to all subscribers from GLOBAL map
             const callbacks = globalSubscribersMap.get(eventType);

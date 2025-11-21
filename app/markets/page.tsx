@@ -8,7 +8,6 @@ import { optimizedPoolService, type OptimizedPool } from "@/services/optimizedPo
 import { frontendCache } from "@/services/frontendCache";
 import RecentBetsLane from "@/components/RecentBetsLane";
 import { PoolCardCatalog, PoolCardModal, type EnhancedPool } from "@/components/PoolCard";
-import { LivePoolUpdates } from "@/components/LivePoolUpdates";
 import { 
   FaChartLine, 
   FaSearch, 
@@ -564,9 +563,6 @@ export default function MarketsPage() {
 
           {/* Compact Sidebar - Responsive */}
           <div className={`lg:col-span-1 space-y-3 ${mobileTab === "stats" ? "block" : "hidden lg:block"} order-1 lg:order-2`}>
-            {/* Live Activity Feed */}
-            <LivePoolUpdates />
-
             {/* Quick Stats - Compact */}
             <div className="bg-slate-800/30 backdrop-blur-xl border border-slate-700/50 rounded-xl p-4">
               <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">

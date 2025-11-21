@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { motion } from "framer-motion";
 import { 
   TrophyIcon, 
@@ -13,7 +13,7 @@ import { getPoolIcon } from "@/services/crypto-icons";
 import { useBetUpdates, usePoolCreatedUpdates, useLiquidityAddedUpdates } from "@/hooks/useSomniaStreams";
 
 interface RecentBet {
-  id: number;
+  id: string | number;
   poolId: string;
   bettorAddress: string;
   amount: string;
@@ -174,8 +174,82 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
 
   const [apiData, setApiData] = useState<RecentBet[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // ✅ Deduplication: Track seen events to prevent duplicates
+  const seenEventsRef = useRef<Set<string>>(new Set());
+  
+  // Load seen events from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('seen_recent_bets');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          seenEventsRef.current = new Set(parsed);
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load seen events from localStorage:', e);
+    }
+  }, []);
 
   // ✅ CRITICAL: Use real-time updates via SDS for all event types
+  
+  // Helper to create unique event key for deduplication
+  const createEventKey = (poolId: string, eventType: string, address: string, timestamp: number): string => {
+    return `${eventType}:${poolId}:${address}:${timestamp}`;
+  };
+  
+  // Helper to check if event was already seen
+  const isEventSeen = (key: string): boolean => {
+    return seenEventsRef.current.has(key);
+  };
+  
+  // Helper to mark event as seen
+  const markEventSeen = (key: string) => {
+    seenEventsRef.current.add(key);
+    // Persist to localStorage
+    try {
+      const eventsArray = Array.from(seenEventsRef.current);
+      // Keep only last 500 events
+      const trimmed = eventsArray.slice(-500);
+      localStorage.setItem('seen_recent_bets', JSON.stringify(trimmed));
+      seenEventsRef.current = new Set(trimmed);
+    } catch (e) {
+      console.warn('Failed to save seen events to localStorage:', e);
+    }
+  };
+  
+  // Helper to format pool ID for display (truncate huge numbers)
+  const formatPoolId = (poolId: string | number | undefined): string => {
+    if (!poolId) return 'Unknown';
+    const poolIdStr = poolId.toString();
+    // If it's a huge number, truncate it
+    if (poolIdStr.length > 20) {
+      return `Pool #${poolIdStr.slice(0, 10)}...${poolIdStr.slice(-6)}`;
+    }
+    return `Pool #${poolIdStr}`;
+  };
+  
+  // Helper to fetch pool info asynchronously (non-blocking)
+  const fetchPoolInfo = async (poolId: string) => {
+    try {
+      // Try to get pool by ID (convert string to number)
+      const poolIdNum = parseInt(poolId, 10);
+      if (!isNaN(poolIdNum)) {
+        const pool = await optimizedPoolService.getPool(poolIdNum);
+        return {
+          title: pool.title || formatPoolId(poolId),
+          currency: pool.currency || 'STT',
+          category: pool.category || 'Unknown'
+        };
+      }
+      return null;
+    } catch (e) {
+      console.warn(`Failed to fetch pool info for ${poolId}:`, e);
+      return null;
+    }
+  };
   
   // Handle bet placed events
   useBetUpdates((betData: {
@@ -192,6 +266,40 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
   }) => {
     console.log('📡 Recent Bets Lane: Received real-time bet update:', betData);
     
+    // Validate required fields
+    const poolIdStr = betData.poolId?.toString() || '';
+    if (!poolIdStr || poolIdStr === '0') {
+      console.warn('⚠️ Skipping bet with invalid poolId:', poolIdStr);
+      return;
+    }
+    
+    // Extract bettor address from multiple possible fields
+    const bettorAddress = (betData as any).bettorAddress || betData.bettor || (betData as any).bettor_address || '';
+    
+    // Skip if bettor address is invalid (looks like an offset)
+    if (bettorAddress && /^0x0{30,39}[0-9a-f]{1,9}$/i.test(bettorAddress) && parseInt(bettorAddress, 16) < 1000) {
+      console.warn('⚠️ Skipping bet with invalid bettor address (looks like offset):', bettorAddress);
+      return;
+    }
+    
+    // Validate bettor address
+    if (!bettorAddress || bettorAddress.length !== 42 || !bettorAddress.startsWith('0x')) {
+      console.warn('⚠️ Skipping bet with invalid bettor address format:', bettorAddress);
+      return;
+    }
+    
+    const timestamp = betData.timestamp || Math.floor(Date.now() / 1000);
+    const eventKey = createEventKey(poolIdStr, 'bet', bettorAddress, timestamp);
+    
+    // Skip if already seen
+    if (isEventSeen(eventKey)) {
+      console.log('⚠️ Skipping duplicate bet event:', eventKey);
+      return;
+    }
+    
+    // Mark as seen
+    markEventSeen(eventKey);
+    
     // Convert amount from wei to token if needed
     let amountInToken = betData.amount || '0';
     const amountNum = parseFloat(amountInToken);
@@ -199,13 +307,15 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
       amountInToken = (amountNum / 1e18).toString(); // Bet amounts use 1e18
     }
     
-    // Extract bettor address from multiple possible fields
-    const bettorAddress = (betData as any).bettorAddress || betData.bettor || (betData as any).bettor_address || '';
+    const currency = betData.currency || (betData as any).useBitr ? 'BITR' : 'STT';
+    
+    // Create unique ID using poolId + bettor + timestamp
+    const uniqueId = `${poolIdStr}-${bettorAddress}-${timestamp}`;
     
     const newBet: RecentBet = {
-      id: Date.now(),
-      poolId: betData.poolId?.toString() || '',
-      bettorAddress: bettorAddress || '0x0000000000000000000000000000000000000000', // Fallback to zero address
+      id: uniqueId,
+      poolId: poolIdStr,
+      bettorAddress: bettorAddress,
       amount: amountInToken,
       amountFormatted: parseFloat(amountInToken).toFixed(2),
       isForOutcome: betData.isForOutcome !== undefined ? betData.isForOutcome : true,
@@ -213,8 +323,8 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
       action: 'Placed bet',
       icon: '🎯',
       odds: betData.odds,
-      currency: betData.currency || 'STT',
-      createdAt: new Date((betData.timestamp || Date.now() / 1000) * 1000).toISOString(),
+      currency: currency,
+      createdAt: new Date(timestamp * 1000).toISOString(),
       timeAgo: 'Just now',
       pool: {
         predictedOutcome: '',
@@ -222,14 +332,35 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
         category: betData.category || 'Unknown',
         homeTeam: '',
         awayTeam: '',
-        title: betData.poolTitle || `Pool #${betData.poolId}`,
-        useBitr: betData.currency === 'BITR',
+        title: betData.poolTitle || formatPoolId(poolIdStr),
+        useBitr: currency === 'BITR',
         odds: betData.odds || 0,
         creatorAddress: ''
       }
     };
     
-    setApiData(prev => [newBet, ...prev].slice(0, 20));
+    setApiData(prev => {
+      // Check if this exact bet already exists (by unique ID)
+      const exists = prev.some(bet => bet.id === uniqueId);
+      if (exists) {
+        console.log('⚠️ Bet already exists in state, skipping:', uniqueId);
+        return prev;
+      }
+      return [newBet, ...prev].slice(0, 20);
+    });
+    
+    // Fetch pool info asynchronously to update title
+    if (poolIdStr && !betData.poolTitle) {
+      fetchPoolInfo(poolIdStr).then(poolInfo => {
+        if (poolInfo) {
+          setApiData(prev => prev.map(bet => 
+            bet.poolId === poolIdStr && bet.id === uniqueId
+              ? { ...bet, pool: { ...bet.pool, title: poolInfo.title, category: poolInfo.category }, currency: poolInfo.currency }
+              : bet
+          ));
+        }
+      });
+    }
   });
   
   // Handle pool created events
@@ -237,12 +368,48 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
     poolId: string;
     creator: string;
     creatorStake: string;
-    title: string;
-    category: string;
-    odds: number;
+    title?: string;
+    category?: string;
+    odds?: number;
     timestamp?: number;
+    currency?: string;
+    useBitr?: boolean;
   }) => {
     console.log('📡 Recent Bets Lane: Received pool created update:', poolData);
+    
+    // Validate required fields
+    const poolIdStr = poolData.poolId?.toString() || '';
+    if (!poolIdStr || poolIdStr === '0') {
+      console.warn('⚠️ Skipping pool created with invalid poolId:', poolIdStr);
+      return;
+    }
+    
+    // Extract creator address from multiple possible fields
+    const creatorAddress = (poolData as any).creatorAddress || poolData.creator || (poolData as any).creator_address || '';
+    
+    // Skip if creator address is invalid (looks like an offset)
+    if (creatorAddress && /^0x0{30,39}[0-9a-f]{1,9}$/i.test(creatorAddress) && parseInt(creatorAddress, 16) < 1000) {
+      console.warn('⚠️ Skipping pool created with invalid creator address (looks like offset):', creatorAddress);
+      return;
+    }
+    
+    // Validate creator address
+    if (!creatorAddress || creatorAddress.length !== 42 || !creatorAddress.startsWith('0x')) {
+      console.warn('⚠️ Skipping pool created with invalid creator address format:', creatorAddress);
+      return;
+    }
+    
+    const timestamp = poolData.timestamp || Math.floor(Date.now() / 1000);
+    const eventKey = createEventKey(poolIdStr, 'pool_created', creatorAddress, timestamp);
+    
+    // Skip if already seen
+    if (isEventSeen(eventKey)) {
+      console.log('⚠️ Skipping duplicate pool created event:', eventKey);
+      return;
+    }
+    
+    // Mark as seen
+    markEventSeen(eventKey);
     
     // Convert creator stake from wei to token
     let amountInToken = poolData.creatorStake || '0';
@@ -251,13 +418,15 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
       amountInToken = (amountNum / 1e18).toString();
     }
     
-    // Extract creator address from multiple possible fields
-    const creatorAddress = (poolData as any).creatorAddress || poolData.creator || (poolData as any).creator_address || '';
+    const currency = poolData.currency || (poolData.useBitr || (poolData as any).use_bitr ? 'BITR' : 'STT');
+    
+    // Create unique ID using poolId + creator + timestamp
+    const uniqueId = `pool-${poolIdStr}-${creatorAddress}-${timestamp}`;
     
     const newBet: RecentBet = {
-      id: Date.now(),
-      poolId: poolData.poolId,
-      bettorAddress: creatorAddress || '0x0000000000000000000000000000000000000000', // Fallback to zero address
+      id: uniqueId,
+      poolId: poolIdStr,
+      bettorAddress: creatorAddress,
       amount: amountInToken,
       amountFormatted: parseFloat(amountInToken).toFixed(2),
       isForOutcome: false,
@@ -265,8 +434,8 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
       action: 'Created pool',
       icon: '🏗️',
       odds: poolData.odds,
-      currency: 'STT',
-      createdAt: new Date((poolData.timestamp || Date.now() / 1000) * 1000).toISOString(),
+      currency: currency,
+      createdAt: new Date(timestamp * 1000).toISOString(),
       timeAgo: 'Just now',
       pool: {
         predictedOutcome: '',
@@ -274,14 +443,35 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
         category: poolData.category || 'Unknown',
         homeTeam: '',
         awayTeam: '',
-        title: poolData.title || `Pool #${poolData.poolId}`,
-        useBitr: false,
+        title: poolData.title || formatPoolId(poolIdStr),
+        useBitr: currency === 'BITR',
         odds: poolData.odds || 0,
-        creatorAddress: creatorAddress || '0x0000000000000000000000000000000000000000'
+        creatorAddress: creatorAddress
       }
     };
     
-    setApiData(prev => [newBet, ...prev].slice(0, 20));
+    setApiData(prev => {
+      // Check if this exact event already exists (by unique ID)
+      const exists = prev.some(bet => bet.id === uniqueId);
+      if (exists) {
+        console.log('⚠️ Pool created already exists in state, skipping:', uniqueId);
+        return prev;
+      }
+      return [newBet, ...prev].slice(0, 20);
+    });
+    
+    // Fetch pool info asynchronously to update title
+    if (poolIdStr && !poolData.title) {
+      fetchPoolInfo(poolIdStr).then(poolInfo => {
+        if (poolInfo) {
+          setApiData(prev => prev.map(bet => 
+            bet.poolId === poolIdStr && bet.id === uniqueId
+              ? { ...bet, pool: { ...bet.pool, title: poolInfo.title, category: poolInfo.category }, currency: poolInfo.currency }
+              : bet
+          ));
+        }
+      });
+    }
   });
   
   // Handle liquidity added events
@@ -290,8 +480,43 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
     provider: string;
     amount: string;
     timestamp: number;
+    currency?: string;
   }) => {
     console.log('📡 Recent Bets Lane: Received liquidity added update:', liquidityData);
+    
+    // Validate required fields
+    const poolIdStr = liquidityData.poolId?.toString() || '';
+    if (!poolIdStr || poolIdStr === '0') {
+      console.warn('⚠️ Skipping liquidity added with invalid poolId:', poolIdStr);
+      return;
+    }
+    
+    // Extract provider address from multiple possible fields
+    const providerAddress = (liquidityData as any).providerAddress || liquidityData.provider || (liquidityData as any).provider_address || '';
+    
+    // Skip if provider address is invalid (looks like an offset)
+    if (providerAddress && /^0x0{30,39}[0-9a-f]{1,9}$/i.test(providerAddress) && parseInt(providerAddress, 16) < 1000) {
+      console.warn('⚠️ Skipping liquidity added with invalid provider address (looks like offset):', providerAddress);
+      return;
+    }
+    
+    // Validate provider address
+    if (!providerAddress || providerAddress.length !== 42 || !providerAddress.startsWith('0x')) {
+      console.warn('⚠️ Skipping liquidity added with invalid provider address format:', providerAddress);
+      return;
+    }
+    
+    const timestamp = liquidityData.timestamp || Math.floor(Date.now() / 1000);
+    const eventKey = createEventKey(poolIdStr, 'liquidity_added', providerAddress, timestamp);
+    
+    // Skip if already seen
+    if (isEventSeen(eventKey)) {
+      console.log('⚠️ Skipping duplicate liquidity added event:', eventKey);
+      return;
+    }
+    
+    // Mark as seen
+    markEventSeen(eventKey);
     
     // Convert amount from wei to token (LP amounts use 1e18)
     let amountInToken = liquidityData.amount || '0';
@@ -300,13 +525,15 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
       amountInToken = (amountNum / 1e18).toString();
     }
     
-    // Extract provider address from multiple possible fields
-    const providerAddress = (liquidityData as any).providerAddress || liquidityData.provider || (liquidityData as any).provider_address || '';
+    const currency = liquidityData.currency || 'STT';
+    
+    // Create unique ID using poolId + provider + timestamp
+    const uniqueId = `liquidity-${poolIdStr}-${providerAddress}-${timestamp}`;
     
     const newBet: RecentBet = {
-      id: Date.now(),
-      poolId: liquidityData.poolId,
-      bettorAddress: providerAddress || '0x0000000000000000000000000000000000000000', // Fallback to zero address
+      id: uniqueId,
+      poolId: poolIdStr,
+      bettorAddress: providerAddress,
       amount: amountInToken,
       amountFormatted: parseFloat(amountInToken).toFixed(2),
       isForOutcome: false,
@@ -314,8 +541,8 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
       action: 'Added liquidity',
       icon: '💧',
       odds: undefined,
-      currency: 'STT',
-      createdAt: new Date(liquidityData.timestamp * 1000).toISOString(),
+      currency: currency,
+      createdAt: new Date(timestamp * 1000).toISOString(),
       timeAgo: 'Just now',
       pool: {
         predictedOutcome: '',
@@ -323,14 +550,35 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
         category: 'Unknown',
         homeTeam: '',
         awayTeam: '',
-        title: `Pool #${liquidityData.poolId}`,
-        useBitr: false,
+        title: formatPoolId(poolIdStr),
+        useBitr: currency === 'BITR',
         odds: 0,
         creatorAddress: ''
       }
     };
     
-    setApiData(prev => [newBet, ...prev].slice(0, 20));
+    setApiData(prev => {
+      // Check if this exact event already exists (by unique ID)
+      const exists = prev.some(bet => bet.id === uniqueId);
+      if (exists) {
+        console.log('⚠️ Liquidity added already exists in state, skipping:', uniqueId);
+        return prev;
+      }
+      return [newBet, ...prev].slice(0, 20);
+    });
+    
+    // Fetch pool info asynchronously to update title
+    if (poolIdStr) {
+      fetchPoolInfo(poolIdStr).then(poolInfo => {
+        if (poolInfo) {
+          setApiData(prev => prev.map(bet => 
+            bet.poolId === poolIdStr && bet.id === uniqueId
+              ? { ...bet, pool: { ...bet.pool, title: poolInfo.title, category: poolInfo.category }, currency: poolInfo.currency }
+              : bet
+          ));
+        }
+      });
+    }
   });
 
   // Fetch initial recent bets using optimized API service
@@ -346,22 +594,28 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
           const amount = parseFloat(bet.amount || '0');
           // Extract bettor address from multiple possible fields
           const bettorAddress = (bet as any).bettorAddress || bet.bettor || (bet as any).bettor_address || '0x0000000000000000000000000000000000000000';
+          const poolIdStr = bet.poolId?.toString() || '';
+          const eventType = bet.eventType || 'bet';
+          const timestamp = bet.timestamp || Math.floor(Date.now() / 1000);
+          
+          // Create unique ID using poolId + bettor + timestamp + eventType
+          const uniqueId = `${eventType}-${poolIdStr}-${bettorAddress}-${timestamp}`;
           
           return {
-            id: index + 1,
-            poolId: bet.poolId.toString(),
+            id: uniqueId,
+            poolId: poolIdStr,
             bettorAddress: bettorAddress,
             amount: amount.toString(),
             amountFormatted: amount.toFixed(2),
             isForOutcome: bet.isForOutcome,
-            eventType: bet.eventType || 'bet', // Default to 'bet' if not provided
-            action: bet.action || (bet.eventType === 'liquidity_added' ? 'Added liquidity' : 'Placed bet'),
-            icon: bet.icon || (bet.eventType === 'liquidity_added' ? '💧' : '🎯'),
+            eventType: eventType,
+            action: bet.action || (eventType === 'liquidity_added' ? 'Added liquidity' : eventType === 'pool_created' ? 'Created pool' : 'Placed bet'),
+            icon: bet.icon || (eventType === 'liquidity_added' ? '💧' : eventType === 'pool_created' ? '🏗️' : '🎯'),
             odds: bet.odds,
             currency: bet.currency || 'STT',
-            createdAt: new Date(bet.timestamp * 1000).toISOString(),
+            createdAt: new Date(timestamp * 1000).toISOString(),
             timeAgo: (() => {
-              const timestampMs = bet.timestamp * 1000;
+              const timestampMs = timestamp * 1000;
               const now = Date.now();
               const diffMs = now - timestampMs;
               if (isNaN(diffMs) || diffMs < 0) return 'Just now';
@@ -376,11 +630,11 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
             pool: {
               predictedOutcome: '',
               league: bet.league || 'Unknown',
-              category: bet.category,
+              category: bet.category || 'Unknown',
               homeTeam: '',
               awayTeam: '',
-              title: bet.poolTitle,
-              useBitr: false,
+              title: bet.poolTitle || formatPoolId(poolIdStr),
+              useBitr: bet.currency === 'BITR',
               odds: bet.odds || 0,
               creatorAddress: ''
             }
@@ -472,9 +726,9 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
             ease: "easeInOut"
           }}
         >
-          {bets.map((bet: RecentBet) => (
+          {bets.map((bet: RecentBet, index: number) => (
             <motion.div
-              key={bet.id}
+              key={`${bet.id}-${bet.poolId}-${bet.bettorAddress}-${index}`}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               className="flex-shrink-0 w-72 sm:w-80"
@@ -592,7 +846,7 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
         </div>
         
         <div className="text-xs text-gray-500">
-          Real-time updates via WebSocket/SDS
+          Real-time updates via Somnia Data Streams
         </div>
       </div>
     </div>
