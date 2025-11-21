@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { OddysseyContractService } from '@/services/oddysseyContractService';
 
 // ✅ Excluded from static export (proxied to backend via vercel.json)
-export const dynamic = 'force-dynamic';
+export const dynamic = 'force-static';
+export const revalidate = false;
 export const runtime = 'nodejs';
 
 export async function POST(
