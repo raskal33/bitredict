@@ -60,7 +60,7 @@ export function LivePoolUpdates() {
 
   const handleBetUpdate = useCallback((betData: SDSBetData) => {
     console.log('🎯 LivePoolUpdates: Received bet update:', betData);
-    
+
     // ✅ Safety check: Skip if bettor is missing
     if (!betData.bettor || !betData.poolId) {
       console.warn('⚠️ LivePoolUpdates: Skipping bet update - missing bettor or poolId:', betData);

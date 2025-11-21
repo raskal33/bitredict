@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev -p 8080",
     "dev:turbo": "next dev --turbopack -p 8080",
-    "build": "next build",
+    "build": "next build && next export",
+    "vercel-build": "next build && next export",
     "start": "next start",
     "lint": "next lint",
     "pretty": "prettier --write \"./**/*.{js,jsx,mjs,cjs,ts,tsx,json}\"",

@@ -1,0 +1,9 @@
+Build trigger: 2025-01-21 21:52:00 UTC
+Force rebuild with latest notification fixes
+- Correct topic indexing (topics[1] for ID, topics[2] for address)
+- Strict timestamp validation (reject events without valid timestamps)  
+- 1-minute time window for real-time events only
+- Rate limiting to prevent notification bombing
+- Proper cycle ID normalization
+- onlyPushChanges=true to prevent historical event flooding
+

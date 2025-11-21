@@ -174,7 +174,7 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
 
   const [apiData, setApiData] = useState<RecentBet[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   // ✅ Deduplication: Track seen events to prevent duplicates
   const seenEventsRef = useRef<Set<string>>(new Set());
   
@@ -611,12 +611,12 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
             bettorAddress: bettorAddress,
             amount: amount.toString(),
             amountFormatted: amount.toFixed(2),
-            isForOutcome: bet.isForOutcome,
+          isForOutcome: bet.isForOutcome,
             eventType: eventType,
             action: bet.action || (eventType === 'liquidity_added' ? 'Added liquidity' : eventType === 'pool_created' ? 'Created pool' : 'Placed bet'),
             icon: bet.icon || (eventType === 'liquidity_added' ? '💧' : eventType === 'pool_created' ? '🏗️' : '🎯'),
-            odds: bet.odds,
-            currency: bet.currency || 'STT',
+          odds: bet.odds,
+          currency: bet.currency || 'STT',
             createdAt: new Date(timestamp * 1000).toISOString(),
             timeAgo: (() => {
               const timestampMs = timestamp * 1000;
@@ -631,17 +631,17 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
               const diffDays = Math.floor(diffHours / 24);
               return `${diffDays}d ago`;
             })(),
-            pool: {
-              predictedOutcome: '',
-              league: bet.league || 'Unknown',
+          pool: {
+            predictedOutcome: '',
+            league: bet.league || 'Unknown',
               category: bet.category || 'Unknown',
-              homeTeam: '',
-              awayTeam: '',
+            homeTeam: '',
+            awayTeam: '',
               title: bet.poolTitle || formatPoolId(poolIdStr),
               useBitr: bet.currency === 'BITR',
-              odds: bet.odds || 0,
-              creatorAddress: ''
-            }
+            odds: bet.odds || 0,
+            creatorAddress: ''
+          }
           };
         });
         
