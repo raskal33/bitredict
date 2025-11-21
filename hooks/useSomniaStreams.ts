@@ -523,15 +523,21 @@ export function useSomniaStreams(
             if (actualData.address && actualData.topics && Array.isArray(actualData.topics)) {
               console.log(`📦 [SDS] Detected on-chain event log - decoding topics...`);
               
-              // Extract poolId from first topic (indexed parameter)
+              // Extract poolId or cycleId from first topic (indexed parameter)
               if (actualData.topics.length >= 1) {
                 try {
-                  const poolIdHex = actualData.topics[0];
-                  const poolId = BigInt(poolIdHex).toString();
-                  decodedData.poolId = poolId;
-                  console.log(`   ✅ Decoded poolId from topic[0]: ${poolId}`);
+                  const idHex = actualData.topics[0];
+                  const id = BigInt(idHex).toString();
+                  
+                  if (eventType === 'cycle:resolved') {
+                    decodedData.cycleId = id;
+                    console.log(`   ✅ Decoded cycleId from topic[0]: ${id}`);
+                  } else {
+                    decodedData.poolId = id;
+                    console.log(`   ✅ Decoded poolId from topic[0]: ${id}`);
+                  }
                 } catch (e) {
-                  console.warn(`   ⚠️ Failed to decode poolId from topic[0]:`, e);
+                  console.warn(`   ⚠️ Failed to decode ID from topic[0]:`, e);
                 }
               }
               
@@ -738,6 +744,37 @@ export function useSomniaStreams(
                       console.log(`   ✅ Decoded pool created data: creator=${decodedData.creator}, stake=${decodedData.creatorStake}`);
                     } catch (e) {
                       console.warn(`   ⚠️ Failed to decode pool created data field:`, e);
+                    }
+                  } else if (eventType === 'cycle:resolved') {
+                    try {
+                      // CycleResolved event typically has: cycleId (indexed), prizePool, totalSlips, timestamp (non-indexed)
+                      const decoded = decodeAbiParameters(
+                        [
+                          { name: 'prizePool', type: 'uint256' },
+                          { name: 'totalSlips', type: 'uint256' },
+                          { name: 'timestamp', type: 'uint256' }
+                        ],
+                        actualData.data
+                      );
+                      decodedData.prizePool = decoded[0].toString();
+                      decodedData.totalSlips = Number(decoded[1]);
+                      const ts = Number(decoded[2]);
+                      // Validate timestamp
+                      if (ts > 0 && ts < 2147483647) {
+                        decodedData.timestamp = ts;
+                      }
+                      // Ensure cycleId is set (from topic[0] or fallback)
+                      if (!decodedData.cycleId) {
+                        decodedData.cycleId = decodedData.poolId || '0';
+                      }
+                      decodedData.status = 'resolved';
+                      console.log(`   ✅ Decoded cycle resolved data: cycleId=${decodedData.cycleId}, prizePool=${decodedData.prizePool}, totalSlips=${decodedData.totalSlips}`);
+                    } catch (e) {
+                      console.warn(`   ⚠️ Failed to decode cycle resolved data field:`, e);
+                      // Ensure cycleId is set even if decoding fails
+                      if (!decodedData.cycleId) {
+                        decodedData.cycleId = decodedData.poolId || '0';
+                      }
                     }
                   }
                 }
@@ -965,6 +1002,19 @@ export function useSomniaStreams(
                   timestamp: data.timestamp || Math.floor(Date.now() / 1000)
                 };
               }
+            }
+            
+            // Decode cycle resolved data (only for non-event-log data)
+            if (eventType === 'cycle:resolved' && !actualData.address && data && typeof data === 'object') {
+              decodedData = {
+                ...data,
+                cycleId: data.cycleId?.toString() || data.cycle_id?.toString() || decodedData.cycleId || decodedData.poolId || '0',
+                prizePool: data.prizePool?.toString() || data.prize_pool?.toString() || '0',
+                totalSlips: data.totalSlips ?? data.total_slips ?? 0,
+                status: data.status || 'resolved',
+                timestamp: data.timestamp || Math.floor(Date.now() / 1000)
+              };
+              console.log(`✅ Formatted cycle resolved data:`, decodedData);
             }
             
             // ✅ Decode bet placed data (only for non-event-log data, already decoded above)
@@ -1381,12 +1431,84 @@ export function useReputationUpdates(userAddress: string, callback: (data: SDSRe
 
 export function useCycleUpdates(callback: (data: SDSCycleResolvedData) => void, enabled = true) {
   const { subscribe, ...rest } = useSomniaStreams({ enabled });
+  const callbackRef = useRef(callback);
+  const seenCyclesRef = useRef<Set<string>>(new Set());
+  
+  // Load seen cycles from localStorage on mount
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('seen_cycles');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          seenCyclesRef.current = new Set(parsed);
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load seen cycles from localStorage:', e);
+    }
+  }, []);
+  
+  useEffect(() => {
+    callbackRef.current = callback;
+  }, [callback]);
   
   useEffect(() => {
     if (!enabled) return;
-    const unsubscribe = subscribe('cycle:resolved', callback as any);
+    
+    const wrappedCallback = (data: SDSEventData) => {
+      // Ensure cycleId is always set and valid
+      const cycleId = (data as any).cycleId?.toString() || (data as any).cycle_id?.toString() || (data as any).poolId?.toString() || '0';
+      
+      // Skip if cycleId is invalid
+      if (cycleId === '0' || !cycleId) {
+        console.warn(`⚠️ Skipping cycle:resolved with invalid cycleId: ${cycleId}`);
+        return;
+      }
+      
+      // Create unique key for deduplication
+      const dedupeKey = `cycle:${cycleId}`;
+      
+      // Skip if we've already seen this cycle (in memory or localStorage)
+      if (seenCyclesRef.current.has(dedupeKey)) {
+        console.log(`⚠️ Skipping duplicate cycle:resolved notification for cycle ${cycleId}`);
+        return;
+      }
+      
+      // Mark as seen
+      seenCyclesRef.current.add(dedupeKey);
+      
+      // Persist to localStorage
+      try {
+        const cyclesArray = Array.from(seenCyclesRef.current);
+        localStorage.setItem('seen_cycles', JSON.stringify(cyclesArray));
+      } catch (e) {
+        console.warn('Failed to save seen cycles to localStorage:', e);
+      }
+      
+      // Clean up old entries (keep last 100)
+      if (seenCyclesRef.current.size > 100) {
+        const firstKey = seenCyclesRef.current.values().next().value;
+        if (firstKey) {
+          seenCyclesRef.current.delete(firstKey);
+        }
+      }
+      
+      // Ensure all required fields are present
+      const safeData: SDSCycleResolvedData = {
+        cycleId: cycleId,
+        prizePool: (data as any).prizePool?.toString() || (data as any).prize_pool?.toString() || '0',
+        totalSlips: (data as any).totalSlips ?? (data as any).total_slips ?? 0,
+        status: (data as any).status || 'resolved',
+        timestamp: (data as any).timestamp || Math.floor(Date.now() / 1000)
+      };
+      
+      callbackRef.current(safeData);
+    };
+    
+    const unsubscribe = subscribe('cycle:resolved', wrappedCallback);
     return unsubscribe;
-  }, [subscribe, callback, enabled]);
+  }, [subscribe, enabled]);
   
   return rest;
 }

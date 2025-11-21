@@ -25,11 +25,18 @@ export function OddysseyLiveUpdates() {
 
   // Listen for cycle resolutions
   useCycleUpdates((cycleData) => {
-    setCycleStatus(`Cycle ${cycleData.cycleId} resolved! 🎉 Prize pool: ${cycleData.prizePool} STT`);
+    // Safety check: ensure cycleId is valid
+    const cycleId = cycleData.cycleId && cycleData.cycleId !== '0' ? cycleData.cycleId : 'Unknown';
+    const prizePool = cycleData.prizePool || '0';
+    
+    setCycleStatus(`Cycle ${cycleId} resolved! 🎉 Prize pool: ${prizePool} STT`);
     
     toast.success(
-      `🏆 Cycle ${cycleData.cycleId} Results Are In!`,
-      { duration: 5000 }
+      `🏆 Cycle ${cycleId} Results Are In!`,
+      { 
+        duration: 5000,
+        id: `cycle-resolved-${cycleId}` // Deduplication key for toast
+      }
     );
     playNotification();
 
