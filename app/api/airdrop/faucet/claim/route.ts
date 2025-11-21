@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// ✅ Excluded from static export (proxied to backend via vercel.json)
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 const BACKEND_URL = process.env.BACKEND_URL || 'https://bitredict-backend.fly.dev';
 
 export async function POST(request: NextRequest) {

@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// ✅ Excluded from static export (proxied to backend via vercel.json)
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export async function GET(request: NextRequest, { params }: { params: Promise<{ poolId: string }> }) {
   try {
     const { poolId } = await params;

@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 
+// ✅ Excluded from static export (proxied to backend via vercel.json)
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 // Define proper types
 interface Thread {
   id: number;

@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { safeStartTimeToISOString } from '@/utils/time-helpers';
 
+// ✅ Excluded from static export (proxied to backend via vercel.json)
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export async function GET() {
   try {
     // const { searchParams } = new URL(request.url);

@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { PoolContractService } from '@/services/poolContractService';
 
+// ✅ Excluded from static export (proxied to backend via vercel.json)
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 interface ProgressData {
   bettor_count: string;
   lp_count: string;

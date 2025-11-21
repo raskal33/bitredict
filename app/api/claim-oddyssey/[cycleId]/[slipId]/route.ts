@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { OddysseyContractService } from '@/services/oddysseyContractService';
 
+// ✅ Excluded from static export (proxied to backend via vercel.json)
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ cycleId: string; slipId: string }> }

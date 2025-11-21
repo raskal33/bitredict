@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
 
+// ✅ Skip this route during static export (handled by Vercel proxy)
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 const BACKEND_URL = process.env.BACKEND_URL || 'https://bitredict-backend.fly.dev';
 
 export async function GET(

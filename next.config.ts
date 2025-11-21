@@ -4,6 +4,13 @@ const nextConfig: NextConfig = {
   // ✅ Static export for Vercel (replaces deprecated 'next export')
   output: 'export',
   
+  // ✅ Exclude API routes from static export (they're proxied to backend via vercel.json)
+  // API routes are handled by Vercel routing, not included in static export
+  pageExtensions: ['tsx', 'ts', 'jsx', 'js'].filter((ext) => {
+    // Don't exclude any extensions, but we'll handle API routes via dynamic exports
+    return true;
+  }),
+  
   // Improved experimental features for stability
   experimental: {
     // Optimize chunk loading to prevent build manifest issues

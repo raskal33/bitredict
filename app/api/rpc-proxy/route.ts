@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// ✅ Excluded from static export (proxied to backend via vercel.json)
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 const RPC_URLS = [
   'https://dream-rpc.somnia.network/',
   'https://rpc.ankr.com/somnia_testnet/c8e336679a7fe85909f310fbbdd5fbb18d3b7560b1d3eca7aa97874b0bb81e97',

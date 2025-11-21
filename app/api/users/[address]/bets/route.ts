@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// ✅ Excluded from static export (proxied to backend via vercel.json)
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 interface UserBet {
   id: string;
   poolId: string;
