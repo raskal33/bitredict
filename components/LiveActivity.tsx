@@ -55,13 +55,34 @@ export function LiveActivity() {
     currency?: string;
   }) => {
     console.log('📡 LiveActivity: useBetUpdates callback triggered with data:', betData);
-    if (!betData.poolId || !betData.bettor) {
-      console.log('⚠️ LiveActivity: Invalid bet data (missing poolId or bettor):', betData);
+    
+    // ✅ Normalize data like RecentBetsLane does
+    const poolIdStr = betData.poolId?.toString() || '';
+    if (!poolIdStr || poolIdStr === '0') {
+      console.log('⚠️ LiveActivity: Invalid bet data (missing or invalid poolId):', betData);
       return;
     }
     
+    // Extract bettor address from multiple possible fields (like RecentBetsLane)
+    const bettorAddress = (betData as Record<string, unknown>).bettorAddress as string || betData.bettor || '';
+    if (!bettorAddress || bettorAddress.length !== 42 || !bettorAddress.startsWith('0x')) {
+      console.log('⚠️ LiveActivity: Invalid bet data (missing or invalid bettor):', betData);
+      return;
+    }
+    
+    // ✅ Normalize amount from wei to token (like RecentBetsLane)
+    let amountInToken = betData.amount || '0';
+    const amountNum = parseFloat(amountInToken);
+    if (amountNum > 1e12) {
+      amountInToken = (amountNum / 1e18).toString(); // Convert from wei to token
+    }
+    const formattedAmount = parseFloat(amountInToken).toFixed(2);
+    
+    const timestamp = betData.timestamp || Math.floor(Date.now() / 1000);
+    const currency = betData.currency || ((betData as Record<string, unknown>).useBitr ? 'BITR' : 'STT');
+    
     // ✅ FIX: Create unique event ID to prevent duplicates
-    const eventId = `bet-${betData.poolId}-${betData.bettor}-${betData.timestamp || Date.now()}`;
+    const eventId = `bet-${poolIdStr}-${bettorAddress}-${timestamp}`;
     if (processedEventIds.current.has(eventId)) {
       console.log(`⚠️ LiveActivity: Duplicate bet event prevented: ${eventId}`);
       return;
@@ -72,12 +93,12 @@ export function LiveActivity() {
     
     const newEvent: ActivityEvent = {
       id: eventId,
-      timestamp: betData.timestamp || Math.floor(Date.now() / 1000),
+      timestamp: timestamp,
       type: 'bet' as const,
-      poolId: betData.poolId.toString(),
-      user: betData.bettor,
-      amount: betData.amount,
-      currency: betData.currency || 'STT',
+      poolId: poolIdStr,
+      user: bettorAddress,
+      amount: formattedAmount,
+      currency: currency,
       poolTitle: betData.poolTitle
     };
     setEvents(prev => {
@@ -99,16 +120,39 @@ export function LiveActivity() {
   usePoolCreatedUpdates((poolData: {
     poolId: string;
     creator: string;
+    creatorStake?: string;
     timestamp?: number;
     title?: string;
+    currency?: string;
   }) => {
     console.log('📡 LiveActivity: usePoolCreatedUpdates callback triggered with data:', poolData);
-    if (!poolData.poolId || !poolData.creator) {
-      console.log('⚠️ LiveActivity: Invalid pool data (missing poolId or creator):', poolData);
+    
+    // ✅ Normalize data like RecentBetsLane does
+    const poolIdStr = poolData.poolId?.toString() || '';
+    if (!poolIdStr || poolIdStr === '0') {
+      console.log('⚠️ LiveActivity: Invalid pool data (missing or invalid poolId):', poolData);
       return;
     }
     
-    const eventId = `pool-${poolData.poolId}-${poolData.timestamp || Date.now()}`;
+    // Extract creator address from multiple possible fields
+    const creatorAddress = (poolData as Record<string, unknown>).creatorAddress as string || poolData.creator || '';
+    if (!creatorAddress || creatorAddress.length !== 42 || !creatorAddress.startsWith('0x')) {
+      console.log('⚠️ LiveActivity: Invalid pool data (missing or invalid creator):', poolData);
+      return;
+    }
+    
+    // ✅ Normalize creator stake from wei to token (like RecentBetsLane)
+    let amountInToken = poolData.creatorStake || '0';
+    const amountNum = parseFloat(amountInToken);
+    if (amountNum > 1e12) {
+      amountInToken = (amountNum / 1e18).toString();
+    }
+    const formattedAmount = parseFloat(amountInToken).toFixed(2);
+    
+    const timestamp = poolData.timestamp || Math.floor(Date.now() / 1000);
+    const currency = poolData.currency || ((poolData as Record<string, unknown>).useBitr ? 'BITR' : 'STT');
+    
+    const eventId = `pool-${poolIdStr}-${creatorAddress}-${timestamp}`;
     if (processedEventIds.current.has(eventId)) {
       console.log(`⚠️ LiveActivity: Duplicate pool event prevented: ${eventId}`);
       return;
@@ -119,10 +163,12 @@ export function LiveActivity() {
     
     const newEvent: ActivityEvent = {
       id: eventId,
-      timestamp: poolData.timestamp || Math.floor(Date.now() / 1000),
+      timestamp: timestamp,
       type: 'pool_created' as const,
-      poolId: poolData.poolId,
-      user: poolData.creator,
+      poolId: poolIdStr,
+      user: creatorAddress,
+      amount: formattedAmount,
+      currency: currency,
       poolTitle: poolData.title
     };
     setEvents(prev => {
@@ -144,14 +190,35 @@ export function LiveActivity() {
     provider: string;
     amount?: string;
     timestamp: number;
+    currency?: string;
   }) => {
     console.log('📡 LiveActivity: useLiquidityAddedUpdates callback triggered with data:', liquidityData);
-    if (!liquidityData.poolId || !liquidityData.provider) {
-      console.log('⚠️ LiveActivity: Invalid liquidity data (missing poolId or provider):', liquidityData);
+    
+    // ✅ Normalize data like RecentBetsLane does
+    const poolIdStr = liquidityData.poolId?.toString() || '';
+    if (!poolIdStr || poolIdStr === '0') {
+      console.log('⚠️ LiveActivity: Invalid liquidity data (missing or invalid poolId):', liquidityData);
       return;
     }
     
-    const eventId = `lp-${liquidityData.poolId}-${liquidityData.provider}-${liquidityData.timestamp}`;
+    // Extract provider address from multiple possible fields
+    const providerAddress = (liquidityData as Record<string, unknown>).providerAddress as string || liquidityData.provider || '';
+    if (!providerAddress || providerAddress.length !== 42 || !providerAddress.startsWith('0x')) {
+      console.log('⚠️ LiveActivity: Invalid liquidity data (missing or invalid provider):', liquidityData);
+      return;
+    }
+    
+    // ✅ Normalize amount from wei to token (like RecentBetsLane)
+    let amountInToken = liquidityData.amount || '0';
+    const amountNum = parseFloat(amountInToken);
+    if (amountNum > 1e12) {
+      amountInToken = (amountNum / 1e18).toString();
+    }
+    const formattedAmount = parseFloat(amountInToken).toFixed(2);
+    
+    const currency = liquidityData.currency || 'STT';
+    
+    const eventId = `lp-${poolIdStr}-${providerAddress}-${liquidityData.timestamp}`;
     if (processedEventIds.current.has(eventId)) {
       console.log(`⚠️ LiveActivity: Duplicate liquidity event prevented: ${eventId}`);
       return;
@@ -164,10 +231,10 @@ export function LiveActivity() {
       id: eventId,
       timestamp: liquidityData.timestamp,
       type: 'liquidity_added' as const,
-      poolId: liquidityData.poolId,
-      user: liquidityData.provider,
-      amount: liquidityData.amount,
-      currency: 'STT'
+      poolId: poolIdStr,
+      user: providerAddress,
+      amount: formattedAmount,
+      currency: currency
     };
     setEvents(prev => {
       if (prev.some(e => e.id === eventId)) {
