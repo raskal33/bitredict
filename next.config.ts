@@ -1,15 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // ✅ Static export for Vercel (replaces deprecated 'next export')
-  output: 'export',
-  
-  // ✅ Exclude API routes from static export (they're proxied to backend via vercel.json)
-  // API routes are handled by Vercel routing, not included in static export
-  pageExtensions: ['tsx', 'ts', 'jsx', 'js'].filter((ext) => {
-    // Don't exclude any extensions, but we'll handle API routes via dynamic exports
-    return true;
-  }),
+  // ✅ Removed 'output: export' - Vercel's Next.js runtime handles both static pages and API routes
+  // API routes are proxied to backend via vercel.json, but Next.js runtime is needed for build
+  // Static pages will still be optimized by Next.js automatically
   
   // Improved experimental features for stability
   experimental: {
