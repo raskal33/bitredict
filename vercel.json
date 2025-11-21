@@ -6,8 +6,6 @@
       "use": "@vercel/next"
     }
   ],
-  // ✅ API routes are proxied to backend, so they don't need to be built
-  // Next.js will build them but they'll be handled by Vercel routing
   "routes": [
     {
       "src": "/api/(.*)",
