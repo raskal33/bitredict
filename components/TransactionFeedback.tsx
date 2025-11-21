@@ -402,6 +402,11 @@ const STORAGE_KEY_PREFIX = 'bitredict_notification_';
 
 // ✅ FIX: Load seen notifications from localStorage on module load
 const loadSeenNotifications = (): Set<string> => {
+  // Check if we're in a browser environment
+  if (typeof window === 'undefined') {
+    return new Set();
+  }
+  
   try {
     const stored = localStorage.getItem(`${STORAGE_KEY_PREFIX}seen`);
     if (stored) {
@@ -419,6 +424,11 @@ const loadSeenNotifications = (): Set<string> => {
 
 // ✅ FIX: Save seen notification to localStorage
 const saveSeenNotification = (key: string) => {
+  // Check if we're in a browser environment
+  if (typeof window === 'undefined') {
+    return;
+  }
+  
   try {
     const stored = localStorage.getItem(`${STORAGE_KEY_PREFIX}seen`);
     const seen = stored ? JSON.parse(stored) : [];

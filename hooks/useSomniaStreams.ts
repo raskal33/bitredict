@@ -535,22 +535,44 @@ export function useSomniaStreams(
                 }
               }
               
-              // Extract bettor/provider from second topic (indexed parameter) for bet/liquidity events
-              if (actualData.topics.length >= 2 && (eventType === 'bet:placed' || eventType === 'liquidity:added')) {
+              // Extract bettor/provider/creator from second topic (indexed parameter) for various events
+              if (actualData.topics.length >= 2) {
                 try {
                   const addressHex = actualData.topics[1];
                   // Extract address from bytes32 (last 20 bytes)
                   const address = '0x' + addressHex.slice(-40).toLowerCase();
-                  if (eventType === 'bet:placed') {
-                    decodedData.bettor = address;
-                    decodedData.bettorAddress = address; // Add alias for component compatibility
-                    console.log(`   ✅ Decoded bettor from topic[1]: ${address}`);
-                  } else if (eventType === 'liquidity:added') {
-                    decodedData.provider = address;
-                    console.log(`   ✅ Decoded provider from topic[1]: ${address}`);
+                  
+                  // Validate address (must not be all zeros or invalid)
+                  const isValidAddress = address && 
+                    address !== '0x0000000000000000000000000000000000000000' &&
+                    address.length === 42 &&
+                    /^0x[0-9a-f]{40}$/i.test(address);
+                  
+                  if (isValidAddress) {
+                    if (eventType === 'bet:placed') {
+                      decodedData.bettor = address;
+                      decodedData.bettorAddress = address; // Add alias for component compatibility
+                      console.log(`   ✅ Decoded bettor from topic[1]: ${address}`);
+                    } else if (eventType === 'liquidity:added') {
+                      decodedData.provider = address;
+                      console.log(`   ✅ Decoded provider from topic[1]: ${address}`);
+                    } else if (eventType === 'pool:created') {
+                      decodedData.creator = address;
+                      console.log(`   ✅ Decoded creator from topic[1]: ${address}`);
+                    } else if (eventType === 'slip:evaluated') {
+                      decodedData.player = address;
+                      console.log(`   ✅ Decoded player from topic[1]: ${address}`);
+                    }
+                  } else {
+                    console.warn(`   ⚠️ Invalid address decoded from topic[1] for ${eventType}: ${address} (length: ${address?.length}, hex: ${addressHex?.substring(0, 20)}...)`);
                   }
                 } catch (e) {
-                  console.warn(`   ⚠️ Failed to decode address from topic[1]:`, e);
+                  console.warn(`   ⚠️ Failed to decode address from topic[1] for ${eventType}:`, e);
+                }
+              } else {
+                // Only 1 topic - log for debugging
+                if (eventType === 'bet:placed' || eventType === 'pool:created' || eventType === 'liquidity:added') {
+                  console.log(`   ℹ️ Only 1 topic for ${eventType}, will try to extract from data field or JSON`);
                 }
               }
               
@@ -560,15 +582,72 @@ export function useSomniaStreams(
                 
                 // Check if data field contains JSON (starts with '{' when decoded) vs ABI-encoded
                 let isJsonData = false;
+                let jsonData: any = null;
                 try {
                   const decodedBytes = Buffer.from(actualData.data.slice(2), 'hex');
                   const decodedString = decodedBytes.toString('utf8').replace(/\0/g, '');
                   if (decodedString.trim().startsWith('{')) {
                     isJsonData = true;
-                    console.log(`   📄 Data field contains JSON, skipping ABI decoding`);
+                    try {
+                      jsonData = JSON.parse(decodedString);
+                      console.log(`   📄 Data field contains JSON, parsed successfully`);
+                    } catch (parseError) {
+                      console.warn(`   ⚠️ Failed to parse JSON data:`, parseError);
+                    }
                   }
                 } catch (e) {
                   // Not JSON, continue with ABI decoding
+                }
+                
+                // If JSON data is available, try to extract fields from it
+                if (isJsonData && jsonData) {
+                  // Helper to extract nested values from JSON
+                  const extractFromJson = (obj: any, keys: string[]): string | undefined => {
+                    for (const key of keys) {
+                      const value = obj[key];
+                      if (value && typeof value === 'string' && value.startsWith('0x') && value.length === 42) {
+                        return value;
+                      }
+                      // Check nested objects
+                      if (value && typeof value === 'object') {
+                        for (const nestedKey of keys) {
+                          if (value[nestedKey] && typeof value[nestedKey] === 'string' && value[nestedKey].startsWith('0x')) {
+                            return value[nestedKey];
+                          }
+                        }
+                      }
+                    }
+                    return undefined;
+                  };
+                  
+                  if (eventType === 'bet:placed' && !decodedData.bettor) {
+                    const bettor = extractFromJson(jsonData, ['bettor', 'bettorAddress', 'player', 'user', 'address', 'from']);
+                    if (bettor) {
+                      decodedData.bettor = bettor;
+                      decodedData.bettorAddress = bettor;
+                      console.log(`   ✅ Extracted bettor from JSON data: ${bettor}`);
+                    } else {
+                      console.log(`   ⚠️ Could not find bettor in JSON data, keys:`, Object.keys(jsonData));
+                    }
+                  }
+                  if (eventType === 'pool:created' && !decodedData.creator) {
+                    const creator = extractFromJson(jsonData, ['creator', 'creatorAddress', 'owner', 'user', 'address', 'from']);
+                    if (creator) {
+                      decodedData.creator = creator;
+                      console.log(`   ✅ Extracted creator from JSON data: ${creator}`);
+                    } else {
+                      console.log(`   ⚠️ Could not find creator in JSON data, keys:`, Object.keys(jsonData));
+                    }
+                  }
+                  if (eventType === 'liquidity:added' && !decodedData.provider) {
+                    const provider = extractFromJson(jsonData, ['provider', 'providerAddress', 'user', 'address', 'from']);
+                    if (provider) {
+                      decodedData.provider = provider;
+                      console.log(`   ✅ Extracted provider from JSON data: ${provider}`);
+                    } else {
+                      console.log(`   ⚠️ Could not find provider in JSON data, keys:`, Object.keys(jsonData));
+                    }
+                  }
                 }
                 
                 // Only decode ABI if it's not JSON
@@ -637,10 +716,17 @@ export function useSomniaStreams(
                         ],
                         actualData.data
                       );
-                      // Validate creator address (must be valid Ethereum address)
+                      // Validate creator address (must be valid Ethereum address, not all zeros)
                       const creatorAddr = decoded[0];
-                      if (creatorAddr && creatorAddr.startsWith('0x') && creatorAddr.length === 42) {
-                        decodedData.creator = creatorAddr;
+                      if (creatorAddr && 
+                          creatorAddr.startsWith('0x') && 
+                          creatorAddr.length === 42 &&
+                          creatorAddr !== '0x0000000000000000000000000000000000000000' &&
+                          /^0x[0-9a-f]{40}$/i.test(creatorAddr)) {
+                        // Only set if we don't already have a creator from topics
+                        if (!decodedData.creator) {
+                          decodedData.creator = creatorAddr;
+                        }
                       }
                       decodedData.creatorStake = decoded[1].toString();
                       decodedData.odds = Number(decoded[2]);
@@ -663,6 +749,50 @@ export function useSomniaStreams(
               }
               if (decodedData.bettorAddress && !decodedData.bettor) {
                 decodedData.bettor = decodedData.bettorAddress;
+              }
+              
+              // Ensure all address fields are strings to prevent slice() errors
+              if (decodedData.bettor && typeof decodedData.bettor !== 'string') {
+                decodedData.bettor = String(decodedData.bettor);
+              }
+              if (decodedData.bettorAddress && typeof decodedData.bettorAddress !== 'string') {
+                decodedData.bettorAddress = String(decodedData.bettorAddress);
+              }
+              if (decodedData.creator && typeof decodedData.creator !== 'string') {
+                decodedData.creator = String(decodedData.creator);
+              }
+              if (decodedData.provider && typeof decodedData.provider !== 'string') {
+                decodedData.provider = String(decodedData.provider);
+              }
+              
+              // Add default values for slip:evaluated events to prevent errors
+              if (eventType === 'slip:evaluated') {
+                // Extract player from topic[1] if available (indexed address parameter)
+                if (actualData.topics.length >= 2 && !decodedData.player) {
+                  try {
+                    const addressHex = actualData.topics[1];
+                    const address = '0x' + addressHex.slice(-40).toLowerCase();
+                    if (address && address !== '0x0000000000000000000000000000000000000000' && address.length === 42) {
+                      decodedData.player = address;
+                      console.log(`   ✅ Decoded player from topic[1] for slip:evaluated: ${address}`);
+                    }
+                  } catch (e) {
+                    console.warn(`   ⚠️ Failed to decode player from topic[1]:`, e);
+                  }
+                }
+                
+                // Set defaults if player is still missing
+                if (!decodedData.player) {
+                  decodedData.player = decodedData.user || decodedData.bettor || decodedData.provider || '';
+                }
+                
+                // Ensure player is always a string to prevent toLowerCase errors
+                if (decodedData.player && typeof decodedData.player !== 'string') {
+                  decodedData.player = String(decodedData.player);
+                }
+                if (!decodedData.player) {
+                  decodedData.player = ''; // Empty string instead of undefined
+                }
               }
               
               // Validate and set timestamp
@@ -1263,12 +1393,29 @@ export function useCycleUpdates(callback: (data: SDSCycleResolvedData) => void, 
 
 export function useSlipUpdates(callback: (data: SDSSlipEvaluatedData) => void, enabled = true) {
   const { subscribe, ...rest } = useSomniaStreams({ enabled });
+  const callbackRef = useRef(callback);
+  
+  useEffect(() => {
+    callbackRef.current = callback;
+  }, [callback]);
   
   useEffect(() => {
     if (!enabled) return;
-    const unsubscribe = subscribe('slip:evaluated', callback as any);
+    
+    const wrappedCallback = (data: SDSEventData) => {
+      // Ensure player is always a string to prevent toLowerCase errors
+      const safeData = {
+        ...data,
+        player: (data as any).player && typeof (data as any).player === 'string' 
+          ? (data as any).player 
+          : ((data as any).user || (data as any).bettor || (data as any).provider || '')
+      };
+      callbackRef.current(safeData as SDSSlipEvaluatedData);
+    };
+    
+    const unsubscribe = subscribe('slip:evaluated', wrappedCallback);
     return unsubscribe;
-  }, [subscribe, callback, enabled]);
+  }, [subscribe, enabled]);
   
   return rest;
 }

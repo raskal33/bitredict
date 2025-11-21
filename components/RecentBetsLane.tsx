@@ -199,10 +199,13 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
       amountInToken = (amountNum / 1e18).toString(); // Bet amounts use 1e18
     }
     
+    // Extract bettor address from multiple possible fields
+    const bettorAddress = (betData as any).bettorAddress || betData.bettor || (betData as any).bettor_address || '';
+    
     const newBet: RecentBet = {
       id: Date.now(),
       poolId: betData.poolId?.toString() || '',
-      bettorAddress: betData.bettor || '',
+      bettorAddress: bettorAddress || '0x0000000000000000000000000000000000000000', // Fallback to zero address
       amount: amountInToken,
       amountFormatted: parseFloat(amountInToken).toFixed(2),
       isForOutcome: betData.isForOutcome !== undefined ? betData.isForOutcome : true,
@@ -248,10 +251,13 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
       amountInToken = (amountNum / 1e18).toString();
     }
     
+    // Extract creator address from multiple possible fields
+    const creatorAddress = (poolData as any).creatorAddress || poolData.creator || (poolData as any).creator_address || '';
+    
     const newBet: RecentBet = {
       id: Date.now(),
       poolId: poolData.poolId,
-      bettorAddress: poolData.creator,
+      bettorAddress: creatorAddress || '0x0000000000000000000000000000000000000000', // Fallback to zero address
       amount: amountInToken,
       amountFormatted: parseFloat(amountInToken).toFixed(2),
       isForOutcome: false,
@@ -271,7 +277,7 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
         title: poolData.title || `Pool #${poolData.poolId}`,
         useBitr: false,
         odds: poolData.odds || 0,
-        creatorAddress: poolData.creator
+        creatorAddress: creatorAddress || '0x0000000000000000000000000000000000000000'
       }
     };
     
@@ -294,10 +300,13 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
       amountInToken = (amountNum / 1e18).toString();
     }
     
+    // Extract provider address from multiple possible fields
+    const providerAddress = (liquidityData as any).providerAddress || liquidityData.provider || (liquidityData as any).provider_address || '';
+    
     const newBet: RecentBet = {
       id: Date.now(),
       poolId: liquidityData.poolId,
-      bettorAddress: liquidityData.provider,
+      bettorAddress: providerAddress || '0x0000000000000000000000000000000000000000', // Fallback to zero address
       amount: amountInToken,
       amountFormatted: parseFloat(amountInToken).toFixed(2),
       isForOutcome: false,
@@ -335,10 +344,13 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
         const transformedBets: RecentBet[] = bets.map((bet, index) => {
           // ✅ FIX: Backend already converts amounts, but ensure they're formatted correctly
           const amount = parseFloat(bet.amount || '0');
+          // Extract bettor address from multiple possible fields
+          const bettorAddress = (bet as any).bettorAddress || bet.bettor || (bet as any).bettor_address || '0x0000000000000000000000000000000000000000';
+          
           return {
             id: index + 1,
             poolId: bet.poolId.toString(),
-            bettorAddress: bet.bettor,
+            bettorAddress: bettorAddress,
             amount: amount.toString(),
             amountFormatted: amount.toFixed(2),
             isForOutcome: bet.isForOutcome,
@@ -477,10 +489,12 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs sm:text-sm font-semibold text-white truncate">
-                      {bet.bettorAddress.slice(0, 6)}...{bet.bettorAddress.slice(-4)}
+                      {bet.bettorAddress && typeof bet.bettorAddress === 'string' && bet.bettorAddress.length >= 10
+                        ? `${bet.bettorAddress.slice(0, 6)}...${bet.bettorAddress.slice(-4)}`
+                        : 'Unknown'}
                     </p>
                     <p className="text-xs text-gray-400 truncate hidden sm:block">
-                      {bet.bettorAddress}
+                      {bet.bettorAddress && typeof bet.bettorAddress === 'string' ? bet.bettorAddress : 'Unknown address'}
                     </p>
                   </div>
                   <div className="flex items-center gap-1">

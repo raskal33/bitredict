@@ -39,6 +39,12 @@ export function OddysseyLiveUpdates() {
 
   // Listen for slip evaluations (for current user)
   useSlipUpdates((slipData) => {
+    // ✅ Safety check: Skip if player is missing or invalid
+    if (!slipData.player || typeof slipData.player !== 'string') {
+      console.warn('⚠️ OddysseyLiveUpdates: Skipping slip update - missing or invalid player:', slipData);
+      return;
+    }
+    
     // Only show if it's the current user's slip
     if (slipData.player.toLowerCase() === address?.toLowerCase()) {
       setUserSlipResult({

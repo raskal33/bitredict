@@ -61,6 +61,12 @@ export function LivePoolUpdates() {
   const handleBetUpdate = useCallback((betData: SDSBetData) => {
     console.log('🎯 LivePoolUpdates: Received bet update:', betData);
     
+    // ✅ Safety check: Skip if bettor is missing
+    if (!betData.bettor || !betData.poolId) {
+      console.warn('⚠️ LivePoolUpdates: Skipping bet update - missing bettor or poolId:', betData);
+      return;
+    }
+    
     // ✅ FIX: Convert amount from wei to token if needed
     let amountInToken = betData.amount || '0';
     const amountNum = parseFloat(amountInToken);
@@ -68,10 +74,17 @@ export function LivePoolUpdates() {
       amountInToken = (amountNum / 1e18).toString();
     }
     
+    // ✅ Safety check: Ensure bettor is a string
+    const bettorAddress = (betData.bettor || betData.bettorAddress || '').toString();
+    if (!bettorAddress || bettorAddress.length < 10) {
+      console.warn('⚠️ LivePoolUpdates: Invalid bettor address:', bettorAddress);
+      return;
+    }
+    
     const activity: LiveActivity = {
       id: `bet-${betData.poolId}-${Date.now()}`,
       type: 'bet_placed',
-      message: `${betData.bettor.slice(0, 6)}...${betData.bettor.slice(-4)} bet ${amountInToken} ${betData.currency || 'STT'} on ${betData.poolTitle}`,
+      message: `${bettorAddress.slice(0, 6)}...${bettorAddress.slice(-4)} bet ${amountInToken} ${betData.currency || 'STT'} on ${betData.poolTitle || `Pool #${betData.poolId}`}`,
       timestamp: Date.now(),
       poolId: betData.poolId,
       amount: amountInToken
@@ -104,6 +117,20 @@ export function LivePoolUpdates() {
     
     // Type assertion for liquidity data
     const data = liquidityData as LiquidityData;
+    
+    // ✅ Safety check: Skip if provider or poolId is missing
+    if (!data.provider || !data.poolId) {
+      console.warn('⚠️ LivePoolUpdates: Skipping liquidity update - missing provider or poolId:', data);
+      return;
+    }
+    
+    // ✅ Safety check: Ensure provider is a string
+    const providerAddress = (data.provider || '').toString();
+    if (!providerAddress || providerAddress.length < 10) {
+      console.warn('⚠️ LivePoolUpdates: Invalid provider address:', providerAddress);
+      return;
+    }
+    
     // ✅ FIX: Convert amount from wei to token if needed
     let amountInToken = data.amount || '0';
     const amountNum = parseFloat(amountInToken);
@@ -114,7 +141,7 @@ export function LivePoolUpdates() {
     const activity: LiveActivity = {
       id: `liquidity-${data.poolId}-${Date.now()}`,
       type: 'bet_placed', // Use same type for display consistency
-      message: `${data.provider.slice(0, 6)}...${data.provider.slice(-4)} added ${amountInToken} ${data.currency || 'BITR'} liquidity to ${data.poolTitle || `Pool #${data.poolId}`}`,
+      message: `${providerAddress.slice(0, 6)}...${providerAddress.slice(-4)} added ${amountInToken} ${data.currency || 'BITR'} liquidity to ${data.poolTitle || `Pool #${data.poolId}`}`,
       timestamp: Date.now(),
       poolId: data.poolId,
       amount: amountInToken
