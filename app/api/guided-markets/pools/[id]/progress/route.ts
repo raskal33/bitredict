@@ -3,7 +3,7 @@ import { query } from '@/lib/db';
 import { PoolContractService } from '@/services/poolContractService';
 
 // ✅ Excluded from static export (proxied to backend via vercel.json)
-export const dynamic = 'force-static';
+export const dynamic = 'force-dynamic';
 export const revalidate = false;
 export const runtime = 'nodejs';
 

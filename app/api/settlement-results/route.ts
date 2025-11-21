@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 // ✅ Excluded from static export (proxied to backend via vercel.json)
-export const dynamic = 'force-static';
+export const dynamic = 'force-dynamic';
 export const revalidate = false;
 export const runtime = 'nodejs';
 

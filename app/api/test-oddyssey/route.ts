@@ -1,11 +1,20 @@
 import { NextResponse } from 'next/server';
 
 // ✅ Excluded from static export (proxied to backend via vercel.json)
-export const dynamic = 'force-static';
+export const dynamic = 'force-dynamic';
 export const revalidate = false;
 export const runtime = 'nodejs';
 
 export async function GET() {
+  // ✅ Skip execution during build time (this route is proxied to backend via vercel.json)
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    return NextResponse.json({
+      success: true,
+      message: 'Test API route - proxied to backend at runtime',
+      note: 'This route is handled by Vercel proxy during build'
+    });
+  }
+  
   try {
     console.log('🧪 Test API: Starting test...');
     

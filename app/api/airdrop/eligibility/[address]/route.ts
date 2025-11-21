@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 // ✅ Skip this route during static export (handled by Vercel proxy)
-export const dynamic = 'force-static';
+export const dynamic = 'force-dynamic';
 export const revalidate = false;
 export const runtime = 'nodejs';
 
