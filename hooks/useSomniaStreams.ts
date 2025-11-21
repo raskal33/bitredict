@@ -51,9 +51,42 @@ let globalSDKInstance: SDK | null = null; // ✅ Shared SDK instance
 // ✅ Global deduplication: Track seen events to prevent duplicate processing
 const globalSeenEvents = new Map<SDSEventType, Set<string>>();
 
+// ✅ Helper to normalize IDs (convert BigInt/hex to readable numbers)
+const normalizeId = (id: any): string => {
+  if (!id) return '0';
+  if (typeof id === 'string') {
+    // If it's a hex string (starts with 0x), convert to number
+    if (id.startsWith('0x')) {
+      try {
+        const bigInt = BigInt(id);
+        return bigInt.toString();
+      } catch {
+        return id;
+      }
+    }
+    // If it's already a number string, return as-is
+    return id;
+  }
+  if (typeof id === 'bigint' || typeof id === 'number') {
+    return id.toString();
+  }
+  return String(id);
+};
+
+// ✅ Helper to check if timestamp is recent (within last 5 minutes)
+const isRecentEvent = (timestamp: number | string | undefined): boolean => {
+  if (!timestamp) return true; // If no timestamp, allow it (will use current time)
+  const ts = typeof timestamp === 'string' ? parseInt(timestamp, 10) : timestamp;
+  if (isNaN(ts) || ts <= 0) return true; // Invalid timestamp, allow it
+  const now = Math.floor(Date.now() / 1000);
+  const fiveMinutesAgo = now - (5 * 60); // 5 minutes in seconds
+  return ts >= fiveMinutesAgo;
+};
+
 // Helper to create unique event key for deduplication
 const createEventDedupeKey = (eventType: SDSEventType, decodedData: any): string => {
-  const poolId = decodedData.poolId?.toString() || '';
+  // ✅ Normalize IDs before creating key
+  const poolId = normalizeId(decodedData.poolId);
   const timestamp = decodedData.timestamp?.toString() || '';
   
   if (eventType === 'bet:placed') {
@@ -66,11 +99,11 @@ const createEventDedupeKey = (eventType: SDSEventType, decodedData: any): string
     const provider = decodedData.provider?.toString() || decodedData.providerAddress?.toString() || '';
     return `${eventType}:${poolId}:${provider}:${timestamp}`;
   } else if (eventType === 'cycle:resolved') {
-    const cycleId = decodedData.cycleId?.toString() || poolId || '';
+    const cycleId = normalizeId(decodedData.cycleId || decodedData.poolId);
     return `${eventType}:${cycleId}:${timestamp}`;
   } else if (eventType === 'slip:evaluated') {
     const player = decodedData.player?.toString() || decodedData.user?.toString() || '';
-    const slipId = decodedData.slipId?.toString() || '';
+    const slipId = normalizeId(decodedData.slipId);
     return `${eventType}:${slipId}:${player}:${timestamp}`;
   }
   
@@ -1319,6 +1352,24 @@ export function useSomniaStreams(
               }
             }
             
+            // ✅ TIME FILTERING: Only process recent events (within last 5 minutes)
+            const eventTimestamp = decodedData.timestamp || Math.floor(Date.now() / 1000);
+            if (!isRecentEvent(eventTimestamp)) {
+              console.log(`⚠️ [SDS] Skipping old ${eventType} event (timestamp: ${eventTimestamp}, now: ${Math.floor(Date.now() / 1000)})`);
+              return; // Skip old events
+            }
+            
+            // ✅ NORMALIZE IDs: Convert BigInt/hex to readable numbers
+            if (decodedData.poolId) {
+              decodedData.poolId = normalizeId(decodedData.poolId);
+            }
+            if (decodedData.cycleId) {
+              decodedData.cycleId = normalizeId(decodedData.cycleId);
+            }
+            if (decodedData.slipId) {
+              decodedData.slipId = normalizeId(decodedData.slipId);
+            }
+            
             // ✅ Deduplication: Check if we've already seen this event
             const dedupeKey = createEventDedupeKey(eventType, decodedData);
             if (isEventSeen(eventType, dedupeKey)) {
@@ -1326,7 +1377,7 @@ export function useSomniaStreams(
               return; // Skip broadcasting duplicate event
             }
             
-            // Mark as seen before broadcasting
+            // Mark as seen BEFORE broadcasting to prevent loops
             markEventSeen(eventType, dedupeKey);
             
             // ✅ Broadcast to all subscribers from GLOBAL map
@@ -1648,8 +1699,9 @@ export function useCycleUpdates(callback: (data: SDSCycleResolvedData) => void, 
     if (!enabled) return;
     
     const wrappedCallback = (data: SDSEventData) => {
-      // Ensure cycleId is always set and valid
-      const cycleId = (data as any).cycleId?.toString() || (data as any).cycle_id?.toString() || (data as any).poolId?.toString() || '0';
+      // ✅ Normalize cycleId (convert BigInt/hex to readable number)
+      const rawCycleId = (data as any).cycleId || (data as any).cycle_id || (data as any).poolId || '0';
+      const cycleId = normalizeId(rawCycleId);
       
       // Skip if cycleId is invalid
       if (cycleId === '0' || !cycleId) {
@@ -1657,16 +1709,23 @@ export function useCycleUpdates(callback: (data: SDSCycleResolvedData) => void, 
         return;
       }
       
-      // Create unique key for deduplication
-      const dedupeKey = `cycle:${cycleId}`;
-      
-      // Skip if we've already seen this cycle (in memory or localStorage)
-      if (seenCyclesRef.current.has(dedupeKey)) {
-        console.log(`⚠️ Skipping duplicate cycle:resolved notification for cycle ${cycleId}`);
+      // ✅ TIME FILTERING: Only process recent events (within last 5 minutes)
+      const eventTimestamp = (data as any).timestamp || Math.floor(Date.now() / 1000);
+      if (!isRecentEvent(eventTimestamp)) {
+        console.log(`⚠️ Skipping old cycle:resolved event (cycle: ${cycleId}, timestamp: ${eventTimestamp})`);
         return;
       }
       
-      // Mark as seen
+      // Create unique key for deduplication (include timestamp to prevent same cycle from different times)
+      const dedupeKey = `cycle:${cycleId}:${eventTimestamp}`;
+      
+      // Skip if we've already seen this cycle (in memory or localStorage)
+      if (seenCyclesRef.current.has(dedupeKey)) {
+        console.log(`⚠️ Skipping duplicate cycle:resolved notification for cycle ${cycleId} at ${eventTimestamp}`);
+        return;
+      }
+      
+      // Mark as seen BEFORE calling callback
       seenCyclesRef.current.add(dedupeKey);
       
       // Persist to localStorage
@@ -1685,13 +1744,13 @@ export function useCycleUpdates(callback: (data: SDSCycleResolvedData) => void, 
         }
       }
       
-      // Ensure all required fields are present
+      // ✅ Ensure all required fields are present with normalized data
       const safeData: SDSCycleResolvedData = {
-        cycleId: cycleId,
+        cycleId: cycleId, // ✅ Normalized ID
         prizePool: (data as any).prizePool?.toString() || (data as any).prize_pool?.toString() || '0',
         totalSlips: (data as any).totalSlips ?? (data as any).total_slips ?? 0,
         status: (data as any).status || 'resolved',
-        timestamp: (data as any).timestamp || Math.floor(Date.now() / 1000)
+        timestamp: eventTimestamp
       };
       
       callbackRef.current(safeData);

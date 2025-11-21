@@ -25,9 +25,33 @@ export function OddysseyLiveUpdates() {
 
   // Listen for cycle resolutions
   useCycleUpdates((cycleData) => {
-    // ✅ Normalize and decode data like RecentBetsLane does
-    // Safety check: ensure cycleId is valid
-    const cycleId = cycleData.cycleId && cycleData.cycleId !== '0' ? cycleData.cycleId.toString() : 'Unknown';
+    // ✅ Normalize cycleId (convert BigInt/hex to readable number)
+    const normalizeId = (id: unknown): string => {
+      if (!id || id === '0') return 'Unknown';
+      if (typeof id === 'string' && id.startsWith('0x')) {
+        try {
+          return BigInt(id).toString();
+        } catch {
+          return id;
+        }
+      }
+      return String(id);
+    };
+    
+    const cycleId = normalizeId(cycleData.cycleId);
+    if (cycleId === 'Unknown' || cycleId === '0') {
+      console.warn('⚠️ OddysseyLiveUpdates: Invalid cycleId:', cycleData.cycleId);
+      return;
+    }
+    
+    // ✅ TIME FILTERING: Only show recent events (within last 5 minutes)
+    const eventTimestamp = cycleData.timestamp || Math.floor(Date.now() / 1000);
+    const now = Math.floor(Date.now() / 1000);
+    const fiveMinutesAgo = now - (5 * 60);
+    if (eventTimestamp < fiveMinutesAgo) {
+      console.log(`⚠️ OddysseyLiveUpdates: Skipping old cycle:resolved event (cycle: ${cycleId}, timestamp: ${eventTimestamp})`);
+      return;
+    }
     
     // ✅ Normalize prizePool from wei to STT (like RecentBetsLane)
     let prizePoolInSTT = cycleData.prizePool || '0';
@@ -39,11 +63,13 @@ export function OddysseyLiveUpdates() {
     
     setCycleStatus(`Cycle ${cycleId} resolved! 🎉 Prize pool: ${formattedPrizePool} STT`);
     
+    // ✅ Use unique toast ID with timestamp to prevent duplicates
+    const toastId = `cycle-resolved-${cycleId}-${eventTimestamp}`;
     toast.success(
       `🏆 Cycle ${cycleId} Results Are In!`,
       { 
         duration: 5000,
-        id: `cycle-resolved-${cycleId}` // Deduplication key for toast
+        id: toastId // ✅ Unique deduplication key for toast
       }
     );
     playNotification();
@@ -60,11 +86,21 @@ export function OddysseyLiveUpdates() {
       return;
     }
     
+    // ✅ TIME FILTERING: Only show recent events (within last 5 minutes)
+    const slipDataRecord = slipData as unknown as Record<string, unknown>;
+    const eventTimestamp = (slipDataRecord.timestamp as number) || Math.floor(Date.now() / 1000);
+    const now = Math.floor(Date.now() / 1000);
+    const fiveMinutesAgo = now - (5 * 60);
+    if (eventTimestamp < fiveMinutesAgo) {
+      console.log(`⚠️ OddysseyLiveUpdates: Skipping old slip:evaluated event (timestamp: ${eventTimestamp})`);
+      return;
+    }
+    
     // Only show if it's the current user's slip
     if (slipData.player.toLowerCase() === address?.toLowerCase()) {
       // ✅ Normalize prizeAmount from wei to STT (like RecentBetsLane)
-      const slipDataAny = slipData as unknown as Record<string, unknown>;
-      let prizeAmountInSTT = (slipDataAny.prizeAmount as string) || (slipDataAny.prize as string) || '0';
+      const slipDataRecord = slipData as unknown as Record<string, unknown>;
+      let prizeAmountInSTT = (slipDataRecord.prizeAmount as string) || (slipDataRecord.prize as string) || '0';
       const prizeAmountNum = parseFloat(prizeAmountInSTT.toString());
       if (prizeAmountNum > 1e12) {
         prizeAmountInSTT = (prizeAmountNum / 1e18).toString(); // Convert from wei to STT
@@ -72,12 +108,12 @@ export function OddysseyLiveUpdates() {
       const formattedPrize = parseFloat(prizeAmountInSTT.toString()).toFixed(2);
       
       // ✅ Normalize rank and winner status
-      const rank = (slipDataAny.rank as number) ?? (slipDataAny.leaderboard_rank as number) ?? 0;
-      const isWinner = (slipDataAny.isWinner as boolean) ?? (rank > 0 && rank <= 5);
+      const rank = (slipDataRecord.rank as number) ?? (slipDataRecord.leaderboard_rank as number) ?? 0;
+      const isWinner = (slipDataRecord.isWinner as boolean) ?? (rank > 0 && rank <= 5);
       
       // ✅ Normalize correct predictions
-      const correctCount = (slipDataAny.correctCount as number) ?? (slipDataAny.correctPredictions as number) ?? 0;
-      const totalPredictions = (slipDataAny.totalPredictions as number) ?? 10; // Oddyssey always has 10 predictions
+      const correctCount = (slipDataRecord.correctCount as number) ?? (slipDataRecord.correctPredictions as number) ?? 0;
+      const totalPredictions = (slipDataRecord.totalPredictions as number) ?? 10; // Oddyssey always has 10 predictions
       
       setUserSlipResult({
         isWinner: isWinner,

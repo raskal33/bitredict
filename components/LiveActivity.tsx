@@ -22,6 +22,19 @@ interface ActivityEvent {
   poolTitle?: string;
 }
 
+// ✅ Helper to normalize IDs (convert BigInt/hex to readable numbers) - shared across callbacks
+const normalizeId = (id: unknown): string => {
+  if (!id) return '0';
+  if (typeof id === 'string' && id.startsWith('0x')) {
+    try {
+      return BigInt(id).toString();
+    } catch {
+      return id;
+    }
+  }
+  return String(id);
+};
+
 export function LiveActivity() {
   const [events, setEvents] = useState<ActivityEvent[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -56,8 +69,8 @@ export function LiveActivity() {
   }) => {
     console.log('📡 LiveActivity: useBetUpdates callback triggered with data:', betData);
     
-    // ✅ Normalize data like RecentBetsLane does
-    const poolIdStr = betData.poolId?.toString() || '';
+    // ✅ Normalize poolId (convert BigInt/hex to readable number)
+    const poolIdStr = normalizeId(betData.poolId);
     if (!poolIdStr || poolIdStr === '0') {
       console.log('⚠️ LiveActivity: Invalid bet data (missing or invalid poolId):', betData);
       return;
@@ -70,6 +83,16 @@ export function LiveActivity() {
       return;
     }
     
+    const timestamp = betData.timestamp || Math.floor(Date.now() / 1000);
+    
+    // ✅ TIME FILTERING: Only show recent events (within last 5 minutes)
+    const now = Math.floor(Date.now() / 1000);
+    const fiveMinutesAgo = now - (5 * 60);
+    if (timestamp < fiveMinutesAgo) {
+      console.log(`⚠️ LiveActivity: Skipping old bet event (poolId: ${poolIdStr}, timestamp: ${timestamp})`);
+      return;
+    }
+    
     // ✅ Normalize amount from wei to token (like RecentBetsLane)
     let amountInToken = betData.amount || '0';
     const amountNum = parseFloat(amountInToken);
@@ -78,7 +101,6 @@ export function LiveActivity() {
     }
     const formattedAmount = parseFloat(amountInToken).toFixed(2);
     
-    const timestamp = betData.timestamp || Math.floor(Date.now() / 1000);
     const currency = betData.currency || ((betData as Record<string, unknown>).useBitr ? 'BITR' : 'STT');
     
     // ✅ FIX: Create unique event ID to prevent duplicates
@@ -127,8 +149,8 @@ export function LiveActivity() {
   }) => {
     console.log('📡 LiveActivity: usePoolCreatedUpdates callback triggered with data:', poolData);
     
-    // ✅ Normalize data like RecentBetsLane does
-    const poolIdStr = poolData.poolId?.toString() || '';
+    // ✅ Normalize poolId (convert BigInt/hex to readable number) - reuse function from above
+    const poolIdStr = normalizeId(poolData.poolId);
     if (!poolIdStr || poolIdStr === '0') {
       console.log('⚠️ LiveActivity: Invalid pool data (missing or invalid poolId):', poolData);
       return;
@@ -141,6 +163,16 @@ export function LiveActivity() {
       return;
     }
     
+    const timestamp = poolData.timestamp || Math.floor(Date.now() / 1000);
+    
+    // ✅ TIME FILTERING: Only show recent events (within last 5 minutes)
+    const now = Math.floor(Date.now() / 1000);
+    const fiveMinutesAgo = now - (5 * 60);
+    if (timestamp < fiveMinutesAgo) {
+      console.log(`⚠️ LiveActivity: Skipping old pool event (poolId: ${poolIdStr}, timestamp: ${timestamp})`);
+      return;
+    }
+    
     // ✅ Normalize creator stake from wei to token (like RecentBetsLane)
     let amountInToken = poolData.creatorStake || '0';
     const amountNum = parseFloat(amountInToken);
@@ -149,7 +181,6 @@ export function LiveActivity() {
     }
     const formattedAmount = parseFloat(amountInToken).toFixed(2);
     
-    const timestamp = poolData.timestamp || Math.floor(Date.now() / 1000);
     const currency = poolData.currency || ((poolData as Record<string, unknown>).useBitr ? 'BITR' : 'STT');
     
     const eventId = `pool-${poolIdStr}-${creatorAddress}-${timestamp}`;
@@ -194,8 +225,8 @@ export function LiveActivity() {
   }) => {
     console.log('📡 LiveActivity: useLiquidityAddedUpdates callback triggered with data:', liquidityData);
     
-    // ✅ Normalize data like RecentBetsLane does
-    const poolIdStr = liquidityData.poolId?.toString() || '';
+    // ✅ Normalize poolId (convert BigInt/hex to readable number) - reuse function from above
+    const poolIdStr = normalizeId(liquidityData.poolId);
     if (!poolIdStr || poolIdStr === '0') {
       console.log('⚠️ LiveActivity: Invalid liquidity data (missing or invalid poolId):', liquidityData);
       return;
@@ -205,6 +236,16 @@ export function LiveActivity() {
     const providerAddress = (liquidityData as Record<string, unknown>).providerAddress as string || liquidityData.provider || '';
     if (!providerAddress || providerAddress.length !== 42 || !providerAddress.startsWith('0x')) {
       console.log('⚠️ LiveActivity: Invalid liquidity data (missing or invalid provider):', liquidityData);
+      return;
+    }
+    
+    const timestamp = liquidityData.timestamp || Math.floor(Date.now() / 1000);
+    
+    // ✅ TIME FILTERING: Only show recent events (within last 5 minutes)
+    const now = Math.floor(Date.now() / 1000);
+    const fiveMinutesAgo = now - (5 * 60);
+    if (timestamp < fiveMinutesAgo) {
+      console.log(`⚠️ LiveActivity: Skipping old liquidity event (poolId: ${poolIdStr}, timestamp: ${timestamp})`);
       return;
     }
     
@@ -218,7 +259,7 @@ export function LiveActivity() {
     
     const currency = liquidityData.currency || 'STT';
     
-    const eventId = `lp-${poolIdStr}-${providerAddress}-${liquidityData.timestamp}`;
+    const eventId = `lp-${poolIdStr}-${providerAddress}-${timestamp}`;
     if (processedEventIds.current.has(eventId)) {
       console.log(`⚠️ LiveActivity: Duplicate liquidity event prevented: ${eventId}`);
       return;
