@@ -1093,9 +1093,11 @@ export function useSomniaStreams(
                 }
               }
               
-              // Validate and set timestamp
-              if (!decodedData.timestamp || decodedData.timestamp <= 0 || decodedData.timestamp > 2147483647) {
-                decodedData.timestamp = Math.floor(Date.now() / 1000);
+              // ✅ CRITICAL: Validate timestamp - don't default to current time (will be rejected later if invalid)
+              // Only set if it's clearly invalid (negative or too large), but don't default to now
+              if (decodedData.timestamp && (decodedData.timestamp <= 0 || decodedData.timestamp > 2147483647)) {
+                console.warn(`   ⚠️ Invalid timestamp detected: ${decodedData.timestamp}, will be rejected`);
+                decodedData.timestamp = undefined; // Will be rejected by timestamp validation later
               }
               console.log(`✅ Decoded on-chain event:`, decodedData);
             }
@@ -1213,7 +1215,7 @@ export function useSomniaStreams(
                     participantCount: Number(decoded[21]),
                     isSettled: decoded[17],
                     creatorSideWon: decoded[18],
-                    timestamp: Math.floor(Date.now() / 1000)
+                    timestamp: undefined // ✅ CRITICAL: Don't default to current time - require valid timestamp from data
                   };
                   console.log(`✅ Decoded pool created data:`, decodedData);
                 } catch (decodeError) {
@@ -1221,11 +1223,11 @@ export function useSomniaStreams(
                 }
               } else {
                 // Data already decoded or sent as object
-                decodedData = {
-                  ...data,
-                  poolId: data.poolId?.toString() || data.pool_id?.toString(),
-                  timestamp: data.timestamp || Math.floor(Date.now() / 1000)
-                };
+                  decodedData = {
+                    ...data,
+                    poolId: data.poolId?.toString() || data.pool_id?.toString(),
+                    timestamp: data.timestamp // ✅ CRITICAL: Don't default to current time
+                  };
               }
             }
             
@@ -1330,7 +1332,7 @@ export function useSomniaStreams(
                         bettor: bettor,
                         amount: '0',
                         isForOutcome: true,
-                        timestamp: Math.floor(Date.now() / 1000),
+                        timestamp: undefined, // ✅ CRITICAL: Don't default to current time - will be rejected
                         poolTitle: '',
                         category: '',
                         odds: 0,
@@ -1344,7 +1346,7 @@ export function useSomniaStreams(
                       bettor: bettor,
                       amount: data.amount || '0',
                       isForOutcome: data.isForOutcome !== undefined ? data.isForOutcome : true,
-                      timestamp: data.timestamp || Math.floor(Date.now() / 1000),
+                      timestamp: data.timestamp, // ✅ CRITICAL: Don't default to current time - require valid timestamp
                       poolTitle: data.poolTitle || '',
                       category: data.category || '',
                       odds: data.odds || 0,

@@ -27,21 +27,52 @@ export function OddysseyLiveUpdates() {
   const lastCycleNotificationRef = useRef<Map<string, number>>(new Map());
   const CYCLE_NOTIFICATION_RATE_LIMIT_MS = 5000; // Max 1 notification per 5 seconds per cycle
 
+  // ✅ Helper to normalize IDs (convert BigInt/hex to readable numbers) - safety check
+  const normalizeId = (id: unknown): string => {
+    if (!id || id === '0') return '0';
+    if (typeof id === 'string') {
+      // If it's a hex string (starts with 0x), convert to number
+      if (id.startsWith('0x')) {
+        try {
+          const bigInt = BigInt(id);
+          return bigInt.toString();
+        } catch {
+          return id;
+        }
+      }
+      // If it's already a number string, return as-is
+      return id;
+    }
+    if (typeof id === 'bigint' || typeof id === 'number') {
+      return id.toString();
+    }
+    return String(id);
+  };
+
   // Listen for cycle resolutions
   useCycleUpdates((cycleData) => {
-    // ✅ cycleId is already normalized by useSomniaStreams hook
-    const cycleId = String(cycleData.cycleId || '0');
+    // ✅ CRITICAL: Normalize cycleId explicitly (safety check even if useSomniaStreams normalizes)
+    const cycleDataRecord = cycleData as Record<string, unknown>;
+    const rawCycleId = cycleData.cycleId || (cycleDataRecord.cycle_id as string) || '0';
+    const cycleId = normalizeId(rawCycleId);
+    
     if (cycleId === '0' || !cycleId || cycleId === 'Unknown') {
-      console.warn('⚠️ OddysseyLiveUpdates: Invalid cycleId:', cycleData.cycleId);
+      console.warn('⚠️ OddysseyLiveUpdates: Invalid cycleId after normalization:', { raw: rawCycleId, normalized: cycleId, data: cycleData });
       return;
     }
     
-    // ✅ TIME FILTERING: Only show recent events (within last 5 minutes)
-    const eventTimestamp = cycleData.timestamp || Math.floor(Date.now() / 1000);
+    // ✅ CRITICAL: Require valid timestamp - reject events without timestamp
+    const eventTimestamp = cycleData.timestamp;
+    if (!eventTimestamp || typeof eventTimestamp !== 'number' || eventTimestamp <= 0) {
+      console.log(`⚠️ OddysseyLiveUpdates: Rejecting cycle:resolved event without valid timestamp:`, cycleData);
+      return;
+    }
+    
+    // ✅ TIME FILTERING: Only show recent events (within last 1 minute for real-time)
     const now = Math.floor(Date.now() / 1000);
-    const fiveMinutesAgo = now - (5 * 60);
-    if (eventTimestamp < fiveMinutesAgo) {
-      console.log(`⚠️ OddysseyLiveUpdates: Skipping old cycle:resolved event (cycle: ${cycleId}, timestamp: ${eventTimestamp})`);
+    const oneMinuteAgo = now - (1 * 60); // ✅ Changed from 5 minutes to 1 minute for real-time only
+    if (eventTimestamp < oneMinuteAgo) {
+      console.log(`⚠️ OddysseyLiveUpdates: Skipping old cycle:resolved event (cycle: ${cycleId}, timestamp: ${eventTimestamp}, age: ${now - eventTimestamp}s)`);
       return;
     }
     
@@ -54,12 +85,25 @@ export function OddysseyLiveUpdates() {
     }
     lastCycleNotificationRef.current.set(cycleId, currentTime);
     
-    // ✅ Normalize prizePool from wei to STT (like RecentBetsLane)
+    // ✅ Normalize prizePool from wei to STT (only if it's in wei format)
     let prizePoolInSTT = cycleData.prizePool || '0';
     const prizePoolNum = parseFloat(prizePoolInSTT);
-    if (prizePoolNum > 1e12) {
-      prizePoolInSTT = (prizePoolNum / 1e18).toString(); // Convert from wei to STT
+    
+    // ✅ CRITICAL: Only convert if it's clearly in wei (very large number > 1e12)
+    // If it's already in STT format (small number), don't convert
+    if (prizePoolNum > 1e12 && prizePoolNum < 1e30) {
+      // Likely in wei, convert to STT
+      prizePoolInSTT = (prizePoolNum / 1e18).toString();
+      console.log(`   💰 Converted prize pool from wei: ${prizePoolNum} → ${prizePoolInSTT} STT`);
+    } else if (prizePoolNum >= 1e30) {
+      // Extremely large number, might be a hash or invalid - log warning
+      console.warn(`   ⚠️ Prize pool value seems invalid (too large): ${prizePoolNum}, using 0`);
+      prizePoolInSTT = '0';
+    } else {
+      // Already in STT format or small number, use as-is
+      console.log(`   💰 Prize pool already in STT format: ${prizePoolInSTT}`);
     }
+    
     const formattedPrizePool = parseFloat(prizePoolInSTT).toFixed(2);
     
     setCycleStatus(`Cycle ${cycleId} resolved! 🎉 Prize pool: ${formattedPrizePool} STT`);

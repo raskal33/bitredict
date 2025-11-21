@@ -1,6 +1,0 @@
-# Force fresh builds - don't cache these
-.next/
-out/
-node_modules/.cache/
-.swc/
-
