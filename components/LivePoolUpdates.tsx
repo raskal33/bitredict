@@ -51,7 +51,12 @@ export function LivePoolUpdates() {
     
     // Show toast notification + play sound
     if (poolData.isSettled) {
-      toast.success(`🏆 ${poolData.title} settled!`, { duration: 4000 });
+      // ✅ Use unique toast ID to prevent duplicates
+      const toastId = `pool-settled-${poolData.poolId}`;
+      toast.success(`🏆 ${poolData.title} settled!`, { 
+        duration: 4000,
+        id: toastId // ✅ Unique deduplication key for toast
+      });
       playSuccess();
     } else {
       playNotification();
