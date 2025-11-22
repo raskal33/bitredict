@@ -1114,6 +1114,11 @@ export function useSomniaStreams(
                       // Validate timestamp
                       if (ts > 0 && ts < 2147483647) {
                         decodedData.timestamp = ts;
+                        console.log(`   ✅ Extracted timestamp from ABI decode: ${ts}`);
+                      } else {
+                        // Fallback to current time if invalid
+                        decodedData.timestamp = Math.floor(Date.now() / 1000);
+                        console.log(`   ℹ️ Invalid timestamp from ABI, using current time`);
                       }
                       // ✅ CRITICAL: Ensure cycleId is normalized (from topic[1] which was already normalized above)
                       if (!decodedData.cycleId) {
