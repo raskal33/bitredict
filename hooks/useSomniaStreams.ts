@@ -7,12 +7,39 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { SDK } from '@somnia-chain/streams';
-import { createPublicClient, webSocket, defineChain } from 'viem';
+import { createPublicClient, webSocket, http, defineChain } from 'viem';
 
 // Define Somnia testnet with WebSocket URL
 
 const SOMNIA_TESTNET_RPC_URL = process.env.NEXT_PUBLIC_SDS_RPC_URL || 'https://dream-rpc.somnia.network';
 const SOMNIA_TESTNET_WS_URL = process.env.NEXT_PUBLIC_SDS_WS_URL || 'wss://dream-rpc.somnia.network/ws'; // ✅ /ws suffix required
+
+// ✅ Publisher address from backend (must match backend's publisher)
+const PUBLISHER_ADDRESS = (process.env.NEXT_PUBLIC_SDS_PUBLISHER_ADDRESS || '0x483fc7FD690dCf2a01318282559C389F385d4428') as `0x${string}`;
+
+// ✅ Helper: Compute schemaId from context (SHA-256 hash) - must match backend
+async function getSchemaIdForContext(context: string): Promise<`0x${string}`> {
+  const encoder = new TextEncoder();
+  const encodedData = encoder.encode(context);
+  // Convert to ArrayBuffer explicitly to satisfy TypeScript's strict type checking
+  const dataBuffer = encodedData.buffer.slice(
+    encodedData.byteOffset,
+    encodedData.byteOffset + encodedData.byteLength
+  ) as ArrayBuffer;
+  const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  return `0x${hashHex.slice(0, 64)}` as `0x${string}`;
+}
+
+// ✅ Helper: Decode hex string to UTF-8 string
+function hexToString(hex: `0x${string}` | string): string {
+  const hexWithoutPrefix = hex.startsWith('0x') ? hex.slice(2) : hex;
+  const bytes = new Uint8Array(
+    hexWithoutPrefix.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16))
+  );
+  return new TextDecoder().decode(bytes);
+}
 
 const somniaTestnet = defineChain({
   id: 50312,
@@ -358,20 +385,15 @@ export function useSomniaStreams(
     }
 
     try {
-      // Get WebSocket URL from chain config 
-      const wsUrl = getWSURL();
-      
-      console.log('📡 Creating public client with WebSocket transport...');
-      console.log(`   WebSocket URL: ${wsUrl}`);
+      // Use HTTP transport for public client (read-only operations)
+      console.log('📡 Creating public client with HTTP transport...');
+      console.log(`   RPC URL: ${SOMNIA_TESTNET_RPC_URL}`);
 
-      // Create WebSocket transport
-      const wsTransport = webSocket(wsUrl);
-      
-      // Create public client 
+      // Create public client with HTTP transport
       const publicClient = createPublicClient({
         chain: somniaTestnet,
-        transport: wsTransport,
-      });
+        transport: http(SOMNIA_TESTNET_RPC_URL),
+      }) as any; // Type assertion to avoid viem type inference issues
 
       console.log('✅ Public client created, initializing SDK...');
       
@@ -636,408 +658,239 @@ export function useSomniaStreams(
         // ✅ Mark as pending GLOBALLY to prevent duplicate subscriptions across ALL components
         globalPendingSubscriptions.add(eventType);
         
-        console.log(`📡 [GLOBAL] Subscribing to ${eventType} via SDS (context: ${contextConfig})`);
+        console.log(`📡 [GLOBAL] Setting up polling for ${eventType} via SDS (context: ${contextConfig})`);
         console.log(`   SDK available: ${!!sdkAvailable}, SDS active: ${sdsActive}, First subscriber: ${isFirstSubscriber}, Pending: ${isPending}`);
         
         try {
-
-          const subscriptionParams = {
-            context: contextConfig,
-            ethCalls: [], // Empty array for context-based subscriptions
-            onlyPushChanges: true, // ✅ CRITICAL: Only receive new events, not historical ones
-            onData: (data: any) => {
-            // ✅ DEBUG: Log full structure to understand what we're receiving
-            console.log(`📦 [SDS] Received ${eventType} data (context: ${contextConfig}):`, {
-              type: typeof data,
-              isObject: typeof data === 'object',
-              keys: data && typeof data === 'object' ? Object.keys(data) : [],
-              hasResult: !!(data && typeof data === 'object' && data.result),
-              hasSubscription: !!(data && typeof data === 'object' && data.subscription),
-              resultKeys: data?.result && typeof data.result === 'object' ? Object.keys(data.result) : [],
-              resultHasTopics: !!(data?.result && typeof data.result === 'object' && Array.isArray(data.result.topics)),
-              resultHasData: !!(data?.result && typeof data.result === 'object' && data.result.data),
-              resultDataType: typeof data?.result?.data,
-              resultDataLength: data?.result?.data?.length || 0,
-              fullDataPreview: JSON.stringify(data).substring(0, 2000)
-            });
-            
-            // ✅ CRITICAL FIX: Extract data from result field (SDS wraps data in {subscription, result})
-            let actualData = data;
-            if (data && typeof data === 'object' && data.result) {
-              console.log(`📦 [SDS] Extracting data from result field`);
-              actualData = data.result;
-            }
-            
-            // ✅ CRITICAL: Extract JSON from data field even if it has topics
-            // Backend publishes JSON in the data field of blockchain events
-            let jsonData: any = null;
-            const hasTopics = actualData && typeof actualData === 'object' && Array.isArray(actualData.topics);
-            
-            if (hasTopics && actualData.data) {
-              // Try to extract JSON from the hex-encoded data field
-              try {
-                const dataHex = actualData.data;
-                if (dataHex && typeof dataHex === 'string' && dataHex.startsWith('0x') && dataHex.length > 2) {
-                  // Decode hex to string (browser-compatible)
-                  const hexString = dataHex.slice(2);
-                  let decodedString = '';
-                  for (let i = 0; i < hexString.length; i += 2) {
-                    const hexByte = hexString.substr(i, 2);
-                    const charCode = parseInt(hexByte, 16);
-                    if (charCode > 0) {
-                      decodedString += String.fromCharCode(charCode);
-                    }
-                  }
-                  decodedString = decodedString.replace(/\0/g, '').trim();
-                  
-                  // Log decoded string preview for debugging
-                  if (decodedString.length > 0) {
-                    console.log(`📦 [SDS] Decoded data field (${decodedString.length} chars, preview: ${decodedString.substring(0, 200)}...)`);
-                  }
-                  
-                  // Check if it contains JSON
-                  if (decodedString.includes('{') || decodedString.includes('[')) {
-                    // Try to find JSON in the decoded string
-                    const jsonStart = decodedString.indexOf('{');
-                    const jsonEnd = decodedString.lastIndexOf('}') + 1;
-                    if (jsonStart >= 0 && jsonEnd > jsonStart) {
-                      const jsonStr = decodedString.substring(jsonStart, jsonEnd);
-                      try {
-                        jsonData = JSON.parse(jsonStr);
-                        console.log(`📦 [SDS] Extracted JSON from blockchain event data field (${jsonStr.length} chars)`);
-                } catch (e) {
-                        // Try parsing the whole decoded string
-                        try {
-                          jsonData = JSON.parse(decodedString);
-                          console.log(`📦 [SDS] Parsed entire decoded string as JSON`);
-                        } catch (e2) {
-                          // Try to find JSON array
-                          const arrayStart = decodedString.indexOf('[');
-                          const arrayEnd = decodedString.lastIndexOf(']') + 1;
-                          if (arrayStart >= 0 && arrayEnd > arrayStart) {
-                            try {
-                              jsonData = JSON.parse(decodedString.substring(arrayStart, arrayEnd));
-                              console.log(`📦 [SDS] Parsed JSON array from decoded string`);
-                            } catch (e3) {
-                              console.warn(`⚠️ [SDS] Failed to parse JSON from data field:`, e2, `(also tried array: ${e3})`);
-                    }
-                  } else {
-                            console.warn(`⚠️ [SDS] Failed to parse JSON from data field:`, e2);
-                  }
+          // ✅ NEW: Use polling with schemaId instead of context-based subscription
+          let lastIndex = BigInt(-1);
+          let pollInterval: NodeJS.Timeout | null = null;
+          
+          const startPolling = async () => {
+            try {
+              const schemaId = await getSchemaIdForContext(contextConfig);
+              const sdkToUse = sdkRef.current || globalSDKInstance;
+              if (!sdkToUse) {
+                throw new Error('SDK not available for polling');
+              }
+              
+              // Get total count
+              const total = await sdkToUse.streams.totalPublisherDataForSchema(
+                schemaId,
+                PUBLISHER_ADDRESS
+              );
+              
+              if (!total || total === BigInt(0)) {
+                console.log(`📊 [SDS] No data yet for ${eventType} (schemaId: ${schemaId})`);
+                return;
+              }
+              
+              // Get latest index
+              const latestIndex = total - BigInt(1);
+              
+              // Only process if we have new data
+              if (latestIndex > lastIndex) {
+                // Get all new data from lastIndex + 1 to latestIndex
+                for (let idx = lastIndex + BigInt(1); idx <= latestIndex; idx = idx + BigInt(1)) {
+                  try {
+                    const result = await sdkToUse.streams.getAtIndex(
+                      schemaId,
+                      PUBLISHER_ADDRESS,
+                      idx
+                    );
+                    
+                    if (result && result.length > 0) {
+                      // Decode hex-encoded data
+                      let hexData: `0x${string}` | string | null = null;
+                      
+                      // Handle different result formats
+                      if (Array.isArray(result[0]) && result[0].length > 0) {
+                        const firstItem = result[0][0];
+                        if (typeof firstItem === 'string') {
+                          hexData = firstItem;
+                        } else if (firstItem && typeof firstItem === 'object' && (firstItem as any).data) {
+                          hexData = (firstItem as any).data;
                         }
-                }
-              } else {
-                      console.warn(`⚠️ [SDS] Found { or [ but couldn't find matching closing bracket`);
+                      } else if (typeof result[0] === 'string') {
+                        hexData = result[0];
+                      } else if (result[0] && typeof result[0] === 'object' && (result[0] as any).data) {
+                        hexData = (result[0] as any).data;
+                      }
+                      
+                      if (hexData && typeof hexData === 'string' && hexData.startsWith('0x')) {
+                        // Decode hex to JSON string
+                        const jsonString = hexToString(hexData as `0x${string}`);
+                        
+                        // Parse JSON
+                        let jsonData: any;
+                        try {
+                          jsonData = JSON.parse(jsonString);
+                        } catch (e) {
+                          console.warn(`⚠️ [SDS] Failed to parse JSON for ${eventType}:`, e);
+                          continue;
+                        }
+                        
+                        // Process the decoded JSON data
+                        console.log(`📦 [SDS] ✅ Decoded backend JSON for ${eventType}:`, {
+                          keys: Object.keys(jsonData),
+                          preview: JSON.stringify(jsonData).substring(0, 200)
+                        });
+                        
+                        // Use jsonData directly - it's already our backend's clean JSON
+                        let decodedData = { ...jsonData };
+                        
+                        // Handle array of events
+                        if (Array.isArray(decodedData) && decodedData.length > 0) {
+                          decodedData = decodedData[0];
+                        }
+                        
+                        if (typeof decodedData !== 'object' || !decodedData) {
+                          console.warn(`⚠️ [SDS] Invalid data format for ${eventType}`);
+                          continue;
+                        }
+                        
+                        // ✅ CRITICAL: Handle field name variations (snake_case vs camelCase)
+                        if (!decodedData.poolId && (decodedData as any).pool_id) {
+                          decodedData.poolId = (decodedData as any).pool_id;
+                        }
+                        if (!decodedData.cycleId && (decodedData as any).cycle_id) {
+                          decodedData.cycleId = (decodedData as any).cycle_id;
+                        }
+                        if (!decodedData.slipId && (decodedData as any).slip_id) {
+                          decodedData.slipId = (decodedData as any).slip_id;
+                        }
+                        if (!decodedData.bettor && (decodedData as any).bettor_address) {
+                          decodedData.bettor = (decodedData as any).bettor_address;
+                        }
+                        if (!decodedData.creator && (decodedData as any).creator_address) {
+                          decodedData.creator = (decodedData as any).creator_address;
+                        }
+                        if (!decodedData.provider && (decodedData as any).provider_address) {
+                          decodedData.provider = (decodedData as any).provider_address;
+                        }
+                        if (!decodedData.player && (decodedData as any).player_address) {
+                          decodedData.player = (decodedData as any).player_address;
+                        }
+                        
+                        // ✅ CRITICAL: Normalize IDs
+                        if (decodedData.poolId) {
+                          decodedData.poolId = normalizeId(decodedData.poolId);
+                        }
+                        if (decodedData.cycleId) {
+                          decodedData.cycleId = normalizeId(decodedData.cycleId);
+                        }
+                        if (decodedData.slipId) {
+                          decodedData.slipId = normalizeId(decodedData.slipId);
+                        }
+                        
+                        // ✅ CRITICAL: Ensure addresses are lowercase strings
+                        if (decodedData.bettor) {
+                          decodedData.bettor = String(decodedData.bettor).toLowerCase();
+                          (decodedData as any).bettorAddress = decodedData.bettor;
+                        }
+                        if (decodedData.creator) {
+                          decodedData.creator = String(decodedData.creator).toLowerCase();
+                        }
+                        if (decodedData.provider) {
+                          decodedData.provider = String(decodedData.provider).toLowerCase();
+                        }
+                        if (decodedData.player) {
+                          decodedData.player = String(decodedData.player).toLowerCase();
+                        }
+                        
+                        // ✅ CRITICAL: Ensure amounts are strings
+                        if (decodedData.amount && typeof decodedData.amount !== 'string') {
+                          decodedData.amount = decodedData.amount.toString();
+                        }
+                        
+                        // ✅ CRITICAL: Validate timestamp
+                        if (!decodedData.timestamp) {
+                          decodedData.timestamp = Math.floor(Date.now() / 1000);
+                        }
+                        
+                        const eventTimestamp = decodedData.timestamp;
+                        if (!eventTimestamp || typeof eventTimestamp !== 'number' || eventTimestamp <= 0) {
+                          console.log(`⚠️ [SDS] Rejecting ${eventType} event without valid timestamp`);
+                          continue;
+                        }
+                        
+                        // ✅ TIME FILTERING: Only process recent events
+                        if (!isRecentEvent(eventTimestamp)) {
+                          console.log(`⚠️ [SDS] Skipping old ${eventType} event`);
+                          continue;
+                        }
+                        
+                        // ✅ CRITICAL: Ensure currency is set
+                        if (!decodedData.currency) {
+                          const useBitr = (decodedData as any).useBitr || (decodedData as any).use_bitr;
+                          decodedData.currency = useBitr ? 'BITR' : 'STT';
+                        }
+                        
+                        // ✅ Rate limiting
+                        const now = Date.now();
+                        const rateLimitKey = `${eventType}:${decodedData.poolId || decodedData.cycleId || 'unknown'}`;
+                        const lastTime = lastNotificationTime.get(rateLimitKey);
+                        if (lastTime && (now - lastTime) < NOTIFICATION_RATE_LIMIT_MS) {
+                          continue;
+                        }
+                        lastNotificationTime.set(rateLimitKey, now);
+                        
+                        // ✅ Deduplication
+                        const dedupeKey = createEventDedupeKey(eventType, decodedData);
+                        if (isEventSeen(eventType, dedupeKey)) {
+                          continue;
+                        }
+                        markEventSeen(eventType, dedupeKey);
+                        
+                        // ✅ Broadcast to all subscribers
+                        const callbacks = globalSubscribersMap.get(eventType);
+                        if (callbacks && callbacks.size > 0) {
+                          callbacks.forEach(cb => {
+                            try {
+                              cb(decodedData as SDSEventData);
+                            } catch (error) {
+                              console.error(`❌ Error in callback for ${eventType}:`, error);
+                            }
+                          });
+                        }
+                      }
                     }
-                  } else {
-                    console.warn(`⚠️ [SDS] Decoded string doesn't contain JSON markers ({ or [):`, decodedString.substring(0, 500));
-                    }
-                  }
-                } catch (e) {
-                console.warn(`⚠️ [SDS] Failed to decode data field:`, e);
-              }
-              
-              // If we couldn't extract JSON, skip this event
-              if (!jsonData) {
-                console.log(`⚠️ [SDS] Skipping blockchain event - no JSON found in data field:`, {
-                  eventType,
-                  hasTopics: true,
-                  topicsLength: actualData.topics.length,
-                  hasAddress: !!actualData.address,
-                  dataFieldLength: actualData.data?.length || 0
-                });
-                return;
-              }
-            } else if (typeof actualData === 'string') {
-              // Backend sends JSON strings - parse them
-              const trimmed = actualData.trim();
-              if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-                try {
-                  jsonData = JSON.parse(trimmed);
-                  console.log(`📦 [SDS] Parsed backend JSON string to object`);
-                } catch (e) {
-                  console.warn(`⚠️ [SDS] Failed to parse JSON string:`, e);
-                  return; // Skip invalid JSON
-                }
-                    } else {
-                // Not JSON, might be hex-encoded - but if it doesn't look like our data, skip it
-                console.warn(`⚠️ [SDS] Data string doesn't look like JSON (doesn't start with { or [):`, trimmed.substring(0, 100));
-                return;
-              }
-            } else if (actualData && typeof actualData === 'object' && !hasTopics) {
-              // Already parsed JSON object from our backend (no topics array)
-              jsonData = actualData;
-              console.log(`📦 [SDS] Using backend JSON object directly`);
-                    } else {
-              // Unknown format, skip
-              console.warn(`⚠️ [SDS] Unknown data format, skipping:`, typeof actualData, actualData);
-              return;
-            }
-            
-            // ✅ CRITICAL: Validate that we have valid JSON data from our backend
-            if (!jsonData) {
-              console.warn(`⚠️ [SDS] Invalid JSON data from backend, skipping:`, jsonData);
-              return;
-            }
-            
-            // Handle array of events
-            if (Array.isArray(jsonData) && jsonData.length > 0) {
-              console.log(`📦 [SDS] JSON is an array with ${jsonData.length} items, processing first item`);
-              jsonData = jsonData[0];
-            }
-            
-            if (typeof jsonData !== 'object') {
-              console.warn(`⚠️ [SDS] JSON data is not an object, skipping:`, typeof jsonData);
-              return;
-            }
-            
-            // ✅ CRITICAL: Skip blockchain transaction data (has releases/swaps/asset_in_type)
-            // These are SDS-indexed blockchain events, not our backend's published JSON
-            if (jsonData.releases || jsonData.swaps || jsonData.asset_in_type) {
-              console.log(`⚠️ [SDS] Skipping SDS-indexed blockchain event (has releases/swaps/asset_in_type) - this is not backend JSON`);
-              console.log(`   Event type: ${eventType}, Context: ${contextConfig}`);
-              console.log(`   Data keys:`, Object.keys(jsonData));
-              return; // Skip blockchain transaction data
-            }
-            
-            // ✅ Backend publishes clean JSON with poolId, bettor, cycleId, etc.
-            // Check if this looks like backend JSON (has our event fields)
-            const hasBackendFields = jsonData.poolId || jsonData.pool_id || 
-                                    jsonData.cycleId || jsonData.cycle_id ||
-                                    jsonData.bettor || jsonData.bettor_address ||
-                                    jsonData.creator || jsonData.creator_address ||
-                                    jsonData.provider || jsonData.provider_address ||
-                                    jsonData.player || jsonData.player_address ||
-                                    jsonData.slipId || jsonData.slip_id;
-            
-            if (!hasBackendFields) {
-              console.log(`⚠️ [SDS] Skipping data - doesn't look like backend JSON (missing event fields)`);
-              console.log(`   Event type: ${eventType}, Context: ${contextConfig}`);
-              console.log(`   Data keys:`, Object.keys(jsonData));
-              console.log(`   Preview:`, JSON.stringify(jsonData).substring(0, 200));
-              return; // Skip data that doesn't have our event fields
-            }
-            
-            console.log(`✅ [SDS] Processing backend JSON data for ${eventType}:`, {
-              keys: Object.keys(jsonData),
-              preview: JSON.stringify(jsonData).substring(0, 500)
-            });
-            
-            // ✅ Use jsonData directly - it's already our backend's clean JSON
-            let eventData: any = jsonData;
-            
-            // ✅ All data processing now uses eventData (backend's clean JSON)
-            let decodedData = { ...eventData };
-            
-            // ✅ CRITICAL: Handle field name variations (snake_case vs camelCase)
-            // Map snake_case to camelCase for consistency
-            if (!decodedData.poolId && (decodedData.pool_id || (eventData as any).pool_id)) {
-              decodedData.poolId = decodedData.pool_id || (eventData as any).pool_id;
-            }
-            if (!decodedData.cycleId && (decodedData.cycle_id || (eventData as any).cycle_id)) {
-              decodedData.cycleId = decodedData.cycle_id || (eventData as any).cycle_id;
-            }
-            if (!decodedData.slipId && (decodedData.slip_id || (eventData as any).slip_id)) {
-              decodedData.slipId = decodedData.slip_id || (eventData as any).slip_id;
-            }
-            if (!decodedData.bettor && (decodedData.bettor_address || (eventData as any).bettor_address)) {
-              decodedData.bettor = decodedData.bettor_address || (eventData as any).bettor_address;
-            }
-            if (!decodedData.bettorAddress && decodedData.bettor) {
-              decodedData.bettorAddress = decodedData.bettor;
-            }
-            if (!decodedData.creator && (decodedData.creator_address || (eventData as any).creator_address)) {
-              decodedData.creator = decodedData.creator_address || (eventData as any).creator_address;
-            }
-            if (!decodedData.provider && (decodedData.provider_address || (eventData as any).provider_address)) {
-              decodedData.provider = decodedData.provider_address || (eventData as any).provider_address;
-            }
-            if (!decodedData.player && (decodedData.player_address || (eventData as any).player_address)) {
-              decodedData.player = decodedData.player_address || (eventData as any).player_address;
-            }
-            
-            // ✅ CRITICAL: Normalize IDs from backend JSON (convert BigInt/hex to readable numbers)
-            if (decodedData.poolId) {
-              decodedData.poolId = normalizeId(decodedData.poolId);
-            }
-            if (decodedData.cycleId) {
-              decodedData.cycleId = normalizeId(decodedData.cycleId);
-            }
-            if (decodedData.slipId) {
-              decodedData.slipId = normalizeId(decodedData.slipId);
-            }
-            
-            // ✅ CRITICAL: Ensure addresses are lowercase strings
-            if (decodedData.bettor) {
-              decodedData.bettor = String(decodedData.bettor).toLowerCase();
-                decodedData.bettorAddress = decodedData.bettor;
-              }
-            if (decodedData.creator) {
-              decodedData.creator = String(decodedData.creator).toLowerCase();
-            }
-            if (decodedData.provider) {
-              decodedData.provider = String(decodedData.provider).toLowerCase();
-            }
-            if (decodedData.player) {
-              decodedData.player = String(decodedData.player).toLowerCase();
-            }
-            
-            // ✅ CRITICAL: Ensure amounts are strings (backend sends as strings)
-            if (decodedData.amount && typeof decodedData.amount !== 'string') {
-              decodedData.amount = decodedData.amount.toString();
-            }
-            
-            // ✅ CRITICAL: Validate and extract timestamp from backend JSON
-            if (!decodedData.timestamp) {
-              // Try to extract from various timestamp fields
-              const ts = decodedData.timestamp || 
-                        (decodedData as any).created_at || 
-                        (decodedData as any).createdAt ||
-                        (decodedData as any).time;
-              
-              if (ts) {
-                if (typeof ts === 'number') {
-                  decodedData.timestamp = ts;
-                } else if (typeof ts === 'string') {
-                  // Try parsing as Unix timestamp
-                  const parsed = parseInt(ts, 10);
-                  if (!isNaN(parsed) && parsed > 0) {
-                    decodedData.timestamp = parsed;
-                  } else {
-                    // Try parsing as date string
-                    try {
-                      const date = new Date(ts);
-                      decodedData.timestamp = Math.floor(date.getTime() / 1000);
-                  } catch (e) {
-                      console.warn(`⚠️ [SDS] Failed to parse timestamp:`, ts);
-                    }
+                    
+                    // Update lastIndex
+                    lastIndex = latestIndex;
+                  } catch (err) {
+                    console.error(`❌ Error fetching data at index ${idx}:`, err);
                   }
                 }
               }
-              
-              // Fallback to current time if still missing
-              if (!decodedData.timestamp) {
-                decodedData.timestamp = Math.floor(Date.now() / 1000);
-                console.log(`   ℹ️ Defaulting timestamp to current time for ${eventType}`);
-              }
+            } catch (err) {
+              console.error(`❌ Error in polling for ${eventType}:`, err);
             }
-            
-            // ✅ CRITICAL: Validate timestamp before processing
-            const eventTimestamp = decodedData.timestamp;
-            if (!eventTimestamp || typeof eventTimestamp !== 'number' || eventTimestamp <= 0 || eventTimestamp > 2147483647) {
-              console.log(`⚠️ [SDS] Rejecting ${eventType} event without valid timestamp:`, decodedData);
-              return; // Reject events without valid timestamp
+          };
+          
+          // Start polling immediately
+          startPolling();
+          
+          // Set up polling interval (every 2 seconds)
+          pollInterval = setInterval(startPolling, 2000);
+          
+          // Store cleanup function
+          globalUnsubscribeFunctionsMap.set(eventType as any, () => {
+            if (pollInterval) {
+              clearInterval(pollInterval);
+              pollInterval = null;
             }
-            
-            // ✅ TIME FILTERING: Only process recent events (within last 3 minutes for live activity)
-            if (!isRecentEvent(eventTimestamp)) {
-              console.log(`⚠️ [SDS] Skipping old ${eventType} event (timestamp: ${eventTimestamp}, now: ${Math.floor(Date.now() / 1000)}, age: ${Math.floor(Date.now() / 1000) - eventTimestamp}s)`);
-              return; // Skip old events
-            }
-            
-            // ✅ CRITICAL: Ensure currency is set (backend should include this)
-            if (!decodedData.currency) {
-              // Try to infer from useBitr flag
-              const useBitr = (decodedData as any).useBitr || (decodedData as any).use_bitr;
-              decodedData.currency = useBitr ? 'BITR' : 'STT';
-            }
-            
-            console.log(`✅ [SDS] Processed backend JSON data for ${eventType}:`, {
-              poolId: decodedData.poolId,
-              cycleId: decodedData.cycleId,
-              timestamp: decodedData.timestamp,
-              currency: decodedData.currency
-            });
-            
-            
-            // ✅ Rate limiting: Prevent notification bombing
-            const now = Date.now();
-            const rateLimitKey = `${eventType}:${decodedData.poolId || decodedData.cycleId || 'unknown'}`;
-            const lastTime = lastNotificationTime.get(rateLimitKey);
-            if (lastTime && (now - lastTime) < NOTIFICATION_RATE_LIMIT_MS) {
-              console.log(`⚠️ [SDS] Rate limit: Skipping ${eventType} event (last notification ${now - lastTime}ms ago)`);
-              return; // Skip if rate limited
-            }
-            lastNotificationTime.set(rateLimitKey, now);
-            
-            // ✅ Deduplication: Check if we've already seen this event
-            const dedupeKey = createEventDedupeKey(eventType, decodedData);
-            if (isEventSeen(eventType, dedupeKey)) {
-              console.log(`⚠️ [SDS] Skipping duplicate ${eventType} event: ${dedupeKey}`);
-              return; // Skip broadcasting duplicate event
-            }
-            
-            // Mark as seen BEFORE broadcasting to prevent loops
-            markEventSeen(eventType, dedupeKey);
-            
-            // ✅ Broadcast to all subscribers from GLOBAL map
-            const callbacks = globalSubscribersMap.get(eventType);
-            if (callbacks && callbacks.size > 0) {
-              console.log(`📦 [SDS] Broadcasting to ${callbacks.size} callbacks for ${eventType}`);
-              let callbackCount = 0;
-              callbacks.forEach(cb => {
-                try {
-                  callbackCount++;
-                  cb(decodedData as SDSEventData);
-                  console.log(`   ✅ Callback ${callbackCount}/${callbacks.size} executed successfully`);
-                } catch (error) {
-                  console.error(`❌ Error in callback ${callbackCount}/${callbacks.size} for ${eventType}:`, error);
-                }
-              });
-            } else {
-              console.warn(`⚠️ [SDS] No callbacks registered for ${eventType} (callbacks map size: ${callbacks?.size || 0})`);
-            }
-          },
-          onError: (error: any) => {
-            console.error(`❌ SDS subscription error for ${eventType}:`, error);
-          }
-        };
-        
-        // ✅ CRITICAL FIX: Use global SDK instance if available
-        const sdkToUse = sdkRef.current || globalSDKInstance;
-        if (!sdkToUse) {
-          throw new Error('SDK not available for subscription');
-        }
-        
-        console.log(`📡 Calling SDK subscribe with context-based subscription:`, {
-          context: subscriptionParams.context,
-          onlyPushChanges: subscriptionParams.onlyPushChanges
-        });
-        
-        const subscriptionPromise = sdkToUse.streams.subscribe(subscriptionParams);
-        
-        subscriptionPromise.then((result) => {
-          // ✅ Clear GLOBAL pending flag on success
+            globalPendingSubscriptions.delete(eventType);
+          });
+          
+          // Clear pending flag
           globalPendingSubscriptions.delete(eventType);
           
-          console.log(`📡 Subscribe result for ${eventType}:`, result);
-          if (result?.unsubscribe) {
-            // ✅ Store unsubscribe function in GLOBAL map
-            globalUnsubscribeFunctionsMap.set(eventType as any, result.unsubscribe);
-            console.log(`✅ Successfully subscribed to ${eventType}`);
-          } else {
-            console.warn(`⚠️ Subscribe returned result without unsubscribe for ${eventType}:`, result);
-          }
-        }).catch((error) => {
+        } catch (error) {
           // ✅ Clear GLOBAL pending flag on error
           globalPendingSubscriptions.delete(eventType);
-          console.error(`❌ Failed to subscribe to ${eventType}:`, error);
-          console.error(`❌ Error details:`, {
-            message: error.message,
-            stack: error.stack,
-            name: error.name
-          });
-        });
-      } catch (error) {
-        // ✅ Clear GLOBAL pending flag on sync error
-        globalPendingSubscriptions.delete(eventType);
-        console.error(`❌ Error calling subscribe for ${eventType}:`, error);
-        console.error(`❌ Sync error details:`, {
-          message: (error as Error).message,
-          stack: (error as Error).stack,
-          name: (error as Error).name
-        });
-      }
+          console.error(`❌ Failed to set up polling for ${eventType}:`, error);
+        }
     } else if (isPending) {
       console.log(`⏳ Subscription already pending for ${eventType}, adding callback to queue (${callbacks.size} subscribers)`);
     } else if (isFirstSubscriber) {
