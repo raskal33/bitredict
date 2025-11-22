@@ -254,8 +254,9 @@ export interface SDSLiquidityData {
   poolId: string;
   provider: string;
   amount: string;
-  totalLiquidity: string;
-  poolFillPercentage: number;
+  totalLiquidity?: string; // Optional - may not be in all events
+  poolFillPercentage?: number; // Optional - may not be in all events
+  currency?: string; // ✅ CRITICAL: Currency (BITR or STT) - backend now includes this
   timestamp: number;
 }
 
