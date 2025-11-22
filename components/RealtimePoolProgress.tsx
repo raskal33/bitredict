@@ -8,7 +8,7 @@
 'use client';
 
 import { useState } from 'react';
-import { usePoolProgress, useBetUpdates } from '@/hooks/useSomniaStreams';
+import { usePoolProgress, useBetUpdates, useLiquidityAddedUpdates } from '@/hooks/useSomniaStreams';
 import { motion } from 'framer-motion';
 import { useAnimationProps } from '@/utils/animationUtils';
 
@@ -33,18 +33,33 @@ export function RealtimePoolProgress({
 
   // Subscribe to real-time progress updates for this specific pool
   usePoolProgress(poolId, (progressData) => {
+    console.log(`🔄 RealtimePoolProgress: Received progress update for pool ${poolId}:`, progressData);
     setIsUpdating(true);
-    setFillPercentage(progressData.fillPercentage);
-    setParticipants(progressData.participantCount);
-    setBetCount(progressData.betCount || 0); // ✅ Update bet count
+    setFillPercentage(progressData.fillPercentage ?? fillPercentage);
+    setParticipants(progressData.participantCount ?? participants);
+    setBetCount(progressData.betCount ?? betCount);
     
     // Flash animation
     setTimeout(() => setIsUpdating(false), 1000);
   });
 
-  // Also update on new bets
+  // ✅ CRITICAL: Also update on new bets and liquidity additions for immediate feedback
   useBetUpdates((betData) => {
-    if (betData.poolId === poolId) {
+    const betPoolId = betData.poolId?.toString() || '';
+    if (betPoolId === poolId || betPoolId === String(poolId)) {
+      console.log(`🔄 RealtimePoolProgress: Bet placed on pool ${poolId}, triggering update`);
+      setIsUpdating(true);
+      // Increment bet count immediately for better UX
+      setBetCount(prev => prev + 1);
+      setTimeout(() => setIsUpdating(false), 1000);
+    }
+  });
+  
+  // ✅ CRITICAL: Also update on liquidity additions for immediate feedback
+  useLiquidityAddedUpdates((liquidityData) => {
+    const liquidityPoolId = liquidityData.poolId?.toString() || '';
+    if (liquidityPoolId === poolId || liquidityPoolId === String(poolId)) {
+      console.log(`🔄 RealtimePoolProgress: Liquidity added to pool ${poolId}, triggering update`);
       setIsUpdating(true);
       setTimeout(() => setIsUpdating(false), 1000);
     }

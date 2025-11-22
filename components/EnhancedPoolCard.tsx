@@ -28,7 +28,7 @@ import { usePoolSocialStats } from "../hooks/usePoolSocialStats";
 import { HeartIcon as HeartIconSolid } from "@heroicons/react/24/solid";
 import UserAddressLink from "./UserAddressLink";
 import { RealtimePoolProgress } from "./RealtimePoolProgress";
-import { usePoolProgress } from "../hooks/useSomniaStreams";
+import { usePoolProgress, useBetUpdates, useLiquidityAddedUpdates } from "../hooks/useSomniaStreams";
 
 export interface EnhancedPool {
   id: number;
@@ -165,6 +165,7 @@ export default function EnhancedPoolCard({
     fillPercentage: indexedData?.fillPercentage || 0
   });
   
+  // ✅ CRITICAL: Subscribe to real-time progress updates (pool:progress events)
   usePoolProgress(pool.id.toString(), (progressData) => {
     console.log(`🔄 EnhancedPoolCard: Received progress update for pool ${pool.id}:`, progressData);
     // Update pool data when progress changes (e.g., LP added, bets placed)
@@ -200,6 +201,40 @@ export default function EnhancedPoolCard({
         categoryRank: prev?.categoryRank ?? 0,
         isHot: prev?.isHot ?? false,
         lastActivity: prev?.lastActivity ?? new Date()
+      }));
+    }
+  });
+  
+  // ✅ CRITICAL: Also listen to bet:placed and liquidity:added events for immediate updates
+  // This ensures the progress bar updates instantly when bets are placed or liquidity is added
+  useBetUpdates((betData) => {
+    const betPoolId = betData.poolId?.toString() || '';
+    if (betPoolId === pool.id.toString() && !pool.settled) {
+      console.log(`🔄 EnhancedPoolCard: Bet placed on pool ${pool.id}, triggering progress update`);
+      // Trigger a progress refresh by updating state
+      setIndexedData(prev => ({
+        participantCount: prev?.participantCount ?? 0,
+        fillPercentage: prev?.fillPercentage ?? 0,
+        totalVolume: prev?.totalVolume ?? '0',
+        timeToFill: prev?.timeToFill,
+        betCount: (prev?.betCount ?? 0) + 1,
+        avgBetSize: prev?.avgBetSize ?? '0',
+        creatorReputation: prev?.creatorReputation ?? 0,
+        categoryRank: prev?.categoryRank ?? 0,
+        isHot: prev?.isHot ?? false,
+        lastActivity: new Date()
+      }));
+    }
+  });
+  
+  useLiquidityAddedUpdates((liquidityData) => {
+    const liquidityPoolId = liquidityData.poolId?.toString() || '';
+    if (liquidityPoolId === pool.id.toString() && !pool.settled) {
+      console.log(`🔄 EnhancedPoolCard: Liquidity added to pool ${pool.id}, triggering progress update`);
+      // Update creator side stake immediately
+      setCurrentPoolData(prev => ({
+        ...prev,
+        totalCreatorSideStake: prev.totalCreatorSideStake + parseFloat(liquidityData.amount || "0") / 1e18
       }));
     }
   });
