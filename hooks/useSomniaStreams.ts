@@ -1159,19 +1159,35 @@ export function useSomniaStreams(
                 decodedData.provider = String(decodedData.provider);
               }
               
-              // Add default values for slip:evaluated events to prevent errors
+              // ✅ CRITICAL: Fix slip:evaluated topic decoding
+              // SlipEvaluated event structure: SlipEvaluated(uint256 indexed slipId, address indexed player, ...)
+              // So topic[1] = slipId, topic[2] = player (if available)
               if (eventType === 'slip:evaluated') {
-                // Extract player from topic[1] if available (indexed address parameter)
-                if (actualData.topics.length >= 2 && !decodedData.player) {
+                // Extract slipId from topic[1] if available
+                if (actualData.topics.length >= 2 && !decodedData.slipId) {
                   try {
-                    const addressHex = actualData.topics[1];
+                    const slipIdHex = actualData.topics[1];
+                    const slipId = normalizeId(slipIdHex);
+                    if (slipId && slipId !== '0') {
+                      decodedData.slipId = slipId;
+                      console.log(`   ✅ Decoded slipId from topic[1] for slip:evaluated: ${slipId}`);
+                    }
+                  } catch (e) {
+                    console.warn(`   ⚠️ Failed to decode slipId from topic[1]:`, e);
+                  }
+                }
+                
+                // Extract player from topic[2] if available (second indexed parameter)
+                if (actualData.topics.length >= 3 && !decodedData.player) {
+                  try {
+                    const addressHex = actualData.topics[2];
                     const address = '0x' + addressHex.slice(-40).toLowerCase();
                     if (address && address !== '0x0000000000000000000000000000000000000000' && address.length === 42) {
                       decodedData.player = address;
-                      console.log(`   ✅ Decoded player from topic[1] for slip:evaluated: ${address}`);
+                      console.log(`   ✅ Decoded player from topic[2] for slip:evaluated: ${address}`);
                     }
                   } catch (e) {
-                    console.warn(`   ⚠️ Failed to decode player from topic[1]:`, e);
+                    console.warn(`   ⚠️ Failed to decode player from topic[2]:`, e);
                   }
                 }
                 
@@ -1555,6 +1571,12 @@ export function useSomniaStreams(
             }
             
             // ✅ CRITICAL: Require valid timestamp - reject events without timestamp
+            // Fallback to current time if still missing (timestamp should have been extracted from JSON or ABI above)
+            if (!decodedData.timestamp) {
+              decodedData.timestamp = Math.floor(Date.now() / 1000);
+              console.log(`   ℹ️ Defaulting timestamp to current time for ${eventType} (no timestamp found)`);
+            }
+            
             const eventTimestamp = decodedData.timestamp;
             if (!eventTimestamp || typeof eventTimestamp !== 'number' || eventTimestamp <= 0) {
               console.log(`⚠️ [SDS] Rejecting ${eventType} event without valid timestamp:`, decodedData);
