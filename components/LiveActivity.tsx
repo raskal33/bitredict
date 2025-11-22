@@ -56,6 +56,21 @@ export function LiveActivity() {
   useEffect(() => {
     setSdsStatus({ isConnected, isSDSActive, isFallback });
     console.log(`📡 LiveActivity SDS Status:`, { isConnected, isSDSActive, isFallback });
+    
+    // ✅ Log connection status for debugging
+    if (!isConnected && !isSDSActive && !isFallback) {
+      console.warn('⚠️ LiveActivity: No connection to SDS or WebSocket fallback');
+    } else if (isSDSActive) {
+      console.log('✅ LiveActivity: Connected to Somnia Data Streams (SDS)');
+    } else if (isFallback) {
+      console.log('✅ LiveActivity: Using WebSocket fallback');
+    }
+  }, [isConnected, isSDSActive, isFallback]);
+
+  // ✅ DEBUG: Log when component mounts and SDS status
+  useEffect(() => {
+    console.log('📡 LiveActivity: Component mounted, subscribing to events...');
+    console.log('📡 LiveActivity: Current SDS Status:', { isConnected, isSDSActive, isFallback });
   }, [isConnected, isSDSActive, isFallback]);
 
   // Subscribe to bet placed events
@@ -90,10 +105,10 @@ export function LiveActivity() {
       return;
     }
     
-    // ✅ TIME FILTERING: Only show recent events (within last 1 minute for real-time)
+    // ✅ TIME FILTERING: Only show recent events (within last 5 minutes for live activity)
     const now = Math.floor(Date.now() / 1000);
-    const oneMinuteAgo = now - (1 * 60); // ✅ Changed from 5 minutes to 1 minute for real-time only
-    if (timestamp < oneMinuteAgo) {
+    const fiveMinutesAgo = now - (5 * 60); // ✅ 5 minutes window for live activity
+    if (timestamp < fiveMinutesAgo) {
       console.log(`⚠️ LiveActivity: Skipping old bet event (poolId: ${poolIdStr}, timestamp: ${timestamp}, age: ${now - timestamp}s)`);
       return;
     }
@@ -175,10 +190,10 @@ export function LiveActivity() {
       return;
     }
     
-    // ✅ TIME FILTERING: Only show recent events (within last 1 minute for real-time)
+    // ✅ TIME FILTERING: Only show recent events (within last 5 minutes for live activity)
     const now = Math.floor(Date.now() / 1000);
-    const oneMinuteAgo = now - (1 * 60); // ✅ Changed from 5 minutes to 1 minute for real-time only
-    if (timestamp < oneMinuteAgo) {
+    const fiveMinutesAgo = now - (5 * 60); // ✅ 5 minutes window for live activity
+    if (timestamp < fiveMinutesAgo) {
       console.log(`⚠️ LiveActivity: Skipping old pool event (poolId: ${poolIdStr}, timestamp: ${timestamp}, age: ${now - timestamp}s)`);
       return;
     }
@@ -256,10 +271,10 @@ export function LiveActivity() {
       return;
     }
     
-    // ✅ TIME FILTERING: Only show recent events (within last 1 minute for real-time)
+    // ✅ TIME FILTERING: Only show recent events (within last 5 minutes for live activity)
     const now = Math.floor(Date.now() / 1000);
-    const oneMinuteAgo = now - (1 * 60); // ✅ Changed from 5 minutes to 1 minute for real-time only
-    if (timestamp < oneMinuteAgo) {
+    const fiveMinutesAgo = now - (5 * 60); // ✅ 5 minutes window for live activity
+    if (timestamp < fiveMinutesAgo) {
       console.log(`⚠️ LiveActivity: Skipping old liquidity event (poolId: ${poolIdStr}, timestamp: ${timestamp}, age: ${now - timestamp}s)`);
       return;
     }
@@ -305,16 +320,16 @@ export function LiveActivity() {
     }, 5 * 60 * 1000);
   });
 
-  // ✅ CRITICAL: Periodically clean up old events from the display
+  // ✅ CRITICAL: Periodically clean up old events from the display (keep last 5 minutes)
   useEffect(() => {
     const cleanupInterval = setInterval(() => {
       const now = Math.floor(Date.now() / 1000);
-      const oneMinuteAgo = now - (1 * 60);
+      const fiveMinutesAgo = now - (5 * 60); // ✅ Keep events from last 5 minutes
       
       setEvents(prev => {
-        const filtered = prev.filter(event => event.timestamp >= oneMinuteAgo);
+        const filtered = prev.filter(event => event.timestamp >= fiveMinutesAgo);
         if (filtered.length !== prev.length) {
-          console.log(`🧹 LiveActivity: Cleaned up ${prev.length - filtered.length} old events`);
+          console.log(`🧹 LiveActivity: Cleaned up ${prev.length - filtered.length} old events (kept ${filtered.length} recent events)`);
         }
         return filtered;
       });
@@ -623,11 +638,16 @@ export function LiveActivity() {
             <div className="mt-4 pt-4 border-t border-gray-700">
               <p className="text-[10px] text-gray-600 mb-1">Connection Status:</p>
               <div className="flex items-center justify-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${sdsStatus.isSDSActive ? 'bg-green-400' : sdsStatus.isFallback ? 'bg-yellow-400' : 'bg-red-400'}`} />
+                <div className={`w-2 h-2 rounded-full ${sdsStatus.isSDSActive ? 'bg-green-400 animate-pulse' : sdsStatus.isFallback ? 'bg-yellow-400' : 'bg-red-400'}`} />
                 <span className="text-[10px]">
-                  {sdsStatus.isSDSActive ? 'SDS Active' : sdsStatus.isFallback ? 'WebSocket Fallback' : 'Not Connected'}
+                  {sdsStatus.isSDSActive ? 'SDS Active ✓' : sdsStatus.isFallback ? 'WebSocket Fallback ⚠' : 'Not Connected ✗'}
                 </span>
               </div>
+              {!sdsStatus.isSDSActive && !sdsStatus.isFallback && (
+                <p className="text-[9px] text-gray-500 mt-2">
+                  Waiting for connection...
+                </p>
+              )}
             </div>
           </div>
         ) : (

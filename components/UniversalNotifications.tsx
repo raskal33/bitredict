@@ -112,7 +112,8 @@ export function UniversalNotifications() {
   // Pool Created notifications
   usePoolCreatedUpdates((poolData: SDSPoolData) => {
     const poolId = normalizeId(poolData.poolId);
-    const timestamp = poolData.timestamp || Math.floor(Date.now() / 1000);
+    // SDSPoolData doesn't have timestamp, use current time for recent events
+    const timestamp = Math.floor(Date.now() / 1000);
     
     if (!isRecentEvent(timestamp)) return;
     
@@ -130,7 +131,8 @@ export function UniversalNotifications() {
     if (!poolData.isSettled) return; // Only show for settled pools
     
     const poolId = normalizeId(poolData.poolId);
-    const timestamp = poolData.timestamp || Math.floor(Date.now() / 1000);
+    // SDSPoolData doesn't have timestamp, use current time for recent events
+    const timestamp = Math.floor(Date.now() / 1000);
     
     if (!isRecentEvent(timestamp)) return;
     
@@ -152,7 +154,7 @@ export function UniversalNotifications() {
     if (!isRecentEvent(timestamp)) return;
     
     // Only show if it's the current user's bet
-    const bettor = betData.bettor || (betData as Record<string, unknown>).bettorAddress as string | undefined;
+    const bettor = betData.bettor || (betData as unknown as Record<string, unknown>).bettorAddress as string | undefined;
     if (address && bettor?.toLowerCase() !== address.toLowerCase()) {
       return; // Not user's bet, skip notification
     }
@@ -190,7 +192,8 @@ export function UniversalNotifications() {
     
     const uniqueId = `liquidity-added-${poolId}-${timestamp}`;
     const amount = liquidityData.amount || '0';
-    const currency = liquidityData.currency || 'STT';
+    // SDSLiquidityData doesn't have currency, default to STT
+    const currency = 'STT';
     
     // Convert from wei if needed
     let amountInToken = amount;
@@ -232,7 +235,9 @@ export function UniversalNotifications() {
       });
     };
 
-    const unsubscribe = subscribe('prize:claimed', handlePrizeClaimed);
+    const unsubscribe = subscribe('prize:claimed', (data) => {
+      handlePrizeClaimed(data as { slipId?: string | number; timestamp?: number; prizeAmount?: string; currency?: string });
+    });
     return unsubscribe;
   }, [subscribe, address]);
 
