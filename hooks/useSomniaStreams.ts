@@ -645,7 +645,20 @@ export function useSomniaStreams(
             ethCalls: [], // Empty array for context-based subscriptions
             onlyPushChanges: true, // ✅ CRITICAL: Only receive new events, not historical ones
             onData: (data: any) => {
-            console.log(`📦 [SDS] Received ${eventType} data:`, data);
+            // ✅ DEBUG: Log full structure to understand what we're receiving
+            console.log(`📦 [SDS] Received ${eventType} data (context: ${contextConfig}):`, {
+              type: typeof data,
+              isObject: typeof data === 'object',
+              keys: data && typeof data === 'object' ? Object.keys(data) : [],
+              hasResult: !!(data && typeof data === 'object' && data.result),
+              hasSubscription: !!(data && typeof data === 'object' && data.subscription),
+              resultKeys: data?.result && typeof data.result === 'object' ? Object.keys(data.result) : [],
+              resultHasTopics: !!(data?.result && typeof data.result === 'object' && Array.isArray(data.result.topics)),
+              resultHasData: !!(data?.result && typeof data.result === 'object' && data.result.data),
+              resultDataType: typeof data?.result?.data,
+              resultDataLength: data?.result?.data?.length || 0,
+              fullDataPreview: JSON.stringify(data).substring(0, 2000)
+            });
             
             // ✅ CRITICAL FIX: Extract data from result field (SDS wraps data in {subscription, result})
             let actualData = data;
@@ -676,6 +689,11 @@ export function useSomniaStreams(
                   }
                   decodedString = decodedString.replace(/\0/g, '').trim();
                   
+                  // Log decoded string preview for debugging
+                  if (decodedString.length > 0) {
+                    console.log(`📦 [SDS] Decoded data field (${decodedString.length} chars, preview: ${decodedString.substring(0, 200)}...)`);
+                  }
+                  
                   // Check if it contains JSON
                   if (decodedString.includes('{') || decodedString.includes('[')) {
                     // Try to find JSON in the decoded string
@@ -685,17 +703,33 @@ export function useSomniaStreams(
                       const jsonStr = decodedString.substring(jsonStart, jsonEnd);
                       try {
                         jsonData = JSON.parse(jsonStr);
-                        console.log(`📦 [SDS] Extracted JSON from blockchain event data field`);
+                        console.log(`📦 [SDS] Extracted JSON from blockchain event data field (${jsonStr.length} chars)`);
                       } catch (e) {
                         // Try parsing the whole decoded string
                         try {
                           jsonData = JSON.parse(decodedString);
                           console.log(`📦 [SDS] Parsed entire decoded string as JSON`);
                         } catch (e2) {
-                          console.warn(`⚠️ [SDS] Failed to parse JSON from data field:`, e2);
+                          // Try to find JSON array
+                          const arrayStart = decodedString.indexOf('[');
+                          const arrayEnd = decodedString.lastIndexOf(']') + 1;
+                          if (arrayStart >= 0 && arrayEnd > arrayStart) {
+                            try {
+                              jsonData = JSON.parse(decodedString.substring(arrayStart, arrayEnd));
+                              console.log(`📦 [SDS] Parsed JSON array from decoded string`);
+                            } catch (e3) {
+                              console.warn(`⚠️ [SDS] Failed to parse JSON from data field:`, e2, `(also tried array: ${e3})`);
+                            }
+                          } else {
+                            console.warn(`⚠️ [SDS] Failed to parse JSON from data field:`, e2);
+                          }
                         }
                       }
+                    } else {
+                      console.warn(`⚠️ [SDS] Found { or [ but couldn't find matching closing bracket`);
                     }
+                  } else {
+                    console.warn(`⚠️ [SDS] Decoded string doesn't contain JSON markers ({ or [):`, decodedString.substring(0, 500));
                   }
                 }
               } catch (e) {
@@ -740,16 +774,148 @@ export function useSomniaStreams(
             }
             
             // ✅ CRITICAL: Validate that we have valid JSON data from our backend
-            if (!jsonData || typeof jsonData !== 'object') {
+            if (!jsonData) {
               console.warn(`⚠️ [SDS] Invalid JSON data from backend, skipping:`, jsonData);
               return;
             }
             
-            console.log(`📦 [SDS] Processing backend JSON data for ${eventType}:`, jsonData);
+            // Handle array of events
+            if (Array.isArray(jsonData) && jsonData.length > 0) {
+              console.log(`📦 [SDS] JSON is an array with ${jsonData.length} items, processing first item`);
+              jsonData = jsonData[0];
+            }
             
-            // ✅ All data processing now uses jsonData (our backend data)
-            // Backend JSON already has all fields: poolId, bettor, amount, timestamp, currency, etc.
-            let decodedData = { ...jsonData };
+            if (typeof jsonData !== 'object') {
+              console.warn(`⚠️ [SDS] JSON data is not an object, skipping:`, typeof jsonData);
+              return;
+            }
+            
+            console.log(`📦 [SDS] Processing backend JSON data for ${eventType}:`, {
+              keys: Object.keys(jsonData),
+              hasReleases: !!jsonData.releases,
+              releasesLength: Array.isArray(jsonData.releases) ? jsonData.releases.length : 0,
+              hasSwaps: !!jsonData.swaps,
+              preview: JSON.stringify(jsonData).substring(0, 500)
+            });
+            
+            // ✅ CRITICAL: Extract actual event data from nested SDS structure
+            // SDS wraps event data in releases/swaps structure - extract the actual event
+            let eventData: any = jsonData;
+            
+            // Check if data is nested in releases array
+            if (jsonData.releases && Array.isArray(jsonData.releases) && jsonData.releases.length > 0) {
+              console.log(`📦 [SDS] Found releases array with ${jsonData.releases.length} items, inspecting structure...`);
+              
+              // Log first release structure for debugging
+              if (jsonData.releases[0]) {
+                console.log(`📦 [SDS] First release structure:`, {
+                  keys: Object.keys(jsonData.releases[0]),
+                  type: typeof jsonData.releases[0],
+                  preview: JSON.stringify(jsonData.releases[0]).substring(0, 1000)
+                });
+              }
+              
+              // Try to find the actual event data in releases
+              for (let i = 0; i < jsonData.releases.length; i++) {
+                const release = jsonData.releases[i];
+                if (release && typeof release === 'object') {
+                  // Check if this release has our event fields (try various field name variations)
+                  const hasEventFields = release.poolId || release.pool_id || release.cycleId || release.cycle_id ||
+                                        release.bettor || release.bettor_address || release.creator || release.creator_address ||
+                                        release.provider || release.provider_address || release.player || release.player_address;
+                  
+                  if (hasEventFields) {
+                    eventData = release;
+                    console.log(`📦 [SDS] Extracted event data from releases[${i}]`);
+                    break;
+                  }
+                  
+                  // Check if release has nested data
+                  if (release.data && typeof release.data === 'object') {
+                    const nestedData = release.data;
+                    if (nestedData.poolId || nestedData.pool_id || nestedData.cycleId || nestedData.cycle_id ||
+                        nestedData.bettor || nestedData.bettor_address) {
+                      eventData = nestedData;
+                      console.log(`📦 [SDS] Extracted event data from releases[${i}].data`);
+                      break;
+                    }
+                  }
+                }
+              }
+              
+              // If no event data found in releases, try the first release as-is
+              if (eventData === jsonData && jsonData.releases[0]) {
+                eventData = jsonData.releases[0];
+                console.log(`📦 [SDS] Using first release as event data (no event fields found)`);
+              }
+            }
+            
+            // Check if data is nested in swaps object
+            if (jsonData.swaps && typeof jsonData.swaps === 'object') {
+              console.log(`📦 [SDS] Found swaps object, inspecting structure...`, {
+                keys: Object.keys(jsonData.swaps),
+                type: typeof jsonData.swaps,
+                isArray: Array.isArray(jsonData.swaps),
+                preview: JSON.stringify(jsonData.swaps).substring(0, 1000)
+              });
+              
+              // Check if swaps contains our event fields directly
+              const swapsHasFields = jsonData.swaps.poolId || jsonData.swaps.pool_id || 
+                                    jsonData.swaps.cycleId || jsonData.swaps.cycle_id ||
+                                    jsonData.swaps.bettor || jsonData.swaps.bettor_address ||
+                                    jsonData.swaps.creator || jsonData.swaps.creator_address ||
+                                    jsonData.swaps.provider || jsonData.swaps.provider_address;
+              
+              if (swapsHasFields) {
+                eventData = jsonData.swaps;
+                console.log(`📦 [SDS] Extracted event data from swaps object`);
+              } else if (Array.isArray(jsonData.swaps) && jsonData.swaps.length > 0) {
+                // Swaps might be an array
+                console.log(`📦 [SDS] Swaps is an array with ${jsonData.swaps.length} items`);
+                if (jsonData.swaps[0] && typeof jsonData.swaps[0] === 'object') {
+                  const firstSwap = jsonData.swaps[0];
+                  if (firstSwap.poolId || firstSwap.pool_id || firstSwap.bettor || firstSwap.bettor_address) {
+                    eventData = firstSwap;
+                    console.log(`📦 [SDS] Extracted event data from swaps[0]`);
+                  }
+                }
+              }
+            }
+            
+            // ✅ All data processing now uses eventData (extracted from nested structure)
+            let decodedData = { ...eventData };
+            
+            // ✅ Preserve original jsonData fields that might be needed
+            if (jsonData.asset_in_type) {
+              decodedData.asset_in_type = jsonData.asset_in_type;
+            }
+            
+            // ✅ CRITICAL: Handle field name variations (snake_case vs camelCase)
+            // Map snake_case to camelCase for consistency
+            if (!decodedData.poolId && (decodedData.pool_id || (eventData as any).pool_id)) {
+              decodedData.poolId = decodedData.pool_id || (eventData as any).pool_id;
+            }
+            if (!decodedData.cycleId && (decodedData.cycle_id || (eventData as any).cycle_id)) {
+              decodedData.cycleId = decodedData.cycle_id || (eventData as any).cycle_id;
+            }
+            if (!decodedData.slipId && (decodedData.slip_id || (eventData as any).slip_id)) {
+              decodedData.slipId = decodedData.slip_id || (eventData as any).slip_id;
+            }
+            if (!decodedData.bettor && (decodedData.bettor_address || (eventData as any).bettor_address)) {
+              decodedData.bettor = decodedData.bettor_address || (eventData as any).bettor_address;
+            }
+            if (!decodedData.bettorAddress && decodedData.bettor) {
+              decodedData.bettorAddress = decodedData.bettor;
+            }
+            if (!decodedData.creator && (decodedData.creator_address || (eventData as any).creator_address)) {
+              decodedData.creator = decodedData.creator_address || (eventData as any).creator_address;
+            }
+            if (!decodedData.provider && (decodedData.provider_address || (eventData as any).provider_address)) {
+              decodedData.provider = decodedData.provider_address || (eventData as any).provider_address;
+            }
+            if (!decodedData.player && (decodedData.player_address || (eventData as any).player_address)) {
+              decodedData.player = decodedData.player_address || (eventData as any).player_address;
+            }
             
             // ✅ CRITICAL: Normalize IDs from backend JSON (convert BigInt/hex to readable numbers)
             if (decodedData.poolId) {
