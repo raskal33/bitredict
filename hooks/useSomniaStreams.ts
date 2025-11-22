@@ -7,12 +7,10 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { SDK } from '@somnia-chain/streams';
-import { createPublicClient, webSocket, http, defineChain } from 'viem';
+import { createPublicClient, http } from 'viem';
+import { somniaTestnet } from 'viem/chains';
 
 // Define Somnia testnet with WebSocket URL
-
-const SOMNIA_TESTNET_RPC_URL = process.env.NEXT_PUBLIC_SDS_RPC_URL || 'https://dream-rpc.somnia.network';
-const SOMNIA_TESTNET_WS_URL = process.env.NEXT_PUBLIC_SDS_WS_URL || 'wss://dream-rpc.somnia.network/ws'; // ✅ /ws suffix required
 
 // ✅ Publisher address from backend (must match backend's publisher)
 const PUBLISHER_ADDRESS = (process.env.NEXT_PUBLIC_SDS_PUBLISHER_ADDRESS || '0x483fc7FD690dCf2a01318282559C389F385d4428') as `0x${string}`;
@@ -41,33 +39,7 @@ function hexToString(hex: `0x${string}` | string): string {
   return new TextDecoder().decode(bytes);
 }
 
-const somniaTestnet = defineChain({
-  id: 50312,
-  name: 'Somnia Testnet',
-  network: 'somnia-testnet',
-  nativeCurrency: {
-    name: 'Somnia Testnet Token',
-    symbol: 'STT',
-    decimals: 18,
-  },
-  rpcUrls: {
-    default: {
-      http: [SOMNIA_TESTNET_RPC_URL],
-      webSocket: [SOMNIA_TESTNET_WS_URL],
-    },
-    public: {
-      http: [SOMNIA_TESTNET_RPC_URL],
-      webSocket: [SOMNIA_TESTNET_WS_URL],
-    },
-  },
-  blockExplorers: {
-    default: {
-      name: 'Somnia Explorer',
-      url: 'https://shannon-explorer.somnia.network',
-    },
-  },
-  testnet: true,
-});
+// Using somniaTestnet from viem/chains (simpler, matches sample code)
 
 // ✅ CRITICAL: Module-level state shared across ALL hook instances to prevent duplicate subscriptions
 const globalSubscribersMap = new Map<SDSEventType, Set<(data: SDSEventData) => void>>();
@@ -203,14 +175,7 @@ const desiredWebSocketChannels = new Set<string>();
 const subscribedWebSocketChannels = new Set<string>();
 let isWebSocketConnecting = false;
 
-// Get WebSocket URL from chain config 
-const getWSURL = (): string => {
-  const wsUrl = somniaTestnet.rpcUrls.default.webSocket?.[0];
-  if (!wsUrl) {
-    throw new Error('WebSocket URL not configured for Somnia chain');
-  }
-  return wsUrl;
-};
+// Note: Using somniaTestnet from viem/chains, no WebSocket needed for polling
 
 // Event types
 export type SDSEventType = 
@@ -387,12 +352,11 @@ export function useSomniaStreams(
     try {
       // Use HTTP transport for public client (read-only operations)
       console.log('📡 Creating public client with HTTP transport...');
-      console.log(`   RPC URL: ${SOMNIA_TESTNET_RPC_URL}`);
 
-      // Create public client with HTTP transport
+      // Create public client with HTTP transport (matches sample code)
       const publicClient = createPublicClient({
         chain: somniaTestnet,
-        transport: http(SOMNIA_TESTNET_RPC_URL),
+        transport: http(),
       }) as any; // Type assertion to avoid viem type inference issues
 
       console.log('✅ Public client created, initializing SDK...');
@@ -662,9 +626,9 @@ export function useSomniaStreams(
         console.log(`   SDK available: ${!!sdkAvailable}, SDS active: ${sdsActive}, First subscriber: ${isFirstSubscriber}, Pending: ${isPending}`);
         
         try {
-          // ✅ NEW: Use polling with schemaId instead of context-based subscription
-          let lastIndex = BigInt(-1);
+          // ✅ SIMPLIFIED: Use getLastPublishedDataForSchema (matches sample code)
           let pollInterval: NodeJS.Timeout | null = null;
+          let lastProcessedDataHash: string | null = null; // Track last data to avoid re-processing
           
           const startPolling = async () => {
             try {
@@ -674,194 +638,186 @@ export function useSomniaStreams(
                 throw new Error('SDK not available for polling');
               }
               
-              // Get total count
-              const total = await sdkToUse.streams.totalPublisherDataForSchema(
+              // Get latest published data (simpler than tracking indices)
+              const latest: any = await sdkToUse.streams.getLastPublishedDataForSchema(
                 schemaId,
                 PUBLISHER_ADDRESS
               );
               
-              if (!total || total === BigInt(0)) {
-                console.log(`📊 [SDS] No data yet for ${eventType} (schemaId: ${schemaId})`);
+              if (!latest) {
+                return; // No data yet
+              }
+              
+              // Decode hex-encoded data
+              let hexData: `0x${string}` | string | null = null;
+              
+              // Handle different result formats
+              if (Array.isArray(latest) && latest.length > 0) {
+                if (Array.isArray(latest[0]) && latest[0].length > 0) {
+                  const firstItem = latest[0][0];
+                  if (typeof firstItem === 'string') {
+                    hexData = firstItem;
+                  } else if (firstItem && typeof firstItem === 'object' && (firstItem as any).data) {
+                    hexData = (firstItem as any).data;
+                  }
+                } else if (typeof latest[0] === 'string') {
+                  hexData = latest[0];
+                } else if (latest[0] && typeof latest[0] === 'object' && (latest[0] as any).data) {
+                  hexData = (latest[0] as any).data;
+                }
+              } else if (typeof latest === 'string') {
+                hexData = latest;
+              } else if (latest && typeof latest === 'object' && (latest as any).data) {
+                hexData = (latest as any).data;
+              }
+              
+              if (!hexData || typeof hexData !== 'string' || !hexData.startsWith('0x')) {
+                return; // Invalid data format
+              }
+              
+              // Create hash of data to detect if it's the same as last processed
+              const dataHash = hexData;
+              if (dataHash === lastProcessedDataHash) {
+                return; // Same data as last poll, skip
+              }
+              
+              // Decode hex to JSON string
+              const jsonString = hexToString(hexData as `0x${string}`);
+              
+              // Parse JSON
+              let jsonData: any;
+              try {
+                jsonData = JSON.parse(jsonString);
+              } catch (e) {
+                console.warn(`⚠️ [SDS] Failed to parse JSON for ${eventType}:`, e);
                 return;
               }
               
-              // Get latest index
-              const latestIndex = total - BigInt(1);
+              // Process the decoded JSON data
+              console.log(`📦 [SDS] ✅ Decoded backend JSON for ${eventType}:`, {
+                keys: Object.keys(jsonData),
+                preview: JSON.stringify(jsonData).substring(0, 200)
+              });
               
-              // Only process if we have new data
-              if (latestIndex > lastIndex) {
-                // Get all new data from lastIndex + 1 to latestIndex
-                for (let idx = lastIndex + BigInt(1); idx <= latestIndex; idx = idx + BigInt(1)) {
+              // Use jsonData directly - it's already our backend's clean JSON
+              let decodedData = { ...jsonData };
+              
+              // Handle array of events
+              if (Array.isArray(decodedData) && decodedData.length > 0) {
+                decodedData = decodedData[0];
+              }
+              
+              if (typeof decodedData !== 'object' || !decodedData) {
+                console.warn(`⚠️ [SDS] Invalid data format for ${eventType}`);
+                return;
+              }
+              
+              // ✅ CRITICAL: Handle field name variations (snake_case vs camelCase)
+              if (!decodedData.poolId && (decodedData as any).pool_id) {
+                decodedData.poolId = (decodedData as any).pool_id;
+              }
+              if (!decodedData.cycleId && (decodedData as any).cycle_id) {
+                decodedData.cycleId = (decodedData as any).cycle_id;
+              }
+              if (!decodedData.slipId && (decodedData as any).slip_id) {
+                decodedData.slipId = (decodedData as any).slip_id;
+              }
+              if (!decodedData.bettor && (decodedData as any).bettor_address) {
+                decodedData.bettor = (decodedData as any).bettor_address;
+              }
+              if (!decodedData.creator && (decodedData as any).creator_address) {
+                decodedData.creator = (decodedData as any).creator_address;
+              }
+              if (!decodedData.provider && (decodedData as any).provider_address) {
+                decodedData.provider = (decodedData as any).provider_address;
+              }
+              if (!decodedData.player && (decodedData as any).player_address) {
+                decodedData.player = (decodedData as any).player_address;
+              }
+              
+              // ✅ CRITICAL: Normalize IDs
+              if (decodedData.poolId) {
+                decodedData.poolId = normalizeId(decodedData.poolId);
+              }
+              if (decodedData.cycleId) {
+                decodedData.cycleId = normalizeId(decodedData.cycleId);
+              }
+              if (decodedData.slipId) {
+                decodedData.slipId = normalizeId(decodedData.slipId);
+              }
+              
+              // ✅ CRITICAL: Ensure addresses are lowercase strings
+              if (decodedData.bettor) {
+                decodedData.bettor = String(decodedData.bettor).toLowerCase();
+                (decodedData as any).bettorAddress = decodedData.bettor;
+              }
+              if (decodedData.creator) {
+                decodedData.creator = String(decodedData.creator).toLowerCase();
+              }
+              if (decodedData.provider) {
+                decodedData.provider = String(decodedData.provider).toLowerCase();
+              }
+              if (decodedData.player) {
+                decodedData.player = String(decodedData.player).toLowerCase();
+              }
+              
+              // ✅ CRITICAL: Ensure amounts are strings
+              if (decodedData.amount && typeof decodedData.amount !== 'string') {
+                decodedData.amount = decodedData.amount.toString();
+              }
+              
+              // ✅ CRITICAL: Validate timestamp
+              if (!decodedData.timestamp) {
+                decodedData.timestamp = Math.floor(Date.now() / 1000);
+              }
+              
+              const eventTimestamp = decodedData.timestamp;
+              if (!eventTimestamp || typeof eventTimestamp !== 'number' || eventTimestamp <= 0) {
+                console.log(`⚠️ [SDS] Rejecting ${eventType} event without valid timestamp`);
+                return;
+              }
+              
+              // ✅ TIME FILTERING: Only process recent events
+              if (!isRecentEvent(eventTimestamp)) {
+                console.log(`⚠️ [SDS] Skipping old ${eventType} event`);
+                return;
+              }
+              
+              // ✅ CRITICAL: Ensure currency is set
+              if (!decodedData.currency) {
+                const useBitr = (decodedData as any).useBitr || (decodedData as any).use_bitr;
+                decodedData.currency = useBitr ? 'BITR' : 'STT';
+              }
+              
+              // ✅ Rate limiting
+              const now = Date.now();
+              const rateLimitKey = `${eventType}:${decodedData.poolId || decodedData.cycleId || 'unknown'}`;
+              const lastTime = lastNotificationTime.get(rateLimitKey);
+              if (lastTime && (now - lastTime) < NOTIFICATION_RATE_LIMIT_MS) {
+                return;
+              }
+              lastNotificationTime.set(rateLimitKey, now);
+              
+              // ✅ Deduplication
+              const dedupeKey = createEventDedupeKey(eventType, decodedData);
+              if (isEventSeen(eventType, dedupeKey)) {
+                return;
+              }
+              markEventSeen(eventType, dedupeKey);
+              
+              // Mark this data as processed
+              lastProcessedDataHash = dataHash;
+              
+              // ✅ Broadcast to all subscribers
+              const callbacks = globalSubscribersMap.get(eventType);
+              if (callbacks && callbacks.size > 0) {
+                callbacks.forEach(cb => {
                   try {
-                    const result = await sdkToUse.streams.getAtIndex(
-                      schemaId,
-                      PUBLISHER_ADDRESS,
-                      idx
-                    );
-                    
-                    if (result && result.length > 0) {
-                      // Decode hex-encoded data
-                      let hexData: `0x${string}` | string | null = null;
-                      
-                      // Handle different result formats
-                      if (Array.isArray(result[0]) && result[0].length > 0) {
-                        const firstItem = result[0][0];
-                        if (typeof firstItem === 'string') {
-                          hexData = firstItem;
-                        } else if (firstItem && typeof firstItem === 'object' && (firstItem as any).data) {
-                          hexData = (firstItem as any).data;
-                        }
-                      } else if (typeof result[0] === 'string') {
-                        hexData = result[0];
-                      } else if (result[0] && typeof result[0] === 'object' && (result[0] as any).data) {
-                        hexData = (result[0] as any).data;
-                      }
-                      
-                      if (hexData && typeof hexData === 'string' && hexData.startsWith('0x')) {
-                        // Decode hex to JSON string
-                        const jsonString = hexToString(hexData as `0x${string}`);
-                        
-                        // Parse JSON
-                        let jsonData: any;
-                        try {
-                          jsonData = JSON.parse(jsonString);
-                        } catch (e) {
-                          console.warn(`⚠️ [SDS] Failed to parse JSON for ${eventType}:`, e);
-                          continue;
-                        }
-                        
-                        // Process the decoded JSON data
-                        console.log(`📦 [SDS] ✅ Decoded backend JSON for ${eventType}:`, {
-                          keys: Object.keys(jsonData),
-                          preview: JSON.stringify(jsonData).substring(0, 200)
-                        });
-                        
-                        // Use jsonData directly - it's already our backend's clean JSON
-                        let decodedData = { ...jsonData };
-                        
-                        // Handle array of events
-                        if (Array.isArray(decodedData) && decodedData.length > 0) {
-                          decodedData = decodedData[0];
-                        }
-                        
-                        if (typeof decodedData !== 'object' || !decodedData) {
-                          console.warn(`⚠️ [SDS] Invalid data format for ${eventType}`);
-                          continue;
-                        }
-                        
-                        // ✅ CRITICAL: Handle field name variations (snake_case vs camelCase)
-                        if (!decodedData.poolId && (decodedData as any).pool_id) {
-                          decodedData.poolId = (decodedData as any).pool_id;
-                        }
-                        if (!decodedData.cycleId && (decodedData as any).cycle_id) {
-                          decodedData.cycleId = (decodedData as any).cycle_id;
-                        }
-                        if (!decodedData.slipId && (decodedData as any).slip_id) {
-                          decodedData.slipId = (decodedData as any).slip_id;
-                        }
-                        if (!decodedData.bettor && (decodedData as any).bettor_address) {
-                          decodedData.bettor = (decodedData as any).bettor_address;
-                        }
-                        if (!decodedData.creator && (decodedData as any).creator_address) {
-                          decodedData.creator = (decodedData as any).creator_address;
-                        }
-                        if (!decodedData.provider && (decodedData as any).provider_address) {
-                          decodedData.provider = (decodedData as any).provider_address;
-                        }
-                        if (!decodedData.player && (decodedData as any).player_address) {
-                          decodedData.player = (decodedData as any).player_address;
-                        }
-                        
-                        // ✅ CRITICAL: Normalize IDs
-                        if (decodedData.poolId) {
-                          decodedData.poolId = normalizeId(decodedData.poolId);
-                        }
-                        if (decodedData.cycleId) {
-                          decodedData.cycleId = normalizeId(decodedData.cycleId);
-                        }
-                        if (decodedData.slipId) {
-                          decodedData.slipId = normalizeId(decodedData.slipId);
-                        }
-                        
-                        // ✅ CRITICAL: Ensure addresses are lowercase strings
-                        if (decodedData.bettor) {
-                          decodedData.bettor = String(decodedData.bettor).toLowerCase();
-                          (decodedData as any).bettorAddress = decodedData.bettor;
-                        }
-                        if (decodedData.creator) {
-                          decodedData.creator = String(decodedData.creator).toLowerCase();
-                        }
-                        if (decodedData.provider) {
-                          decodedData.provider = String(decodedData.provider).toLowerCase();
-                        }
-                        if (decodedData.player) {
-                          decodedData.player = String(decodedData.player).toLowerCase();
-                        }
-                        
-                        // ✅ CRITICAL: Ensure amounts are strings
-                        if (decodedData.amount && typeof decodedData.amount !== 'string') {
-                          decodedData.amount = decodedData.amount.toString();
-                        }
-                        
-                        // ✅ CRITICAL: Validate timestamp
-                        if (!decodedData.timestamp) {
-                          decodedData.timestamp = Math.floor(Date.now() / 1000);
-                        }
-                        
-                        const eventTimestamp = decodedData.timestamp;
-                        if (!eventTimestamp || typeof eventTimestamp !== 'number' || eventTimestamp <= 0) {
-                          console.log(`⚠️ [SDS] Rejecting ${eventType} event without valid timestamp`);
-                          continue;
-                        }
-                        
-                        // ✅ TIME FILTERING: Only process recent events
-                        if (!isRecentEvent(eventTimestamp)) {
-                          console.log(`⚠️ [SDS] Skipping old ${eventType} event`);
-                          continue;
-                        }
-                        
-                        // ✅ CRITICAL: Ensure currency is set
-                        if (!decodedData.currency) {
-                          const useBitr = (decodedData as any).useBitr || (decodedData as any).use_bitr;
-                          decodedData.currency = useBitr ? 'BITR' : 'STT';
-                        }
-                        
-                        // ✅ Rate limiting
-                        const now = Date.now();
-                        const rateLimitKey = `${eventType}:${decodedData.poolId || decodedData.cycleId || 'unknown'}`;
-                        const lastTime = lastNotificationTime.get(rateLimitKey);
-                        if (lastTime && (now - lastTime) < NOTIFICATION_RATE_LIMIT_MS) {
-                          continue;
-                        }
-                        lastNotificationTime.set(rateLimitKey, now);
-                        
-                        // ✅ Deduplication
-                        const dedupeKey = createEventDedupeKey(eventType, decodedData);
-                        if (isEventSeen(eventType, dedupeKey)) {
-                          continue;
-                        }
-                        markEventSeen(eventType, dedupeKey);
-                        
-                        // ✅ Broadcast to all subscribers
-                        const callbacks = globalSubscribersMap.get(eventType);
-                        if (callbacks && callbacks.size > 0) {
-                          callbacks.forEach(cb => {
-                            try {
-                              cb(decodedData as SDSEventData);
-                            } catch (error) {
-                              console.error(`❌ Error in callback for ${eventType}:`, error);
-                            }
-                          });
-                        }
-                      }
-                    }
-                    
-                    // Update lastIndex
-                    lastIndex = latestIndex;
-                  } catch (err) {
-                    console.error(`❌ Error fetching data at index ${idx}:`, err);
+                    cb(decodedData as SDSEventData);
+                  } catch (error) {
+                    console.error(`❌ Error in callback for ${eventType}:`, error);
                   }
-                }
+                });
               }
             } catch (err) {
               console.error(`❌ Error in polling for ${eventType}:`, err);
