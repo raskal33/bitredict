@@ -83,7 +83,7 @@ const isRecentEvent = (timestamp: number | string | undefined): boolean => {
   const ts = typeof timestamp === 'string' ? parseInt(timestamp, 10) : timestamp;
   if (isNaN(ts) || ts <= 0) return false; // ✅ CRITICAL: Reject invalid timestamps
   const now = Math.floor(Date.now() / 1000);
-  const threeMinutesAgo = now - (3 * 60); // ✅ Changed to 3 minutes for live activity
+  const threeMinutesAgo = now - (3 * 60); 
   return ts >= threeMinutesAgo;
 };
 
@@ -171,7 +171,7 @@ if (typeof window !== 'undefined') {
   }
 }
 
-// ✅ CRITICAL: Track desired WebSocket channels globally to avoid duplicate subscriptions
+
 const desiredWebSocketChannels = new Set<string>();
 const subscribedWebSocketChannels = new Set<string>();
 let isWebSocketConnecting = false;
@@ -313,9 +313,7 @@ interface UseSomniaStreamsReturn {
   reconnect: () => void;
 }
 
-// ✅ CRITICAL FIX: Use context-based subscriptions (data streams) instead of event schemas
-// Event schemas require on-chain smart contract event emission which causes "Failed to get event schemas" error
-// Context-based subscriptions read from data streams published via sdk.streams.set()
+
 const EVENT_CONTEXT_MAP: Record<SDSEventType, string> = {
   'pool:created': 'pools:created',
   'pool:settled': 'pools:settled',
@@ -627,21 +625,10 @@ export function useSomniaStreams(
     const sdkAvailable = sdkRef.current || globalSDKInstance;
     const sdsActive = isSDSActive || !!sdkAvailable;
     
-    // ✅ CRITICAL FIX: Always initialize WebSocket fallback (even if SDS is working)
-    // This ensures we have a backup connection
-    if (useFallback && !wsRef.current && !isWebSocketConnecting) {
-      console.log(`📡 [WebSocket] Initializing fallback for event: ${eventType}`);
-      initializeWebSocketFallback();
-    }
+    // ✅ DISABLED: WebSocket fallback completely disabled - using only SDS
+    // No WebSocket fallback initialization
     
-    // ✅ CRITICAL FIX: Subscribe to WebSocket if connected (even if SDS is also working)
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      subscribeToWebSocketChannel(eventType);
-    }
-    
-      // Subscribe via SDS if available (only once per event type AND not already pending)
-      // ✅ FIX: Use context-based subscriptions (data streams) instead of event schemas
-      // Falls back to WebSocket if SDS subscription fails
+
       if (sdkAvailable && sdsActive && isFirstSubscriber && !isPending) {
         const contextConfig = EVENT_CONTEXT_MAP[eventType];
         
@@ -652,8 +639,7 @@ export function useSomniaStreams(
         console.log(`   SDK available: ${!!sdkAvailable}, SDS active: ${sdsActive}, First subscriber: ${isFirstSubscriber}, Pending: ${isPending}`);
         
         try {
-          // ✅ CRITICAL FIX: Use context-based subscriptions (data streams) instead of event schemas
-          // This matches the working Somnia examples and avoids "Failed to get event schemas" error
+
           const subscriptionParams = {
             context: contextConfig,
             ethCalls: [], // Empty array for context-based subscriptions
@@ -668,24 +654,66 @@ export function useSomniaStreams(
               actualData = data.result;
             }
             
-            // ✅ CRITICAL: Skip ALL SDS-indexed blockchain events (they all have topics array)
-            // Our backend publishes JSON strings/objects, SDS indexed events are objects with topics
-            if (actualData && typeof actualData === 'object' && Array.isArray(actualData.topics)) {
-              console.log(`⚠️ [SDS] Skipping SDS-indexed blockchain event (use only backend JSON data):`, {
-                eventType,
-                hasTopics: true,
-                topicsLength: actualData.topics.length,
-                hasAddress: !!actualData.address,
-                dataField: actualData.data
-              });
-              return; // Skip - this is from SDS indexing, not our backend
-            }
-            
-            // ✅ CRITICAL: Only process our backend JSON data
-            // Our backend publishes JSON strings via sdk.streams.set() with JSON.stringify()
+            // ✅ CRITICAL: Extract JSON from data field even if it has topics
+            // Backend publishes JSON in the data field of blockchain events
             let jsonData: any = null;
+            const hasTopics = actualData && typeof actualData === 'object' && Array.isArray(actualData.topics);
             
-            if (typeof actualData === 'string') {
+            if (hasTopics && actualData.data) {
+              // Try to extract JSON from the hex-encoded data field
+              try {
+                const dataHex = actualData.data;
+                if (dataHex && typeof dataHex === 'string' && dataHex.startsWith('0x') && dataHex.length > 2) {
+                  // Decode hex to string (browser-compatible)
+                  const hexString = dataHex.slice(2);
+                  let decodedString = '';
+                  for (let i = 0; i < hexString.length; i += 2) {
+                    const hexByte = hexString.substr(i, 2);
+                    const charCode = parseInt(hexByte, 16);
+                    if (charCode > 0) {
+                      decodedString += String.fromCharCode(charCode);
+                    }
+                  }
+                  decodedString = decodedString.replace(/\0/g, '').trim();
+                  
+                  // Check if it contains JSON
+                  if (decodedString.includes('{') || decodedString.includes('[')) {
+                    // Try to find JSON in the decoded string
+                    const jsonStart = decodedString.indexOf('{');
+                    const jsonEnd = decodedString.lastIndexOf('}') + 1;
+                    if (jsonStart >= 0 && jsonEnd > jsonStart) {
+                      const jsonStr = decodedString.substring(jsonStart, jsonEnd);
+                      try {
+                        jsonData = JSON.parse(jsonStr);
+                        console.log(`📦 [SDS] Extracted JSON from blockchain event data field`);
+                      } catch (e) {
+                        // Try parsing the whole decoded string
+                        try {
+                          jsonData = JSON.parse(decodedString);
+                          console.log(`📦 [SDS] Parsed entire decoded string as JSON`);
+                        } catch (e2) {
+                          console.warn(`⚠️ [SDS] Failed to parse JSON from data field:`, e2);
+                        }
+                      }
+                    }
+                  }
+                }
+              } catch (e) {
+                console.warn(`⚠️ [SDS] Failed to decode data field:`, e);
+              }
+              
+              // If we couldn't extract JSON, skip this event
+              if (!jsonData) {
+                console.log(`⚠️ [SDS] Skipping blockchain event - no JSON found in data field:`, {
+                  eventType,
+                  hasTopics: true,
+                  topicsLength: actualData.topics.length,
+                  hasAddress: !!actualData.address,
+                  dataFieldLength: actualData.data?.length || 0
+                });
+                return;
+              }
+            } else if (typeof actualData === 'string') {
               // Backend sends JSON strings - parse them
               const trimmed = actualData.trim();
               if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
@@ -701,7 +729,7 @@ export function useSomniaStreams(
                 console.warn(`⚠️ [SDS] Data string doesn't look like JSON (doesn't start with { or [):`, trimmed.substring(0, 100));
                 return;
               }
-            } else if (actualData && typeof actualData === 'object' && !Array.isArray(actualData.topics)) {
+            } else if (actualData && typeof actualData === 'object' && !hasTopics) {
               // Already parsed JSON object from our backend (no topics array)
               jsonData = actualData;
               console.log(`📦 [SDS] Using backend JSON object directly`);
@@ -816,8 +844,6 @@ export function useSomniaStreams(
               currency: decodedData.currency
             });
             
-            // ✅ Skip old complex ABI decoding - we only process backend JSON now
-            // All old ABI decoding code has been removed - we only process backend JSON
             
             // ✅ Rate limiting: Prevent notification bombing
             const now = Date.now();
