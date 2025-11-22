@@ -122,7 +122,7 @@ export function OddysseyLiveUpdates() {
         // Already in token format or small number, use as-is
         console.log(`   💰 Prize pool already in ${currencySymbol} format: ${prizePoolInToken}`);
       }
-    } catch (e) {
+    } catch {
       // If BigInt conversion fails, try parseFloat as fallback
       const prizePoolNum = parseFloat(prizePoolInToken);
       if (prizePoolNum > 1e12 && prizePoolNum < 1e30) {
