@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { SDK, SchemaEncoder } from '@somnia-chain/streams';
-import { createPublicClient, http, webSocket } from 'viem';
+import { createPublicClient, http } from 'viem';
 import { somniaTestnet } from 'viem/chains';
 
 const PUBLISHER_ADDRESS = (process.env.NEXT_PUBLIC_SDS_PUBLISHER_ADDRESS || '0x483fc7FD690dCf2a01318282559C389F385d4428') as `0x${string}`;
@@ -322,25 +322,25 @@ export function useSomniaStreams(
 
     try {
       const rpcUrl = process.env.NEXT_PUBLIC_SDS_RPC_URL || 'https://dream-rpc.somnia.network';
-      const wsUrl = rpcUrl.replace('https://', 'wss://').replace('http://', 'ws://');
+      const wsUrl = process.env.NEXT_PUBLIC_SDS_WS_URL || 'wss://dream-rpc.somnia.network/ws';
       
-      console.log('📡 Creating public client with WebSocket transport for real-time updates...');
+      console.log('📡 Creating public client with HTTP transport...');
 
-      let publicClient: any;
-      try {
-        publicClient = createPublicClient({
-          chain: somniaTestnet,
-          transport: webSocket(wsUrl),
-        }) as any;
-        console.log('✅ Public client created with WebSocket transport');
-      } catch (wsError) {
-        console.warn('⚠️ WebSocket transport failed, falling back to HTTP:', wsError);
-        publicClient = createPublicClient({
-          chain: somniaTestnet,
-          transport: http(rpcUrl),
-        }) as any;
-        console.log('✅ Public client created with HTTP transport (fallback)');
-      }
+      const publicClient = createPublicClient({
+        chain: {
+          ...somniaTestnet,
+          rpcUrls: {
+            ...somniaTestnet.rpcUrls,
+            default: {
+              http: [rpcUrl],
+              webSocket: [wsUrl]
+            }
+          }
+        },
+        transport: http(rpcUrl),
+      }) as any;
+      
+      console.log('✅ Public client created with HTTP transport');
       
       console.log('✅ Initializing SDK...');
       
