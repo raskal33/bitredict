@@ -685,6 +685,13 @@ export function useSomniaStreams(
             
             // Check if this is an on-chain event log (has address, topics, data fields)
             if (actualData.address && actualData.topics && Array.isArray(actualData.topics)) {
+              // ✅ CRITICAL: Skip events with empty data and insufficient topics (incomplete events)
+              // These are blockchain events that don't have enough information
+              if (actualData.data === '0x' && actualData.topics.length < 3) {
+                console.warn(`   ⚠️ Skipping incomplete blockchain event for ${eventType}: topics.length=${actualData.topics.length}, data='0x' (empty)`);
+                return; // Skip this event - it doesn't have enough data
+              }
+              
               console.log(`📦 [SDS] Detected on-chain event log - decoding topics...`);
               
               // ✅ CRITICAL: Extract poolId or cycleId from first indexed param - topics[1] (topics[0] is event signature)
