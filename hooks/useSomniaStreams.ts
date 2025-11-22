@@ -29,6 +29,7 @@ function hexToString(hex: `0x${string}` | string): string {
 const globalSubscribersMap = new Map<SDSEventType, Set<(data: SDSEventData) => void>>();
 const globalUnsubscribeFunctionsMap = new Map<string, () => void>();
 const globalPendingSubscriptions = new Set<SDSEventType>();
+const globalPollFunctions = new Map<SDSEventType, () => Promise<void>>();
 let globalSDKInstance: SDK | null = null;
 
 const globalSeenEvents = new Map<SDSEventType, Set<string>>();
@@ -369,7 +370,6 @@ export function useSomniaStreams(
     });
   }, []);
 
-  // WebSocket fallback
   const initializeWebSocketFallback = useCallback(() => {
     if (wsRef.current || isWebSocketConnecting) return;
     
@@ -600,13 +600,11 @@ export function useSomniaStreams(
               }
               
               if (!latest) {
-                return; // No data yet
+                return;
               }
               
-              // Decode hex-encoded data
               let hexData: `0x${string}` | string | null = null;
               
-              // Handle different result formats
               if (Array.isArray(latest) && latest.length > 0) {
                 if (Array.isArray(latest[0]) && latest[0].length > 0) {
                   const firstItem = latest[0][0];
@@ -627,19 +625,16 @@ export function useSomniaStreams(
               }
               
               if (!hexData || typeof hexData !== 'string' || !hexData.startsWith('0x')) {
-                return; // Invalid data format
+                return;
               }
               
-              // Create hash of data to detect if it's the same as last processed
               const dataHash = hexData;
               if (dataHash === lastProcessedDataHash) {
-                return; // Same data as last poll, skip
+                return;
               }
               
-              // Decode hex to JSON string
               const jsonString = hexToString(hexData as `0x${string}`);
               
-              // Parse JSON
               let jsonData: any;
               try {
                 jsonData = JSON.parse(jsonString);
@@ -648,16 +643,13 @@ export function useSomniaStreams(
                 return;
               }
               
-              // Process the decoded JSON data
               console.log(`📦 [SDS] ✅ Decoded backend JSON for ${eventType}:`, {
                 keys: Object.keys(jsonData),
                 preview: JSON.stringify(jsonData).substring(0, 200)
               });
               
-              // Use jsonData directly - it's already our backend's clean JSON
               let decodedData = { ...jsonData };
               
-              // Handle array of events
               if (Array.isArray(decodedData) && decodedData.length > 0) {
                 decodedData = decodedData[0];
               }
@@ -667,7 +659,6 @@ export function useSomniaStreams(
                 return;
               }
               
-              // ✅ CRITICAL: Handle field name variations (snake_case vs camelCase)
               if (!decodedData.poolId && (decodedData as any).pool_id) {
                 decodedData.poolId = (decodedData as any).pool_id;
               }
@@ -690,7 +681,6 @@ export function useSomniaStreams(
                 decodedData.player = (decodedData as any).player_address;
               }
               
-              // ✅ CRITICAL: Normalize IDs
               if (decodedData.poolId) {
                 decodedData.poolId = normalizeId(decodedData.poolId);
               }
@@ -701,7 +691,6 @@ export function useSomniaStreams(
                 decodedData.slipId = normalizeId(decodedData.slipId);
               }
               
-              // ✅ CRITICAL: Ensure addresses are lowercase strings
               if (decodedData.bettor) {
                 decodedData.bettor = String(decodedData.bettor).toLowerCase();
                 (decodedData as any).bettorAddress = decodedData.bettor;
@@ -716,12 +705,10 @@ export function useSomniaStreams(
                 decodedData.player = String(decodedData.player).toLowerCase();
               }
               
-              // ✅ CRITICAL: Ensure amounts are strings
               if (decodedData.amount && typeof decodedData.amount !== 'string') {
                 decodedData.amount = decodedData.amount.toString();
               }
               
-              // ✅ CRITICAL: Validate timestamp
               if (!decodedData.timestamp) {
                 decodedData.timestamp = Math.floor(Date.now() / 1000);
               }
@@ -732,32 +719,23 @@ export function useSomniaStreams(
                 return;
               }
               
-              // ✅ TIME FILTERING: Only process recent events
-              // For pool:progress events, be more lenient (10 minutes) since they're incremental updates
-              // If we got past the hash check (line 698), the data is new, so for progress events
-              // we should process them even if timestamp is slightly old (handles publishing delays)
               const isProgressEvent = eventType === 'pool:progress';
-              const timeWindow = isProgressEvent ? 10 * 60 : 3 * 60; // 10 minutes for progress, 3 minutes for others
+              const timeWindow = isProgressEvent ? 10 * 60 : 3 * 60;
               const nowSeconds = Math.floor(Date.now() / 1000);
               const timeThreshold = nowSeconds - timeWindow;
               
               if (eventTimestamp < timeThreshold) {
-                // For progress events, since we already passed the hash check (data is new),
-                // process it even if timestamp is slightly old - this handles publishing delays
                 if (!isProgressEvent) {
                   console.log(`⚠️ [SDS] Skipping old ${eventType} event (timestamp: ${eventTimestamp}, threshold: ${timeThreshold})`);
                   return;
                 }
-                // For progress events, allow through - hash-based deduplication prevents duplicates
               }
               
-              // ✅ CRITICAL: Ensure currency is set
               if (!decodedData.currency) {
                 const useBitr = (decodedData as any).useBitr || (decodedData as any).use_bitr;
                 decodedData.currency = useBitr ? 'BITR' : 'STT';
               }
               
-              // ✅ Rate limiting
               const now = Date.now();
               const rateLimitKey = `${eventType}:${decodedData.poolId || decodedData.cycleId || 'unknown'}`;
               const lastTime = lastNotificationTime.get(rateLimitKey);
@@ -766,17 +744,14 @@ export function useSomniaStreams(
               }
               lastNotificationTime.set(rateLimitKey, now);
               
-              // ✅ Deduplication
               const dedupeKey = createEventDedupeKey(eventType, decodedData);
               if (isEventSeen(eventType, dedupeKey)) {
                 return;
               }
               markEventSeen(eventType, dedupeKey);
               
-              // Mark this data as processed
               lastProcessedDataHash = dataHash;
               
-              // ✅ Broadcast to all subscribers
               const callbacks = globalSubscribersMap.get(eventType);
               if (callbacks && callbacks.size > 0) {
                 callbacks.forEach(cb => {
@@ -787,31 +762,36 @@ export function useSomniaStreams(
                   }
                 });
               }
+              
+              if (eventType === 'bet:placed' && decodedData.poolId) {
+                const progressPollFn = globalPollFunctions.get('pool:progress');
+                if (progressPollFn) {
+                  setTimeout(() => progressPollFn(), 100);
+                }
+              }
             } catch (err) {
               console.error(`❌ Error in polling for ${eventType}:`, err);
             }
           };
           
-          // Start polling immediately
+          globalPollFunctions.set(eventType, startPolling);
           startPolling();
           
-          // Set up polling interval (every 2 seconds)
-          pollInterval = setInterval(startPolling, 2000);
+          const pollIntervalMs = eventType === 'pool:progress' ? 500 : 2000;
+          pollInterval = setInterval(startPolling, pollIntervalMs);
           
-          // Store cleanup function
           globalUnsubscribeFunctionsMap.set(eventType as any, () => {
             if (pollInterval) {
               clearInterval(pollInterval);
               pollInterval = null;
             }
+            globalPollFunctions.delete(eventType);
             globalPendingSubscriptions.delete(eventType);
           });
           
-          // Clear pending flag
           globalPendingSubscriptions.delete(eventType);
           
         } catch (error) {
-          // ✅ Clear GLOBAL pending flag on error
           globalPendingSubscriptions.delete(eventType);
           console.error(`❌ Failed to set up polling for ${eventType}:`, error);
         }
@@ -826,7 +806,6 @@ export function useSomniaStreams(
       console.log(`♻️ Reusing existing subscription for ${eventType} (${callbacks.size} subscribers)`);
     }
 
-    // Return unsubscribe function
     return () => {
       const callbacks = globalSubscribersMap.get(eventType);
       if (callbacks) {
@@ -906,7 +885,6 @@ export function useSomniaStreams(
     };
   }, [enabled, initializeSDK]);
   
-  // ✅ CRITICAL FIX: Ensure isSDSActive state is updated when SDK becomes available
   useEffect(() => {
     if (globalSDKInstance && !isSDSActive) {
       console.log('🔄 Updating isSDSActive state - SDK is available');
@@ -926,7 +904,6 @@ export function useSomniaStreams(
   };
 }
 
-// Convenience hooks
 export function usePoolUpdates(callback: (data: SDSPoolData) => void, enabled = true) {
   const { subscribe, ...rest } = useSomniaStreams({ enabled });
   const callbackRef = useRef(callback);
