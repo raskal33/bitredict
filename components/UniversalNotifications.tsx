@@ -80,7 +80,7 @@ export function UniversalNotifications() {
     uniqueId: string,
     options?: { duration?: number; icon?: string }
   ) => {
-    // Check rate limiting
+    // ✅ CRITICAL: Check rate limiting FIRST (before seen check)
     const lastTime = lastNotificationTime.current.get(uniqueId);
     const now = Date.now();
     if (lastTime && (now - lastTime) < RATE_LIMIT_MS) {
@@ -88,26 +88,36 @@ export function UniversalNotifications() {
       return;
     }
 
-    // Check if already seen
+    // ✅ CRITICAL: Check if already seen (use same uniqueId for react-hot-toast deduplication)
     if (seenEventsRef.current.has(uniqueId)) {
       console.log(`⚠️ Duplicate: Skipping notification ${uniqueId}`);
       return;
     }
 
-    // Mark as seen and update rate limit
+    // Mark as seen and update rate limit BEFORE showing toast
     seenEventsRef.current.add(uniqueId);
     lastNotificationTime.current.set(uniqueId, now);
 
     // Clean up old entries (keep last 1000)
     if (seenEventsRef.current.size > 1000) {
       const firstKey = seenEventsRef.current.values().next().value;
-      if (firstKey) seenEventsRef.current.delete(firstKey);
+      if (firstKey) {
+        seenEventsRef.current.delete(firstKey);
+        lastNotificationTime.current.delete(firstKey);
+      }
     }
 
+    // ✅ CRITICAL: Check if this exact toast was already shown (react-hot-toast deduplication)
+    if (toast.isActive(uniqueId)) {
+      console.log(`⚠️ UniversalNotifications: Toast ${uniqueId} already active, skipping`);
+      return;
+    }
+    
     // Show toast with unique ID
     const toastOptions = {
       duration: options?.duration || 4000,
       id: uniqueId, // ✅ CRITICAL: Unique ID for deduplication
+      position: 'top-right' as const, // ✅ CRITICAL: Explicitly set position to top-right
       ...(options?.icon && { icon: options.icon })
     };
 
@@ -187,15 +197,31 @@ export function UniversalNotifications() {
     }
     
     const uniqueId = `bet-placed-${poolId}-${bettor}-${timestamp}`;
-    const poolTitle = betData.poolTitle || `Pool #${poolId}`;
+    const displayPoolId = formatIdForDisplay(poolId);
+    const poolTitle = betData.poolTitle || `Pool ${displayPoolId}`;
     const amount = betData.amount || '0';
     const currency = betData.currency || 'STT';
     
-    // Convert from wei if needed
-    let amountInToken = amount;
-    const amountNum = parseFloat(amount);
-    if (amountNum > 1e12) {
-      amountInToken = (amountNum / 1e18).toFixed(2);
+    // ✅ CRITICAL: Backend sends amount as raw wei string, ALWAYS convert from wei to token
+    let amountInToken = '0';
+    try {
+      const amountBigInt = BigInt(amount);
+      const amountNum = Number(amountBigInt);
+      if (amountNum > 0) {
+        amountInToken = (amountNum / 1e18).toFixed(2);
+        console.log(`   💰 Converted bet amount from wei: ${amountBigInt.toString()} → ${amountInToken} ${currency}`);
+      } else {
+        console.warn(`⚠️ Invalid bet amount (zero or negative): ${amountNum}, skipping notification`);
+        return;
+      }
+    } catch (error) {
+      const amountNum = parseFloat(amount);
+      if (amountNum > 0) {
+        amountInToken = (amountNum / 1e18).toFixed(2);
+      } else {
+        console.warn(`⚠️ Invalid bet amount (zero or negative): ${amountNum}, skipping notification`);
+        return;
+      }
     }
     
     showNotification('success', `🎯 Bet placed: ${amountInToken} ${currency} on ${poolTitle}`, uniqueId, {
@@ -232,38 +258,32 @@ export function UniversalNotifications() {
     const currency = (liquidityDataAny.currency as string) || 
                      ((liquidityDataAny.useBitr as boolean) || (liquidityDataAny.use_bitr as boolean) ? 'BITR' : 'STT');
     
-    // ✅ CRITICAL: Convert from wei if needed (handle BigInt strings)
-    let amountInToken = amount;
+    // ✅ CRITICAL: Backend sends amount as raw wei string (e.g., "1000000000000000000" for 1 token)
+    // Always convert from wei to token (divide by 1e18)
+    let amountInToken = '0';
     try {
+      // Handle BigInt strings from backend
       const amountBigInt = BigInt(amount);
       const amountNum = Number(amountBigInt);
-      // ✅ FIX: Check if amount is in wei (very large number) and convert
-      if (amountNum > 1e12 && amountNum < 1e30) {
+      
+      // ✅ CRITICAL: Backend ALWAYS sends wei amounts, so ALWAYS convert
+      if (amountNum > 0) {
+        // Convert from wei to token
         amountInToken = (amountNum / 1e18).toFixed(2);
         console.log(`   💰 Converted liquidity amount from wei: ${amountBigInt.toString()} → ${amountInToken} ${currency}`);
-      } else if (amountNum === 0 || amountNum < 0) {
+      } else {
         console.warn(`⚠️ Invalid amount (zero or negative): ${amountNum}, skipping notification`);
         return;
-      } else if (amountNum >= 1e30) {
-        console.warn(`⚠️ Invalid amount (too large): ${amountNum}, skipping notification`);
-        return;
-      } else {
-        // Already in token format, use as-is
-        amountInToken = amountNum.toFixed(2);
-        console.log(`   💰 Liquidity amount already in ${currency} format: ${amountInToken}`);
       }
-    } catch {
+    } catch (error) {
+      // Fallback: try parseFloat
       const amountNum = parseFloat(amount);
-      if (amountNum > 1e12 && amountNum < 1e30) {
+      if (amountNum > 0) {
         amountInToken = (amountNum / 1e18).toFixed(2);
-      } else if (amountNum === 0 || amountNum < 0) {
+        console.log(`   💰 Converted liquidity amount from wei (fallback): ${amountNum} → ${amountInToken} ${currency}`);
+      } else {
         console.warn(`⚠️ Invalid amount (zero or negative): ${amountNum}, skipping notification`);
         return;
-      } else if (amountNum >= 1e30) {
-        console.warn(`⚠️ Invalid amount (too large): ${amountNum}, skipping notification`);
-        return;
-      } else {
-        amountInToken = amountNum.toFixed(2);
       }
     }
     

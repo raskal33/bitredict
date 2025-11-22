@@ -1336,14 +1336,24 @@ export function useSomniaStreams(
               if (jsonData) {
                 // Extract from JSON
                 const rawPoolId = jsonData.poolId || jsonData.pool_id || data.poolId || data.pool_id || decodedData.poolId || '0';
+                
+                // ✅ CRITICAL: Backend sends amount as raw wei string, keep it as string for proper conversion
+                const rawAmount = (jsonData.amount || decodedData.amount || data.amount || '0').toString();
+                
+                // ✅ CRITICAL: Extract currency from pool data if available
+                const currency = jsonData.currency || jsonData.useBitr || jsonData.use_bitr 
+                  ? (jsonData.useBitr || jsonData.use_bitr ? 'BITR' : 'STT')
+                  : undefined;
+                
                 decodedData = {
                   ...decodedData,
                   poolId: normalizeId(rawPoolId),
                   provider: jsonData.provider || jsonData.providerAddress || decodedData.provider || data.provider || '',
-                  amount: (jsonData.amount || decodedData.amount || data.amount || '0').toString(),
+                  amount: rawAmount, // ✅ Keep as raw wei string - will be converted in component
                   totalLiquidity: (jsonData.totalLiquidity || jsonData.total_liquidity || '0').toString(),
                   poolFillPercentage: jsonData.poolFillPercentage || jsonData.pool_fill_percentage || 0,
-                  timestamp: jsonData.timestamp || data.timestamp || decodedData.timestamp || Math.floor(Date.now() / 1000)
+                  timestamp: jsonData.timestamp || data.timestamp || decodedData.timestamp || Math.floor(Date.now() / 1000),
+                  currency: currency // ✅ Add currency if available
                 };
                 console.log(`✅ Decoded liquidity added data from JSON:`, decodedData);
               } else if (data.data && typeof data.data === 'string' && data.data.startsWith('0x')) {
@@ -1363,10 +1373,11 @@ export function useSomniaStreams(
                     ...decodedData,
                     poolId: normalizeId(decoded[0].toString()),
                     provider: decoded[1],
-                    amount: decoded[2].toString(),
+                    amount: decoded[2].toString(), // ✅ Keep as raw wei string - will be converted in component
                     totalLiquidity: decoded[3].toString(),
                     poolFillPercentage: Number(decoded[4]),
                     timestamp: Number(decoded[5])
+                    // ✅ Note: currency not available from ABI, will default to STT in component
                   };
                   console.log(`✅ Decoded liquidity added data from ABI:`, decodedData);
                 } catch (decodeError) {

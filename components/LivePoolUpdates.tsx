@@ -51,11 +51,20 @@ export function LivePoolUpdates() {
     
     // Show toast notification + play sound
     if (poolData.isSettled) {
-      // ✅ Use unique toast ID to prevent duplicates
-      const toastId = `pool-settled-${poolData.poolId}`;
+      // ✅ CRITICAL: Use unique toast ID with timestamp to prevent duplicates
+      const timestamp = Date.now();
+      const toastId = `pool-settled-${poolData.poolId}-${timestamp}`;
+      
+      // ✅ CRITICAL: Check if this exact toast was already shown
+      if (toast.isActive(toastId)) {
+        console.log(`⚠️ LivePoolUpdates: Toast ${toastId} already active, skipping`);
+        return;
+      }
+      
       toast.success(`🏆 ${poolData.title} settled!`, { 
         duration: 4000,
-        id: toastId // ✅ Unique deduplication key for toast
+        id: toastId, // ✅ Unique deduplication key for toast
+        position: 'top-right' // ✅ CRITICAL: Explicitly set position to top-right
       });
       playSuccess();
     } else {

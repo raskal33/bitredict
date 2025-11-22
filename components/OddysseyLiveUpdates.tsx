@@ -110,47 +110,34 @@ export function OddysseyLiveUpdates() {
     const currency = (cycleDataRecord.currency as string) || (useBitr ? 'BITR' : 'STT');
     const currencySymbol = currency.toUpperCase();
     
-    // ✅ CRITICAL: Normalize prizePool from wei to token (BigInt string conversion)
+    // ✅ CRITICAL: Backend sends prizePool as raw wei string (e.g., "1000000000000000000" for 1 token)
+    // Always convert from wei to token (divide by 1e18)
     let prizePoolInToken = cycleData.prizePool || '0';
     
-    // ✅ Handle BigInt strings properly (from ABI decoding)
+    // ✅ Handle BigInt strings properly (from backend JSON)
     try {
       // Convert string to BigInt to handle very large numbers
       const prizePoolBigInt = BigInt(prizePoolInToken);
       const prizePoolNum = Number(prizePoolBigInt);
       
-      // ✅ CRITICAL: Only convert if it's clearly in wei (very large number > 1e12)
-      // If it's already in token format (small number), don't convert
-      if (prizePoolNum > 1e12 && prizePoolNum < 1e30) {
-        // Likely in wei, convert to token
+      // ✅ CRITICAL: Backend ALWAYS sends wei amounts, so ALWAYS convert
+      if (prizePoolNum > 0) {
+        // Convert from wei to token
         prizePoolInToken = (prizePoolNum / 1e18).toString();
         console.log(`   💰 Converted prize pool from wei: ${prizePoolBigInt.toString()} → ${prizePoolInToken} ${currencySymbol}`);
-      } else if (prizePoolNum === 0 || prizePoolNum < 0) {
-        // Zero or negative - invalid
+      } else {
         console.warn(`   ⚠️ Prize pool value is zero or negative: ${prizePoolBigInt.toString()}, using 0`);
         prizePoolInToken = '0';
-      } else if (prizePoolNum >= 1e30) {
-        // Extremely large number, might be a hash or invalid - log warning
-        console.warn(`   ⚠️ Prize pool value seems invalid (too large): ${prizePoolBigInt.toString()}, using 0`);
-        prizePoolInToken = '0';
-      } else {
-        // Already in token format or small number, use as-is
-        console.log(`   💰 Prize pool already in ${currencySymbol} format: ${prizePoolInToken}`);
       }
-    } catch {
+    } catch (error) {
       // If BigInt conversion fails, try parseFloat as fallback
       const prizePoolNum = parseFloat(prizePoolInToken);
-      if (prizePoolNum > 1e12 && prizePoolNum < 1e30) {
+      if (prizePoolNum > 0) {
         prizePoolInToken = (prizePoolNum / 1e18).toString();
         console.log(`   💰 Converted prize pool from wei (fallback): ${prizePoolNum} → ${prizePoolInToken} ${currencySymbol}`);
-      } else if (prizePoolNum === 0 || prizePoolNum < 0) {
+      } else {
         console.warn(`   ⚠️ Prize pool value is zero or negative: ${prizePoolNum}, using 0`);
         prizePoolInToken = '0';
-      } else if (prizePoolNum >= 1e30) {
-        console.warn(`   ⚠️ Prize pool value seems invalid (too large): ${prizePoolNum}, using 0`);
-        prizePoolInToken = '0';
-      } else {
-        console.log(`   💰 Prize pool already in ${currencySymbol} format (fallback): ${prizePoolInToken}`);
       }
     }
     
@@ -159,8 +146,17 @@ export function OddysseyLiveUpdates() {
     
     setCycleStatus(`Cycle ${displayCycleId} resolved! 🎉 Prize pool: ${formattedPrizePool} ${currencySymbol}`);
     
-    // ✅ Use unique toast ID with normalized cycleId to prevent duplicates
-    const toastId = `cycle-resolved-${cycleId}`;
+    // ✅ CRITICAL: Use unique toast ID with normalized cycleId + timestamp to prevent duplicates
+    // Include timestamp to prevent same cycle from different times triggering multiple notifications
+    const toastId = `cycle-resolved-${cycleId}-${eventTimestamp}`;
+    
+    // ✅ CRITICAL: Check if this exact toast was already shown (react-hot-toast deduplication)
+    // react-hot-toast automatically deduplicates by ID, but we add extra check for safety
+    if (toast.isActive(toastId)) {
+      console.log(`⚠️ OddysseyLiveUpdates: Toast ${toastId} already active, skipping`);
+      return;
+    }
+    
     toast.success(
       `🏆 Cycle ${displayCycleId} Results Are In!`,
       { 
@@ -239,8 +235,15 @@ export function OddysseyLiveUpdates() {
       });
 
       if (isWinner) {
-        // ✅ Use unique toast ID with slipId to prevent duplicates
-        const toastId = `slip-won-${slipId}`;
+        // ✅ CRITICAL: Use unique toast ID with slipId + timestamp to prevent duplicates
+        const toastId = `slip-won-${slipId}-${Date.now()}`;
+        
+        // ✅ CRITICAL: Check if this exact toast was already shown
+        if (toast.isActive(toastId)) {
+          console.log(`⚠️ OddysseyLiveUpdates: Toast ${toastId} already active, skipping`);
+          return;
+        }
+        
         // Winner notification + BIG sound
         toast.success(
           <div>
@@ -250,12 +253,13 @@ export function OddysseyLiveUpdates() {
           </div>,
           { 
             duration: 8000,
-            id: toastId // ✅ Unique deduplication key for toast
+            id: toastId, // ✅ Unique deduplication key for toast
+            position: 'top-right' // ✅ CRITICAL: Explicitly set position to top-right
           }
         );
         playWin();
       } else {
-        // ✅ Use unique toast ID with slipId to prevent duplicates
+        // ✅ CRITICAL: Use unique toast ID with slipId + timestamp to prevent duplicates
         const toastId = `slip-evaluated-${slipId}`;
         // Participation notification
         toast(
