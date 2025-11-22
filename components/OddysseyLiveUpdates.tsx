@@ -54,9 +54,15 @@ export function OddysseyLiveUpdates() {
 
   // Listen for cycle resolutions
   useCycleUpdates((cycleData) => {
-    // ✅ CRITICAL: Normalize cycleId explicitly (safety check even if useSomniaStreams normalizes)
+    // ✅ CRITICAL: Only process cycle:resolved events (prevent notifications on unrelated transactions)
     const cycleDataRecord = cycleData as unknown as Record<string, unknown>;
-    const rawCycleId = cycleData.cycleId || (cycleDataRecord.cycle_id as string) || '0';
+    if (!cycleData.cycleId && !cycleDataRecord.cycle_id && !cycleDataRecord.cycleId) {
+      console.log('⚠️ OddysseyLiveUpdates: Skipping non-cycle event:', cycleData);
+      return;
+    }
+    
+    // ✅ CRITICAL: Normalize cycleId explicitly (safety check even if useSomniaStreams normalizes)
+    const rawCycleId = cycleData.cycleId || (cycleDataRecord.cycle_id as string) || (cycleDataRecord.cycleId as string) || '0';
     const cycleId = normalizeId(rawCycleId);
     
     if (cycleId === '0' || !cycleId || cycleId === 'Unknown') {
@@ -93,23 +99,41 @@ export function OddysseyLiveUpdates() {
     const currency = (cycleDataRecord.currency as string) || (useBitr ? 'BITR' : 'STT');
     const currencySymbol = currency.toUpperCase();
     
-    // ✅ Normalize prizePool from wei to token (only if it's in wei format)
+    // ✅ CRITICAL: Normalize prizePool from wei to token (BigInt string conversion)
     let prizePoolInToken = cycleData.prizePool || '0';
-    const prizePoolNum = parseFloat(prizePoolInToken);
     
-    // ✅ CRITICAL: Only convert if it's clearly in wei (very large number > 1e12)
-    // If it's already in token format (small number), don't convert
-    if (prizePoolNum > 1e12 && prizePoolNum < 1e30) {
-      // Likely in wei, convert to token
-      prizePoolInToken = (prizePoolNum / 1e18).toString();
-      console.log(`   💰 Converted prize pool from wei: ${prizePoolNum} → ${prizePoolInToken} ${currencySymbol}`);
-    } else if (prizePoolNum >= 1e30) {
-      // Extremely large number, might be a hash or invalid - log warning
-      console.warn(`   ⚠️ Prize pool value seems invalid (too large): ${prizePoolNum}, using 0`);
-      prizePoolInToken = '0';
-    } else {
-      // Already in token format or small number, use as-is
-      console.log(`   💰 Prize pool already in ${currencySymbol} format: ${prizePoolInToken}`);
+    // ✅ Handle BigInt strings properly (from ABI decoding)
+    try {
+      // Convert string to BigInt to handle very large numbers
+      const prizePoolBigInt = BigInt(prizePoolInToken);
+      const prizePoolNum = Number(prizePoolBigInt);
+      
+      // ✅ CRITICAL: Only convert if it's clearly in wei (very large number > 1e12)
+      // If it's already in token format (small number), don't convert
+      if (prizePoolNum > 1e12 && prizePoolNum < 1e30) {
+        // Likely in wei, convert to token
+        prizePoolInToken = (prizePoolNum / 1e18).toString();
+        console.log(`   💰 Converted prize pool from wei: ${prizePoolBigInt.toString()} → ${prizePoolInToken} ${currencySymbol}`);
+      } else if (prizePoolNum >= 1e30) {
+        // Extremely large number, might be a hash or invalid - log warning
+        console.warn(`   ⚠️ Prize pool value seems invalid (too large): ${prizePoolBigInt.toString()}, using 0`);
+        prizePoolInToken = '0';
+      } else {
+        // Already in token format or small number, use as-is
+        console.log(`   💰 Prize pool already in ${currencySymbol} format: ${prizePoolInToken}`);
+      }
+    } catch (e) {
+      // If BigInt conversion fails, try parseFloat as fallback
+      const prizePoolNum = parseFloat(prizePoolInToken);
+      if (prizePoolNum > 1e12 && prizePoolNum < 1e30) {
+        prizePoolInToken = (prizePoolNum / 1e18).toString();
+        console.log(`   💰 Converted prize pool from wei (fallback): ${prizePoolNum} → ${prizePoolInToken} ${currencySymbol}`);
+      } else if (prizePoolNum >= 1e30) {
+        console.warn(`   ⚠️ Prize pool value seems invalid (too large): ${prizePoolNum}, using 0`);
+        prizePoolInToken = '0';
+      } else {
+        console.log(`   💰 Prize pool already in ${currencySymbol} format (fallback): ${prizePoolInToken}`);
+      }
     }
     
     const formattedPrizePool = parseFloat(prizePoolInToken).toFixed(2);

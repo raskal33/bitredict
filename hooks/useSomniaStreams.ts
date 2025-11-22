@@ -1017,6 +1017,7 @@ export function useSomniaStreams(
                         ],
                         actualData.data
                       );
+                      // ✅ CRITICAL: Prize pool is in wei format (BigInt), store as string for proper conversion
                       decodedData.prizePool = decoded[0].toString();
                       decodedData.totalSlips = Number(decoded[1]);
                       const ts = Number(decoded[2]);
@@ -1024,17 +1025,22 @@ export function useSomniaStreams(
                       if (ts > 0 && ts < 2147483647) {
                         decodedData.timestamp = ts;
                       }
-                      // Ensure cycleId is set (from topic[0] or fallback)
+                      // ✅ CRITICAL: Ensure cycleId is normalized (from topic[1] which was already normalized above)
                       if (!decodedData.cycleId) {
-                        decodedData.cycleId = decodedData.poolId || '0';
+                        decodedData.cycleId = normalizeId(decodedData.poolId || '0');
+                      } else {
+                        // Double-normalize to ensure it's correct
+                        decodedData.cycleId = normalizeId(decodedData.cycleId);
                       }
                       decodedData.status = 'resolved';
-                      console.log(`   ✅ Decoded cycle resolved data: cycleId=${decodedData.cycleId}, prizePool=${decodedData.prizePool}, totalSlips=${decodedData.totalSlips}`);
+                      console.log(`   ✅ Decoded cycle resolved data: cycleId=${decodedData.cycleId}, prizePool=${decodedData.prizePool} (wei), totalSlips=${decodedData.totalSlips}`);
                     } catch (e) {
                       console.warn(`   ⚠️ Failed to decode cycle resolved data field:`, e);
-                      // Ensure cycleId is set even if decoding fails
+                      // ✅ CRITICAL: Ensure cycleId is normalized even if decoding fails
                       if (!decodedData.cycleId) {
-                        decodedData.cycleId = decodedData.poolId || '0';
+                        decodedData.cycleId = normalizeId(decodedData.poolId || '0');
+                      } else {
+                        decodedData.cycleId = normalizeId(decodedData.cycleId);
                       }
                     }
                   }
@@ -1199,7 +1205,7 @@ export function useSomniaStreams(
                     }
                   };
                   decodedData = {
-                    poolId: decoded[0].toString(),
+                    poolId: normalizeId(decoded[0].toString()), // ✅ CRITICAL: Normalize poolId immediately
                     creator: decoded[1],
                     odds: Number(decoded[2]),
                     creatorStake: decoded[4].toString(),
@@ -1223,9 +1229,10 @@ export function useSomniaStreams(
                 }
               } else {
                 // Data already decoded or sent as object
+                  const rawPoolId = data.poolId?.toString() || data.pool_id?.toString() || '0';
                   decodedData = {
                     ...data,
-                    poolId: data.poolId?.toString() || data.pool_id?.toString(),
+                    poolId: normalizeId(rawPoolId), // ✅ CRITICAL: Normalize poolId
                     timestamp: data.timestamp // ✅ CRITICAL: Don't default to current time
                   };
               }
@@ -1270,15 +1277,17 @@ export function useSomniaStreams(
             // Decode cycle resolved data (only for non-event-log data)
             if (eventType === 'cycle:resolved' && !actualData.address && data && typeof data === 'object') {
               const rawCycleId = data.cycleId?.toString() || data.cycle_id?.toString() || decodedData.cycleId || decodedData.poolId || '0';
+              const normalizedCycleId = normalizeId(rawCycleId); // ✅ CRITICAL: Normalize cycle ID
+              const rawPrizePool = data.prizePool?.toString() || data.prize_pool?.toString() || '0';
               decodedData = {
                 ...data,
-                cycleId: normalizeId(rawCycleId), // ✅ CRITICAL: Normalize cycle ID
-                prizePool: data.prizePool?.toString() || data.prize_pool?.toString() || '0',
+                cycleId: normalizedCycleId, // ✅ CRITICAL: Use normalized cycle ID
+                prizePool: rawPrizePool, // ✅ Keep as string (will be converted from wei in component)
                 totalSlips: data.totalSlips ?? data.total_slips ?? 0,
                 status: data.status || 'resolved',
                 timestamp: data.timestamp // ✅ CRITICAL: Don't default to current time
               };
-              console.log(`✅ Formatted cycle resolved data (cycleId normalized from ${rawCycleId} to ${decodedData.cycleId}):`, decodedData);
+              console.log(`✅ Formatted cycle resolved data (cycleId normalized from ${rawCycleId} to ${normalizedCycleId}, prizePool: ${rawPrizePool}):`, decodedData);
             }
             
             // ✅ Decode bet placed data (only for non-event-log data, already decoded above)
@@ -1415,7 +1424,7 @@ export function useSomniaStreams(
               return; // Skip old events
             }
             
-            // ✅ NORMALIZE IDs: Convert BigInt/hex to readable numbers
+            // ✅ CRITICAL: NORMALIZE IDs: Convert BigInt/hex to readable numbers (MUST happen before rate limiting and deduplication)
             if (decodedData.poolId) {
               decodedData.poolId = normalizeId(decodedData.poolId);
             }
@@ -1424,6 +1433,12 @@ export function useSomniaStreams(
             }
             if (decodedData.slipId) {
               decodedData.slipId = normalizeId(decodedData.slipId);
+            }
+            
+            // ✅ CRITICAL: Double-check cycleId normalization (in case it was set in multiple places)
+            if (eventType === 'cycle:resolved' && decodedData.cycleId) {
+              decodedData.cycleId = normalizeId(decodedData.cycleId);
+              console.log(`   ✅ Final normalized cycleId: ${decodedData.cycleId}`);
             }
             
             // ✅ Rate limiting: Prevent notification bombing
