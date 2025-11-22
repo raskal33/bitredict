@@ -1,21 +1,25 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { SDK } from '@somnia-chain/streams';
-import { createPublicClient, http } from 'viem';
+import { SDK, SchemaEncoder } from '@somnia-chain/streams';
+import { createPublicClient, http, webSocket } from 'viem';
 import { somniaTestnet } from 'viem/chains';
 
 const PUBLISHER_ADDRESS = (process.env.NEXT_PUBLIC_SDS_PUBLISHER_ADDRESS || '0x483fc7FD690dCf2a01318282559C389F385d4428') as `0x${string}`;
 
-async function getSchemaIdForContext(context: string): Promise<`0x${string}`> {
-  const encoder = new TextEncoder();
-  const encodedData = encoder.encode(context);
-  const dataBuffer = encodedData.buffer.slice(
-    encodedData.byteOffset,
-    encodedData.byteOffset + encodedData.byteLength
-  ) as ArrayBuffer;
-  const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  return `0x${hashHex.slice(0, 64)}` as `0x${string}`;
+const JSON_SCHEMA = 'string jsonData';
+let jsonEncoder: SchemaEncoder | null = null;
+
+function getJsonEncoder(): SchemaEncoder {
+  if (!jsonEncoder) {
+    jsonEncoder = new SchemaEncoder(JSON_SCHEMA);
+  }
+  return jsonEncoder;
+}
+
+async function getSchemaId(sdk: SDK | null): Promise<`0x${string}`> {
+  if (!sdk) {
+    throw new Error('SDK not available for schema computation');
+  }
+  return await sdk.streams.computeSchemaId(JSON_SCHEMA);
 }
 
 function hexToString(hex: `0x${string}` | string): string {
@@ -313,14 +317,28 @@ export function useSomniaStreams(
     }
 
     try {
-      console.log('📡 Creating public client with HTTP transport...');
+      const rpcUrl = process.env.NEXT_PUBLIC_SDS_RPC_URL || 'https://dream-rpc.somnia.network';
+      const wsUrl = rpcUrl.replace('https://', 'wss://').replace('http://', 'ws://');
+      
+      console.log('📡 Creating public client with WebSocket transport for real-time updates...');
 
-      const publicClient = createPublicClient({
-        chain: somniaTestnet,
-        transport: http(),
-      }) as any;
-
-      console.log('✅ Public client created, initializing SDK...');
+      let publicClient: any;
+      try {
+        publicClient = createPublicClient({
+          chain: somniaTestnet,
+          transport: webSocket(wsUrl),
+        }) as any;
+        console.log('✅ Public client created with WebSocket transport');
+      } catch (wsError) {
+        console.warn('⚠️ WebSocket transport failed, falling back to HTTP:', wsError);
+        publicClient = createPublicClient({
+          chain: somniaTestnet,
+          transport: http(rpcUrl),
+        }) as any;
+        console.log('✅ Public client created with HTTP transport (fallback)');
+      }
+      
+      console.log('✅ Initializing SDK...');
       
       const sdk = new SDK({
         public: publicClient
@@ -569,77 +587,65 @@ export function useSomniaStreams(
         console.log(`   SDK available: ${!!sdkAvailable}, SDS active: ${sdsActive}, First subscriber: ${isFirstSubscriber}, Pending: ${isPending}`);
         
         try {
-          let pollInterval: NodeJS.Timeout | null = null;
+          let subscription: any = null;
           let lastProcessedDataHash: string | null = null;
           
-          const startPolling = async () => {
+          const processData = (data: any) => {
             try {
-              const schemaId = await getSchemaIdForContext(contextConfig);
-              const sdkToUse = sdkRef.current || globalSDKInstance;
-              if (!sdkToUse) {
-                throw new Error('SDK not available for polling');
-              }
-              
-              let latest: any;
-              try {
-                latest = await sdkToUse.streams.getLastPublishedDataForSchema(
-                  schemaId,
-                  PUBLISHER_ADDRESS
-                );
-              } catch (error: any) {
-                if (
-                  error?.message?.includes('NoData') || 
-                  error?.shortMessage === 'NoData()' ||
-                  error?.cause?.reason === 'NoData()' ||
-                  (error?.cause && typeof error.cause === 'object' && 'reason' in error.cause && error.cause.reason === 'NoData()')
-                ) {
-                  return;
-                }
-                console.warn(`⚠️ [SDS] Error fetching data for ${eventType}:`, error);
-                return;
-              }
-              
-              if (!latest) {
-                return;
-              }
-              
+              let jsonData: any = null;
               let hexData: `0x${string}` | string | null = null;
               
-              if (Array.isArray(latest) && latest.length > 0) {
-                if (Array.isArray(latest[0]) && latest[0].length > 0) {
-                  const firstItem = latest[0][0];
-                  if (typeof firstItem === 'string') {
-                    hexData = firstItem;
-                  } else if (firstItem && typeof firstItem === 'object' && (firstItem as any).data) {
-                    hexData = (firstItem as any).data;
-                  }
-                } else if (typeof latest[0] === 'string') {
-                  hexData = latest[0];
-                } else if (latest[0] && typeof latest[0] === 'object' && (latest[0] as any).data) {
-                  hexData = (latest[0] as any).data;
+              if (Array.isArray(data) && data.length > 0) {
+                const firstItem = Array.isArray(data[0]) ? data[0][0] : data[0];
+                if (firstItem && typeof firstItem === 'object' && firstItem.name === 'jsonData') {
+                  jsonData = JSON.parse(firstItem.value?.value || firstItem.value || '');
+                } else if (typeof firstItem === 'string' && firstItem.startsWith('0x')) {
+                  hexData = firstItem;
+                } else if (firstItem && typeof firstItem === 'object' && firstItem.data) {
+                  hexData = firstItem.data;
                 }
-              } else if (typeof latest === 'string') {
-                hexData = latest;
-              } else if (latest && typeof latest === 'object' && (latest as any).data) {
-                hexData = (latest as any).data;
+              } else if (typeof data === 'string' && data.startsWith('0x')) {
+                hexData = data;
+              } else if (data && typeof data === 'object') {
+                if (data.name === 'jsonData') {
+                  jsonData = JSON.parse(data.value?.value || data.value || '');
+                } else if (data.data) {
+                  hexData = data.data;
+                } else if (Array.isArray(data) && data.length > 0 && data[0].name === 'jsonData') {
+                  jsonData = JSON.parse(data[0].value?.value || data[0].value || '');
+                }
               }
               
-              if (!hexData || typeof hexData !== 'string' || !hexData.startsWith('0x')) {
-                return;
-              }
-              
-              const dataHash = hexData;
-              if (dataHash === lastProcessedDataHash) {
-                return;
-              }
-              
-              const jsonString = hexToString(hexData as `0x${string}`);
-              
-              let jsonData: any;
-              try {
-                jsonData = JSON.parse(jsonString);
-              } catch (e) {
-                console.warn(`⚠️ [SDS] Failed to parse JSON for ${eventType}:`, e);
+              if (!jsonData && hexData) {
+                const dataHash = hexData;
+                if (dataHash === lastProcessedDataHash) {
+                  return;
+                }
+                lastProcessedDataHash = dataHash;
+                
+                try {
+                  const encoder = getJsonEncoder();
+                  const decoded = encoder.decodeData(hexData as `0x${string}`);
+                  
+                  let jsonString = '';
+                  for (const field of decoded) {
+                    if (field.name === 'jsonData') {
+                      const val = field.value?.value || field.value;
+                      jsonString = typeof val === 'string' ? val : String(val || '');
+                      break;
+                    }
+                  }
+                  if (jsonString) {
+                    jsonData = JSON.parse(jsonString);
+                  } else {
+                    console.warn(`⚠️ [SDS] No jsonData field in decoded schema data for ${eventType}`);
+                    return;
+                  }
+                } catch (e) {
+                  console.warn(`⚠️ [SDS] Failed to decode data for ${eventType}:`, e);
+                  return;
+                }
+              } else if (!jsonData) {
                 return;
               }
               
@@ -750,7 +756,9 @@ export function useSomniaStreams(
               }
               markEventSeen(eventType, dedupeKey);
               
-              lastProcessedDataHash = dataHash;
+              if (hexData) {
+                lastProcessedDataHash = hexData;
+              }
               
               const callbacks = globalSubscribersMap.get(eventType);
               if (callbacks && callbacks.size > 0) {
@@ -770,24 +778,118 @@ export function useSomniaStreams(
                 }
               }
             } catch (err) {
-              console.error(`❌ Error in polling for ${eventType}:`, err);
+              console.error(`❌ Error processing data for ${eventType}:`, err);
             }
           };
           
-          globalPollFunctions.set(eventType, startPolling);
-          startPolling();
-          
-          const pollIntervalMs = eventType === 'pool:progress' ? 500 : 2000;
-          pollInterval = setInterval(startPolling, pollIntervalMs);
-          
-          globalUnsubscribeFunctionsMap.set(eventType as any, () => {
-            if (pollInterval) {
-              clearInterval(pollInterval);
-              pollInterval = null;
+          const setupSubscription = async () => {
+            try {
+              const sdkToUse = sdkRef.current || globalSDKInstance;
+              if (!sdkToUse) {
+                throw new Error('SDK not available for subscription');
+              }
+              
+              const somniaStreamsEventId = contextConfig;
+              console.log(`📡 [SDS] Setting up real-time subscription for ${eventType} (eventId: ${somniaStreamsEventId})`);
+              
+              try {
+                if (typeof sdkToUse.streams.subscribe === 'function') {
+                  subscription = await (sdkToUse.streams.subscribe as any)({
+                    somniaStreamsEventId: somniaStreamsEventId,
+                    onData: (payload: any) => {
+                      if (payload && payload.data) {
+                        processData(payload.data);
+                      } else if (payload) {
+                        processData(payload);
+                      }
+                    },
+                    onError: (error: Error) => {
+                      console.error(`❌ [SDS] Subscription error for ${eventType}:`, error);
+                    }
+                  });
+                  
+                  console.log(`✅ [SDS] Real-time subscription active for ${eventType} (eventId: ${somniaStreamsEventId})`);
+                } else {
+                  throw new Error('Subscribe method not available in SDK');
+                }
+              } catch (subscribeError: any) {
+                console.warn(`⚠️ [SDS] Subscription not available for ${eventType}, falling back to polling:`, subscribeError.message);
+                
+                const schemaId = await getSchemaId(sdkToUse);
+                let pollInterval: NodeJS.Timeout | null = null;
+                let lastProcessedDataHash: string | null = null;
+                
+                const startPolling = async () => {
+                  try {
+                    const latest = await sdkToUse.streams.getLastPublishedDataForSchema(
+                      schemaId,
+                      PUBLISHER_ADDRESS
+                    );
+                    
+                    if (latest) {
+                      processData(latest);
+                    }
+                  } catch (error: any) {
+                    if (
+                      error?.message?.includes('NoData') || 
+                      error?.shortMessage === 'NoData()' ||
+                      error?.cause?.reason === 'NoData()' ||
+                      (error?.cause && typeof error.cause === 'object' && 'reason' in error.cause && error.cause.reason === 'NoData()')
+                    ) {
+                      return;
+                    }
+                    console.warn(`⚠️ [SDS] Error fetching data for ${eventType}:`, error);
+                  }
+                };
+                
+                globalPollFunctions.set(eventType, startPolling);
+                startPolling();
+                
+                const pollIntervalMs = eventType === 'pool:progress' ? 500 : 2000;
+                pollInterval = setInterval(startPolling, pollIntervalMs);
+                
+                globalUnsubscribeFunctionsMap.set(eventType as any, () => {
+                  if (pollInterval) {
+                    clearInterval(pollInterval);
+                    pollInterval = null;
+                  }
+                  globalPollFunctions.delete(eventType);
+                  globalPendingSubscriptions.delete(eventType);
+                });
+                
+                return;
+              }
+              
+              globalUnsubscribeFunctionsMap.set(eventType as any, () => {
+                if (subscription && typeof subscription.unsubscribe === 'function') {
+                  subscription.unsubscribe();
+                } else if (subscription && typeof subscription === 'function') {
+                  subscription();
+                }
+                globalPollFunctions.delete(eventType);
+                globalPendingSubscriptions.delete(eventType);
+              });
+            } catch (err) {
+              console.error(`❌ Error setting up subscription for ${eventType}:`, err);
             }
-            globalPollFunctions.delete(eventType);
-            globalPendingSubscriptions.delete(eventType);
+          };
+          
+          globalPollFunctions.set(eventType, async () => {
+            try {
+              const sdk = sdkRef.current || globalSDKInstance;
+              if (!sdk) return;
+              const schemaId = await getSchemaId(sdk);
+              const latest = await sdk.streams.getLastPublishedDataForSchema(
+                schemaId,
+                PUBLISHER_ADDRESS
+              );
+              if (latest) processData(latest);
+            } catch (err) {
+              console.warn(`⚠️ [SDS] Error in poll function for ${eventType}:`, err);
+            }
           });
+          
+          setupSubscription();
           
           globalPendingSubscriptions.delete(eventType);
           
@@ -1160,3 +1262,4 @@ export function useLiquidityAddedUpdates(callback: (data: SDSLiquidityData) => v
   
   return rest;
 }
+
