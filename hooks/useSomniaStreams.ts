@@ -19,7 +19,11 @@ async function getSchemaId(sdk: SDK | null): Promise<`0x${string}`> {
   if (!sdk) {
     throw new Error('SDK not available for schema computation');
   }
-  return await sdk.streams.computeSchemaId(JSON_SCHEMA);
+  const schemaId = await sdk.streams.computeSchemaId(JSON_SCHEMA);
+  if (!schemaId) {
+    throw new Error('Failed to compute schema ID');
+  }
+  return schemaId as `0x${string}`;
 }
 
 function hexToString(hex: `0x${string}` | string): string {
