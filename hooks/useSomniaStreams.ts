@@ -1,25 +1,13 @@
-/**
- * Somnia Data Streams Hook
- * 
- * Subscribes to enriched blockchain data via Somnia Data Streams (SDS).
- * Based on official Somnia SDK documentation.
- */
-
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { SDK } from '@somnia-chain/streams';
 import { createPublicClient, http } from 'viem';
 import { somniaTestnet } from 'viem/chains';
 
-// Define Somnia testnet with WebSocket URL
-
-// ✅ Publisher address from backend (must match backend's publisher)
 const PUBLISHER_ADDRESS = (process.env.NEXT_PUBLIC_SDS_PUBLISHER_ADDRESS || '0x483fc7FD690dCf2a01318282559C389F385d4428') as `0x${string}`;
 
-// ✅ Helper: Compute schemaId from context (SHA-256 hash) - must match backend
 async function getSchemaIdForContext(context: string): Promise<`0x${string}`> {
   const encoder = new TextEncoder();
   const encodedData = encoder.encode(context);
-  // Convert to ArrayBuffer explicitly to satisfy TypeScript's strict type checking
   const dataBuffer = encodedData.buffer.slice(
     encodedData.byteOffset,
     encodedData.byteOffset + encodedData.byteLength
@@ -30,7 +18,6 @@ async function getSchemaIdForContext(context: string): Promise<`0x${string}`> {
   return `0x${hashHex.slice(0, 64)}` as `0x${string}`;
 }
 
-// ✅ Helper: Decode hex string to UTF-8 string
 function hexToString(hex: `0x${string}` | string): string {
   const hexWithoutPrefix = hex.startsWith('0x') ? hex.slice(2) : hex;
   const bytes = new Uint8Array(
@@ -39,26 +26,19 @@ function hexToString(hex: `0x${string}` | string): string {
   return new TextDecoder().decode(bytes);
 }
 
-// Using somniaTestnet from viem/chains (simpler, matches sample code)
-
-// ✅ CRITICAL: Module-level state shared across ALL hook instances to prevent duplicate subscriptions
 const globalSubscribersMap = new Map<SDSEventType, Set<(data: SDSEventData) => void>>();
 const globalUnsubscribeFunctionsMap = new Map<string, () => void>();
-const globalPendingSubscriptions = new Set<SDSEventType>(); // ✅ Shared lock
-let globalSDKInstance: SDK | null = null; // ✅ Shared SDK instance
+const globalPendingSubscriptions = new Set<SDSEventType>();
+let globalSDKInstance: SDK | null = null;
 
-// ✅ Global deduplication: Track seen events to prevent duplicate processing
 const globalSeenEvents = new Map<SDSEventType, Set<string>>();
 
-// ✅ Rate limiting: Track last notification time per event type to prevent bombing
 const lastNotificationTime = new Map<string, number>();
-const NOTIFICATION_RATE_LIMIT_MS = 2000; // Max 1 notification per 2 seconds per unique event
+const NOTIFICATION_RATE_LIMIT_MS = 2000;
 
-// ✅ Helper to normalize IDs (convert BigInt/hex to readable numbers)
 const normalizeId = (id: any): string => {
   if (!id) return '0';
   if (typeof id === 'string') {
-    // If it's a hex string (starts with 0x), convert to number
     if (id.startsWith('0x')) {
       try {
         const bigInt = BigInt(id);
@@ -67,7 +47,6 @@ const normalizeId = (id: any): string => {
         return id;
       }
     }
-    // If it's already a number string, return as-is
     return id;
   }
   if (typeof id === 'bigint' || typeof id === 'number') {
@@ -76,19 +55,16 @@ const normalizeId = (id: any): string => {
   return String(id);
 };
 
-// ✅ Helper to check if timestamp is recent (within last 3 minutes for live activity)
 const isRecentEvent = (timestamp: number | string | undefined): boolean => {
-  if (!timestamp) return false; // ✅ CRITICAL: Reject events without timestamp
+  if (!timestamp) return false;
   const ts = typeof timestamp === 'string' ? parseInt(timestamp, 10) : timestamp;
-  if (isNaN(ts) || ts <= 0) return false; // ✅ CRITICAL: Reject invalid timestamps
+  if (isNaN(ts) || ts <= 0) return false;
   const now = Math.floor(Date.now() / 1000);
   const threeMinutesAgo = now - (3 * 60); 
   return ts >= threeMinutesAgo;
 };
 
-// Helper to create unique event key for deduplication
 const createEventDedupeKey = (eventType: SDSEventType, decodedData: any): string => {
-  // ✅ Normalize IDs before creating key
   const poolId = normalizeId(decodedData.poolId);
   const timestamp = decodedData.timestamp?.toString() || '';
   
@@ -110,18 +86,15 @@ const createEventDedupeKey = (eventType: SDSEventType, decodedData: any): string
     return `${eventType}:${slipId}:${player}:${timestamp}`;
   }
   
-  // Fallback: use poolId + timestamp
   return `${eventType}:${poolId}:${timestamp}`;
 };
 
-// Helper to check if event was already seen
 const isEventSeen = (eventType: SDSEventType, key: string): boolean => {
   const seenSet = globalSeenEvents.get(eventType);
   if (!seenSet) return false;
   return seenSet.has(key);
 };
 
-// Helper to mark event as seen
 const markEventSeen = (eventType: SDSEventType, key: string) => {
   if (!globalSeenEvents.has(eventType)) {
     globalSeenEvents.set(eventType, new Set());
@@ -129,7 +102,6 @@ const markEventSeen = (eventType: SDSEventType, key: string) => {
   const seenSet = globalSeenEvents.get(eventType)!;
   seenSet.add(key);
   
-  // Clean up old entries (keep last 500 per event type)
   if (seenSet.size > 500) {
     const firstKey = seenSet.values().next().value;
     if (firstKey) {
@@ -137,7 +109,6 @@ const markEventSeen = (eventType: SDSEventType, key: string) => {
     }
   }
   
-  // Persist to localStorage
   try {
     const storageKey = `seen_events_${eventType}`;
     const eventsArray = Array.from(seenSet);
@@ -147,7 +118,6 @@ const markEventSeen = (eventType: SDSEventType, key: string) => {
   }
 };
 
-// Load seen events from localStorage on module load
 if (typeof window !== 'undefined') {
   try {
     const eventTypes: SDSEventType[] = ['bet:placed', 'pool:created', 'liquidity:added', 'cycle:resolved', 'slip:evaluated'];
@@ -175,9 +145,6 @@ const desiredWebSocketChannels = new Set<string>();
 const subscribedWebSocketChannels = new Set<string>();
 let isWebSocketConnecting = false;
 
-// Note: Using somniaTestnet from viem/chains, no WebSocket needed for polling
-
-// Event types
 export type SDSEventType = 
   | 'pool:created'
   | 'pool:settled'
@@ -246,9 +213,9 @@ export interface SDSLiquidityData {
   poolId: string;
   provider: string;
   amount: string;
-  totalLiquidity?: string; // Optional - may not be in all events
-  poolFillPercentage?: number; // Optional - may not be in all events
-  currency?: string; // ✅ CRITICAL: Currency (BITR or STT) - backend now includes this
+  totalLiquidity?: string;
+  poolFillPercentage?: number;
+  currency?: string;
   timestamp: number;
 }
 
@@ -305,8 +272,6 @@ interface UseSomniaStreamsReturn {
   reconnect: () => void;
 }
 
-
-// ✅ Use unique context names prefixed with 'bitredict:' to avoid conflicts with SDS-indexed blockchain events
 const EVENT_CONTEXT_MAP: Record<SDSEventType, string> = {
   'pool:created': 'bitredict:pools:created',
   'pool:settled': 'bitredict:pools:settled',
@@ -324,7 +289,7 @@ export function useSomniaStreams(
 ): UseSomniaStreamsReturn {
   const {
     enabled = true,
-    useFallback = false // ✅ DISABLED: Using pure SDS with context-based subscriptions
+    useFallback = false
   } = options;
 
   const [isConnected, setIsConnected] = useState(false);
@@ -332,15 +297,12 @@ export function useSomniaStreams(
   const [isFallback, setIsFallback] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   
-  // ✅ Use global SDK instance instead of per-hook instance
   const sdkRef = useRef<SDK | null>(globalSDKInstance);
   const wsRef = useRef<WebSocket | null>(null);
 
-  // Initialize SDS SDK (only once globally)
   const initializeSDK = useCallback(async () => {
     if (!enabled) return;
 
-    // ✅ If SDK already initialized globally, reuse it
     if (globalSDKInstance) {
       sdkRef.current = globalSDKInstance;
       setIsSDSActive(true);
@@ -350,25 +312,21 @@ export function useSomniaStreams(
     }
 
     try {
-      // Use HTTP transport for public client (read-only operations)
       console.log('📡 Creating public client with HTTP transport...');
 
-      // Create public client with HTTP transport (matches sample code)
       const publicClient = createPublicClient({
         chain: somniaTestnet,
         transport: http(),
-      }) as any; // Type assertion to avoid viem type inference issues
+      }) as any;
 
       console.log('✅ Public client created, initializing SDK...');
       
-      // Initialize SDK
       const sdk = new SDK({
         public: publicClient
       });
 
       console.log('✅ SDK initialized successfully');
       
-      // ✅ Store globally to prevent multiple SDK instances
       globalSDKInstance = sdk;
       sdkRef.current = sdk;
       setIsConnected(true);
@@ -443,7 +401,6 @@ export function useSomniaStreams(
             
             if (channel.startsWith('pool:') && channel.endsWith(':progress')) {
               eventType = 'pool:progress';
-              // Extract poolId from channel (format: pool:123:progress)
               const poolIdMatch = channel.match(/pool:(\d+):progress/);
               if (poolIdMatch && message.data) {
                 message.data.poolId = poolIdMatch[1];
@@ -469,7 +426,6 @@ export function useSomniaStreams(
             }
             
             if (eventType) {
-              // ✅ Normalize IDs in WebSocket data before broadcasting
               if (message.data) {
                 if (message.data.poolId) {
                   message.data.poolId = normalizeId(message.data.poolId);
@@ -481,14 +437,12 @@ export function useSomniaStreams(
                   message.data.slipId = normalizeId(message.data.slipId);
                 }
                 
-                // ✅ TIME FILTERING: Only process recent events (within last 5 minutes)
                 const eventTimestamp = message.data.timestamp || Math.floor(Date.now() / 1000);
                 if (!isRecentEvent(eventTimestamp)) {
                   console.log(`⚠️ [WebSocket] Skipping old ${eventType} event (timestamp: ${eventTimestamp})`);
                   return;
                 }
                 
-                // ✅ Rate limiting: Prevent notification bombing
                 const now = Date.now();
                 const rateLimitKey = `${eventType}:${message.data.poolId || message.data.cycleId || 'unknown'}`;
                 const lastTime = lastNotificationTime.get(rateLimitKey);
@@ -498,14 +452,12 @@ export function useSomniaStreams(
                 }
                 lastNotificationTime.set(rateLimitKey, now);
                 
-                // ✅ Deduplication: Check if we've already seen this event
                 const dedupeKey = createEventDedupeKey(eventType, message.data);
                 if (isEventSeen(eventType, dedupeKey)) {
                   console.log(`⚠️ [WebSocket] Skipping duplicate ${eventType} event: ${dedupeKey}`);
                   return;
                 }
                 
-                // Mark as seen BEFORE broadcasting
                 markEventSeen(eventType, dedupeKey);
               }
               
@@ -545,7 +497,6 @@ export function useSomniaStreams(
         subscribedWebSocketChannels.clear();
         setIsConnected(false);
         setIsFallback(false);
-        // ✅ CRITICAL FIX: Attempt to reconnect after delay
         setTimeout(() => {
           if (useFallback) {
             console.log(`🔄 [WebSocket] Attempting to reconnect...`);
@@ -559,7 +510,6 @@ export function useSomniaStreams(
     }
   }, [flushWebSocketSubscriptions, useFallback]);
 
-  // ✅ CRITICAL FIX: Subscribe to WebSocket channel
   const subscribeToWebSocketChannel = useCallback((eventType: SDSEventType, poolId?: string) => {
     const channels = getChannelsForEvent(eventType, poolId);
     let added = false;
@@ -593,42 +543,34 @@ export function useSomniaStreams(
     });
   }, [getChannelsForEvent]);
 
-  // Subscribe to SDS events (using global state to prevent duplicates across components)
   const subscribe = useCallback((
     eventType: SDSEventType,
     callback: (data: SDSEventData) => void
   ): (() => void) => {
-    // ✅ Use GLOBAL subscribers map instead of per-hook ref
     if (!globalSubscribersMap.has(eventType)) {
       globalSubscribersMap.set(eventType, new Set());
     }
     
     const callbacks = globalSubscribersMap.get(eventType)!;
-    const isFirstSubscriber = callbacks.size === 0; // Check BEFORE adding
-    const isPending = globalPendingSubscriptions.has(eventType); // ✅ Check GLOBAL pending
+    const isFirstSubscriber = callbacks.size === 0;
+    const isPending = globalPendingSubscriptions.has(eventType);
     callbacks.add(callback);
 
-    // ✅ CRITICAL FIX: Check if SDK is available (even if isSDSActive state hasn't updated yet)
     const sdkAvailable = sdkRef.current || globalSDKInstance;
     const sdsActive = isSDSActive || !!sdkAvailable;
-    
-    // ✅ DISABLED: WebSocket fallback completely disabled - using only SDS
-    // No WebSocket fallback initialization
     
 
       if (sdkAvailable && sdsActive && isFirstSubscriber && !isPending) {
         const contextConfig = EVENT_CONTEXT_MAP[eventType];
         
-        // ✅ Mark as pending GLOBALLY to prevent duplicate subscriptions across ALL components
         globalPendingSubscriptions.add(eventType);
         
         console.log(`📡 [GLOBAL] Setting up polling for ${eventType} via SDS (context: ${contextConfig})`);
         console.log(`   SDK available: ${!!sdkAvailable}, SDS active: ${sdsActive}, First subscriber: ${isFirstSubscriber}, Pending: ${isPending}`);
         
         try {
-          // ✅ SIMPLIFIED: Use getLastPublishedDataForSchema (matches sample code)
           let pollInterval: NodeJS.Timeout | null = null;
-          let lastProcessedDataHash: string | null = null; // Track last data to avoid re-processing
+          let lastProcessedDataHash: string | null = null;
           
           const startPolling = async () => {
             try {
@@ -638,7 +580,6 @@ export function useSomniaStreams(
                 throw new Error('SDK not available for polling');
               }
               
-              // Get latest published data (simpler than tracking indices)
               let latest: any;
               try {
                 latest = await sdkToUse.streams.getLastPublishedDataForSchema(
@@ -646,18 +587,14 @@ export function useSomniaStreams(
                   PUBLISHER_ADDRESS
                 );
               } catch (error: any) {
-                // Handle NoData() error gracefully - it means no data exists yet for this schema
-                // This is expected and not an error condition
                 if (
                   error?.message?.includes('NoData') || 
                   error?.shortMessage === 'NoData()' ||
                   error?.cause?.reason === 'NoData()' ||
                   (error?.cause && typeof error.cause === 'object' && 'reason' in error.cause && error.cause.reason === 'NoData()')
                 ) {
-                  // No data yet for this schema - this is normal, just skip this poll
                   return;
                 }
-                // Log other errors but don't break polling
                 console.warn(`⚠️ [SDS] Error fetching data for ${eventType}:`, error);
                 return;
               }
@@ -796,9 +733,22 @@ export function useSomniaStreams(
               }
               
               // ✅ TIME FILTERING: Only process recent events
-              if (!isRecentEvent(eventTimestamp)) {
-                console.log(`⚠️ [SDS] Skipping old ${eventType} event`);
-                return;
+              // For pool:progress events, be more lenient (10 minutes) since they're incremental updates
+              // If we got past the hash check (line 698), the data is new, so for progress events
+              // we should process them even if timestamp is slightly old (handles publishing delays)
+              const isProgressEvent = eventType === 'pool:progress';
+              const timeWindow = isProgressEvent ? 10 * 60 : 3 * 60; // 10 minutes for progress, 3 minutes for others
+              const nowSeconds = Math.floor(Date.now() / 1000);
+              const timeThreshold = nowSeconds - timeWindow;
+              
+              if (eventTimestamp < timeThreshold) {
+                // For progress events, since we already passed the hash check (data is new),
+                // process it even if timestamp is slightly old - this handles publishing delays
+                if (!isProgressEvent) {
+                  console.log(`⚠️ [SDS] Skipping old ${eventType} event (timestamp: ${eventTimestamp}, threshold: ${timeThreshold})`);
+                  return;
+                }
+                // For progress events, allow through - hash-based deduplication prevents duplicates
               }
               
               // ✅ CRITICAL: Ensure currency is set
