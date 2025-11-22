@@ -364,7 +364,7 @@ export function UniversalNotifications() {
   }, [address]);
   
   // Save user's cycles to localStorage
-  const saveUserCycle = (cycleId: string) => {
+  const saveUserCycle = useCallback((cycleId: string) => {
     if (!address) return;
     try {
       userCyclesRef.current.add(cycleId);
@@ -380,7 +380,7 @@ export function UniversalNotifications() {
     } catch (e) {
       console.warn('Failed to save user cycles to localStorage:', e);
     }
-  };
+  }, [address]);
 
   // Slip Placed notifications - Track cycle for user filtering
   useEffect(() => {
