@@ -639,10 +639,28 @@ export function useSomniaStreams(
               }
               
               // Get latest published data (simpler than tracking indices)
-              const latest: any = await sdkToUse.streams.getLastPublishedDataForSchema(
-                schemaId,
-                PUBLISHER_ADDRESS
-              );
+              let latest: any;
+              try {
+                latest = await sdkToUse.streams.getLastPublishedDataForSchema(
+                  schemaId,
+                  PUBLISHER_ADDRESS
+                );
+              } catch (error: any) {
+                // Handle NoData() error gracefully - it means no data exists yet for this schema
+                // This is expected and not an error condition
+                if (
+                  error?.message?.includes('NoData') || 
+                  error?.shortMessage === 'NoData()' ||
+                  error?.cause?.reason === 'NoData()' ||
+                  (error?.cause && typeof error.cause === 'object' && 'reason' in error.cause && error.cause.reason === 'NoData()')
+                ) {
+                  // No data yet for this schema - this is normal, just skip this poll
+                  return;
+                }
+                // Log other errors but don't break polling
+                console.warn(`⚠️ [SDS] Error fetching data for ${eventType}:`, error);
+                return;
+              }
               
               if (!latest) {
                 return; // No data yet
