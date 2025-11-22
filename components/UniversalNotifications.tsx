@@ -14,7 +14,7 @@
 
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
 import { useAccount } from 'wagmi';
 import {
@@ -125,7 +125,7 @@ export function UniversalNotifications() {
     }
   };
 
-  // Pool Created notifications
+  // Pool Created notifications - ONLY for pools created by current user
   usePoolCreatedUpdates((poolData: SDSPoolData) => {
     const poolId = normalizeId(poolData.poolId);
     
@@ -135,22 +135,28 @@ export function UniversalNotifications() {
       return;
     }
     
+    // ✅ CRITICAL: Only show if current user created this pool
+    const creator = poolData.creator || (poolData as unknown as Record<string, unknown>).creatorAddress as string | undefined;
+    if (!address || !creator || creator.toLowerCase() !== address.toLowerCase()) {
+      return; // Not user's pool, skip notification (show in Live Activity instead)
+    }
+    
     // SDSPoolData doesn't have timestamp, use current time for recent events
     const timestamp = Math.floor(Date.now() / 1000);
     
     if (!isRecentEvent(timestamp)) return;
     
-    const uniqueId = `pool-created-${poolId}-${timestamp}`;
+    const uniqueId = `pool-created-${poolId}-${creator}-${timestamp}`;
     const displayPoolId = formatIdForDisplay(poolId);
     const poolTitle = poolData.title || `Pool ${displayPoolId}`;
     
-    showNotification('success', `🏗️ New Pool: ${poolTitle}`, uniqueId, {
+    showNotification('success', `🏗️ Your Pool Created: ${poolTitle}`, uniqueId, {
       duration: 5000,
       icon: '🏗️'
     });
   });
 
-  // Pool Settled notifications
+  // Pool Settled notifications - ONLY for pools user created or bet on
   usePoolUpdates((poolData: SDSPoolData) => {
     if (!poolData.isSettled) return; // Only show for settled pools
     
@@ -162,17 +168,25 @@ export function UniversalNotifications() {
       return;
     }
     
+    // ✅ CRITICAL: Only show if current user created this pool or bet on it
+    // Note: We can't check if user bet on it from poolData alone, so we only show for creator
+    // User's bets will be notified separately via bet:placed events
+    const creator = poolData.creator || (poolData as unknown as Record<string, unknown>).creatorAddress as string | undefined;
+    if (!address || !creator || creator.toLowerCase() !== address.toLowerCase()) {
+      return; // Not user's pool, skip notification (show in Live Activity instead)
+    }
+    
     // SDSPoolData doesn't have timestamp, use current time for recent events
     const timestamp = Math.floor(Date.now() / 1000);
     
     if (!isRecentEvent(timestamp)) return;
     
-    const uniqueId = `pool-settled-${poolId}-${timestamp}`;
+    const uniqueId = `pool-settled-${poolId}-${creator}-${timestamp}`;
     const displayPoolId = formatIdForDisplay(poolId);
     const poolTitle = poolData.title || `Pool ${displayPoolId}`;
     const winner = poolData.creatorSideWon ? 'Creator' : 'Bettors';
     
-    showNotification('success', `🏆 ${poolTitle} settled! Winner: ${winner}`, uniqueId, {
+    showNotification('success', `🏆 Your Pool ${poolTitle} settled! Winner: ${winner}`, uniqueId, {
       duration: 5000,
       icon: '🏆'
     });
@@ -231,7 +245,7 @@ export function UniversalNotifications() {
   // Slip Evaluated notifications - SKIPPED (handled by OddysseyLiveUpdates with detailed info)
   // useSlipUpdates is handled by OddysseyLiveUpdates component
 
-  // Liquidity Added notifications
+  // Liquidity Added notifications - ONLY for liquidity added by current user
   useLiquidityAddedUpdates((liquidityData: SDSLiquidityData) => {
     const poolId = normalizeId(liquidityData.poolId);
     
@@ -241,11 +255,17 @@ export function UniversalNotifications() {
       return;
     }
     
+    // ✅ CRITICAL: Only show if current user added liquidity
+    const provider = liquidityData.provider || (liquidityData as unknown as Record<string, unknown>).providerAddress as string | undefined;
+    if (!address || !provider || provider.toLowerCase() !== address.toLowerCase()) {
+      return; // Not user's liquidity, skip notification (show in Live Activity instead)
+    }
+    
     const timestamp = liquidityData.timestamp || Math.floor(Date.now() / 1000);
     
     if (!isRecentEvent(timestamp)) return;
     
-    const uniqueId = `liquidity-added-${poolId}-${timestamp}`;
+    const uniqueId = `liquidity-added-${poolId}-${provider}-${timestamp}`;
     const amount = liquidityData.amount || '0';
     
     // ✅ CRITICAL: Get currency from liquidityData or default to STT
@@ -323,7 +343,46 @@ export function UniversalNotifications() {
     return unsubscribe;
   }, [subscribe, address]);
 
-  // Slip Placed notifications
+  // Track cycles user has interacted with (placed slips) - shared with OddysseyLiveUpdates
+  const userCyclesRef = useRef<Set<string>>(new Set());
+  
+  // Load user's cycles from localStorage on mount
+  useEffect(() => {
+    if (!address) return;
+    try {
+      const stored = localStorage.getItem(`user_cycles_${address.toLowerCase()}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          userCyclesRef.current = new Set(parsed);
+          console.log(`✅ UniversalNotifications: Loaded ${parsed.length} cycles from localStorage for user ${address}`);
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load user cycles from localStorage:', e);
+    }
+  }, [address]);
+  
+  // Save user's cycles to localStorage
+  const saveUserCycle = (cycleId: string) => {
+    if (!address) return;
+    try {
+      userCyclesRef.current.add(cycleId);
+      const cyclesArray = Array.from(userCyclesRef.current);
+      localStorage.setItem(`user_cycles_${address.toLowerCase()}`, JSON.stringify(cyclesArray));
+      // Clean up old cycles (keep last 100)
+      if (userCyclesRef.current.size > 100) {
+        const firstCycle = userCyclesRef.current.values().next().value;
+        if (firstCycle) {
+          userCyclesRef.current.delete(firstCycle);
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to save user cycles to localStorage:', e);
+    }
+  };
+
+  // Slip Placed notifications - Track cycle for user filtering
   useEffect(() => {
     if (!address) return;
 
@@ -333,6 +392,11 @@ export function UniversalNotifications() {
       const timestamp = data.timestamp || Math.floor(Date.now() / 1000);
       
       if (!isRecentEvent(timestamp)) return;
+      
+      // ✅ CRITICAL: Track cycle when user places a slip (for cycle resolved notifications)
+      if (cycleId && cycleId !== '0') {
+        saveUserCycle(cycleId);
+      }
       
       const uniqueId = `slip-placed-${slipId}-${timestamp}`;
       
@@ -355,7 +419,7 @@ export function UniversalNotifications() {
     return () => {
       window.removeEventListener('oddyssey:slip:placed', handleCustomEvent);
     };
-  }, [address]);
+  }, [address, saveUserCycle]);
 
   return null; // This component doesn't render anything
 }

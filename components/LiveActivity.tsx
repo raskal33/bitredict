@@ -105,10 +105,10 @@ export function LiveActivity() {
       return;
     }
     
-    // ✅ TIME FILTERING: Only show recent events (within last 5 minutes for live activity)
+    // ✅ TIME FILTERING: Only show recent events (within last 3 minutes for live activity)
     const now = Math.floor(Date.now() / 1000);
-    const fiveMinutesAgo = now - (5 * 60); // ✅ 5 minutes window for live activity
-    if (timestamp < fiveMinutesAgo) {
+    const threeMinutesAgo = now - (3 * 60); // ✅ 3 minutes window for live activity
+    if (timestamp < threeMinutesAgo) {
       console.log(`⚠️ LiveActivity: Skipping old bet event (poolId: ${poolIdStr}, timestamp: ${timestamp}, age: ${now - timestamp}s)`);
       return;
     }
@@ -152,10 +152,10 @@ export function LiveActivity() {
       return [newEvent, ...prev].slice(0, 50);
     });
     
-    // Clean up old event IDs after 5 minutes
+    // Clean up old event IDs after 3 minutes
     setTimeout(() => {
       processedEventIds.current.delete(eventId);
-    }, 5 * 60 * 1000);
+    }, 3 * 60 * 1000);
   });
 
   // Subscribe to pool created events
@@ -190,10 +190,10 @@ export function LiveActivity() {
       return;
     }
     
-    // ✅ TIME FILTERING: Only show recent events (within last 5 minutes for live activity)
+    // ✅ TIME FILTERING: Only show recent events (within last 3 minutes for live activity)
     const now = Math.floor(Date.now() / 1000);
-    const fiveMinutesAgo = now - (5 * 60); // ✅ 5 minutes window for live activity
-    if (timestamp < fiveMinutesAgo) {
+    const threeMinutesAgo = now - (3 * 60); // ✅ 3 minutes window for live activity
+    if (timestamp < threeMinutesAgo) {
       console.log(`⚠️ LiveActivity: Skipping old pool event (poolId: ${poolIdStr}, timestamp: ${timestamp}, age: ${now - timestamp}s)`);
       return;
     }
@@ -271,10 +271,10 @@ export function LiveActivity() {
       return;
     }
     
-    // ✅ TIME FILTERING: Only show recent events (within last 5 minutes for live activity)
+    // ✅ TIME FILTERING: Only show recent events (within last 3 minutes for live activity)
     const now = Math.floor(Date.now() / 1000);
-    const fiveMinutesAgo = now - (5 * 60); // ✅ 5 minutes window for live activity
-    if (timestamp < fiveMinutesAgo) {
+    const threeMinutesAgo = now - (3 * 60); // ✅ 3 minutes window for live activity
+    if (timestamp < threeMinutesAgo) {
       console.log(`⚠️ LiveActivity: Skipping old liquidity event (poolId: ${poolIdStr}, timestamp: ${timestamp}, age: ${now - timestamp}s)`);
       return;
     }
@@ -320,14 +320,14 @@ export function LiveActivity() {
     }, 5 * 60 * 1000);
   });
 
-  // ✅ CRITICAL: Periodically clean up old events from the display (keep last 5 minutes)
+  // ✅ CRITICAL: Periodically clean up old events from the display (keep last 3 minutes)
   useEffect(() => {
     const cleanupInterval = setInterval(() => {
       const now = Math.floor(Date.now() / 1000);
-      const fiveMinutesAgo = now - (5 * 60); // ✅ Keep events from last 5 minutes
+      const threeMinutesAgo = now - (3 * 60); // ✅ Keep events from last 3 minutes
       
       setEvents(prev => {
-        const filtered = prev.filter(event => event.timestamp >= fiveMinutesAgo);
+        const filtered = prev.filter(event => event.timestamp >= threeMinutesAgo);
         if (filtered.length !== prev.length) {
           console.log(`🧹 LiveActivity: Cleaned up ${prev.length - filtered.length} old events (kept ${filtered.length} recent events)`);
         }

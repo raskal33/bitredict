@@ -6,7 +6,7 @@
 
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useCycleUpdates, useSlipUpdates } from '@/hooks/useSomniaStreams';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
@@ -29,6 +29,45 @@ export function OddysseyLiveUpdates() {
   const lastSlipNotificationRef = useRef<Map<string, number>>(new Map());
   const CYCLE_NOTIFICATION_RATE_LIMIT_MS = 5000; // Max 1 notification per 5 seconds per cycle
   const SLIP_NOTIFICATION_RATE_LIMIT_MS = 10000; // Max 1 notification per 10 seconds per slip
+  
+  // ✅ Track cycles user has interacted with (placed slips)
+  const userCyclesRef = useRef<Set<string>>(new Set());
+  
+  // Load user's cycles from localStorage on mount
+  useEffect(() => {
+    if (!address) return;
+    try {
+      const stored = localStorage.getItem(`user_cycles_${address.toLowerCase()}`);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          userCyclesRef.current = new Set(parsed);
+          console.log(`✅ Loaded ${parsed.length} cycles from localStorage for user ${address}`);
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load user cycles from localStorage:', e);
+    }
+  }, [address]);
+  
+  // Save user's cycles to localStorage
+  const saveUserCycles = (cycleId: string) => {
+    if (!address) return;
+    try {
+      userCyclesRef.current.add(cycleId);
+      const cyclesArray = Array.from(userCyclesRef.current);
+      localStorage.setItem(`user_cycles_${address.toLowerCase()}`, JSON.stringify(cyclesArray));
+      // Clean up old cycles (keep last 100)
+      if (userCyclesRef.current.size > 100) {
+        const firstCycle = userCyclesRef.current.values().next().value;
+        if (firstCycle) {
+          userCyclesRef.current.delete(firstCycle);
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to save user cycles to localStorage:', e);
+    }
+  };
 
   // ✅ Helper to normalize IDs (convert BigInt/hex to readable numbers) - safety check
   const normalizeId = (id: unknown): string => {
@@ -94,6 +133,17 @@ export function OddysseyLiveUpdates() {
     if (eventTimestamp < oneMinuteAgo) {
       console.log(`⚠️ OddysseyLiveUpdates: Skipping old cycle:resolved event (cycle: ${cycleId}, timestamp: ${eventTimestamp}, age: ${now - eventTimestamp}s)`);
       return;
+    }
+    
+    // ✅ CRITICAL: Only show cycle resolved notifications for cycles user interacted with (placed a slip)
+    if (!address) {
+      console.log(`⚠️ OddysseyLiveUpdates: No user address, skipping cycle resolved notification`);
+      return;
+    }
+    
+    if (!userCyclesRef.current.has(cycleId)) {
+      console.log(`⚠️ OddysseyLiveUpdates: User ${address} has not interacted with cycle ${cycleId}, skipping notification`);
+      return; // User hasn't placed a slip in this cycle, skip notification (show in Live Activity instead)
     }
     
     // ✅ Rate limiting: Prevent duplicate notifications for the same cycle
@@ -172,12 +222,12 @@ export function OddysseyLiveUpdates() {
       return;
     }
     
-    // ✅ TIME FILTERING: Only show recent events (within last 5 minutes)
+    // ✅ TIME FILTERING: Only show recent events (within last 1 minute for real-time)
     const slipDataRecord = slipData as unknown as Record<string, unknown>;
     const eventTimestamp = (slipDataRecord.timestamp as number) || Math.floor(Date.now() / 1000);
     const now = Math.floor(Date.now() / 1000);
-    const fiveMinutesAgo = now - (5 * 60);
-    if (eventTimestamp < fiveMinutesAgo) {
+    const oneMinuteAgo = now - (1 * 60); // ✅ Changed to 1 minute for real-time only
+    if (eventTimestamp < oneMinuteAgo) {
       console.log(`⚠️ OddysseyLiveUpdates: Skipping old slip:evaluated event (timestamp: ${eventTimestamp})`);
       return;
     }
@@ -186,6 +236,13 @@ export function OddysseyLiveUpdates() {
     if (slipData.player.toLowerCase() === address?.toLowerCase()) {
       // ✅ CRITICAL: Detect currency from slip data (useBitr flag or currency field)
       const slipDataRecord = slipData as unknown as Record<string, unknown>;
+      
+      // ✅ CRITICAL: Track cycle when user's slip is evaluated (user has interacted with this cycle)
+      const cycleId = normalizeId((slipDataRecord.cycleId as string) || (slipDataRecord.cycle_id as string) || '0');
+      if (cycleId && cycleId !== '0') {
+        saveUserCycles(cycleId);
+        console.log(`✅ OddysseyLiveUpdates: Tracked cycle ${cycleId} for user ${address} (slip evaluated)`);
+      }
       const slipUseBitr = (slipDataRecord.useBitr as boolean) ?? (slipDataRecord.use_bitr as boolean) ?? false;
       const slipCurrency = (slipDataRecord.currency as string) || (slipUseBitr ? 'BITR' : 'STT');
       const slipCurrencySymbol = slipCurrency.toUpperCase();
