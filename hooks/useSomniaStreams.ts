@@ -314,16 +314,17 @@ interface UseSomniaStreamsReturn {
 }
 
 
+// ✅ Use unique context names prefixed with 'bitredict:' to avoid conflicts with SDS-indexed blockchain events
 const EVENT_CONTEXT_MAP: Record<SDSEventType, string> = {
-  'pool:created': 'pools:created',
-  'pool:settled': 'pools:settled',
-  'bet:placed': 'bets',
-  'pool:progress': 'pools:progress',
-  'reputation:changed': 'reputation',
-  'liquidity:added': 'liquidity',
-  'cycle:resolved': 'cycles',
-  'slip:evaluated': 'slips',
-  'prize:claimed': 'prizes'
+  'pool:created': 'bitredict:pools:created',
+  'pool:settled': 'bitredict:pools:settled',
+  'bet:placed': 'bitredict:bets',
+  'pool:progress': 'bitredict:pools:progress',
+  'reputation:changed': 'bitredict:reputation',
+  'liquidity:added': 'bitredict:liquidity',
+  'cycle:resolved': 'bitredict:cycles',
+  'slip:evaluated': 'bitredict:slips',
+  'prize:claimed': 'bitredict:prizes'
 };
 
 export function useSomniaStreams(
@@ -528,7 +529,7 @@ export function useSomniaStreams(
                 callbacks.forEach(callback => {
                   try {
                     callback(message.data);
-        } catch (err) {
+                  } catch (err) {
                     console.error(`❌ [WebSocket] Error in callback:`, err);
                   }
                 });
@@ -704,7 +705,7 @@ export function useSomniaStreams(
                       try {
                         jsonData = JSON.parse(jsonStr);
                         console.log(`📦 [SDS] Extracted JSON from blockchain event data field (${jsonStr.length} chars)`);
-                      } catch (e) {
+                } catch (e) {
                         // Try parsing the whole decoded string
                         try {
                           jsonData = JSON.parse(decodedString);
@@ -719,20 +720,20 @@ export function useSomniaStreams(
                               console.log(`📦 [SDS] Parsed JSON array from decoded string`);
                             } catch (e3) {
                               console.warn(`⚠️ [SDS] Failed to parse JSON from data field:`, e2, `(also tried array: ${e3})`);
-                            }
-                          } else {
+                    }
+                  } else {
                             console.warn(`⚠️ [SDS] Failed to parse JSON from data field:`, e2);
-                          }
+                  }
                         }
-                      }
-                    } else {
+                }
+              } else {
                       console.warn(`⚠️ [SDS] Found { or [ but couldn't find matching closing bracket`);
                     }
                   } else {
                     console.warn(`⚠️ [SDS] Decoded string doesn't contain JSON markers ({ or [):`, decodedString.substring(0, 500));
+                    }
                   }
-                }
-              } catch (e) {
+                } catch (e) {
                 console.warn(`⚠️ [SDS] Failed to decode data field:`, e);
               }
               
@@ -758,7 +759,7 @@ export function useSomniaStreams(
                   console.warn(`⚠️ [SDS] Failed to parse JSON string:`, e);
                   return; // Skip invalid JSON
                 }
-              } else {
+                    } else {
                 // Not JSON, might be hex-encoded - but if it doesn't look like our data, skip it
                 console.warn(`⚠️ [SDS] Data string doesn't look like JSON (doesn't start with { or [):`, trimmed.substring(0, 100));
                 return;
@@ -767,7 +768,7 @@ export function useSomniaStreams(
               // Already parsed JSON object from our backend (no topics array)
               jsonData = actualData;
               console.log(`📦 [SDS] Using backend JSON object directly`);
-            } else {
+                    } else {
               // Unknown format, skip
               console.warn(`⚠️ [SDS] Unknown data format, skipping:`, typeof actualData, actualData);
               return;
@@ -869,8 +870,8 @@ export function useSomniaStreams(
             // ✅ CRITICAL: Ensure addresses are lowercase strings
             if (decodedData.bettor) {
               decodedData.bettor = String(decodedData.bettor).toLowerCase();
-              decodedData.bettorAddress = decodedData.bettor;
-            }
+                decodedData.bettorAddress = decodedData.bettor;
+              }
             if (decodedData.creator) {
               decodedData.creator = String(decodedData.creator).toLowerCase();
             }
@@ -907,7 +908,7 @@ export function useSomniaStreams(
                     try {
                       const date = new Date(ts);
                       decodedData.timestamp = Math.floor(date.getTime() / 1000);
-                    } catch (e) {
+                  } catch (e) {
                       console.warn(`⚠️ [SDS] Failed to parse timestamp:`, ts);
                     }
                   }
