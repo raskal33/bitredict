@@ -31,6 +31,10 @@ export function ToasterProvider() {
       position="top-right"
       // ✅ CRITICAL: Enable deduplication to prevent same notification from appearing multiple times
       gutter={8}
+      containerStyle={{
+        top: 20,
+        right: 20,
+      }}
       toastOptions={{
         duration: 4000,
         // ✅ CRITICAL: react-hot-toast automatically deduplicates toasts with the same id
