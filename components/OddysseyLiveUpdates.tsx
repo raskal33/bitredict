@@ -249,14 +249,16 @@ export function OddysseyLiveUpdates() {
         playWin();
       } else {
         // ✅ CRITICAL: Use unique toast ID with slipId + timestamp to prevent duplicates
-        const toastId = `slip-evaluated-${slipId}`;
+        const toastId = `slip-evaluated-${slipId}-${Date.now()}`;
+        
+        // ✅ CRITICAL: react-hot-toast automatically deduplicates by ID
         // Participation notification
-        toast(
-          `Your slip evaluated: ${correctCount}/${totalPredictions} correct`,
+        toast.success(
+          `✅ Slip evaluated: ${correctCount}/${totalPredictions} correct`,
           { 
-            icon: '📊', 
             duration: 5000,
-            id: toastId // ✅ Unique deduplication key for toast
+            id: toastId, // ✅ Unique deduplication key for toast
+            position: 'top-right' // ✅ CRITICAL: Explicitly set position to top-right
           }
         );
         playNotification();
