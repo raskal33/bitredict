@@ -758,23 +758,29 @@ export function useSomniaStreams(
               if (actualData.data && actualData.data !== '0x' && actualData.data.length > 2) {
                 console.log(`   📦 Event has data field, length: ${actualData.data.length}`);
                 
-                // Check if data field contains JSON (starts with '{' when decoded) vs ABI-encoded
+                // ✅ CRITICAL: Check if data field contains JSON (starts with '{' when decoded) vs ABI-encoded
+                // Must check BEFORE any ABI decode attempt to prevent InvalidBytesBooleanError
                 let isJsonData = false;
                 let jsonData: any = null;
                 try {
                   const decodedBytes = Buffer.from(actualData.data.slice(2), 'hex');
                   const decodedString = decodedBytes.toString('utf8').replace(/\0/g, '');
-                  if (decodedString.trim().startsWith('{')) {
+                  const trimmed = decodedString.trim();
+                  // ✅ CRITICAL: Check if it's JSON (starts with '{' or '[')
+                  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
                     isJsonData = true;
                     try {
                       jsonData = JSON.parse(decodedString);
                       console.log(`   📄 Data field contains JSON, parsed successfully`);
                     } catch (parseError) {
                       console.warn(`   ⚠️ Failed to parse JSON data:`, parseError);
+                      // If JSON parse fails, don't try ABI decode - it will fail
+                      isJsonData = false;
                     }
                   }
                 } catch (e) {
                   // Not JSON, continue with ABI decoding
+                  isJsonData = false;
                 }
                 
                 // If JSON data is available, try to extract fields from it
@@ -905,6 +911,7 @@ export function useSomniaStreams(
                   }
                   
                   // ✅ CRITICAL: Extract timestamp from JSON (required for event processing)
+                  // Must extract BEFORE rejection check
                   if (!decodedData.timestamp) {
                     if (jsonData.timestamp) {
                       const ts = typeof jsonData.timestamp === 'number' ? jsonData.timestamp : parseInt(jsonData.timestamp, 10);
@@ -926,6 +933,12 @@ export function useSomniaStreams(
                         console.warn(`   ⚠️ Failed to parse date string:`, dateStr);
                       }
                     }
+                  }
+                  
+                  // ✅ CRITICAL: Fallback to current time if timestamp still missing (BEFORE rejection check)
+                  if (!decodedData.timestamp) {
+                    decodedData.timestamp = Math.floor(Date.now() / 1000);
+                    console.log(`   ℹ️ Defaulting timestamp to current time for ${eventType} (from JSON data)`);
                   }
                 }
                 

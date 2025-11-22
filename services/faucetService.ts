@@ -128,8 +128,9 @@ export class FaucetService {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache',
+            // ✅ Removed Cache-Control header to fix CORS error
           },
+          cache: 'no-cache', // ✅ Use fetch cache option instead
         });
 
         if (!response.ok) {
@@ -181,8 +182,9 @@ export class FaucetService {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache',
+            // ✅ Removed Cache-Control header to fix CORS error
           },
+          cache: 'no-cache', // ✅ Use fetch cache option instead
         });
 
         if (!response.ok) {
