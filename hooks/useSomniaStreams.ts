@@ -529,7 +529,7 @@ export function useSomniaStreams(
                 callbacks.forEach(callback => {
                   try {
                     callback(message.data);
-                  } catch (err) {
+        } catch (err) {
                     console.error(`❌ [WebSocket] Error in callback:`, err);
                   }
                 });
@@ -686,7 +686,8 @@ export function useSomniaStreams(
             if (actualData.address && actualData.topics && Array.isArray(actualData.topics)) {
               console.log(`📦 [SDS] Detected on-chain event log - decoding topics...`);
               
-              // Extract poolId or cycleId from first indexed param - topics[1] (topics[0] is event signature)
+              // ✅ CRITICAL: Extract poolId or cycleId from first indexed param - topics[1] (topics[0] is event signature)
+              // Only extract if we have at least 2 topics (signature + at least one indexed param)
               if (actualData.topics.length >= 2) {
                 try {
                   const idHex = actualData.topics[1]; // ✅ FIX: Use topics[1] for first indexed param (ID)
@@ -704,7 +705,9 @@ export function useSomniaStreams(
                   console.warn(`   ⚠️ Failed to decode ID from topic[1]:`, e);
                 }
               } else {
-                console.warn(`   ⚠️ Not enough topics for ${eventType} (need at least 2, got ${actualData.topics.length})`);
+                // ✅ CRITICAL: When topics.length === 1, we can't extract ID from topics
+                // It will be extracted from JSON data field instead
+                console.warn(`   ⚠️ Not enough topics for ${eventType} (need at least 2, got ${actualData.topics.length}) - will try to extract from JSON data field`);
               }
               
               // Extract bettor/provider/creator from second topic (indexed parameter) - topics[2]
@@ -776,6 +779,8 @@ export function useSomniaStreams(
                 
                 // If JSON data is available, try to extract fields from it
                 if (isJsonData && jsonData) {
+                  console.log(`   📄 JSON data keys:`, Object.keys(jsonData));
+                  
                   // Helper to extract nested values from JSON
                   const extractFromJson = (obj: any, keys: string[]): string | undefined => {
                     for (const key of keys) {
@@ -794,6 +799,41 @@ export function useSomniaStreams(
                     }
                     return undefined;
                   };
+                  
+                  // ✅ CRITICAL: Extract poolId/cycleId from JSON if not in topics
+                  if (!decodedData.poolId && !decodedData.cycleId) {
+                    const poolId = jsonData.poolId || jsonData.pool_id || jsonData.id;
+                    const cycleId = jsonData.cycleId || jsonData.cycle_id;
+                    if (cycleId) {
+                      decodedData.cycleId = normalizeId(cycleId);
+                      console.log(`   ✅ Extracted cycleId from JSON: ${decodedData.cycleId}`);
+                    } else if (poolId) {
+                      decodedData.poolId = normalizeId(poolId);
+                      console.log(`   ✅ Extracted poolId from JSON: ${decodedData.poolId}`);
+                    }
+                  }
+                  
+                  // ✅ CRITICAL: Extract timestamp from JSON (required for event processing)
+                  if (jsonData.timestamp) {
+                    const ts = typeof jsonData.timestamp === 'number' ? jsonData.timestamp : parseInt(jsonData.timestamp, 10);
+                    if (!isNaN(ts) && ts > 0 && ts < 2147483647) {
+                      decodedData.timestamp = ts;
+                      console.log(`   ✅ Extracted timestamp from JSON: ${ts}`);
+                    }
+                  } else if (jsonData.created_at || jsonData.createdAt) {
+                    // Try to parse date string
+                    const dateStr = jsonData.created_at || jsonData.createdAt;
+                    try {
+                      const date = new Date(dateStr);
+                      const ts = Math.floor(date.getTime() / 1000);
+                      if (ts > 0 && ts < 2147483647) {
+                        decodedData.timestamp = ts;
+                        console.log(`   ✅ Extracted timestamp from date string: ${ts}`);
+                      }
+                    } catch (e) {
+                      console.warn(`   ⚠️ Failed to parse date string:`, dateStr);
+                    }
+                  }
                   
                   if (eventType === 'bet:placed' && !decodedData.bettor) {
                     const bettor = extractFromJson(jsonData, ['bettor', 'bettorAddress', 'player', 'user', 'address', 'from']);
@@ -849,6 +889,43 @@ export function useSomniaStreams(
                     decodedData.poolTitle = jsonData.title;
                     decodedData.title = jsonData.title;
                     console.log(`   ✅ Extracted pool title from JSON: ${jsonData.title}`);
+                  }
+                  
+                  // ✅ CRITICAL: Extract poolId/cycleId from JSON if not already set from topics
+                  if (!decodedData.poolId && !decodedData.cycleId) {
+                    const poolId = jsonData.poolId || jsonData.pool_id || jsonData.id;
+                    const cycleId = jsonData.cycleId || jsonData.cycle_id;
+                    if (cycleId) {
+                      decodedData.cycleId = normalizeId(cycleId);
+                      console.log(`   ✅ Extracted cycleId from JSON: ${decodedData.cycleId}`);
+                    } else if (poolId) {
+                      decodedData.poolId = normalizeId(poolId);
+                      console.log(`   ✅ Extracted poolId from JSON: ${decodedData.poolId}`);
+                    }
+                  }
+                  
+                  // ✅ CRITICAL: Extract timestamp from JSON (required for event processing)
+                  if (!decodedData.timestamp) {
+                    if (jsonData.timestamp) {
+                      const ts = typeof jsonData.timestamp === 'number' ? jsonData.timestamp : parseInt(jsonData.timestamp, 10);
+                      if (!isNaN(ts) && ts > 0 && ts < 2147483647) {
+                        decodedData.timestamp = ts;
+                        console.log(`   ✅ Extracted timestamp from JSON: ${ts}`);
+                      }
+                    } else if (jsonData.created_at || jsonData.createdAt) {
+                      // Try to parse date string
+                      const dateStr = jsonData.created_at || jsonData.createdAt;
+                      try {
+                        const date = new Date(dateStr);
+                        const ts = Math.floor(date.getTime() / 1000);
+                        if (ts > 0 && ts < 2147483647) {
+                          decodedData.timestamp = ts;
+                          console.log(`   ✅ Extracted timestamp from date string: ${ts}`);
+                        }
+                      } catch (e) {
+                        console.warn(`   ⚠️ Failed to parse date string:`, dateStr);
+                      }
+                    }
                   }
                 }
                 
@@ -1229,18 +1306,47 @@ export function useSomniaStreams(
                 }
               } else {
                 // Data already decoded or sent as object
-                  const rawPoolId = data.poolId?.toString() || data.pool_id?.toString() || '0';
-                  decodedData = {
-                    ...data,
-                    poolId: normalizeId(rawPoolId), // ✅ CRITICAL: Normalize poolId
-                    timestamp: data.timestamp // ✅ CRITICAL: Don't default to current time
-                  };
+                const rawPoolId = data.poolId?.toString() || data.pool_id?.toString() || decodedData.poolId || '0';
+                decodedData = {
+                  ...decodedData,
+                  ...data,
+                  poolId: normalizeId(rawPoolId), // ✅ CRITICAL: Normalize poolId
+                  timestamp: data.timestamp || decodedData.timestamp || Math.floor(Date.now() / 1000) // ✅ Use current time as fallback if missing
+                };
               }
             }
             
             // Decode liquidity added data (only for non-event-log data)
             if (eventType === 'liquidity:added' && !actualData.address && data && typeof data === 'object') {
+              // ✅ CRITICAL: Check if data field contains JSON first
+              let jsonData: any = null;
               if (data.data && typeof data.data === 'string' && data.data.startsWith('0x')) {
+                try {
+                  const decodedBytes = Buffer.from(data.data.slice(2), 'hex');
+                  const decodedString = decodedBytes.toString('utf8').replace(/\0/g, '');
+                  if (decodedString.trim().startsWith('{')) {
+                    jsonData = JSON.parse(decodedString);
+                    console.log(`   📄 Liquidity data field contains JSON, parsed successfully`);
+                  }
+                } catch (e) {
+                  // Not JSON, continue with ABI decoding
+                }
+              }
+              
+              if (jsonData) {
+                // Extract from JSON
+                const rawPoolId = jsonData.poolId || jsonData.pool_id || data.poolId || data.pool_id || decodedData.poolId || '0';
+                decodedData = {
+                  ...decodedData,
+                  poolId: normalizeId(rawPoolId),
+                  provider: jsonData.provider || jsonData.providerAddress || decodedData.provider || data.provider || '',
+                  amount: (jsonData.amount || decodedData.amount || data.amount || '0').toString(),
+                  totalLiquidity: (jsonData.totalLiquidity || jsonData.total_liquidity || '0').toString(),
+                  poolFillPercentage: jsonData.poolFillPercentage || jsonData.pool_fill_percentage || 0,
+                  timestamp: jsonData.timestamp || data.timestamp || decodedData.timestamp || Math.floor(Date.now() / 1000)
+                };
+                console.log(`✅ Decoded liquidity added data from JSON:`, decodedData);
+              } else if (data.data && typeof data.data === 'string' && data.data.startsWith('0x')) {
                 try {
                   const decoded = decodeAbiParameters(
                     [
@@ -1254,22 +1360,34 @@ export function useSomniaStreams(
                     data.data
                   );
                   decodedData = {
-                    poolId: decoded[0].toString(),
+                    ...decodedData,
+                    poolId: normalizeId(decoded[0].toString()),
                     provider: decoded[1],
                     amount: decoded[2].toString(),
                     totalLiquidity: decoded[3].toString(),
                     poolFillPercentage: Number(decoded[4]),
                     timestamp: Number(decoded[5])
                   };
-                  console.log(`✅ Decoded liquidity added data:`, decodedData);
+                  console.log(`✅ Decoded liquidity added data from ABI:`, decodedData);
                 } catch (decodeError) {
                   console.warn(`⚠️ Failed to decode liquidity added data:`, decodeError);
+                  // Fallback: use data as-is with normalization
+                  const rawPoolId = data.poolId?.toString() || data.pool_id?.toString() || decodedData.poolId || '0';
+                  decodedData = {
+                    ...decodedData,
+                    ...data,
+                    poolId: normalizeId(rawPoolId),
+                    timestamp: data.timestamp || decodedData.timestamp || Math.floor(Date.now() / 1000)
+                  };
                 }
               } else {
+                // Data already decoded or sent as object
+                const rawPoolId = data.poolId?.toString() || data.pool_id?.toString() || decodedData.poolId || '0';
                 decodedData = {
+                  ...decodedData,
                   ...data,
-                  poolId: data.poolId?.toString() || data.pool_id?.toString(),
-                  timestamp: data.timestamp // ✅ CRITICAL: Don't default to current time
+                  poolId: normalizeId(rawPoolId),
+                  timestamp: data.timestamp || decodedData.timestamp || Math.floor(Date.now() / 1000)
                 };
               }
             }
@@ -1280,12 +1398,13 @@ export function useSomniaStreams(
               const normalizedCycleId = normalizeId(rawCycleId); // ✅ CRITICAL: Normalize cycle ID
               const rawPrizePool = data.prizePool?.toString() || data.prize_pool?.toString() || '0';
               decodedData = {
+                ...decodedData,
                 ...data,
                 cycleId: normalizedCycleId, // ✅ CRITICAL: Use normalized cycle ID
                 prizePool: rawPrizePool, // ✅ Keep as string (will be converted from wei in component)
-                totalSlips: data.totalSlips ?? data.total_slips ?? 0,
-                status: data.status || 'resolved',
-                timestamp: data.timestamp // ✅ CRITICAL: Don't default to current time
+                totalSlips: data.totalSlips ?? data.total_slips ?? decodedData.totalSlips ?? 0,
+                status: data.status || decodedData.status || 'resolved',
+                timestamp: data.timestamp || decodedData.timestamp || Math.floor(Date.now() / 1000) // ✅ Use current time as fallback if missing
               };
               console.log(`✅ Formatted cycle resolved data (cycleId normalized from ${rawCycleId} to ${normalizedCycleId}, prizePool: ${rawPrizePool}):`, decodedData);
             }

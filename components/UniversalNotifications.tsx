@@ -112,6 +112,13 @@ export function UniversalNotifications() {
   // Pool Created notifications
   usePoolCreatedUpdates((poolData: SDSPoolData) => {
     const poolId = normalizeId(poolData.poolId);
+    
+    // ✅ CRITICAL: Skip if poolId is invalid (0 or empty)
+    if (!poolId || poolId === '0') {
+      console.warn('⚠️ UniversalNotifications: Skipping pool created event with invalid poolId:', poolData);
+      return;
+    }
+    
     // SDSPoolData doesn't have timestamp, use current time for recent events
     const timestamp = Math.floor(Date.now() / 1000);
     
@@ -131,6 +138,13 @@ export function UniversalNotifications() {
     if (!poolData.isSettled) return; // Only show for settled pools
     
     const poolId = normalizeId(poolData.poolId);
+    
+    // ✅ CRITICAL: Skip if poolId is invalid (0 or empty)
+    if (!poolId || poolId === '0') {
+      console.warn('⚠️ UniversalNotifications: Skipping pool settled event with invalid poolId:', poolData);
+      return;
+    }
+    
     // SDSPoolData doesn't have timestamp, use current time for recent events
     const timestamp = Math.floor(Date.now() / 1000);
     
@@ -186,6 +200,13 @@ export function UniversalNotifications() {
   // Liquidity Added notifications
   useLiquidityAddedUpdates((liquidityData: SDSLiquidityData) => {
     const poolId = normalizeId(liquidityData.poolId);
+    
+    // ✅ CRITICAL: Skip if poolId is invalid (0 or empty)
+    if (!poolId || poolId === '0') {
+      console.warn('⚠️ UniversalNotifications: Skipping liquidity event with invalid poolId:', liquidityData);
+      return;
+    }
+    
     const timestamp = liquidityData.timestamp || Math.floor(Date.now() / 1000);
     
     if (!isRecentEvent(timestamp)) return;
@@ -195,11 +216,25 @@ export function UniversalNotifications() {
     // SDSLiquidityData doesn't have currency, default to STT
     const currency = 'STT';
     
-    // Convert from wei if needed
+    // ✅ CRITICAL: Convert from wei if needed (handle BigInt strings)
     let amountInToken = amount;
-    const amountNum = parseFloat(amount);
-    if (amountNum > 1e12) {
-      amountInToken = (amountNum / 1e18).toFixed(2);
+    try {
+      const amountBigInt = BigInt(amount);
+      const amountNum = Number(amountBigInt);
+      if (amountNum > 1e12 && amountNum < 1e30) {
+        amountInToken = (amountNum / 1e18).toFixed(2);
+      } else if (amountNum >= 1e30) {
+        console.warn(`⚠️ Invalid amount (too large): ${amountNum}, skipping notification`);
+        return;
+      }
+    } catch {
+      const amountNum = parseFloat(amount);
+      if (amountNum > 1e12 && amountNum < 1e30) {
+        amountInToken = (amountNum / 1e18).toFixed(2);
+      } else if (amountNum >= 1e30) {
+        console.warn(`⚠️ Invalid amount (too large): ${amountNum}, skipping notification`);
+        return;
+      }
     }
     
     showNotification('success', `💧 ${amountInToken} ${currency} liquidity added to Pool #${poolId}`, uniqueId, {
