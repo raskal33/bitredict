@@ -790,105 +790,43 @@ export function useSomniaStreams(
               return;
             }
             
-            console.log(`📦 [SDS] Processing backend JSON data for ${eventType}:`, {
+            // ✅ CRITICAL: Skip blockchain transaction data (has releases/swaps/asset_in_type)
+            // These are SDS-indexed blockchain events, not our backend's published JSON
+            if (jsonData.releases || jsonData.swaps || jsonData.asset_in_type) {
+              console.log(`⚠️ [SDS] Skipping SDS-indexed blockchain event (has releases/swaps/asset_in_type) - this is not backend JSON`);
+              console.log(`   Event type: ${eventType}, Context: ${contextConfig}`);
+              console.log(`   Data keys:`, Object.keys(jsonData));
+              return; // Skip blockchain transaction data
+            }
+            
+            // ✅ Backend publishes clean JSON with poolId, bettor, cycleId, etc.
+            // Check if this looks like backend JSON (has our event fields)
+            const hasBackendFields = jsonData.poolId || jsonData.pool_id || 
+                                    jsonData.cycleId || jsonData.cycle_id ||
+                                    jsonData.bettor || jsonData.bettor_address ||
+                                    jsonData.creator || jsonData.creator_address ||
+                                    jsonData.provider || jsonData.provider_address ||
+                                    jsonData.player || jsonData.player_address ||
+                                    jsonData.slipId || jsonData.slip_id;
+            
+            if (!hasBackendFields) {
+              console.log(`⚠️ [SDS] Skipping data - doesn't look like backend JSON (missing event fields)`);
+              console.log(`   Event type: ${eventType}, Context: ${contextConfig}`);
+              console.log(`   Data keys:`, Object.keys(jsonData));
+              console.log(`   Preview:`, JSON.stringify(jsonData).substring(0, 200));
+              return; // Skip data that doesn't have our event fields
+            }
+            
+            console.log(`✅ [SDS] Processing backend JSON data for ${eventType}:`, {
               keys: Object.keys(jsonData),
-              hasReleases: !!jsonData.releases,
-              releasesLength: Array.isArray(jsonData.releases) ? jsonData.releases.length : 0,
-              hasSwaps: !!jsonData.swaps,
               preview: JSON.stringify(jsonData).substring(0, 500)
             });
             
-            // ✅ CRITICAL: Extract actual event data from nested SDS structure
-            // SDS wraps event data in releases/swaps structure - extract the actual event
+            // ✅ Use jsonData directly - it's already our backend's clean JSON
             let eventData: any = jsonData;
             
-            // Check if data is nested in releases array
-            if (jsonData.releases && Array.isArray(jsonData.releases) && jsonData.releases.length > 0) {
-              console.log(`📦 [SDS] Found releases array with ${jsonData.releases.length} items, inspecting structure...`);
-              
-              // Log first release structure for debugging
-              if (jsonData.releases[0]) {
-                console.log(`📦 [SDS] First release structure:`, {
-                  keys: Object.keys(jsonData.releases[0]),
-                  type: typeof jsonData.releases[0],
-                  preview: JSON.stringify(jsonData.releases[0]).substring(0, 1000)
-                });
-              }
-              
-              // Try to find the actual event data in releases
-              for (let i = 0; i < jsonData.releases.length; i++) {
-                const release = jsonData.releases[i];
-                if (release && typeof release === 'object') {
-                  // Check if this release has our event fields (try various field name variations)
-                  const hasEventFields = release.poolId || release.pool_id || release.cycleId || release.cycle_id ||
-                                        release.bettor || release.bettor_address || release.creator || release.creator_address ||
-                                        release.provider || release.provider_address || release.player || release.player_address;
-                  
-                  if (hasEventFields) {
-                    eventData = release;
-                    console.log(`📦 [SDS] Extracted event data from releases[${i}]`);
-                    break;
-                  }
-                  
-                  // Check if release has nested data
-                  if (release.data && typeof release.data === 'object') {
-                    const nestedData = release.data;
-                    if (nestedData.poolId || nestedData.pool_id || nestedData.cycleId || nestedData.cycle_id ||
-                        nestedData.bettor || nestedData.bettor_address) {
-                      eventData = nestedData;
-                      console.log(`📦 [SDS] Extracted event data from releases[${i}].data`);
-                      break;
-                    }
-                  }
-                }
-              }
-              
-              // If no event data found in releases, try the first release as-is
-              if (eventData === jsonData && jsonData.releases[0]) {
-                eventData = jsonData.releases[0];
-                console.log(`📦 [SDS] Using first release as event data (no event fields found)`);
-              }
-            }
-            
-            // Check if data is nested in swaps object
-            if (jsonData.swaps && typeof jsonData.swaps === 'object') {
-              console.log(`📦 [SDS] Found swaps object, inspecting structure...`, {
-                keys: Object.keys(jsonData.swaps),
-                type: typeof jsonData.swaps,
-                isArray: Array.isArray(jsonData.swaps),
-                preview: JSON.stringify(jsonData.swaps).substring(0, 1000)
-              });
-              
-              // Check if swaps contains our event fields directly
-              const swapsHasFields = jsonData.swaps.poolId || jsonData.swaps.pool_id || 
-                                    jsonData.swaps.cycleId || jsonData.swaps.cycle_id ||
-                                    jsonData.swaps.bettor || jsonData.swaps.bettor_address ||
-                                    jsonData.swaps.creator || jsonData.swaps.creator_address ||
-                                    jsonData.swaps.provider || jsonData.swaps.provider_address;
-              
-              if (swapsHasFields) {
-                eventData = jsonData.swaps;
-                console.log(`📦 [SDS] Extracted event data from swaps object`);
-              } else if (Array.isArray(jsonData.swaps) && jsonData.swaps.length > 0) {
-                // Swaps might be an array
-                console.log(`📦 [SDS] Swaps is an array with ${jsonData.swaps.length} items`);
-                if (jsonData.swaps[0] && typeof jsonData.swaps[0] === 'object') {
-                  const firstSwap = jsonData.swaps[0];
-                  if (firstSwap.poolId || firstSwap.pool_id || firstSwap.bettor || firstSwap.bettor_address) {
-                    eventData = firstSwap;
-                    console.log(`📦 [SDS] Extracted event data from swaps[0]`);
-                  }
-                }
-              }
-            }
-            
-            // ✅ All data processing now uses eventData (extracted from nested structure)
+            // ✅ All data processing now uses eventData (backend's clean JSON)
             let decodedData = { ...eventData };
-            
-            // ✅ Preserve original jsonData fields that might be needed
-            if (jsonData.asset_in_type) {
-              decodedData.asset_in_type = jsonData.asset_in_type;
-            }
             
             // ✅ CRITICAL: Handle field name variations (snake_case vs camelCase)
             // Map snake_case to camelCase for consistency
