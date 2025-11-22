@@ -51,6 +51,17 @@ export function OddysseyLiveUpdates() {
     }
     return String(id);
   };
+  
+  // ✅ Helper to format large IDs for display (truncate huge numbers)
+  const formatIdForDisplay = (id: string): string => {
+    if (!id || id === '0') return '0';
+    const idStr = id.toString();
+    // If ID is very large (> 20 digits), truncate to last 8 digits for readability
+    if (idStr.length > 20) {
+      return `#${idStr.slice(-8)}`;
+    }
+    return `#${idStr}`;
+  };
 
   // Listen for cycle resolutions
   useCycleUpdates((cycleData) => {
@@ -114,6 +125,10 @@ export function OddysseyLiveUpdates() {
         // Likely in wei, convert to token
         prizePoolInToken = (prizePoolNum / 1e18).toString();
         console.log(`   💰 Converted prize pool from wei: ${prizePoolBigInt.toString()} → ${prizePoolInToken} ${currencySymbol}`);
+      } else if (prizePoolNum === 0 || prizePoolNum < 0) {
+        // Zero or negative - invalid
+        console.warn(`   ⚠️ Prize pool value is zero or negative: ${prizePoolBigInt.toString()}, using 0`);
+        prizePoolInToken = '0';
       } else if (prizePoolNum >= 1e30) {
         // Extremely large number, might be a hash or invalid - log warning
         console.warn(`   ⚠️ Prize pool value seems invalid (too large): ${prizePoolBigInt.toString()}, using 0`);
@@ -128,6 +143,9 @@ export function OddysseyLiveUpdates() {
       if (prizePoolNum > 1e12 && prizePoolNum < 1e30) {
         prizePoolInToken = (prizePoolNum / 1e18).toString();
         console.log(`   💰 Converted prize pool from wei (fallback): ${prizePoolNum} → ${prizePoolInToken} ${currencySymbol}`);
+      } else if (prizePoolNum === 0 || prizePoolNum < 0) {
+        console.warn(`   ⚠️ Prize pool value is zero or negative: ${prizePoolNum}, using 0`);
+        prizePoolInToken = '0';
       } else if (prizePoolNum >= 1e30) {
         console.warn(`   ⚠️ Prize pool value seems invalid (too large): ${prizePoolNum}, using 0`);
         prizePoolInToken = '0';
@@ -137,13 +155,14 @@ export function OddysseyLiveUpdates() {
     }
     
     const formattedPrizePool = parseFloat(prizePoolInToken).toFixed(2);
+    const displayCycleId = formatIdForDisplay(cycleId);
     
-    setCycleStatus(`Cycle ${cycleId} resolved! 🎉 Prize pool: ${formattedPrizePool} ${currencySymbol}`);
+    setCycleStatus(`Cycle ${displayCycleId} resolved! 🎉 Prize pool: ${formattedPrizePool} ${currencySymbol}`);
     
     // ✅ Use unique toast ID with normalized cycleId to prevent duplicates
     const toastId = `cycle-resolved-${cycleId}`;
     toast.success(
-      `🏆 Cycle ${cycleId} Results Are In!`,
+      `🏆 Cycle ${displayCycleId} Results Are In!`,
       { 
         duration: 5000,
         id: toastId // ✅ Unique deduplication key for toast (react-hot-toast handles deduplication)

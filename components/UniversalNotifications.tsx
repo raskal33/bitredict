@@ -41,6 +41,17 @@ const normalizeId = (id: unknown): string => {
   return String(id);
 };
 
+// ✅ Helper to format large IDs for display (truncate huge numbers)
+const formatIdForDisplay = (id: string): string => {
+  if (!id || id === '0') return '0';
+  const idStr = id.toString();
+  // If ID is very large (> 20 digits), truncate to last 8 digits for readability
+  if (idStr.length > 20) {
+    return `#${idStr.slice(-8)}`;
+  }
+  return `#${idStr}`;
+};
+
 export function UniversalNotifications() {
   const { address } = useAccount();
   const { subscribe } = useSomniaStreams({ enabled: true });
@@ -125,7 +136,8 @@ export function UniversalNotifications() {
     if (!isRecentEvent(timestamp)) return;
     
     const uniqueId = `pool-created-${poolId}-${timestamp}`;
-    const poolTitle = poolData.title || `Pool #${poolId}`;
+    const displayPoolId = formatIdForDisplay(poolId);
+    const poolTitle = poolData.title || `Pool ${displayPoolId}`;
     
     showNotification('success', `🏗️ New Pool: ${poolTitle}`, uniqueId, {
       duration: 5000,
@@ -151,7 +163,8 @@ export function UniversalNotifications() {
     if (!isRecentEvent(timestamp)) return;
     
     const uniqueId = `pool-settled-${poolId}-${timestamp}`;
-    const poolTitle = poolData.title || `Pool #${poolId}`;
+    const displayPoolId = formatIdForDisplay(poolId);
+    const poolTitle = poolData.title || `Pool ${displayPoolId}`;
     const winner = poolData.creatorSideWon ? 'Creator' : 'Bettors';
     
     showNotification('success', `🏆 ${poolTitle} settled! Winner: ${winner}`, uniqueId, {
@@ -213,31 +226,50 @@ export function UniversalNotifications() {
     
     const uniqueId = `liquidity-added-${poolId}-${timestamp}`;
     const amount = liquidityData.amount || '0';
-    // SDSLiquidityData doesn't have currency, default to STT
-    const currency = 'STT';
+    
+    // ✅ CRITICAL: Get currency from liquidityData or default to STT
+    const liquidityDataAny = liquidityData as unknown as Record<string, unknown>;
+    const currency = (liquidityDataAny.currency as string) || 
+                     ((liquidityDataAny.useBitr as boolean) || (liquidityDataAny.use_bitr as boolean) ? 'BITR' : 'STT');
     
     // ✅ CRITICAL: Convert from wei if needed (handle BigInt strings)
     let amountInToken = amount;
     try {
       const amountBigInt = BigInt(amount);
       const amountNum = Number(amountBigInt);
+      // ✅ FIX: Check if amount is in wei (very large number) and convert
       if (amountNum > 1e12 && amountNum < 1e30) {
         amountInToken = (amountNum / 1e18).toFixed(2);
+        console.log(`   💰 Converted liquidity amount from wei: ${amountBigInt.toString()} → ${amountInToken} ${currency}`);
+      } else if (amountNum === 0 || amountNum < 0) {
+        console.warn(`⚠️ Invalid amount (zero or negative): ${amountNum}, skipping notification`);
+        return;
       } else if (amountNum >= 1e30) {
         console.warn(`⚠️ Invalid amount (too large): ${amountNum}, skipping notification`);
         return;
+      } else {
+        // Already in token format, use as-is
+        amountInToken = amountNum.toFixed(2);
+        console.log(`   💰 Liquidity amount already in ${currency} format: ${amountInToken}`);
       }
     } catch {
       const amountNum = parseFloat(amount);
       if (amountNum > 1e12 && amountNum < 1e30) {
         amountInToken = (amountNum / 1e18).toFixed(2);
+      } else if (amountNum === 0 || amountNum < 0) {
+        console.warn(`⚠️ Invalid amount (zero or negative): ${amountNum}, skipping notification`);
+        return;
       } else if (amountNum >= 1e30) {
         console.warn(`⚠️ Invalid amount (too large): ${amountNum}, skipping notification`);
         return;
+      } else {
+        amountInToken = amountNum.toFixed(2);
       }
     }
     
-    showNotification('success', `💧 ${amountInToken} ${currency} liquidity added to Pool #${poolId}`, uniqueId, {
+    const displayPoolId = formatIdForDisplay(poolId);
+    
+    showNotification('success', `💧 ${amountInToken} ${currency} liquidity added to Pool ${displayPoolId}`, uniqueId, {
       duration: 4000,
       icon: '💧'
     });
