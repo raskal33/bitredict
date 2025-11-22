@@ -129,7 +129,7 @@ export function OddysseyLiveUpdates() {
         console.warn(`   ⚠️ Prize pool value is zero or negative: ${prizePoolBigInt.toString()}, using 0`);
         prizePoolInToken = '0';
       }
-    } catch (error) {
+    } catch {
       // If BigInt conversion fails, try parseFloat as fallback
       const prizePoolNum = parseFloat(prizePoolInToken);
       if (prizePoolNum > 0) {
@@ -150,13 +150,7 @@ export function OddysseyLiveUpdates() {
     // Include timestamp to prevent same cycle from different times triggering multiple notifications
     const toastId = `cycle-resolved-${cycleId}-${eventTimestamp}`;
     
-    // ✅ CRITICAL: Check if this exact toast was already shown (react-hot-toast deduplication)
-    // react-hot-toast automatically deduplicates by ID, but we add extra check for safety
-    if (toast.isActive(toastId)) {
-      console.log(`⚠️ OddysseyLiveUpdates: Toast ${toastId} already active, skipping`);
-      return;
-    }
-    
+    // ✅ CRITICAL: react-hot-toast automatically deduplicates by ID
     toast.success(
       `🏆 Cycle ${displayCycleId} Results Are In!`,
       { 
@@ -238,12 +232,7 @@ export function OddysseyLiveUpdates() {
         // ✅ CRITICAL: Use unique toast ID with slipId + timestamp to prevent duplicates
         const toastId = `slip-won-${slipId}-${Date.now()}`;
         
-        // ✅ CRITICAL: Check if this exact toast was already shown
-        if (toast.isActive(toastId)) {
-          console.log(`⚠️ OddysseyLiveUpdates: Toast ${toastId} already active, skipping`);
-          return;
-        }
-        
+        // ✅ CRITICAL: react-hot-toast automatically deduplicates by ID
         // Winner notification + BIG sound
         toast.success(
           <div>

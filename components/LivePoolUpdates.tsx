@@ -55,12 +55,7 @@ export function LivePoolUpdates() {
       const timestamp = Date.now();
       const toastId = `pool-settled-${poolData.poolId}-${timestamp}`;
       
-      // ✅ CRITICAL: Check if this exact toast was already shown
-      if (toast.isActive(toastId)) {
-        console.log(`⚠️ LivePoolUpdates: Toast ${toastId} already active, skipping`);
-        return;
-      }
-      
+      // ✅ CRITICAL: react-hot-toast automatically deduplicates by ID
       toast.success(`🏆 ${poolData.title} settled!`, { 
         duration: 4000,
         id: toastId, // ✅ Unique deduplication key for toast

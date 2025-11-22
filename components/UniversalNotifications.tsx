@@ -107,12 +107,7 @@ export function UniversalNotifications() {
       }
     }
 
-    // ✅ CRITICAL: Check if this exact toast was already shown (react-hot-toast deduplication)
-    if (toast.isActive(uniqueId)) {
-      console.log(`⚠️ UniversalNotifications: Toast ${uniqueId} already active, skipping`);
-      return;
-    }
-    
+    // ✅ CRITICAL: react-hot-toast automatically deduplicates by ID, so we don't need to check isActive
     // Show toast with unique ID
     const toastOptions = {
       duration: options?.duration || 4000,
@@ -214,8 +209,8 @@ export function UniversalNotifications() {
         console.warn(`⚠️ Invalid bet amount (zero or negative): ${amountNum}, skipping notification`);
         return;
       }
-    } catch (error) {
-      const amountNum = parseFloat(amount);
+      } catch {
+        const amountNum = parseFloat(amount);
       if (amountNum > 0) {
         amountInToken = (amountNum / 1e18).toFixed(2);
       } else {
@@ -275,8 +270,8 @@ export function UniversalNotifications() {
         console.warn(`⚠️ Invalid amount (zero or negative): ${amountNum}, skipping notification`);
         return;
       }
-    } catch (error) {
-      // Fallback: try parseFloat
+      } catch {
+        // Fallback: try parseFloat
       const amountNum = parseFloat(amount);
       if (amountNum > 0) {
         amountInToken = (amountNum / 1e18).toFixed(2);
