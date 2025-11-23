@@ -833,7 +833,7 @@ export function useSomniaStreams(
                 throw new Error('SDK subscribe method not available - WebSocket required');
               }
               
-              // ✅ Use SDS subscribe() with schema ID (somniaStreamsEventId)
+              // ✅ Subscribe to publisher's data for a specific schema
               // Get schema ID directly (we generate it the same way backend does)
               const schemaId = await getSchemaId(sdkToUse);
               
@@ -841,9 +841,11 @@ export function useSomniaStreams(
               console.log(`📡 [SDS] Schema ID: ${schemaId}`);
               console.log(`📡 [SDS] Publisher: ${PUBLISHER_ADDRESS}`);
               
-              // ✅ Use somniaStreamsEventId with schema ID directly
+              // ✅ Subscribe to publisher's data stream for this schema
+              // Use schemaId and publisher address to subscribe to their published data
               subscription = await (sdkToUse.streams.subscribe as any)({
-                somniaStreamsEventId: schemaId,  // ✅ Use schema ID directly
+                schemaId: schemaId,  // ✅ Schema ID for the data stream
+                publisher: PUBLISHER_ADDRESS,  // ✅ Publisher address
                 onData: (payload: any) => {
                   try {
                     if (payload && payload.data) {
