@@ -320,8 +320,9 @@ export function useSomniaStreams(
       return;
     }
 
-    const rpcUrl = process.env.NEXT_PUBLIC_SDS_RPC_URL || 'https://dream-rpc.somnia.network';
+    // ✅ Use WebSocket URL directly (no HTTP) for SDS WebSocket connection
     const wsUrl = process.env.NEXT_PUBLIC_SDS_WS_URL || 'wss://dream-rpc.somnia.network/ws';
+    const rpcUrl = process.env.NEXT_PUBLIC_SDS_RPC_URL || 'https://dream-rpc.somnia.network';
 
     try {
 
@@ -344,6 +345,7 @@ export function useSomniaStreams(
       }) as any;
 
       // ✅ Create WebSocket client for real-time SDS subscriptions (Somnia Network's intended usage)
+      // Use WebSocket URL directly - no HTTP transport needed for SDS WebSocket
       let wsClient: any = null;
       try {
         wsClient = createPublicClient({
@@ -352,8 +354,8 @@ export function useSomniaStreams(
             rpcUrls: {
               ...somniaTestnet.rpcUrls,
               default: {
-                http: [rpcUrl],
-                webSocket: [wsUrl]
+                http: [rpcUrl],  // Required by type, but we use WebSocket transport
+                webSocket: [wsUrl]  // ✅ WebSocket for SDS real-time subscriptions
               }
             }
           },
@@ -827,20 +829,24 @@ export function useSomniaStreams(
               }
               
               // ✅ Use SDS subscribe() for real-time updates (Somnia Network's intended usage)
-              // Subscribe using context string (somniaStreamsEventId)
-              const somniaStreamsEventId = contextConfig;
+              // Use context-based subscriptions (not somniaStreamsEventId)
+              const context = contextConfig;
               
-              console.log(`📡 [SDS] Subscribing to ${eventType} via SDS (context: ${somniaStreamsEventId})...`);
+              console.log(`📡 [SDS] Subscribing to ${eventType} via SDS (context: ${context})...`);
               
-              subscription = await (sdkToUse.streams.subscribe as any)({
-                somniaStreamsEventId: somniaStreamsEventId,
-                onData: (payload: any) => {
+              // ✅ CRITICAL: Use context parameter (not somniaStreamsEventId) for context-based subscriptions
+              // This matches the working implementation from commit 87e804b
+              const subscriptionParams = {
+                context: context,
+                ethCalls: [], // Empty array for context-based subscriptions
+                onlyPushChanges: false, // Get all data, not just changes
+                onData: (data: any) => {
                   try {
-                    if (payload && payload.data) {
-                      processData(payload.data);
-                    } else if (payload) {
-                      processData(payload);
+                    let actualData = data;
+                    if (data && data.result) {
+                      actualData = data.result;
                     }
+                    processData(actualData);
                   } catch (processError) {
                     console.error(`❌ [SDS] Error processing data for ${eventType}:`, processError);
                   }
@@ -848,7 +854,9 @@ export function useSomniaStreams(
                 onError: (error: Error) => {
                   console.error(`❌ [SDS] Subscription error for ${eventType}:`, error);
                 }
-              });
+              };
+              
+              subscription = await sdkToUse.streams.subscribe(subscriptionParams);
               
               console.log(`✅ [SDS] Real-time subscription active for ${eventType}`);
               
