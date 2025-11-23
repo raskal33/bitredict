@@ -842,6 +842,7 @@ export function useSomniaStreams(
               console.log(`📡 [SDS] Event ID: ${somniaStreamsEventId}`);
               
               // ✅ Use somniaStreamsEventId (event ID string) as per SDK documentation
+              // Note: "Failed to get event schemas" error may appear but is harmless for custom event IDs
               subscription = await sdkToUse.streams.subscribe({
                 somniaStreamsEventId: somniaStreamsEventId,  // ✅ Event ID string (e.g., "bitredict:bets")
                 ethCalls: [],  // ✅ Empty array (no on-chain enrichment needed)
@@ -859,7 +860,12 @@ export function useSomniaStreams(
                     console.error(`❌ [SDS] Error processing data for ${eventType}:`, processError);
                   }
                 },
-                onError: (error: Error) => {
+                onError: (error: any) => {
+                  // Suppress "Failed to get event schemas" - it's expected for custom event IDs
+                  if (error?.message?.includes('Failed to get event schemas')) {
+                    console.log(`ℹ️ [SDS] Event schema lookup warning for ${eventType} (expected for custom event IDs)`);
+                    return;
+                  }
                   console.error(`❌ [SDS] Subscription error for ${eventType}:`, error);
                 }
               });
