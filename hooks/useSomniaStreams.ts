@@ -37,7 +37,6 @@ function hexToString(hex: `0x${string}` | string): string {
 const globalSubscribersMap = new Map<SDSEventType, Set<(data: SDSEventData) => void>>();
 const globalUnsubscribeFunctionsMap = new Map<string, () => void>();
 const globalPendingSubscriptions = new Set<SDSEventType>();
-const globalPollFunctions = new Map<SDSEventType, () => Promise<void>>();
 let globalSDKInstance: SDK | null = null;
 
 const globalSeenEvents = new Map<SDSEventType, Set<string>>();
@@ -810,12 +809,7 @@ export function useSomniaStreams(
                 });
               }
               
-              if (eventType === 'bet:placed' && decodedData.poolId) {
-                const progressPollFn = globalPollFunctions.get('pool:progress');
-                if (progressPollFn) {
-                  setTimeout(() => progressPollFn(), 100);
-                }
-              }
+              // Note: No polling - real-time updates come via SDS subscriptions
             } catch (err) {
               console.error(`❌ Error processing data for ${eventType}:`, err);
             }
@@ -828,122 +822,55 @@ export function useSomniaStreams(
                 throw new Error('SDK not available for subscription');
               }
               
-              // ✅ Use SDS subscribe() for real-time updates (requires WebSocket)
-              // This is the proper way to use SDS for real-time - matches Somnia Network's intended usage
+              if (typeof sdkToUse.streams.subscribe !== 'function') {
+                throw new Error('SDK subscribe method not available - WebSocket required');
+              }
+              
+              // ✅ Use SDS subscribe() for real-time updates (Somnia Network's intended usage)
+              // Subscribe using context string (somniaStreamsEventId)
               const somniaStreamsEventId = contextConfig;
               
-              // Try real-time subscription first (if WebSocket client is available)
-              if (wsClientRef.current && typeof sdkToUse.streams.subscribe === 'function') {
-                try {
-                  console.log(`📡 [SDS] Subscribing to ${eventType} via SDS (real-time)...`);
-                  subscription = await (sdkToUse.streams.subscribe as any)({
-                    somniaStreamsEventId: somniaStreamsEventId,
-                    onData: (payload: any) => {
-                      if (payload && payload.data) {
-                        processData(payload.data);
-                      } else if (payload) {
-                        processData(payload);
-                      }
-                    },
-                    onError: (error: Error) => {
-                      console.error(`❌ [SDS] Subscription error for ${eventType}:`, error);
+              console.log(`📡 [SDS] Subscribing to ${eventType} via SDS (context: ${somniaStreamsEventId})...`);
+              
+              subscription = await (sdkToUse.streams.subscribe as any)({
+                somniaStreamsEventId: somniaStreamsEventId,
+                onData: (payload: any) => {
+                  try {
+                    if (payload && payload.data) {
+                      processData(payload.data);
+                    } else if (payload) {
+                      processData(payload);
                     }
-                  });
-                  console.log(`✅ [SDS] Real-time subscription active for ${eventType}`);
-                  
-                  globalUnsubscribeFunctionsMap.set(eventType as any, () => {
-                    if (subscription && typeof subscription.unsubscribe === 'function') {
-                      subscription.unsubscribe();
-                    } else if (subscription && typeof subscription === 'function') {
-                      subscription();
-                    }
-                    globalPendingSubscriptions.delete(eventType);
-                  });
-                  
-                  return; // Success - no need for polling fallback
-                } catch (subscribeError: any) {
-                  console.warn(`⚠️ [SDS] Real-time subscription failed for ${eventType}, falling back to polling:`, subscribeError.message);
-                }
-              } else {
-                console.log(`📡 [SDS] WebSocket not available, using polling for ${eventType}`);
-              }
-              
-              // Fallback to polling if subscription fails or WebSocket unavailable
-              const schemaId = await getSchemaId(sdkToUse);
-              let pollInterval: NodeJS.Timeout | null = null;
-              
-              const startPolling = async () => {
-                try {
-                  const latest = await sdkToUse.streams.getLastPublishedDataForSchema(
-                    schemaId,
-                    PUBLISHER_ADDRESS
-                  );
-                  
-                  if (latest) {
-                    processData(latest);
+                  } catch (processError) {
+                    console.error(`❌ [SDS] Error processing data for ${eventType}:`, processError);
                   }
-                } catch (error: any) {
-                  // ✅ Suppress expected errors (NoData, schema resolution issues)
-                  if (
-                    error?.message?.includes('NoData') || 
-                    error?.shortMessage === 'NoData()' ||
-                    error?.cause?.reason === 'NoData()' ||
-                    (error?.cause && typeof error.cause === 'object' && 'reason' in error.cause && error.cause.reason === 'NoData()') ||
-                    error?.message?.includes('Unable to compute final schema') ||
-                    error?.message?.includes('schema') && error?.message?.includes('empty')
-                  ) {
-                    return;
-                  }
-                  if (!error?.message?.includes('schema')) {
-                    console.warn(`⚠️ [SDS] Error fetching data for ${eventType}:`, error);
-                  }
+                },
+                onError: (error: Error) => {
+                  console.error(`❌ [SDS] Subscription error for ${eventType}:`, error);
                 }
-              };
-              
-              globalPollFunctions.set(eventType, startPolling);
-              startPolling();
-              
-              const pollIntervalMs = eventType === 'pool:progress' ? 500 : 2000;
-              pollInterval = setInterval(startPolling, pollIntervalMs);
-              
-              globalUnsubscribeFunctionsMap.set(eventType as any, () => {
-                if (pollInterval) {
-                  clearInterval(pollInterval);
-                  pollInterval = null;
-                }
-                globalPollFunctions.delete(eventType);
-                globalPendingSubscriptions.delete(eventType);
               });
               
-              console.log(`✅ [SDS] Polling fallback setup for ${eventType} (interval: ${pollIntervalMs}ms)`);
-            } catch (err) {
-              console.error(`❌ Error setting up polling for ${eventType}:`, err);
+              console.log(`✅ [SDS] Real-time subscription active for ${eventType}`);
+              
+              globalUnsubscribeFunctionsMap.set(eventType as any, () => {
+                try {
+                  if (subscription && typeof subscription.unsubscribe === 'function') {
+                    subscription.unsubscribe();
+                  } else if (subscription && typeof subscription === 'function') {
+                    subscription();
+                  }
+                } catch (unsubError) {
+                  console.error(`❌ [SDS] Error unsubscribing from ${eventType}:`, unsubError);
+                }
+                globalPendingSubscriptions.delete(eventType);
+              });
+            } catch (err: any) {
+              // Log error but don't fail silently - SDS subscription is required
+              console.error(`❌ [SDS] Failed to subscribe to ${eventType}:`, err?.message || err);
               globalPendingSubscriptions.delete(eventType);
+              // Don't throw - let it fail gracefully, backend WebSocket will provide updates
             }
           };
-          
-          globalPollFunctions.set(eventType, async () => {
-            try {
-              const sdk = sdkRef.current || globalSDKInstance;
-              if (!sdk) return;
-              const schemaId = await getSchemaId(sdk);
-              const latest = await sdk.streams.getLastPublishedDataForSchema(
-                schemaId,
-                PUBLISHER_ADDRESS
-              );
-              if (latest) processData(latest);
-            } catch (err: any) {
-              // ✅ Suppress expected errors (NoData, schema resolution issues)
-              // Backend WebSocket provides real-time updates, polling is just a backup
-              if (
-                err?.message?.includes('NoData') || 
-                err?.message?.includes('Unable to compute final schema') ||
-                err?.message?.includes('schema') && err?.message?.includes('empty')
-              ) {
-                return;
-              }
-            }
-          });
           
           setupSubscription();
           
@@ -951,7 +878,7 @@ export function useSomniaStreams(
           
         } catch (error) {
           globalPendingSubscriptions.delete(eventType);
-          console.error(`❌ Failed to set up polling for ${eventType}:`, error);
+          console.error(`❌ Failed to set up SDS subscription for ${eventType}:`, error);
         }
     }
 
