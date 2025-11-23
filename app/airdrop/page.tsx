@@ -37,10 +37,16 @@ import {
 } from "@heroicons/react/24/solid";
 
 interface LeaderboardUser {
+  rank: number;
   address: string;
-  allocation: string;
-  tier: string;
-  completedRequirements: number;
+  airdropAmount?: string | null;
+  allocation?: string; // Legacy field
+  bitrActions: number;
+  oddysseySlips: number;
+  hasStaking: boolean;
+  activityScore: number;
+  completedRequirements?: number; // Legacy field
+  tier?: string; // Legacy field
 }
 
 export default function AirdropPage() {
@@ -109,15 +115,15 @@ export default function AirdropPage() {
 
   if (!isConnected) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-pink-900 flex items-center justify-center p-6">
+      <div className="min-h-screen bg-gradient-main text-white flex items-center justify-center p-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 text-center"
+          className="glass-card rounded-2xl p-8 text-center"
         >
-          <GiftSolid className="h-16 w-16 text-purple-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-white mb-4">Connect Your Wallet</h2>
-          <p className="text-gray-300 mb-6">
+          <GiftSolid className="h-16 w-16 text-accent mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-primary mb-4">Connect Your Wallet</h2>
+          <p className="text-text-secondary mb-6">
             Connect your wallet to check your airdrop eligibility and see your rewards.
           </p>
         </motion.div>
@@ -126,27 +132,27 @@ export default function AirdropPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-purple-900 to-pink-900 p-6">
+    <div className="min-h-screen bg-gradient-main text-white p-6">
       <div className="max-w-7xl mx-auto">
-        <AnimatedTitle className="text-4xl md:text-6xl font-bold text-center mb-4 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+        <AnimatedTitle className="text-4xl md:text-6xl font-bold text-center mb-4 gradient-text">
           BITR Airdrop
         </AnimatedTitle>
         
-        <p className="text-center text-gray-300 mb-12 text-lg max-w-3xl mx-auto">
+        <p className="text-center text-text-secondary mb-12 text-lg max-w-3xl mx-auto">
           Check your eligibility for the BITR token airdrop. Complete various activities to qualify for rewards!
         </p>
 
         {/* Tab Navigation */}
         <div className="flex justify-center mb-8 px-4">
-          <div className="flex flex-col sm:flex-row space-y-1 sm:space-y-0 sm:space-x-1 bg-black/20 rounded-xl p-1 w-full max-w-md sm:max-w-none sm:w-auto">
+          <div className="flex flex-col sm:flex-row space-y-1 sm:space-y-0 sm:space-x-1 glass-card rounded-xl p-1 w-full max-w-md sm:max-w-none sm:w-auto">
             {["eligibility", "leaderboard", "statistics"].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`py-3 px-4 sm:px-6 rounded-lg font-medium transition-all capitalize text-sm sm:text-base ${
                   activeTab === tab
-                    ? "bg-purple-500 text-white"
-                    : "text-gray-300 hover:text-white hover:bg-white/10"
+                    ? "bg-gradient-primary text-black"
+                    : "text-text-secondary hover:text-primary hover:bg-white/10"
                 }`}
               >
                 {tab}
@@ -163,7 +169,7 @@ export default function AirdropPage() {
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20"
+                className="glass-card rounded-2xl p-8"
               >
                 {loading ? (
                   <div className="flex justify-center py-12">
@@ -172,12 +178,12 @@ export default function AirdropPage() {
                 ) : eligibility ? (
                   <div>
                     <div className="flex items-center gap-4 mb-8">
-                      <div className="p-4 bg-purple-500/20 rounded-xl">
-                        <FaGift className="h-8 w-8 text-purple-400" />
+                      <div className="p-4 bg-accent/20 rounded-xl">
+                        <FaGift className="h-8 w-8 text-accent" />
                       </div>
                       <div>
-                        <h2 className="text-2xl font-bold text-white">Airdrop Eligibility</h2>
-                        <p className="text-gray-300">
+                        <h2 className="text-2xl font-bold text-primary">Airdrop Eligibility</h2>
+                        <p className="text-text-secondary">
                           {eligibility.isEligible ? "Congratulations! You're eligible" : "Complete requirements to qualify"}
                         </p>
                       </div>
@@ -198,20 +204,20 @@ export default function AirdropPage() {
 
                     {/* Allocation Display */}
                     {eligibility.isEligible && (
-                      <div className="mb-8 p-6 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-xl">
+                      <div className="mb-8 p-6 bg-gradient-primary/10 border border-accent/20 rounded-xl">
                         <div className="text-center">
-                          <h3 className="text-2xl font-bold text-white mb-2">Your Allocation</h3>
-                          <p className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+                          <h3 className="text-2xl font-bold text-primary mb-2">Your Allocation</h3>
+                          <p className="text-4xl font-bold gradient-text">
                             {formatBITRAmount(eligibility.airdropInfo?.airdropAmount || '0')} BITR
                           </p>
-                          <p className="text-gray-300 mt-2">Based on your activity and tier</p>
+                          <p className="text-text-secondary mt-2">Based on your activity and tier</p>
                         </div>
                       </div>
                     )}
 
                     {/* Requirements */}
                     <div className="space-y-4">
-                      <h3 className="text-xl font-bold text-white mb-6">Requirements Checklist</h3>
+                      <h3 className="text-xl font-bold text-primary mb-6">Requirements Checklist</h3>
                       
                       {requirements.map((req, index) => (
                         <motion.div
@@ -224,8 +230,8 @@ export default function AirdropPage() {
                           <div className="flex items-center gap-4">
                             <req.icon className={`h-6 w-6 ${req.color}`} />
                             <div className="flex-1">
-                              <p className="text-white font-medium">{req.label}</p>
-                              <p className="text-gray-400 text-sm">
+                              <p className="text-primary font-medium">{req.label}</p>
+                              <p className="text-text-muted text-sm">
                                 {req.met ? "Completed ✓" : "Not completed"}
                               </p>
                             </div>
@@ -240,14 +246,14 @@ export default function AirdropPage() {
                     </div>
 
                     {/* Progress Bar */}
-                    <div className="mt-8 p-6 bg-black/20 rounded-xl">
+                    <div className="mt-8 p-6 glass-card rounded-xl">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-white font-medium">Overall Progress</span>
-                        <span className="text-gray-300">{calculateRequirementProgress(eligibility.requirements)}%</span>
+                        <span className="text-primary font-medium">Overall Progress</span>
+                        <span className="text-text-secondary">{calculateRequirementProgress(eligibility.requirements)}%</span>
                       </div>
-                      <div className="w-full bg-gray-700 rounded-full h-3">
+                      <div className="w-full bg-white/10 rounded-full h-3">
                         <div
-                          className="bg-gradient-to-r from-purple-500 to-pink-500 h-3 rounded-full transition-all duration-300"
+                          className="bg-gradient-somnia h-3 rounded-full transition-all duration-300"
                           style={{ width: `${calculateRequirementProgress(eligibility.requirements)}%` }}
                         />
                       </div>
@@ -255,9 +261,9 @@ export default function AirdropPage() {
                   </div>
                 ) : (
                   <div className="text-center py-12">
-                    <FaGift className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-xl font-bold text-white mb-2">Loading Eligibility</h3>
-                    <p className="text-gray-400">Please wait while we check your eligibility...</p>
+                    <FaGift className="h-12 w-12 text-text-muted mx-auto mb-4" />
+                    <h3 className="text-xl font-bold text-primary mb-2">Loading Eligibility</h3>
+                    <p className="text-text-muted">Please wait while we check your eligibility...</p>
                   </div>
                 )}
               </motion.div>
@@ -269,19 +275,19 @@ export default function AirdropPage() {
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20"
+                className="glass-card rounded-2xl p-6"
               >
-                <h3 className="text-xl font-bold text-white mb-6">Current Status</h3>
+                <h3 className="text-xl font-bold text-primary mb-6">Current Status</h3>
                 
                 <div className="space-y-4">
                   <div className="flex justify-between">
-                    <span className="text-gray-300">BITR Balance</span>
-                    <span className="text-white font-medium">{token.balance}</span>
+                    <span className="text-text-secondary">BITR Balance</span>
+                    <span className="text-primary font-medium">{token.balance}</span>
                   </div>
                   
                   <div className="flex justify-between">
-                    <span className="text-gray-300">Staked Amount</span>
-                    <span className="text-white font-medium">
+                    <span className="text-text-secondary">Staked Amount</span>
+                    <span className="text-primary font-medium">
                       {staking.userStakesWithRewards && staking.userStakesWithRewards.length > 0
                         ? staking.userStakesWithRewards
                             .reduce((acc: number, stake: { amount: bigint }) => acc + Number(stake.amount), 0)
@@ -291,13 +297,13 @@ export default function AirdropPage() {
                   </div>
                   
                   <div className="flex justify-between">
-                    <span className="text-gray-300">Staking Tier</span>
-                    <span className="text-white font-medium">{staking.userTierName}</span>
+                    <span className="text-text-secondary">Staking Tier</span>
+                    <span className="text-primary font-medium">{staking.userTierName}</span>
                   </div>
                   
                   <div className="flex justify-between">
-                    <span className="text-gray-300">Faucet Claims</span>
-                    <span className="text-white font-medium">
+                    <span className="text-text-secondary">Faucet Claims</span>
+                    <span className="text-primary font-medium">
                       {faucet.userInfo && 'claimed' in faucet.userInfo
                         ? faucet.userInfo.claimed
                         : 0} BITR
@@ -311,48 +317,48 @@ export default function AirdropPage() {
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.1 }}
-                className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20"
+                className="glass-card rounded-2xl p-6"
               >
-                <h3 className="text-xl font-bold text-white mb-6">Quick Actions</h3>
+                <h3 className="text-xl font-bold text-primary mb-6">Quick Actions</h3>
                 
                 <div className="space-y-3">
                   <a
                     href="/faucet"
-                    className="w-full flex items-center justify-between p-3 bg-black/20 hover:bg-black/30 rounded-lg transition-colors"
+                    className="w-full flex items-center justify-between p-3 glass-card hover:bg-white/10 rounded-lg transition-colors"
                   >
                     <div className="flex items-center gap-3">
-                      <FaCoins className="h-5 w-5 text-yellow-400" />
-                      <span className="text-white">Claim Faucet</span>
+                      <FaCoins className="h-5 w-5 text-accent" />
+                      <span className="text-primary">Claim Faucet</span>
                     </div>
                   </a>
                   
                   <a
                     href="/staking"
-                    className="w-full flex items-center justify-between p-3 bg-black/20 hover:bg-black/30 rounded-lg transition-colors"
+                    className="w-full flex items-center justify-between p-3 glass-card hover:bg-white/10 rounded-lg transition-colors"
                   >
                     <div className="flex items-center gap-3">
-                      <FaShieldAlt className="h-5 w-5 text-blue-400" />
-                      <span className="text-white">Start Staking</span>
+                      <FaShieldAlt className="h-5 w-5 text-accent" />
+                      <span className="text-primary">Start Staking</span>
                     </div>
                   </a>
                   
                   <a
                     href="/oddyssey"
-                    className="w-full flex items-center justify-between p-3 bg-black/20 hover:bg-black/30 rounded-lg transition-colors"
+                    className="w-full flex items-center justify-between p-3 glass-card hover:bg-white/10 rounded-lg transition-colors"
                   >
                     <div className="flex items-center gap-3">
-                      <FaGamepad className="h-5 w-5 text-purple-400" />
-                      <span className="text-white">Play Oddyssey</span>
+                      <FaGamepad className="h-5 w-5 text-accent" />
+                      <span className="text-primary">Play Oddyssey</span>
                     </div>
                   </a>
                   
                   <a
                     href="/markets"
-                    className="w-full flex items-center justify-between p-3 bg-black/20 hover:bg-black/30 rounded-lg transition-colors"
+                    className="w-full flex items-center justify-between p-3 glass-card hover:bg-white/10 rounded-lg transition-colors"
                   >
                     <div className="flex items-center gap-3">
-                      <FaChartLine className="h-5 w-5 text-green-400" />
-                      <span className="text-white">Trade Markets</span>
+                      <FaChartLine className="h-5 w-5 text-accent" />
+                      <span className="text-primary">Trade Markets</span>
                     </div>
                   </a>
                 </div>
@@ -368,18 +374,18 @@ export default function AirdropPage() {
             animate={{ opacity: 1, y: 0 }}
             className="max-w-4xl mx-auto"
           >
-            <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20">
+            <div className="glass-card rounded-2xl p-8">
               <div className="flex items-center gap-4 mb-8">
-                <div className="p-4 bg-yellow-500/20 rounded-xl">
-                  <FaTrophy className="h-8 w-8 text-yellow-400" />
+                <div className="p-4 bg-accent/20 rounded-xl">
+                  <FaTrophy className="h-8 w-8 text-accent" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-white">Airdrop Leaderboard</h2>
-                  <p className="text-gray-300">Top participants by allocation amount</p>
+                  <h2 className="text-2xl font-bold text-primary">Airdrop Leaderboard</h2>
+                  <p className="text-text-secondary">Top participants by allocation amount</p>
                 </div>
               </div>
 
-                                {leaderboard.length > 0 ? (
+              {leaderboard.length > 0 ? (
                 <div className="space-y-3">
                   {leaderboard.map((user, index) => (
                     <motion.div
@@ -387,29 +393,31 @@ export default function AirdropPage() {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.05 }}
-                      className="flex items-center gap-4 p-4 bg-black/20 rounded-xl"
+                      className="flex items-center gap-4 p-4 glass-card rounded-xl"
                     >
-                      <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
-                        <span className="text-white font-bold text-sm">{index + 1}</span>
+                      <div className="w-8 h-8 bg-gradient-somnia rounded-full flex items-center justify-center">
+                        <span className="text-black font-bold text-sm">{index + 1}</span>
                       </div>
                       
                       <div className="flex-1">
-                        <p className="text-white font-medium">{formatAddress(user.address)}</p>
-                        <p className="text-gray-400 text-sm">
-                          {user.completedRequirements || 0} requirements completed
+                        <p className="text-primary font-medium">{formatAddress(user.address)}</p>
+                        <p className="text-text-muted text-sm">
+                          {user.bitrActions} BITR actions • {user.oddysseySlips} slips • {user.hasStaking ? 'Staked' : 'No staking'}
                         </p>
                       </div>
                       
                       <div className="text-right">
-                        <p className="text-white font-bold">{formatBITRAmount(user.allocation || '0')} BITR</p>
-                        <p className="text-gray-400 text-sm">{user.tier || 'Bronze'} Tier</p>
+                        <p className="text-primary font-bold">
+                          {user.airdropAmount ? formatBITRAmount(user.airdropAmount) : 'TBD'} BITR
+                        </p>
+                        <p className="text-text-muted text-sm">Score: {user.activityScore}</p>
                       </div>
                       
                       {index < 3 && (
                         <FaCrown className={`h-5 w-5 ${
-                          index === 0 ? 'text-yellow-400' : 
-                          index === 1 ? 'text-gray-300' : 
-                          'text-orange-400'
+                          index === 0 ? 'text-accent' : 
+                          index === 1 ? 'text-text-secondary' : 
+                          'text-accent'
                         }`} />
                       )}
                     </motion.div>
@@ -417,9 +425,9 @@ export default function AirdropPage() {
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <FaUsers className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-xl font-bold text-white mb-2">No Data Available</h3>
-                  <p className="text-gray-400">Leaderboard will be available soon</p>
+                  <FaUsers className="h-12 w-12 text-text-muted mx-auto mb-4" />
+                  <h3 className="text-xl font-bold text-primary mb-2">No Data Available</h3>
+                  <p className="text-text-muted">Leaderboard will be available soon</p>
                 </div>
               )}
             </div>
@@ -433,59 +441,59 @@ export default function AirdropPage() {
             animate={{ opacity: 1, y: 0 }}
             className="max-w-4xl mx-auto"
           >
-            <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20">
+            <div className="glass-card rounded-2xl p-8">
               <div className="flex items-center gap-4 mb-8">
-                <div className="p-4 bg-blue-500/20 rounded-xl">
-                  <FaChartLine className="h-8 w-8 text-blue-400" />
+                <div className="p-4 bg-accent/20 rounded-xl">
+                  <FaChartLine className="h-8 w-8 text-accent" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-white">Airdrop Statistics</h2>
-                  <p className="text-gray-300">Overall platform statistics and metrics</p>
+                  <h2 className="text-2xl font-bold text-primary">Airdrop Statistics</h2>
+                  <p className="text-text-secondary">Overall platform statistics and metrics</p>
                 </div>
               </div>
 
               {statistics ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  <div className="p-6 bg-black/20 rounded-xl text-center">
-                    <FaGift className="h-8 w-8 text-purple-400 mx-auto mb-4" />
-                    <p className="text-gray-400 text-sm">Total Allocation</p>
-                    <p className="text-2xl font-bold text-white">{formatBITRAmount(statistics.overview.totalAirdropAllocated)} BITR</p>
+                  <div className="p-6 glass-card rounded-xl text-center">
+                    <FaGift className="h-8 w-8 text-accent mx-auto mb-4" />
+                    <p className="text-text-muted text-sm">Total Allocation</p>
+                    <p className="text-2xl font-bold text-primary">{formatBITRAmount(statistics.overview.totalAirdropAllocated)} BITR</p>
                   </div>
                   
-                  <div className="p-6 bg-black/20 rounded-xl text-center">
-                    <FaUsers className="h-8 w-8 text-blue-400 mx-auto mb-4" />
-                    <p className="text-gray-400 text-sm">Eligible Users</p>
-                    <p className="text-2xl font-bold text-white">{statistics.overview.totalEligible.toLocaleString()}</p>
+                  <div className="p-6 glass-card rounded-xl text-center">
+                    <FaUsers className="h-8 w-8 text-accent mx-auto mb-4" />
+                    <p className="text-text-muted text-sm">Eligible Users</p>
+                    <p className="text-2xl font-bold text-primary">{statistics.overview.totalEligible.toLocaleString()}</p>
                   </div>
                   
-                  <div className="p-6 bg-black/20 rounded-xl text-center">
-                    <FaCalendarAlt className="h-8 w-8 text-green-400 mx-auto mb-4" />
-                    <p className="text-gray-400 text-sm">Distribution Date</p>
-                    <p className="text-xl font-bold text-white">{statistics.latestSnapshot?.timestamp || 'TBA'}</p>
+                  <div className="p-6 glass-card rounded-xl text-center">
+                    <FaCalendarAlt className="h-8 w-8 text-accent mx-auto mb-4" />
+                    <p className="text-text-muted text-sm">Distribution Date</p>
+                    <p className="text-xl font-bold text-primary">{statistics.latestSnapshot?.timestamp || 'TBA'}</p>
                   </div>
                   
-                  <div className="p-6 bg-black/20 rounded-xl text-center">
-                    <FaShieldAlt className="h-8 w-8 text-yellow-400 mx-auto mb-4" />
-                                          <p className="text-gray-400 text-sm">Avg Actions</p>
-                    <p className="text-2xl font-bold text-white">{statistics.overview.averageBITRActions} Actions</p>
+                  <div className="p-6 glass-card rounded-xl text-center">
+                    <FaShieldAlt className="h-8 w-8 text-accent mx-auto mb-4" />
+                    <p className="text-text-muted text-sm">Avg Actions</p>
+                    <p className="text-2xl font-bold text-primary">{statistics.overview.averageBITRActions} Actions</p>
                   </div>
                   
-                  <div className="p-6 bg-black/20 rounded-xl text-center">
-                    <FaTrophy className="h-8 w-8 text-orange-400 mx-auto mb-4" />
-                    <p className="text-gray-400 text-sm">Completion Rate</p>
-                    <p className="text-2xl font-bold text-white">{statistics.overview.eligibilityRate.toFixed(1)}%</p>
+                  <div className="p-6 glass-card rounded-xl text-center">
+                    <FaTrophy className="h-8 w-8 text-accent mx-auto mb-4" />
+                    <p className="text-text-muted text-sm">Completion Rate</p>
+                    <p className="text-2xl font-bold text-primary">{statistics.overview.eligibilityRate.toFixed(1)}%</p>
                   </div>
                   
-                  <div className="p-6 bg-black/20 rounded-xl text-center">
-                    <SparklesSolid className="h-8 w-8 text-pink-400 mx-auto mb-4" />
-                                          <p className="text-gray-400 text-sm">Total Claims</p>
-                    <p className="text-2xl font-bold text-white">{statistics.overview.totalFaucetClaims}</p>
+                  <div className="p-6 glass-card rounded-xl text-center">
+                    <SparklesSolid className="h-8 w-8 text-accent mx-auto mb-4" />
+                    <p className="text-text-muted text-sm">Total Claims</p>
+                    <p className="text-2xl font-bold text-primary">{statistics.overview.totalFaucetClaims}</p>
                   </div>
                 </div>
               ) : (
                 <div className="text-center py-12">
                   <LoadingSpinner size="lg" />
-                  <p className="text-gray-400">Loading statistics...</p>
+                  <p className="text-text-muted">Loading statistics...</p>
                 </div>
               )}
             </div>

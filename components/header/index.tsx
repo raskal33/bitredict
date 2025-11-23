@@ -24,7 +24,8 @@ import {
   ArrowTrendingUpIcon,
   LockClosedIcon,
   Squares2X2Icon,
-  Cog6ToothIcon
+  Cog6ToothIcon,
+  GiftIcon
 } from "@heroicons/react/24/outline";
 import Button from "@/components/button";
 import { useProfileStore } from '@/stores/useProfileStore';
@@ -707,6 +708,12 @@ const bitredictorLinks = [
     href: "/community",
     segment: "community",
     icon: UsersIcon,
+  },
+  {
+    label: "Airdrop",
+    href: "/airdrop",
+    segment: "airdrop",
+    icon: GiftIcon,
   },
 ];
 
