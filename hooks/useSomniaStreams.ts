@@ -849,12 +849,28 @@ export function useSomniaStreams(
                 onlyPushChanges: false,  // ✅ Get all data, not just changes
                 onData: (data: any) => {
                   try {
-                    console.log(`📦 [SDS] Received data for ${eventType}:`, data);
-                    // Data structure: { result: {...}, ethCallResults: [...] }
+                    console.log(`📦 [SDS] ✅ RECEIVED DATA for ${eventType}:`, JSON.stringify(data, null, 2));
+                    // Data structure from setAndEmitEvents: the data itself, not wrapped
+                    // Try different possible structures
                     let actualData = data;
-                    if (data && data.result) {
-                      actualData = data.result;
+                    
+                    // Check if data is wrapped in result
+                    if (data && typeof data === 'object') {
+                      if (data.result) {
+                        actualData = data.result;
+                      } else if (data.data) {
+                        actualData = data.data;
+                      } else if (data.jsonData) {
+                        // If it's the encoded JSON string, parse it
+                        try {
+                          actualData = JSON.parse(data.jsonData);
+                        } catch (e) {
+                          actualData = data;
+                        }
+                      }
                     }
+                    
+                    console.log(`📦 [SDS] Processing data for ${eventType}:`, actualData);
                     processData(actualData);
                   } catch (processError) {
                     console.error(`❌ [SDS] Error processing data for ${eventType}:`, processError);
