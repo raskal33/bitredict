@@ -87,6 +87,11 @@ export default function AirdropPage() {
   useEffect(() => {
     if (isConnected && address) {
       fetchAirdropData();
+      // Refresh data every 30 seconds
+      const interval = setInterval(() => {
+        fetchAirdropData();
+      }, 30000);
+      return () => clearInterval(interval);
     }
   }, [isConnected, address, fetchAirdropData]);
 
@@ -95,13 +100,23 @@ export default function AirdropPage() {
 
   const getRequirementStatus = (requirement: unknown, label: string) => {
     const isMet = (requirement as {met?: boolean})?.met || requirement === true;
+    const current = (requirement as {current?: number})?.current;
+    const required = (requirement as {required?: number})?.required;
+    
+    let detail = "";
+    if (typeof current === 'number' && typeof required === 'number') {
+      detail = ` (${current}/${required})`;
+    }
+    
     return {
-      label,
+      label: label + detail,
       met: isMet,
       icon: isMet ? FaCheckCircle : FaTimesCircle,
       color: isMet ? "text-green-400" : "text-red-400",
       bgColor: isMet ? "bg-green-500/10" : "bg-red-500/10",
-      borderColor: isMet ? "border-green-500/20" : "border-red-500/20"
+      borderColor: isMet ? "border-green-500/20" : "border-red-500/20",
+      current,
+      required
     };
   };
 
@@ -232,7 +247,9 @@ export default function AirdropPage() {
                             <div className="flex-1">
                               <p className="text-primary font-medium">{req.label}</p>
                               <p className="text-text-muted text-sm">
-                                {req.met ? "Completed ✓" : "Not completed"}
+                                {req.met ? "Completed ✓" : req.current !== undefined && req.required !== undefined 
+                                  ? `${req.current}/${req.required} required`
+                                  : "Not completed"}
                               </p>
                             </div>
                             {req.met && (
@@ -289,24 +306,32 @@ export default function AirdropPage() {
                     <span className="text-text-secondary">Staked Amount</span>
                     <span className="text-primary font-medium">
                       {staking.userStakesWithRewards && staking.userStakesWithRewards.length > 0
-                        ? staking.userStakesWithRewards
-                            .reduce((acc: number, stake: { amount: bigint }) => acc + Number(stake.amount), 0)
-                            .toLocaleString()
-                        : '0'}
+                        ? formatBITRAmount(
+                            staking.userStakesWithRewards
+                              .reduce((acc: bigint, stake: { amount: bigint }) => {
+                                try {
+                                  const amount = typeof stake.amount === 'bigint' ? stake.amount : BigInt(stake.amount || 0);
+                                  return acc + amount;
+                                } catch {
+                                  return acc;
+                                }
+                              }, BigInt(0)).toString()
+                          )
+                        : '0'} BITR
                     </span>
                   </div>
                   
                   <div className="flex justify-between">
                     <span className="text-text-secondary">Staking Tier</span>
-                    <span className="text-primary font-medium">{staking.userTierName}</span>
+                    <span className="text-primary font-medium">{staking.userTierName || 'None'}</span>
                   </div>
                   
                   <div className="flex justify-between">
                     <span className="text-text-secondary">Faucet Claims</span>
                     <span className="text-primary font-medium">
-                      {faucet.userInfo && 'claimed' in faucet.userInfo
-                        ? faucet.userInfo.claimed
-                        : 0} BITR
+                      {faucet.userInfo && 'claimed' in faucet.userInfo && faucet.userInfo.claimed
+                        ? '20,000 BITR'
+                        : '0 BITR'}
                     </span>
                   </div>
                 </div>

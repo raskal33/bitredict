@@ -149,9 +149,10 @@ export default function Header() {
                     priority 
                   />
                 </Link>
+              </div>
 
-                {/* Desktop Navigation - Primary Items */}
-                <nav className="hidden xl:flex items-center gap-1">
+              {/* Center - Desktop Navigation - Primary Items */}
+              <nav className="hidden xl:flex items-center gap-1 flex-1 justify-center">
                   {/* Markets Dropdown */}
                   <div className="relative" style={{ zIndex: 1000 }}>
                     <motion.button
@@ -241,6 +242,18 @@ export default function Header() {
                   >
                     <TrophyIcon className="h-4 w-4" />
                     <span className="hidden 2xl:inline">Rewards</span>
+                  </Link>
+
+                  <Link
+                    href="/airdrop"
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
+                      segment === "airdrop"
+                        ? "bg-gradient-primary text-black shadow-button"
+                        : "text-text-secondary hover:text-text-primary hover:bg-bg-card"
+                    }`}
+                  >
+                    <GiftIcon className="h-4 w-4" />
+                    <span className="hidden 2xl:inline">Airdrop</span>
                   </Link>
 
                   {/* Bitredictor Dropdown */}
@@ -371,7 +384,6 @@ export default function Header() {
                     </AnimatePresence>
                   </div>
                 </nav>
-              </div>
 
               {/* Right Side Actions */}
               <div className="flex items-center gap-2 flex-shrink-0">
@@ -605,6 +617,18 @@ export default function Header() {
                           <TrophyIcon className="h-5 w-5 flex-shrink-0" />
                           <span>Rewards</span>
                         </Link>
+                        <Link
+                          href="/airdrop"
+                          onClick={handleClose}
+                          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                            segment === "airdrop"
+                              ? "bg-gradient-primary text-black"
+                              : "text-text-secondary hover:text-text-primary hover:bg-bg-card"
+                          }`}
+                        >
+                          <GiftIcon className="h-5 w-5 flex-shrink-0" />
+                          <span>Airdrop</span>
+                        </Link>
                       </div>
                     </div>
 
@@ -776,12 +800,6 @@ const bitredictorLinks = [
     href: "/community",
     segment: "community",
     icon: UsersIcon,
-  },
-  {
-    label: "Airdrop",
-    href: "/airdrop",
-    segment: "airdrop",
-    icon: GiftIcon,
   },
 ];
 
