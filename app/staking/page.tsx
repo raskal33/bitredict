@@ -114,7 +114,8 @@ export default function StakingPage() {
       toast.success("Approval confirmed! 🎉");
       setNeedsApproval(false);
     }
-  }, [token.isConfirmed]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token.isConfirmed, token.refetchAll]);
 
   // ✅ FIX: Watch for successful transactions with proper cleanup
   useEffect(() => {
@@ -146,6 +147,7 @@ export default function StakingPage() {
       
       return () => clearTimeout(timeoutId);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [staking.isConfirmed, staking.claimingStakeIndex, staking.unstakingStakeIndex, staking.isClaimingRevenue, staking.isStaking, token.refetchBalance]);
 
   // ✅ FIX: Handle transaction state changes with proper cleanup
