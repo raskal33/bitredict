@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { SDK, SchemaEncoder } from '@somnia-chain/streams';
-import { createPublicClient, http } from 'viem';
+import { createPublicClient, http, webSocket } from 'viem';
 import { somniaTestnet } from 'viem/chains';
 
 const PUBLISHER_ADDRESS = (process.env.NEXT_PUBLIC_SDS_PUBLISHER_ADDRESS || '0x483fc7FD690dCf2a01318282559C389F385d4428') as `0x${string}`;
@@ -316,15 +316,12 @@ export function useSomniaStreams(
       sdkRef.current = globalSDKInstance;
       setIsSDSActive(true);
       setIsConnected(true);
-      console.log('♻️ Reusing existing global SDK instance');
       return;
     }
 
     try {
       const rpcUrl = process.env.NEXT_PUBLIC_SDS_RPC_URL || 'https://dream-rpc.somnia.network';
       const wsUrl = process.env.NEXT_PUBLIC_SDS_WS_URL || 'wss://dream-rpc.somnia.network/ws';
-      
-      console.log('📡 Creating public client with HTTP transport...');
 
       const publicClient = createPublicClient({
         chain: {
@@ -337,18 +334,12 @@ export function useSomniaStreams(
             }
           }
         },
-        transport: http(rpcUrl),
+        transport: webSocket(wsUrl),
       }) as any;
-      
-      console.log('✅ Public client created with HTTP transport');
-      
-      console.log('✅ Initializing SDK...');
       
       const sdk = new SDK({
         public: publicClient
       });
-
-      console.log('✅ SDK initialized successfully');
       
       globalSDKInstance = sdk;
       sdkRef.current = sdk;
@@ -461,7 +452,6 @@ export function useSomniaStreams(
                 
                 const eventTimestamp = message.data.timestamp || Math.floor(Date.now() / 1000);
                 if (!isRecentEvent(eventTimestamp)) {
-                  console.log(`⚠️ [WebSocket] Skipping old ${eventType} event (timestamp: ${eventTimestamp})`);
                   return;
                 }
                 
@@ -469,14 +459,12 @@ export function useSomniaStreams(
                 const rateLimitKey = `${eventType}:${message.data.poolId || message.data.cycleId || 'unknown'}`;
                 const lastTime = lastNotificationTime.get(rateLimitKey);
                 if (lastTime && (now - lastTime) < NOTIFICATION_RATE_LIMIT_MS) {
-                  console.log(`⚠️ [WebSocket] Rate limit: Skipping ${eventType} event (last notification ${now - lastTime}ms ago)`);
                   return;
                 }
                 lastNotificationTime.set(rateLimitKey, now);
                 
                 const dedupeKey = createEventDedupeKey(eventType, message.data);
                 if (isEventSeen(eventType, dedupeKey)) {
-                  console.log(`⚠️ [WebSocket] Skipping duplicate ${eventType} event: ${dedupeKey}`);
                   return;
                 }
                 
@@ -587,9 +575,6 @@ export function useSomniaStreams(
         
         globalPendingSubscriptions.add(eventType);
         
-        console.log(`📡 [GLOBAL] Setting up polling for ${eventType} via SDS (context: ${contextConfig})`);
-        console.log(`   SDK available: ${!!sdkAvailable}, SDS active: ${sdsActive}, First subscriber: ${isFirstSubscriber}, Pending: ${isPending}`);
-        
         try {
           let subscription: any = null;
           let lastProcessedDataHash: string | null = null;
@@ -642,21 +627,15 @@ export function useSomniaStreams(
                   if (jsonString) {
                     jsonData = JSON.parse(jsonString);
                   } else {
-                    console.warn(`⚠️ [SDS] No jsonData field in decoded schema data for ${eventType}`);
                     return;
                   }
                 } catch (e) {
-                  console.warn(`⚠️ [SDS] Failed to decode data for ${eventType}:`, e);
                   return;
                 }
               } else if (!jsonData) {
                 return;
               }
               
-              console.log(`📦 [SDS] ✅ Decoded backend JSON for ${eventType}:`, {
-                keys: Object.keys(jsonData),
-                preview: JSON.stringify(jsonData).substring(0, 200)
-              });
               
               let decodedData = { ...jsonData };
               
@@ -665,7 +644,6 @@ export function useSomniaStreams(
               }
               
               if (typeof decodedData !== 'object' || !decodedData) {
-                console.warn(`⚠️ [SDS] Invalid data format for ${eventType}`);
                 return;
               }
               
@@ -723,23 +701,21 @@ export function useSomniaStreams(
                 decodedData.timestamp = Math.floor(Date.now() / 1000);
               }
               
-              const eventTimestamp = decodedData.timestamp;
-              if (!eventTimestamp || typeof eventTimestamp !== 'number' || eventTimestamp <= 0) {
-                console.log(`⚠️ [SDS] Rejecting ${eventType} event without valid timestamp`);
-                return;
-              }
-              
-              const isProgressEvent = eventType === 'pool:progress';
-              const timeWindow = isProgressEvent ? 10 * 60 : 3 * 60;
-              const nowSeconds = Math.floor(Date.now() / 1000);
-              const timeThreshold = nowSeconds - timeWindow;
-              
-              if (eventTimestamp < timeThreshold) {
-                if (!isProgressEvent) {
-                  console.log(`⚠️ [SDS] Skipping old ${eventType} event (timestamp: ${eventTimestamp}, threshold: ${timeThreshold})`);
-                  return;
-                }
-              }
+        const eventTimestamp = decodedData.timestamp;
+        if (!eventTimestamp || typeof eventTimestamp !== 'number' || eventTimestamp <= 0) {
+          return;
+        }
+        
+        const isProgressEvent = eventType === 'pool:progress';
+        const timeWindow = isProgressEvent ? 10 * 60 : 3 * 60;
+        const nowSeconds = Math.floor(Date.now() / 1000);
+        const timeThreshold = nowSeconds - timeWindow;
+        
+        if (eventTimestamp < timeThreshold) {
+          if (!isProgressEvent) {
+            return;
+          }
+        }
               
               if (!decodedData.currency) {
                 const useBitr = (decodedData as any).useBitr || (decodedData as any).use_bitr;
@@ -794,7 +770,6 @@ export function useSomniaStreams(
               }
               
               const somniaStreamsEventId = contextConfig;
-              console.log(`📡 [SDS] Setting up real-time subscription for ${eventType} (eventId: ${somniaStreamsEventId})`);
               
               try {
                 if (typeof sdkToUse.streams.subscribe === 'function') {
@@ -811,13 +786,10 @@ export function useSomniaStreams(
                       console.error(`❌ [SDS] Subscription error for ${eventType}:`, error);
                     }
                   });
-                  
-                  console.log(`✅ [SDS] Real-time subscription active for ${eventType} (eventId: ${somniaStreamsEventId})`);
                 } else {
                   throw new Error('Subscribe method not available in SDK');
                 }
               } catch (subscribeError: any) {
-                console.warn(`⚠️ [SDS] Subscription not available for ${eventType}, falling back to polling:`, subscribeError.message);
                 
                 const schemaId = await getSchemaId(sdkToUse);
                 let pollInterval: NodeJS.Timeout | null = null;
@@ -889,7 +861,6 @@ export function useSomniaStreams(
               );
               if (latest) processData(latest);
             } catch (err) {
-              console.warn(`⚠️ [SDS] Error in poll function for ${eventType}:`, err);
             }
           });
           
@@ -901,22 +872,12 @@ export function useSomniaStreams(
           globalPendingSubscriptions.delete(eventType);
           console.error(`❌ Failed to set up polling for ${eventType}:`, error);
         }
-    } else if (isPending) {
-      console.log(`⏳ Subscription already pending for ${eventType}, adding callback to queue (${callbacks.size} subscribers)`);
-    } else if (isFirstSubscriber) {
-      console.log(`♻️ First subscriber for ${eventType}, but SDK not ready yet (SDK: ${!!sdkAvailable}, SDS active: ${sdsActive})`);
-      if (sdkAvailable && !sdsActive) {
-        console.log(`   ⚠️ SDK available but state not updated - will retry on next render`);
-      }
-    } else {
-      console.log(`♻️ Reusing existing subscription for ${eventType} (${callbacks.size} subscribers)`);
     }
 
     return () => {
       const callbacks = globalSubscribersMap.get(eventType);
       if (callbacks) {
         callbacks.delete(callback);
-        console.log(`🔌 Callback removed from ${eventType} (${callbacks.size} remaining)`);
         
         if (callbacks.size === 0) {
           const unsubscribeTimer = setTimeout(() => {
@@ -991,14 +952,13 @@ export function useSomniaStreams(
     };
   }, [enabled, initializeSDK]);
   
-  useEffect(() => {
-    if (globalSDKInstance && !isSDSActive) {
-      console.log('🔄 Updating isSDSActive state - SDK is available');
-      setIsSDSActive(true);
-      setIsConnected(true);
-      setIsFallback(false);
-    }
-  }, [isSDSActive]);
+    useEffect(() => {
+      if (globalSDKInstance && !isSDSActive) {
+        setIsSDSActive(true);
+        setIsConnected(true);
+        setIsFallback(false);
+      }
+    }, [isSDSActive]);
 
   return {
     isConnected,
@@ -1138,26 +1098,22 @@ export function useCycleUpdates(callback: (data: SDSCycleResolvedData) => void, 
       const rawCycleId = (data as any).cycleId || (data as any).cycle_id || (data as any).poolId || '0';
       const cycleId = normalizeId(rawCycleId);
       
-      if (cycleId === '0' || !cycleId) {
-        console.warn(`⚠️ Skipping cycle:resolved with invalid cycleId: ${cycleId}`);
-        return;
-      }
+        if (cycleId === '0' || !cycleId) {
+          return;
+        }
       
       const eventTimestamp = (data as any).timestamp;
       if (!eventTimestamp || typeof eventTimestamp !== 'number' || eventTimestamp <= 0) {
-        console.log(`⚠️ Skipping cycle:resolved event without valid timestamp:`, data);
         return;
       }
       
       if (!isRecentEvent(eventTimestamp)) {
-        console.log(`⚠️ Skipping old cycle:resolved event (cycle: ${cycleId}, timestamp: ${eventTimestamp}, age: ${Math.floor(Date.now() / 1000) - eventTimestamp}s)`);
         return;
       }
       
       const dedupeKey = `cycle:${cycleId}:${eventTimestamp}`;
       
       if (seenCyclesRef.current.has(dedupeKey)) {
-        console.log(`⚠️ Skipping duplicate cycle:resolved notification for cycle ${cycleId} at ${eventTimestamp}`);
         return;
       }
       
