@@ -637,7 +637,8 @@ export function useSomniaStreams(
     
 
       if (sdkAvailable && sdsActive && isFirstSubscriber && !isPending) {
-        // ✅ Use schema ID directly (no context needed)
+        // ✅ Get event ID (context string) for somniaStreamsEventId
+        const eventId = EVENT_CONTEXT_MAP[eventType];
         globalPendingSubscriptions.add(eventType);
         
         try {
