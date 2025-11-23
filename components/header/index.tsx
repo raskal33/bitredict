@@ -758,10 +758,16 @@ const links = [
     icon: FireIcon,
   },
   {
+    label: "Rewards",
+    href: "/rewards",
+    segment: "rewards",
+    icon: TrophyIcon,
+  },
+  {
     label: "Stats",
     href: "/stats",
     segment: "stats",
-    icon: TrophyIcon,
+    icon: ChartBarIcon,
   },
   {
     label: "Staking",

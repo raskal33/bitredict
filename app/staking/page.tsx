@@ -13,7 +13,7 @@ import { useStaking, DurationOption, StakeWithRewards } from "@/hooks/useStaking
 import { useBITRToken } from "@/hooks/useBITRToken";
 import { useTransactionFeedback, TransactionFeedback } from "@/components/TransactionFeedback";
 import { CONTRACTS } from "@/contracts";
-import { parseUnits } from "viem";
+import { parseUnits, formatUnits } from "viem";
 import { IoMdLock } from "react-icons/io";
 import { isBigIntZero } from "@/utils/bigint-helpers";
 import { formatPercentage } from "@/utils/number-helpers";
@@ -78,11 +78,11 @@ export default function StakingPage() {
   // Check if approval is needed
   useEffect(() => {
     if (stakeAmount && token.balance && isMountedRef.current) {
-      const allowance = token.getAllowance(CONTRACTS.BITREDICT_STAKING.address);
+      const allowance = token.stakingAllowance;
       const stakeAmountWei = parseUnits(stakeAmount, 18);
-      setNeedsApproval(!allowance || (allowance as bigint) < stakeAmountWei);
+      setNeedsApproval(!allowance || allowance < stakeAmountWei);
     }
-  }, [stakeAmount, token, token.balance, token.stakingAllowance]);
+  }, [stakeAmount, token.balance, token.stakingAllowance]);
 
   // Auto tier selection based on stake amount
   useEffect(() => {
@@ -94,7 +94,8 @@ export default function StakingPage() {
         for (let i = staking.tiers.length - 1; i >= 0; i--) {
           const tier = staking.tiers[i];
           if (tier && tier.minStake) {
-            const minStakeAmount = parseFloat(staking.formatAmount(tier.minStake));
+            // Use formatUnits directly instead of staking.formatAmount to avoid dependency issues
+            const minStakeAmount = parseFloat(formatUnits(tier.minStake, 18));
             if (amount >= minStakeAmount) {
               selectedTierIndex = i;
               break;
@@ -104,7 +105,7 @@ export default function StakingPage() {
         setSelectedTier(selectedTierIndex);
       }
     }
-  }, [stakeAmount, staking.tiers, staking]);
+  }, [stakeAmount, staking.tiers]);
 
   // Refresh allowance when approval is confirmed
   useEffect(() => {
@@ -113,7 +114,7 @@ export default function StakingPage() {
       toast.success("Approval confirmed! 🎉");
       setNeedsApproval(false);
     }
-  }, [token.isConfirmed, token]);
+  }, [token.isConfirmed]);
 
   // ✅ FIX: Watch for successful transactions with proper cleanup
   useEffect(() => {
@@ -145,7 +146,7 @@ export default function StakingPage() {
       
       return () => clearTimeout(timeoutId);
     }
-  }, [staking.isConfirmed, staking.claimingStakeIndex, staking.unstakingStakeIndex, staking.isClaimingRevenue, staking.isStaking, token, isMountedRef]);
+  }, [staking.isConfirmed, staking.claimingStakeIndex, staking.unstakingStakeIndex, staking.isClaimingRevenue, staking.isStaking, token.refetchBalance]);
 
   // ✅ FIX: Handle transaction state changes with proper cleanup
   useEffect(() => {
@@ -163,7 +164,8 @@ export default function StakingPage() {
       
       return () => clearTimeout(timeoutId);
     }
-  }, [staking.isPending, staking.isConfirmed, staking.hash, showInfo, showSuccess, isMountedRef]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [staking.isPending, staking.isConfirmed, staking.hash]);
 
   // Handle token approval state changes
   useEffect(() => {
@@ -172,7 +174,8 @@ export default function StakingPage() {
     } else if (token.isConfirmed && isMountedRef.current) {
       showSuccess("Approval Successful", "Successfully approved BITR for staking", token.hash);
     }
-  }, [token.isPending, token.isConfirmed, token.hash, showInfo, showSuccess]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token.isPending, token.isConfirmed, token.hash]);
 
   // Show loading state if data is not ready
   if (!isDataLoaded()) {
