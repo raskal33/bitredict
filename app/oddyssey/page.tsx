@@ -115,7 +115,8 @@ interface Stats {
   averageOdds: string;
   totalCycles: number;
   activeCycles: number;
-  avgPrizePool: number;
+  avgPrizePool: number; // Keep for backward compatibility
+  currentCycleSlips: number; // New: Slips for current cycle
   winRate: number;
   avgCorrect: number;
   totalVolume: number; // Total volume in STT
@@ -124,6 +125,7 @@ interface Stats {
   correctPredictions: number; // Added missing field
   evaluationProgress: number; // Added missing field
   totalWinners: number; // Added missing field
+  currentCycleEndTime: string | null; // For countdown - null when time is up
 }
 
 interface CurrentPrizePool {
@@ -853,10 +855,11 @@ export default function OddysseyPage() {
           totalPlayers: globalStatsResult.data.totalPlayers || 0,
           prizePool: `${formattedAvgPrizePool} STT`,
           completedSlips: globalStatsResult.data.totalSlips?.toLocaleString() || "0",
-          averageOdds: `${(globalStatsResult.data.avgCorrect || 0).toFixed(2)}x`,
+          averageOdds: `${(globalStatsResult.data.averageOdds || 0).toFixed(2)}x`, // Use new averageOdds field
           totalCycles: globalStatsResult.data.totalCycles || 0,
           activeCycles: globalStatsResult.data.activeCycles || 0,
           avgPrizePool: parseFloat(formattedAvgPrizePool),
+          currentCycleSlips: globalStatsResult.data.currentCycleSlips || 0, // New field
           winRate: globalStatsResult.data.winRate || 0,
           avgCorrect: globalStatsResult.data.avgCorrect || 0,
           totalVolume: globalStatsResult.data.totalVolume || 0,
@@ -864,7 +867,8 @@ export default function OddysseyPage() {
           totalSlips: globalStatsResult.data.totalSlips || 0,
           correctPredictions: globalStatsResult.data.correctPredictions || 0,
           evaluationProgress: globalStatsResult.data.evaluationProgress || 0,
-          totalWinners: globalStatsResult.data.totalWinners || 0
+          totalWinners: globalStatsResult.data.totalWinners || 0,
+          currentCycleEndTime: globalStatsResult.data.currentCycleEndTime || null // For countdown
         });
       } else {
         console.warn('⚠️ No global stats received from contract, using defaults');
@@ -876,6 +880,7 @@ export default function OddysseyPage() {
           totalCycles: 0,
           activeCycles: 0,
           avgPrizePool: 0,
+          currentCycleSlips: 0,
           winRate: 0,
           avgCorrect: 0,
           totalVolume: 0,
@@ -883,7 +888,8 @@ export default function OddysseyPage() {
           totalSlips: 0,
           correctPredictions: 0,
           evaluationProgress: 0,
-          totalWinners: 0
+          totalWinners: 0,
+          currentCycleEndTime: null
         });
       }
 
@@ -917,6 +923,7 @@ export default function OddysseyPage() {
         totalCycles: 0,
         activeCycles: 0,
         avgPrizePool: 0,
+        currentCycleSlips: 0,
         winRate: 0,
         avgCorrect: 0,
         totalVolume: 0,
@@ -924,7 +931,8 @@ export default function OddysseyPage() {
         totalSlips: 0,
         correctPredictions: 0,
         evaluationProgress: 0,
-        totalWinners: 0
+        totalWinners: 0,
+        currentCycleEndTime: null
       });
     } finally {
       setApiCallInProgress(false);
@@ -1109,8 +1117,32 @@ export default function OddysseyPage() {
     }
   }, [currentMatches, checkStartedMatches]);
 
-  // Calculate time left based on first match
+  // Calculate time left based on first match or cycle end time
   const calculateTimeLeft = useCallback(() => {
+    // First check if we have cycle end time from stats
+    if (stats && stats.currentCycleEndTime) {
+      const now = new Date().getTime();
+      const endTime = new Date(stats.currentCycleEndTime).getTime();
+      const timeDifference = endTime - now;
+
+      if (timeDifference <= 0 || isNaN(timeDifference)) {
+        setTimeLeft({ hours: 0, minutes: 0, seconds: 0 });
+        setIsExpired(true);
+        setHasStartedMatches(true);
+        return;
+      }
+
+      const hours = Math.floor(timeDifference / (1000 * 60 * 60));
+      const minutes = Math.floor((timeDifference % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((timeDifference % (1000 * 60)) / 1000);
+
+      setTimeLeft({ hours: hours || 0, minutes: minutes || 0, seconds: seconds || 0 });
+      setIsExpired(false);
+      setHasStartedMatches(false);
+      return;
+    }
+
+    // Fallback to first match time if no cycle end time
     if (!matches || matches.length === 0) {
       setTimeLeft({ hours: 0, minutes: 0, seconds: 0 });
       setIsExpired(true);
@@ -1133,20 +1165,21 @@ export default function OddysseyPage() {
     const matchTime = new Date(firstMatch.match_date).getTime();
     const timeDifference = matchTime - now;
 
-    if (timeDifference <= 0) {
+    if (timeDifference <= 0 || isNaN(timeDifference)) {
       setTimeLeft({ hours: 0, minutes: 0, seconds: 0 });
       setIsExpired(true);
       setHasStartedMatches(true);
     } else {
-      const hours = Math.floor(timeDifference / (1000 * 60 * 60));
-      const minutes = Math.floor((timeDifference % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((timeDifference % (1000 * 60)) / 1000);
+      const hours = Math.floor(timeDifference / (1000 * 60 * 60)) || 0;
+      const minutes = Math.floor((timeDifference % (1000 * 60 * 60)) / (1000 * 60)) || 0;
+      const seconds = Math.floor((timeDifference % (1000 * 60)) / 1000) || 0;
 
-        setTimeLeft({ hours, minutes, seconds });
-        setIsExpired(false);
+      setTimeLeft({ hours, minutes, seconds });
+      setIsExpired(false);
       setHasStartedMatches(false);
-      }
-  }, [matches]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matches, stats?.currentCycleEndTime]); // stats is checked inside, adding it would cause infinite loops
 
   useEffect(() => {
     calculateTimeLeft();
@@ -1697,9 +1730,9 @@ export default function OddysseyPage() {
                 className="glass-card text-center p-4"
               >
               <CurrencyDollarIcon className="h-12 w-12 mx-auto mb-4 text-primary" />
-              <h3 className="text-2xl font-bold text-white mb-1">{parseFloat(stats.prizePool || '0').toFixed(2)} STT</h3>
-              <p className="text-lg font-semibold text-text-secondary mb-1">Average Prize Pool</p>
-              <p className="text-sm text-text-muted">Current cycle</p>
+              <h3 className="text-2xl font-bold text-white mb-1">{(stats.currentCycleSlips || 0).toLocaleString()}</h3>
+              <p className="text-lg font-semibold text-text-secondary mb-1">Slips for Current Cycle</p>
+              <p className="text-sm text-text-muted">Total slips placed</p>
               </motion.div>
 
             <motion.div
@@ -1719,7 +1752,7 @@ export default function OddysseyPage() {
               <TrophyIcon className="h-12 w-12 mx-auto mb-4 text-accent" />
                               <h3 className="text-2xl font-bold text-white mb-1">{(stats.winRate || 0).toFixed(2)}%</h3>
               <p className="text-lg font-semibold text-text-secondary mb-1">Win Rate</p>
-              <p className="text-sm text-text-muted">Current cycle</p>
+              <p className="text-sm text-text-muted">Previous cycle</p>
             </motion.div>
 
             <motion.div
@@ -1727,7 +1760,7 @@ export default function OddysseyPage() {
               className="glass-card text-center p-4"
             >
               <EyeIcon className="h-12 w-12 mx-auto mb-4 text-green-400" />
-              <h3 className="text-2xl font-bold text-white mb-1">{(typeof stats.avgCorrect === 'number' ? stats.avgCorrect : parseFloat(stats.avgCorrect || '0')).toFixed(2)}x</h3>
+              <h3 className="text-2xl font-bold text-white mb-1">{parseFloat(stats.averageOdds || '0').toFixed(2)}x</h3>
               <p className="text-lg font-semibold text-text-secondary mb-1">Average Odds</p>
               <p className="text-sm text-text-muted">Current cycle</p>
             </motion.div>
@@ -1770,9 +1803,9 @@ export default function OddysseyPage() {
               <span className="text-sm font-medium">Refresh</span>
             </button>
           </div>
-          {isExpired ? (
+          {isExpired || !stats || !stats.currentCycleEndTime ? (
             <div className="text-red-400 font-bold text-2xl">
-              Betting is closed - first match has started
+              Betting is closed - cycle has ended
             </div>
           ) : (
             <div className="flex justify-center gap-4 mb-4">
@@ -1781,7 +1814,9 @@ export default function OddysseyPage() {
                 animate={{ scale: [1, 1.05, 1] }}
                 transition={{ duration: 2, repeat: Infinity }}
               >
-                <div className="text-2xl font-bold text-primary">{timeLeft.hours.toString().padStart(2, '0')}</div>
+                <div className="text-2xl font-bold text-primary">
+                  {isNaN(timeLeft.hours) ? '00' : timeLeft.hours.toString().padStart(2, '0')}
+                </div>
                 <div className="text-xs text-text-muted uppercase tracking-wider">Hours</div>
               </motion.div>
               <motion.div 
@@ -1789,7 +1824,9 @@ export default function OddysseyPage() {
                 animate={{ scale: [1, 1.05, 1] }}
                 transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
               >
-                <div className="text-2xl font-bold text-primary">{timeLeft.minutes.toString().padStart(2, '0')}</div>
+                <div className="text-2xl font-bold text-primary">
+                  {isNaN(timeLeft.minutes) ? '00' : timeLeft.minutes.toString().padStart(2, '0')}
+                </div>
                 <div className="text-xs text-text-muted uppercase tracking-wider">Minutes</div>
               </motion.div>
               <motion.div 
@@ -1797,7 +1834,9 @@ export default function OddysseyPage() {
                 animate={{ scale: [1, 1.05, 1] }}
                 transition={{ duration: 2, repeat: Infinity, delay: 1 }}
               >
-                <div className="text-2xl font-bold text-primary">{timeLeft.seconds.toString().padStart(2, '0')}</div>
+                <div className="text-2xl font-bold text-primary">
+                  {isNaN(timeLeft.seconds) ? '00' : timeLeft.seconds.toString().padStart(2, '0')}
+                </div>
                 <div className="text-xs text-text-muted uppercase tracking-wider">Seconds</div>
               </motion.div>
             </div>
@@ -2148,12 +2187,18 @@ export default function OddysseyPage() {
                                 </div>
 
                                 {/* Match */}
-                                <div className="col-span-5 flex items-center justify-center">
+                                <div className="col-span-4 flex items-center justify-center">
                                   <div className="text-sm font-semibold text-white text-center leading-tight">
                                     <div className="truncate">{match.homeTeam}</div>
                                     <div className="text-xs text-text-muted">vs</div>
                                     <div className="truncate">{match.awayTeam}</div>
                                   </div>
+                                </div>
+
+                                {/* Market Type Label - Moneyline */}
+                                <div className="col-span-1 text-center flex flex-col justify-center">
+                                  <div className="text-[10px] text-text-muted mb-1">Moneyline</div>
+                                  <div className="text-[10px] text-text-secondary">1 X 2</div>
                                 </div>
 
                                 {/* Home Win (1) */}
@@ -2207,8 +2252,14 @@ export default function OddysseyPage() {
                                   </button>
                                 </div>
                                 
+                                {/* Market Type Label - Over/Under */}
+                                <div className="col-span-1 text-center flex flex-col justify-center">
+                                  <div className="text-[10px] text-text-muted mb-1">Over/Under</div>
+                                  <div className="text-[10px] text-text-secondary">2.5</div>
+                                </div>
+
                                 {/* Over/Under 2.5 */}
-                                <div className="col-span-2 text-center">
+                                <div className="col-span-1 text-center">
                                   <div className="flex gap-1">
                                     <button
                                       onClick={() => handlePickSelection(matchId, "over")}
@@ -2716,8 +2767,8 @@ export default function OddysseyPage() {
                           transition={{ delay: 0.6 }}
                           className="text-center p-3 bg-gray-800/30 rounded-lg border border-gray-700/50 hover:border-gray-600 transition-all"
                         >
-                          <div className="text-sm text-gray-400 mb-2">Avg Prize Pool</div>
-                          <div className="text-xl font-bold text-green-400">{(stats.avgPrizePool / 1e18).toFixed(2)} STT</div>
+                          <div className="text-sm text-gray-400 mb-2">Current Cycle Slips</div>
+                          <div className="text-xl font-bold text-green-400">{(stats.currentCycleSlips || 0).toLocaleString()}</div>
                         </motion.div>
 
                         {/* Total Cycles */}
