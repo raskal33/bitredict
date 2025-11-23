@@ -273,33 +273,29 @@ export function UniversalNotifications() {
     const currency = (liquidityDataAny.currency as string) || 
                      ((liquidityDataAny.useBitr as boolean) || (liquidityDataAny.use_bitr as boolean) ? 'BITR' : 'STT');
     
-    // ✅ CRITICAL: Backend sends amount as raw wei string (e.g., "1000000000000000000" for 1 token)
-    // Always convert from wei to token (divide by 1e18)
+    // ✅ CRITICAL: SDS now sends token amounts (not wei), but check if it's already in tokens
+    // If amount > 1e15, it's likely in wei and needs conversion
+    // If amount < 1e15, it's likely already in tokens
     let amountInToken = '0';
     try {
-      // Handle BigInt strings from backend
-      const amountBigInt = BigInt(amount);
-      const amountNum = Number(amountBigInt);
-      
-      // ✅ CRITICAL: Backend ALWAYS sends wei amounts, so ALWAYS convert
-      if (amountNum > 0) {
-        // Convert from wei to token
-        amountInToken = (amountNum / 1e18).toFixed(2);
-        console.log(`   💰 Converted liquidity amount from wei: ${amountBigInt.toString()} → ${amountInToken} ${currency}`);
-      } else {
-        console.warn(`⚠️ Invalid amount (zero or negative): ${amountNum}, skipping notification`);
-        return;
-      }
-      } catch {
-        // Fallback: try parseFloat
       const amountNum = parseFloat(amount);
-      if (amountNum > 0) {
-        amountInToken = (amountNum / 1e18).toFixed(2);
-        console.log(`   💰 Converted liquidity amount from wei (fallback): ${amountNum} → ${amountInToken} ${currency}`);
-      } else {
+      
+      if (amountNum <= 0) {
         console.warn(`⚠️ Invalid amount (zero or negative): ${amountNum}, skipping notification`);
         return;
       }
+      
+      // ✅ Detect if amount is in wei (large numbers) or tokens (small numbers)
+      if (amountNum > 1e15) {
+        // Amount is in wei, convert to tokens
+        amountInToken = (amountNum / 1e18).toFixed(2);
+      } else {
+        // Amount is already in tokens
+        amountInToken = amountNum.toFixed(2);
+      }
+    } catch {
+      console.warn(`⚠️ Failed to parse liquidity amount: ${amount}`);
+      return;
     }
     
     const displayPoolId = formatIdForDisplay(poolId);

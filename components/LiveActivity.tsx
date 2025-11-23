@@ -83,6 +83,7 @@ export function LiveActivity() {
     currency?: string;
   }) => {
     console.log('📡 LiveActivity: useBetUpdates callback triggered with data:', betData);
+    console.log('📡 LiveActivity: Current events count:', events.length);
     
     // ✅ Normalize poolId (convert BigInt/hex to readable number)
     const poolIdStr = normalizeId(betData.poolId);
@@ -105,10 +106,10 @@ export function LiveActivity() {
       return;
     }
     
-    // ✅ TIME FILTERING: Only show recent events (within last 3 minutes for live activity)
+    // ✅ TIME FILTERING: Only show recent events (within last 5 minutes for live activity)
     const now = Math.floor(Date.now() / 1000);
-    const threeMinutesAgo = now - (3 * 60); // ✅ 3 minutes window for live activity
-    if (timestamp < threeMinutesAgo) {
+    const fiveMinutesAgo = now - (5 * 60); // ✅ 5 minutes window for live activity (relaxed from 3)
+    if (timestamp < fiveMinutesAgo) {
       console.log(`⚠️ LiveActivity: Skipping old bet event (poolId: ${poolIdStr}, timestamp: ${timestamp}, age: ${now - timestamp}s)`);
       return;
     }
@@ -190,10 +191,10 @@ export function LiveActivity() {
       return;
     }
     
-    // ✅ TIME FILTERING: Only show recent events (within last 3 minutes for live activity)
+    // ✅ TIME FILTERING: Only show recent events (within last 5 minutes for live activity)
     const now = Math.floor(Date.now() / 1000);
-    const threeMinutesAgo = now - (3 * 60); // ✅ 3 minutes window for live activity
-    if (timestamp < threeMinutesAgo) {
+    const fiveMinutesAgo = now - (5 * 60); // ✅ 5 minutes window for live activity (relaxed from 3)
+    if (timestamp < fiveMinutesAgo) {
       console.log(`⚠️ LiveActivity: Skipping old pool event (poolId: ${poolIdStr}, timestamp: ${timestamp}, age: ${now - timestamp}s)`);
       return;
     }
@@ -271,10 +272,10 @@ export function LiveActivity() {
       return;
     }
     
-    // ✅ TIME FILTERING: Only show recent events (within last 3 minutes for live activity)
+    // ✅ TIME FILTERING: Only show recent events (within last 5 minutes for live activity)
     const now = Math.floor(Date.now() / 1000);
-    const threeMinutesAgo = now - (3 * 60); // ✅ 3 minutes window for live activity
-    if (timestamp < threeMinutesAgo) {
+    const fiveMinutesAgo = now - (5 * 60); // ✅ 5 minutes window for live activity (relaxed from 3)
+    if (timestamp < fiveMinutesAgo) {
       console.log(`⚠️ LiveActivity: Skipping old liquidity event (poolId: ${poolIdStr}, timestamp: ${timestamp}, age: ${now - timestamp}s)`);
       return;
     }
@@ -282,9 +283,12 @@ export function LiveActivity() {
     // ✅ Normalize amount from wei to token (like RecentBetsLane)
     let amountInToken = liquidityData.amount || '0';
     const amountNum = parseFloat(amountInToken);
-    if (amountNum > 1e12) {
+    // ✅ Detect if amount is in wei (large numbers) or tokens (small numbers)
+    if (amountNum > 1e15) {
+      // Amount is in wei, convert to tokens
       amountInToken = (amountNum / 1e18).toString();
     }
+    // Otherwise, amount is already in tokens
     const formattedAmount = parseFloat(amountInToken).toFixed(2);
     
     const currency = liquidityData.currency || 'STT';
@@ -320,14 +324,14 @@ export function LiveActivity() {
     }, 5 * 60 * 1000);
   });
 
-  // ✅ CRITICAL: Periodically clean up old events from the display (keep last 3 minutes)
+  // ✅ CRITICAL: Periodically clean up old events from the display (keep last 5 minutes)
   useEffect(() => {
     const cleanupInterval = setInterval(() => {
       const now = Math.floor(Date.now() / 1000);
-      const threeMinutesAgo = now - (3 * 60); // ✅ Keep events from last 3 minutes
+      const fiveMinutesAgo = now - (5 * 60); // ✅ Keep events from last 5 minutes (relaxed from 3)
       
       setEvents(prev => {
-        const filtered = prev.filter(event => event.timestamp >= threeMinutesAgo);
+        const filtered = prev.filter(event => event.timestamp >= fiveMinutesAgo);
         if (filtered.length !== prev.length) {
           console.log(`🧹 LiveActivity: Cleaned up ${prev.length - filtered.length} old events (kept ${filtered.length} recent events)`);
         }
@@ -634,6 +638,12 @@ export function LiveActivity() {
             <BoltIcon className="w-8 h-8 mx-auto mb-2 text-gray-600" />
             <p>No activity yet</p>
             <p className="text-[10px] mt-1">Activity will appear here in real-time</p>
+            {/* ✅ Debug: Show SDS connection status */}
+            <div className="mt-2 text-[10px]">
+              <p>SDS: {sdsStatus.isSDSActive ? '✅ Active' : '❌ Inactive'}</p>
+              <p>Connected: {sdsStatus.isConnected ? '✅' : '❌'}</p>
+              <p>Fallback: {sdsStatus.isFallback ? '✅' : '❌'}</p>
+            </div>
             {/* ✅ SDS Connection Status */}
             <div className="mt-4 pt-4 border-t border-gray-700">
               <p className="text-[10px] text-gray-600 mb-1">Connection Status:</p>

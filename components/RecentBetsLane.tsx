@@ -521,12 +521,15 @@ export default function RecentBetsLane({ className = "" }: RecentBetsLaneProps) 
     // Mark as seen
     markEventSeen(eventKey);
     
-    // Convert amount from wei to token (LP amounts use 1e18)
+    // ✅ Detect if amount is in wei (large numbers) or tokens (small numbers)
+    // SDS now sends token amounts, but handle both for backward compatibility
     let amountInToken = liquidityData.amount || '0';
     const amountNum = parseFloat(amountInToken);
-    if (amountNum > 1e12) {
+    if (amountNum > 1e15) {
+      // Amount is in wei, convert to tokens
       amountInToken = (amountNum / 1e18).toString();
     }
+    // Otherwise, amount is already in tokens
     
     const currency = liquidityData.currency || 'STT';
     

@@ -707,7 +707,7 @@ export function useSomniaStreams(
         }
         
         const isProgressEvent = eventType === 'pool:progress';
-        const timeWindow = isProgressEvent ? 10 * 60 : 3 * 60;
+        const timeWindow = isProgressEvent ? 10 * 60 : 5 * 60; // ✅ Relaxed from 3 to 5 minutes for non-progress events
         const nowSeconds = Math.floor(Date.now() / 1000);
         const timeThreshold = nowSeconds - timeWindow;
         
