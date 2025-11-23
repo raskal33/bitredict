@@ -145,7 +145,7 @@ export function useUnifiedGlobalStats(
           totalPools: globalStats.totalPools,
           totalBets: globalStats.totalBets,
           activePools: globalStats.activePools,
-          totalUsers: oddysseyStats.uniquePlayers,
+          totalUsers: globalStats.totalUsers || oddysseyStats.uniquePlayers,
           totalSlips: oddysseyStats.totalSlips,
           averageWinRate: oddysseyStats.averageAccuracy,
           cyclesCompleted: oddysseyStats.cyclesCompleted

@@ -90,10 +90,29 @@ export class RealAnalyticsService {
    */
   async getGlobalStats(timeframe: '24h' | '7d' | '30d' | 'all' = '7d'): Promise<GlobalStats> {
     try {
-      const response = await fetch(`${BACKEND_URL}/api/analytics/global?timeframe=${timeframe}`);
+      // Try unified-stats API first, fallback to analytics/global
+      let response = await fetch(`${BACKEND_URL}/api/unified-stats/overview`);
+      let result;
+      
+      if (response.ok) {
+        result = await response.json();
+        if (result.success && result.data?.overview) {
+          const overview = result.data.overview;
+          return {
+            totalVolume: parseNumberSafe(overview.financial?.totalVolume || 0),
+            totalPools: parseNumberSafe(overview.pools?.total || 0),
+            totalBets: parseNumberSafe(overview.activity?.betsLast24h || 0),
+            activePools: parseNumberSafe(overview.pools?.active || 0),
+            totalUsers: parseNumberSafe(overview.users?.uniqueUsers || 0)
+          };
+        }
+      }
+      
+      // Fallback to analytics/global
+      response = await fetch(`${BACKEND_URL}/api/analytics/global?timeframe=${timeframe}`);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       
-      const result = await response.json();
+      result = await response.json();
       
       if (!result.success || !result.data) {
         throw new Error('Invalid response format');
@@ -103,7 +122,8 @@ export class RealAnalyticsService {
         totalVolume: parseNumberSafe(result.data.totalVolume),
         totalPools: parseNumberSafe(result.data.totalPools),
         totalBets: parseNumberSafe(result.data.totalBets),
-        activePools: parseNumberSafe(result.data.activePools)
+        activePools: parseNumberSafe(result.data.activePools),
+        totalUsers: 0 // Will be fetched separately if needed
       };
     } catch (error) {
       console.error('❌ Error fetching global stats:', error);
@@ -112,7 +132,8 @@ export class RealAnalyticsService {
         totalVolume: 0,
         totalPools: 0,
         totalBets: 0,
-        activePools: 0
+        activePools: 0,
+        totalUsers: 0
       };
     }
   }

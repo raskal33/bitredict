@@ -52,6 +52,23 @@ ChartJS.register(
   Filler
 );
 
+// Format volume to avoid scientific notation
+function formatVolume(volume: number): string {
+  if (volume === 0) return '0 STT';
+  if (volume >= 1e18) {
+    // Convert from Wei to STT
+    const stt = volume / 1e18;
+    if (stt >= 1e9) return `${(stt / 1e9).toFixed(2)}B STT`;
+    if (stt >= 1e6) return `${(stt / 1e6).toFixed(2)}M STT`;
+    if (stt >= 1e3) return `${(stt / 1e3).toFixed(2)}K STT`;
+    return `${stt.toFixed(2)} STT`;
+  }
+  if (volume >= 1e9) return `${(volume / 1e9).toFixed(2)}B STT`;
+  if (volume >= 1e6) return `${(volume / 1e6).toFixed(2)}M STT`;
+  if (volume >= 1e3) return `${(volume / 1e3).toFixed(2)}K STT`;
+  return `${volume.toFixed(2)} STT`;
+}
+
 export default function StatsPage() {
   const [activeTab, setActiveTab] = useState<"overview" | "analytics" | "leaderboard" | "enhanced">("overview");
   const [timeframe, setTimeframe] = useState<"24h" | "7d" | "30d" | "all">("7d");
@@ -178,36 +195,35 @@ export default function StatsPage() {
           >
             <AnalyticsCard
               title="Total Volume"
-              value={globalStats?.globalMetrics.totalVolume?.toFixed(2) || '0 STT'}
+              value={globalStats?.globalMetrics.totalVolume ? formatVolume(globalStats.globalMetrics.totalVolume) : '0 STT'}
               icon={CurrencyDollarIcon}
               color="primary"
-              trend={{ value: 8.3, label: 'vs last week' }}
+              trend={globalStats?.globalMetrics.totalVolume ? { value: 8.3, label: 'vs last week' } : undefined}
               size="lg"
             />
             
             <AnalyticsCard
               title="Total Pools"
-              value={globalStats?.globalMetrics.totalSlips?.toLocaleString() || '0'}
+              value={globalStats?.globalMetrics.totalPools ? globalStats.globalMetrics.totalPools.toLocaleString() : '0'}
               icon={ChartBarIcon}
               color="secondary"
-              trend={{ value: 12.5 }}
+              trend={globalStats?.globalMetrics.totalPools ? { value: 12.5 } : undefined}
               size="lg"
             />
             
             <AnalyticsCard
               title="Active Pools"
-              value={globalStats?.globalMetrics.totalSlips?.toLocaleString() || '0'}
-              icon={UsersIcon}
+              value={globalStats?.globalMetrics.activePools ? globalStats.globalMetrics.activePools.toLocaleString() : '0'}
+              icon={TrophyIcon}
               color="success"
               size="lg"
             />
             
             <AnalyticsCard
-              title="Platform Health"
-              value={globalStats?.performanceInsights.platformHealth?.toUpperCase() || 'N/A'}
-              icon={ShieldCheckIcon}
+              title="Users"
+              value={globalStats?.globalMetrics.totalUsers ? globalStats.globalMetrics.totalUsers.toLocaleString() : '0'}
+              icon={UsersIcon}
               color="warning"
-              subtitle={`Activity: ${globalStats?.engagementMetrics.dailyActiveUsers || 0}/100`}
               size="lg"
             />
           </motion.div>
@@ -292,16 +308,16 @@ export default function StatsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <AnalyticsCard
                     title="Growth Rate"
-                    value={`${globalStats?.globalMetrics.averageWinRate || 0}%`}
+                    value={globalStats?.globalMetrics.averageWinRate ? `${globalStats.globalMetrics.averageWinRate.toFixed(1)}%` : '0%'}
                     subtitle="24h growth"
                     icon={TrendingUpIcon}
                     color="success"
-                    trend={{ value: globalStats?.globalMetrics.averageWinRate || 0, label: '7d trend' }}
+                    trend={globalStats?.globalMetrics.averageWinRate ? { value: globalStats.globalMetrics.averageWinRate, label: '7d trend' } : undefined}
                   />
                   
                   <AnalyticsCard
                     title="Activity Score"
-                    value={`${globalStats?.engagementMetrics.dailyActiveUsers || 0}/100`}
+                    value={globalStats?.engagementMetrics.dailyActiveUsers ? `${globalStats.engagementMetrics.dailyActiveUsers.toLocaleString()}/100` : '0/100'}
                     subtitle="Platform activity"
                     icon={BoltIcon}
                     color="warning"
@@ -309,10 +325,10 @@ export default function StatsPage() {
                   
                   <AnalyticsCard
                     title="Volume Trend"
-                    value={globalStats?.performanceInsights.platformHealth?.toUpperCase() || 'STABLE'}
+                    value={globalStats?.globalMetrics.totalVolume ? formatVolume(globalStats.globalMetrics.totalVolume) : '0 STT'}
                     subtitle="Market direction"
                     icon={ArrowTrendingUpIcon}
-                    color={globalStats?.performanceInsights.platformHealth === 'excellent' ? 'success' : 'danger'}
+                    color={globalStats?.performanceInsights.platformHealth === 'excellent' ? 'success' : 'primary'}
                   />
                 </div>
               </motion.div>
