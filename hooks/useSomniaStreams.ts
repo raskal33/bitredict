@@ -834,26 +834,27 @@ export function useSomniaStreams(
                 throw new Error('SDK subscribe method not available - WebSocket required');
               }
               
-              // ✅ Subscribe to publisher's data for a specific schema
-              // Get schema ID directly (we generate it the same way backend does)
-              const schemaId = await getSchemaId(sdkToUse);
+              // ✅ Subscribe using somniaStreamsEventId (event ID string, not schema ID!)
+              // This matches how backend publishes with setAndEmitEvents/emitEvents
+              const somniaStreamsEventId = EVENT_CONTEXT_MAP[eventType];
               
               console.log(`📡 [SDS] Subscribing to ${eventType} via SDS...`);
-              console.log(`📡 [SDS] Schema ID: ${schemaId}`);
-              console.log(`📡 [SDS] Publisher: ${PUBLISHER_ADDRESS}`);
+              console.log(`📡 [SDS] Event ID: ${somniaStreamsEventId}`);
               
-              // ✅ Subscribe to publisher's data stream for this schema
-              // Use schemaId and publisher address to subscribe to their published data
-              subscription = await (sdkToUse.streams.subscribe as any)({
-                schemaId: schemaId,  // ✅ Schema ID for the data stream
-                publisher: PUBLISHER_ADDRESS,  // ✅ Publisher address
-                onData: (payload: any) => {
+              // ✅ Use somniaStreamsEventId (event ID string) as per SDK documentation
+              subscription = await sdkToUse.streams.subscribe({
+                somniaStreamsEventId: somniaStreamsEventId,  // ✅ Event ID string (e.g., "bitredict:bets")
+                ethCalls: [],  // ✅ Empty array (no on-chain enrichment needed)
+                onlyPushChanges: false,  // ✅ Get all data, not just changes
+                onData: (data: any) => {
                   try {
-                    if (payload && payload.data) {
-                      processData(payload.data);
-                    } else if (payload) {
-                      processData(payload);
+                    console.log(`📦 [SDS] Received data for ${eventType}:`, data);
+                    // Data structure: { result: {...}, ethCallResults: [...] }
+                    let actualData = data;
+                    if (data && data.result) {
+                      actualData = data.result;
                     }
+                    processData(actualData);
                   } catch (processError) {
                     console.error(`❌ [SDS] Error processing data for ${eventType}:`, processError);
                   }
