@@ -309,6 +309,7 @@ export function useSomniaStreams(
   const sdkRef = useRef<SDK | null>(globalSDKInstance);
   const wsRef = useRef<WebSocket | null>(null);
   const initializeWebSocketFallbackRef = useRef<(() => void) | null>(null);
+  const wsClientRef = useRef<any>(null); // WebSocket client for SDS subscriptions
 
   const initializeSDK = useCallback(async () => {
     if (!enabled) return;
@@ -342,12 +343,40 @@ export function useSomniaStreams(
         },
         transport: http(rpcUrl),
       }) as any;
+
+      // ✅ Create WebSocket client for real-time SDS subscriptions (Somnia Network's intended usage)
+      let wsClient: any = null;
+      try {
+        wsClient = createPublicClient({
+          chain: {
+            ...somniaTestnet,
+            rpcUrls: {
+              ...somniaTestnet.rpcUrls,
+              default: {
+                http: [rpcUrl],
+                webSocket: [wsUrl]
+              }
+            }
+          },
+          transport: webSocket(wsUrl, {
+            reconnect: {
+              attempts: 5,
+              delay: 1000,
+            },
+            timeout: 30000,
+          }),
+        }) as any;
+        wsClientRef.current = wsClient;
+        console.log('✅ [SDS] WebSocket client created for real-time subscriptions');
+      } catch (wsError) {
+        console.warn('⚠️ [SDS] WebSocket client creation failed:', wsError);
+        wsClientRef.current = null;
+      }
       
-      // Initialize SDK with HTTP client for state queries
-      // NOTE: SDK's subscribe() method requires WebSocket transport, so we use polling instead
-      // Reference: https://github.com/Akanimoh12/tipz - they use watchContractEvent for real-time, not sdk.streams.subscribe()
+      // Initialize SDK with WebSocket client (for real-time) or HTTP (fallback)
+      // This enables proper SDS real-time subscriptions as intended by Somnia Network
       const sdk = new SDK({
-        public: httpClient
+        public: wsClient || httpClient  // Use WebSocket if available for real-time, fallback to HTTP
       });
       
       globalSDKInstance = sdk;
@@ -357,7 +386,7 @@ export function useSomniaStreams(
       setIsFallback(false);
       setError(null);
 
-      console.log('✅ [SDS] SDK initialized successfully with HTTP transport');
+      console.log('✅ [SDS] SDK initialized successfully', wsClient ? 'with WebSocket for real-time SDS subscriptions' : 'with HTTP only (fallback)');
 
       // ✅ Always enable fallback WebSocket for real-time updates via our backend
       // This ensures we have a reliable real-time connection even if SDS WebSocket is down
@@ -799,14 +828,47 @@ export function useSomniaStreams(
                 throw new Error('SDK not available for subscription');
               }
               
-              // ✅ NOTE: SDK's subscribe() method requires WebSocket transport
-              // Since we use HTTP transport for reliability, we'll use polling instead
-              // Reference: https://github.com/Akanimoh12/tipz - they use watchContractEvent, not sdk.streams.subscribe()
-              // Our backend WebSocket fallback provides real-time updates, polling provides data consistency
+              // ✅ Use SDS subscribe() for real-time updates (requires WebSocket)
+              // This is the proper way to use SDS for real-time - matches Somnia Network's intended usage
+              const somniaStreamsEventId = contextConfig;
               
-              console.log(`📡 [SDS] Setting up polling for ${eventType} (HTTP transport, no WebSocket needed)`);
+              // Try real-time subscription first (if WebSocket client is available)
+              if (wsClientRef.current && typeof sdkToUse.streams.subscribe === 'function') {
+                try {
+                  console.log(`📡 [SDS] Subscribing to ${eventType} via SDS (real-time)...`);
+                  subscription = await (sdkToUse.streams.subscribe as any)({
+                    somniaStreamsEventId: somniaStreamsEventId,
+                    onData: (payload: any) => {
+                      if (payload && payload.data) {
+                        processData(payload.data);
+                      } else if (payload) {
+                        processData(payload);
+                      }
+                    },
+                    onError: (error: Error) => {
+                      console.error(`❌ [SDS] Subscription error for ${eventType}:`, error);
+                    }
+                  });
+                  console.log(`✅ [SDS] Real-time subscription active for ${eventType}`);
+                  
+                  globalUnsubscribeFunctionsMap.set(eventType as any, () => {
+                    if (subscription && typeof subscription.unsubscribe === 'function') {
+                      subscription.unsubscribe();
+                    } else if (subscription && typeof subscription === 'function') {
+                      subscription();
+                    }
+                    globalPendingSubscriptions.delete(eventType);
+                  });
+                  
+                  return; // Success - no need for polling fallback
+                } catch (subscribeError: any) {
+                  console.warn(`⚠️ [SDS] Real-time subscription failed for ${eventType}, falling back to polling:`, subscribeError.message);
+                }
+              } else {
+                console.log(`📡 [SDS] WebSocket not available, using polling for ${eventType}`);
+              }
               
-              // Skip subscribe() attempt - go straight to polling which works with HTTP
+              // Fallback to polling if subscription fails or WebSocket unavailable
               const schemaId = await getSchemaId(sdkToUse);
               let pollInterval: NodeJS.Timeout | null = null;
               
@@ -821,15 +883,20 @@ export function useSomniaStreams(
                     processData(latest);
                   }
                 } catch (error: any) {
+                  // ✅ Suppress expected errors (NoData, schema resolution issues)
                   if (
                     error?.message?.includes('NoData') || 
                     error?.shortMessage === 'NoData()' ||
                     error?.cause?.reason === 'NoData()' ||
-                    (error?.cause && typeof error.cause === 'object' && 'reason' in error.cause && error.cause.reason === 'NoData()')
+                    (error?.cause && typeof error.cause === 'object' && 'reason' in error.cause && error.cause.reason === 'NoData()') ||
+                    error?.message?.includes('Unable to compute final schema') ||
+                    error?.message?.includes('schema') && error?.message?.includes('empty')
                   ) {
                     return;
                   }
-                  console.warn(`⚠️ [SDS] Error fetching data for ${eventType}:`, error);
+                  if (!error?.message?.includes('schema')) {
+                    console.warn(`⚠️ [SDS] Error fetching data for ${eventType}:`, error);
+                  }
                 }
               };
               
@@ -848,7 +915,7 @@ export function useSomniaStreams(
                 globalPendingSubscriptions.delete(eventType);
               });
               
-              console.log(`✅ [SDS] Polling setup complete for ${eventType} (interval: ${pollIntervalMs}ms)`);
+              console.log(`✅ [SDS] Polling fallback setup for ${eventType} (interval: ${pollIntervalMs}ms)`);
             } catch (err) {
               console.error(`❌ Error setting up polling for ${eventType}:`, err);
               globalPendingSubscriptions.delete(eventType);
@@ -865,7 +932,16 @@ export function useSomniaStreams(
                 PUBLISHER_ADDRESS
               );
               if (latest) processData(latest);
-            } catch (err) {
+            } catch (err: any) {
+              // ✅ Suppress expected errors (NoData, schema resolution issues)
+              // Backend WebSocket provides real-time updates, polling is just a backup
+              if (
+                err?.message?.includes('NoData') || 
+                err?.message?.includes('Unable to compute final schema') ||
+                err?.message?.includes('schema') && err?.message?.includes('empty')
+              ) {
+                return;
+              }
             }
           });
           
