@@ -329,8 +329,8 @@ export default function AirdropPage() {
                   <div className="flex justify-between">
                     <span className="text-text-secondary">Faucet Claims</span>
                     <span className="text-primary font-medium">
-                      {faucet.userInfo && 'claimed' in faucet.userInfo && faucet.userInfo.claimed
-                        ? '20,000 BITR'
+                      {(eligibility?.requirements?.faucetClaim || faucet.hasClaimed || (faucet.userInfo && faucet.userInfo.claimed))
+                        ? formatBITRAmount('20000000000000000000000')
                         : '0 BITR'}
                     </span>
                   </div>
