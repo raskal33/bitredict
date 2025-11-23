@@ -25,7 +25,8 @@ import {
   LockClosedIcon,
   Squares2X2Icon,
   Cog6ToothIcon,
-  GiftIcon
+  GiftIcon,
+  EllipsisHorizontalIcon
 } from "@heroicons/react/24/outline";
 import Button from "@/components/button";
 import { useProfileStore } from '@/stores/useProfileStore';
@@ -35,8 +36,9 @@ import { SettingsModal } from "@/components/SettingsModal";
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
-  const [isBitredictorOpen, setIsBitredictorOpen] = useState<boolean>(false);
   const [isMarketsOpen, setIsMarketsOpen] = useState<boolean>(false);
+  const [isBitredictorOpen, setIsBitredictorOpen] = useState<boolean>(false);
+  const [isMoreOpen, setIsMoreOpen] = useState<boolean>(false);
   const [isWalletDropdownOpen, setIsWalletDropdownOpen] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [{ y }] = useWindowScroll();
@@ -44,8 +46,9 @@ export default function Header() {
   const [isRender, setIsRender] = useState<boolean>(false);
   
   // Refs for dropdown positioning
-  const bitredictorButtonRef = useRef<HTMLButtonElement>(null);
   const marketsButtonRef = useRef<HTMLButtonElement>(null);
+  const bitredictorButtonRef = useRef<HTMLButtonElement>(null);
+  const moreButtonRef = useRef<HTMLButtonElement>(null);
   const walletButtonRef = useRef<HTMLButtonElement>(null);
   
   // Get dropdown positions for fixed positioning
@@ -64,7 +67,6 @@ export default function Header() {
     address,
     isOnSomnia,
     isConnecting,
-    error,
     connectWallet,
     disconnectWallet,
     switchToSomnia,
@@ -75,14 +77,10 @@ export default function Header() {
     setIsRender(true);
   }, []);
 
-  // Update current profile when wallet connects and auto-close modal
+  // Update current profile when wallet connects
   useEffect(() => {
     if (address && isConnected) {
       setCurrentProfile(address);
-      // Remove auto-close behavior for mobile menu to prevent instability
-      // Auto-close AppKit modal if it's open
-      // Note: AppKit modal should close automatically when wallet connects
-      console.log('Wallet connected, AppKit modal should close automatically');
     } else {
       setCurrentProfile(null);
     }
@@ -94,35 +92,31 @@ export default function Header() {
   const handleClose = () => {
     setIsMenuOpen(false);
   };
-  const handleBitredictorToggle = () => setIsBitredictorOpen(!isBitredictorOpen);
-  const handleBitredictorClose = () => setIsBitredictorOpen(false);
-  const handleMarketsToggle = () => setIsMarketsOpen(!isMarketsOpen);
-  const handleMarketsClose = () => setIsMarketsOpen(false);
-  const handleWalletDropdownToggle = () => setIsWalletDropdownOpen(!isWalletDropdownOpen);
-  const handleWalletDropdownClose = () => setIsWalletDropdownOpen(false);
 
-
+  // Close all dropdowns
+  const closeAllDropdowns = () => {
+    setIsMarketsOpen(false);
+    setIsBitredictorOpen(false);
+    setIsMoreOpen(false);
+    setIsWalletDropdownOpen(false);
+  };
 
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = () => {
-      setIsBitredictorOpen(false);
-      setIsMarketsOpen(false);
-      setIsWalletDropdownOpen(false);
+      closeAllDropdowns();
     };
 
-    if (isBitredictorOpen || isMarketsOpen || isWalletDropdownOpen) {
+    if (isMarketsOpen || isBitredictorOpen || isMoreOpen || isWalletDropdownOpen) {
       document.addEventListener('click', handleClickOutside);
       return () => document.removeEventListener('click', handleClickOutside);
     }
-  }, [isBitredictorOpen, isMarketsOpen, isWalletDropdownOpen]);
+  }, [isMarketsOpen, isBitredictorOpen, isMoreOpen, isWalletDropdownOpen]);
 
   // Close dropdowns on scroll
   useEffect(() => {
     const handleScroll = () => {
-      setIsBitredictorOpen(false);
-      setIsMarketsOpen(false);
-      setIsWalletDropdownOpen(false);
+      closeAllDropdowns();
     };
 
     window.addEventListener('scroll', handleScroll, true);
@@ -141,197 +135,254 @@ export default function Header() {
             isScrolled ? "fixed shadow-card" : "relative"
           } inset-x-0 top-0 z-[100] border-b border-border-card transition-all duration-300 nav-glass`}
         >
-          <div className="container-nav overflow-x-hidden overflow-y-visible">
-            <div className="flex items-center justify-between py-1.5 min-w-0 gap-2">
+          <div className="container-nav">
+            <div className="flex items-center justify-between py-2 min-w-0 gap-3">
               {/* Left Side - Logo */}
-              <div className="flex items-center gap-8 flex-shrink-0">
-                <Link href="/" className="flex items-center gap-3">
+              <div className="flex items-center gap-4 flex-shrink-0">
+                <Link href="/" className="flex items-center gap-3 flex-shrink-0">
                   <Image 
                     src="/logo.png" 
                     alt="BitRedict Logo" 
-                    width={140} 
-                    height={50} 
+                    width={120} 
+                    height={40} 
                     className="logo-color-shift navbar-logo"
                     priority 
                   />
                 </Link>
 
-                {/* Bitredictor Dropdown */}
-                <div className="relative hidden lg:block" style={{ zIndex: 1000 }}>
-                  <motion.button
-                    ref={bitredictorButtonRef}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleBitredictorToggle();
-                    }}
-                    whileHover={{ scale: 1.01 }}
-                    className="flex items-center gap-2 px-4 py-2 rounded-button text-xs font-medium transition-all duration-200 text-text-secondary hover:text-text-primary hover:bg-bg-card"
-                  >
-                    <CubeTransparentIcon className="h-4 w-4 text-primary" />
-                    <span className="font-semibold">Bitredictor</span>
-                    <motion.div
-                      animate={{ rotate: isBitredictorOpen ? 180 : 0 }}
-                      transition={{ duration: 0.2 }}
+                {/* Desktop Navigation - Primary Items */}
+                <nav className="hidden xl:flex items-center gap-1">
+                  {/* Markets Dropdown */}
+                  <div className="relative" style={{ zIndex: 1000 }}>
+                    <motion.button
+                      ref={marketsButtonRef}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsMarketsOpen(!isMarketsOpen);
+                        setIsBitredictorOpen(false);
+                        setIsMoreOpen(false);
+                      }}
+                      whileHover={{ scale: 1.02 }}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
+                        segment?.startsWith('markets') || segment === 'markets'
+                          ? "bg-gradient-primary text-black shadow-button"
+                          : "text-text-secondary hover:text-text-primary hover:bg-bg-card"
+                      }`}
                     >
-                      <ChevronDownIcon className="h-4 w-4" />
-                    </motion.div>
-                  </motion.button>
+                      <ChartBarIcon className="h-4 w-4" />
+                      <span className="hidden 2xl:inline">Markets</span>
+                      <motion.div
+                        animate={{ rotate: isMarketsOpen ? 180 : 0 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <ChevronDownIcon className="h-3 w-3" />
+                      </motion.div>
+                    </motion.button>
 
-                  <AnimatePresence>
-                    {isBitredictorOpen && (() => {
-                      const position = getDropdownPosition(bitredictorButtonRef);
-                      return (
+                    <AnimatePresence>
+                      {isMarketsOpen && (
                         <motion.div
                           initial={{ opacity: 0, y: -10, scale: 0.95 }}
                           animate={{ opacity: 1, y: 0, scale: 1 }}
                           exit={{ opacity: 0, y: -10, scale: 0.95 }}
                           transition={{ duration: 0.2, ease: "easeOut" }}
-                          className="fixed w-52 bg-[rgba(5,5,15,0.95)] backdrop-blur-xl border border-border-card/50 rounded-2xl shadow-2xl overflow-hidden"
+                          className="fixed bg-[rgba(5,5,15,0.98)] backdrop-blur-xl border border-border-card/50 rounded-xl shadow-2xl overflow-hidden min-w-[200px]"
                           style={{ 
                             zIndex: 1001,
-                            top: `${position.top}px`,
-                            left: `${position.left}px`
+                            top: `${getDropdownPosition(marketsButtonRef).top}px`,
+                            left: `${getDropdownPosition(marketsButtonRef).left}px`
                           }}
                           onClick={(e) => e.stopPropagation()}
                         >
-                        <div className="py-3 px-2">
-                          {bitredictorLinks.map((link) => (
-                            <Link
-                              key={link.href}
-                              href={link.href}
-                              onClick={handleBitredictorClose}
-                              className={`flex items-center gap-3 px-3 py-2.5 mx-1 text-xs font-medium transition-all duration-200 rounded-xl group ${
-                                segment === link.segment
-                                  ? "bg-gradient-primary text-black shadow-lg"
-                                  : "text-text-secondary hover:text-text-primary hover:bg-[rgba(255,255,255,0.08)]"
-                              }`}
-                            >
-                              <link.icon className={`h-4 w-4 transition-colors duration-200 ${
-                                segment === link.segment ? 'text-black' : 'text-primary group-hover:text-secondary'
-                              }`} />
-                              <span className="font-medium">{link.label}</span>
-                              {segment === link.segment && (
-                                <div className="ml-auto w-1.5 h-1.5 bg-black rounded-full" />
-                              )}
-                            </Link>
-                          ))}
-                        </div>
-                        
-                        {/* Bottom gradient accent */}
-                        <div className="h-0.5 bg-gradient-to-r from-primary via-secondary to-accent" />
+                          <div className="py-2">
+                            {marketsLinks.map((link) => (
+                              <Link
+                                key={link.href}
+                                href={link.href}
+                                onClick={() => setIsMarketsOpen(false)}
+                                className={`flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium transition-all duration-200 group ${
+                                  segment === link.segment
+                                    ? "bg-gradient-primary/20 text-primary border-l-2 border-primary"
+                                    : "text-text-secondary hover:text-primary hover:bg-bg-card"
+                                }`}
+                              >
+                                <link.icon className={`h-4 w-4 ${
+                                  segment === link.segment ? 'text-primary' : 'text-text-muted group-hover:text-primary'
+                                }`} />
+                                <span>{link.label}</span>
+                              </Link>
+                            ))}
+                          </div>
                         </motion.div>
-                      );
-                    })()}
-                  </AnimatePresence>
-                </div>
-              </div>
+                      )}
+                    </AnimatePresence>
+                  </div>
 
-              {/* Center - Desktop Navigation */}
-              <nav className="hidden lg:flex items-center space-x-1 min-w-0">
-                {/* Markets Dropdown */}
-                <div className="relative" style={{ zIndex: 1000 }}>
-                  <motion.button
-                    ref={marketsButtonRef}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleMarketsToggle();
-                    }}
-                    whileHover={{ scale: 1.01 }}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-button text-xs font-medium transition-all duration-200 ${
-                      segment?.startsWith('markets') || segment === 'markets'
-                        ? "bg-gradient-primary text-black shadow-button"
-                        : "text-text-secondary hover:text-text-primary hover:bg-bg-card"
-                    }`}
-                  >
-                    <ChartBarIcon className="h-4 w-4" />
-                    Markets
-                    <motion.div
-                      animate={{ rotate: isMarketsOpen ? 180 : 0 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <ChevronDownIcon className="h-4 w-4" />
-                    </motion.div>
-                  </motion.button>
-
-                  <AnimatePresence>
-                    {isMarketsOpen && (() => {
-                      const position = getDropdownPosition(marketsButtonRef);
-                      return (
-                        <motion.div
-                          initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                          animate={{ opacity: 1, y: 0, scale: 1 }}
-                          exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                          transition={{ duration: 0.2, ease: "easeOut" }}
-                          className="fixed w-56 bg-[rgba(5,5,15,0.95)] backdrop-blur-xl border border-border-card/50 rounded-2xl shadow-2xl overflow-hidden"
-                          style={{ 
-                            zIndex: 1001,
-                            top: `${position.top}px`,
-                            left: `${position.left}px`
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                        <div className="py-3 px-2">
-                          {marketsLinks.map((link) => (
-                            <Link
-                              key={link.href}
-                              href={link.href}
-                              onClick={handleMarketsClose}
-                              className={`flex items-center gap-3 px-3 py-2.5 mx-1 text-xs font-medium transition-all duration-200 rounded-xl group ${
-                                segment === link.segment
-                                  ? "bg-gradient-primary text-black shadow-lg"
-                                  : "text-text-secondary hover:text-text-primary hover:bg-[rgba(255,255,255,0.08)]"
-                              }`}
-                            >
-                              <link.icon className={`h-4 w-4 transition-colors duration-200 ${
-                                segment === link.segment ? 'text-black' : 'text-primary group-hover:text-secondary'
-                              }`} />
-                              <span className="font-medium">{link.label}</span>
-                              {segment === link.segment && (
-                                <div className="ml-auto w-1.5 h-1.5 bg-black rounded-full" />
-                              )}
-                            </Link>
-                          ))}
-                        </div>
-                        
-                        {/* Bottom gradient accent */}
-                        <div className="h-0.5 bg-gradient-to-r from-primary via-secondary to-accent" />
-                        </motion.div>
-                      );
-                    })()}
-                  </AnimatePresence>
-                </div>
-
-                {/* Other navigation links */}
-                {links.map((link) => (
+                  {/* Primary Links - Most Important */}
                   <Link
-                    key={link.href}
-                    href={link.href}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-button text-xs font-medium transition-all duration-200 ${
-                      segment === link.segment
+                    href="/oddyssey"
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
+                      segment === "oddyssey"
                         ? "bg-gradient-primary text-black shadow-button"
                         : "text-text-secondary hover:text-text-primary hover:bg-bg-card"
                     }`}
                   >
-                    <link.icon className="h-4 w-4" />
-                    {link.label}
+                    <FireIcon className="h-4 w-4" />
+                    <span className="hidden 2xl:inline">Oddyssey</span>
                   </Link>
-                ))}
-              </nav>
+
+                  <Link
+                    href="/rewards"
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
+                      segment === "rewards"
+                        ? "bg-gradient-primary text-black shadow-button"
+                        : "text-text-secondary hover:text-text-primary hover:bg-bg-card"
+                    }`}
+                  >
+                    <TrophyIcon className="h-4 w-4" />
+                    <span className="hidden 2xl:inline">Rewards</span>
+                  </Link>
+
+                  {/* Bitredictor Dropdown */}
+                  <div className="relative" style={{ zIndex: 1000 }}>
+                    <motion.button
+                      ref={bitredictorButtonRef}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsBitredictorOpen(!isBitredictorOpen);
+                        setIsMarketsOpen(false);
+                        setIsMoreOpen(false);
+                      }}
+                      whileHover={{ scale: 1.02 }}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
+                        bitredictorLinks.some(link => segment === link.segment)
+                          ? "bg-gradient-primary text-black shadow-button"
+                          : "text-text-secondary hover:text-text-primary hover:bg-bg-card"
+                      }`}
+                    >
+                      <CubeTransparentIcon className="h-4 w-4" />
+                      <span className="hidden 2xl:inline">Bitredictor</span>
+                      <motion.div
+                        animate={{ rotate: isBitredictorOpen ? 180 : 0 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <ChevronDownIcon className="h-3 w-3" />
+                      </motion.div>
+                    </motion.button>
+
+                    <AnimatePresence>
+                      {isBitredictorOpen && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                          transition={{ duration: 0.2, ease: "easeOut" }}
+                          className="fixed bg-[rgba(5,5,15,0.98)] backdrop-blur-xl border border-border-card/50 rounded-xl shadow-2xl overflow-hidden min-w-[200px]"
+                          style={{ 
+                            zIndex: 1001,
+                            top: `${getDropdownPosition(bitredictorButtonRef).top}px`,
+                            left: `${getDropdownPosition(bitredictorButtonRef).left}px`
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="py-2">
+                            {bitredictorLinks.map((link) => (
+                              <Link
+                                key={link.href}
+                                href={link.href}
+                                onClick={() => setIsBitredictorOpen(false)}
+                                className={`flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium transition-all duration-200 group ${
+                                  segment === link.segment
+                                    ? "bg-gradient-primary/20 text-primary border-l-2 border-primary"
+                                    : "text-text-secondary hover:text-primary hover:bg-bg-card"
+                                }`}
+                              >
+                                <link.icon className={`h-4 w-4 ${
+                                  segment === link.segment ? 'text-primary' : 'text-text-muted group-hover:text-primary'
+                                }`} />
+                                <span>{link.label}</span>
+                              </Link>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* More Dropdown - Secondary Items */}
+                  <div className="relative" style={{ zIndex: 1000 }}>
+                    <motion.button
+                      ref={moreButtonRef}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsMoreOpen(!isMoreOpen);
+                        setIsMarketsOpen(false);
+                        setIsBitredictorOpen(false);
+                      }}
+                      whileHover={{ scale: 1.02 }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 text-text-secondary hover:text-text-primary hover:bg-bg-card"
+                    >
+                      <EllipsisHorizontalIcon className="h-4 w-4" />
+                      <span className="hidden 2xl:inline">More</span>
+                      <motion.div
+                        animate={{ rotate: isMoreOpen ? 180 : 0 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <ChevronDownIcon className="h-3 w-3" />
+                      </motion.div>
+                    </motion.button>
+
+                    <AnimatePresence>
+                      {isMoreOpen && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                          transition={{ duration: 0.2, ease: "easeOut" }}
+                          className="fixed bg-[rgba(5,5,15,0.98)] backdrop-blur-xl border border-border-card/50 rounded-xl shadow-2xl overflow-hidden min-w-[200px]"
+                          style={{ 
+                            zIndex: 1001,
+                            top: `${getDropdownPosition(moreButtonRef).top}px`,
+                            left: `${getDropdownPosition(moreButtonRef).left}px`
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="py-2">
+                            {moreLinks.map((link) => (
+                              <Link
+                                key={link.href}
+                                href={link.href}
+                                onClick={() => setIsMoreOpen(false)}
+                                className={`flex items-center gap-2.5 px-4 py-2.5 text-xs font-medium transition-all duration-200 group ${
+                                  segment === link.segment
+                                    ? "bg-gradient-primary/20 text-primary border-l-2 border-primary"
+                                    : "text-text-secondary hover:text-primary hover:bg-bg-card"
+                                }`}
+                              >
+                                <link.icon className={`h-4 w-4 ${
+                                  segment === link.segment ? 'text-primary' : 'text-text-muted group-hover:text-primary'
+                                }`} />
+                                <span>{link.label}</span>
+                              </Link>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </nav>
+              </div>
 
               {/* Right Side Actions */}
               <div className="flex items-center gap-2 flex-shrink-0">
                 {/* Notification Badge */}
-                {isConnected && address && isRender && <NotificationBadge />}
-                
-                {/* Error Display */}
-                {error && (
+                {isConnected && address && isRender && (
                   <div className="hidden sm:block">
-                    <div className="px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
-                      {error}
-                    </div>
+                    <NotificationBadge />
                   </div>
                 )}
-                {/* Reown AppKit Wallet Button */}
+                
+                {/* Wallet Button */}
                 {isRender && (
                   <div className="hidden sm:block">
                     {isConnected && address ? (
@@ -340,14 +391,15 @@ export default function Header() {
                           ref={walletButtonRef}
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleWalletDropdownToggle();
+                            setIsWalletDropdownOpen(!isWalletDropdownOpen);
+                            closeAllDropdowns();
                           }}
-                          whileHover={{ scale: 1.01 }}
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-button bg-bg-card border border-border-input text-xs hover:bg-bg-card-hover transition-colors duration-200"
+                          whileHover={{ scale: 1.02 }}
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-bg-card border border-border-input text-xs hover:bg-bg-card-hover transition-colors duration-200"
                         >
                           <div className={`w-1.5 h-1.5 rounded-full ${isOnSomnia ? 'bg-green-500' : 'bg-orange-500'}`}></div>
-                          <span className="text-text-secondary font-mono">
-                            {address.slice(0, 6)}...{address.slice(-4)}
+                          <span className="text-text-secondary font-mono hidden md:inline">
+                            {address.slice(0, 4)}...{address.slice(-4)}
                           </span>
                           <motion.div
                             animate={{ rotate: isWalletDropdownOpen ? 180 : 0 }}
@@ -358,89 +410,73 @@ export default function Header() {
                         </motion.button>
 
                         <AnimatePresence>
-                          {isWalletDropdownOpen && (() => {
-                            if (!walletButtonRef.current || typeof window === 'undefined') return null;
-                            const rect = walletButtonRef.current.getBoundingClientRect();
-                            return (
-                              <motion.div
-                                initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                                transition={{ duration: 0.2, ease: "easeOut" }}
-                                className="fixed w-48 bg-[rgba(5,5,15,0.95)] backdrop-blur-xl border border-border-card/50 rounded-2xl shadow-2xl overflow-hidden"
-                                style={{ 
-                                  zIndex: 1001,
-                                  top: `${rect.bottom + 8}px`,
-                                  right: `${window.innerWidth - rect.right}px`
-                                }}
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                              <div className="py-2 px-1">
+                          {isWalletDropdownOpen && walletButtonRef.current && (
+                            <motion.div
+                              initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                              transition={{ duration: 0.2, ease: "easeOut" }}
+                              className="fixed bg-[rgba(5,5,15,0.98)] backdrop-blur-xl border border-border-card/50 rounded-xl shadow-2xl overflow-hidden min-w-[180px]"
+                              style={{ 
+                                zIndex: 1001,
+                                top: `${walletButtonRef.current.getBoundingClientRect().bottom + 8}px`,
+                                right: `${window.innerWidth - walletButtonRef.current.getBoundingClientRect().right}px`
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <div className="py-2">
                                 {!isOnSomnia && (
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       switchToSomnia();
-                                      handleWalletDropdownClose();
+                                      setIsWalletDropdownOpen(false);
                                     }}
-                                    className="w-full flex items-center gap-2 px-3 py-2 mx-1 text-sm font-medium transition-all duration-200 rounded-xl text-orange-400 hover:text-orange-300 hover:bg-[rgba(255,255,255,0.08)]"
+                                    className="w-full flex items-center gap-2 px-4 py-2 text-xs font-medium transition-all duration-200 text-orange-400 hover:text-orange-300 hover:bg-bg-card"
                                   >
-                                    <span>Switch to Somnia</span>
+                                    Switch to Somnia
                                   </button>
                                 )}
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     disconnectWallet();
-                                    handleWalletDropdownClose();
+                                    setIsWalletDropdownOpen(false);
                                   }}
-                                  className="w-full flex items-center gap-2 px-3 py-2 mx-1 text-sm font-medium transition-all duration-200 rounded-xl text-text-secondary hover:text-text-primary hover:bg-[rgba(255,255,255,0.08)]"
+                                  className="w-full flex items-center gap-2 px-4 py-2 text-xs font-medium transition-all duration-200 text-text-secondary hover:text-primary hover:bg-bg-card"
                                 >
-                                  <span>Disconnect</span>
+                                  Disconnect
                                 </button>
                               </div>
-                              <div className="h-0.5 bg-gradient-to-r from-primary via-secondary to-accent" />
                             </motion.div>
-                            );
-                          })()}
+                          )}
                         </AnimatePresence>
                       </div>
                     ) : (
-                      <div className="flex flex-col items-end gap-1">
-                        <button
-                          onClick={connectWallet}
-                          disabled={isConnecting}
-                          className="flex items-center gap-2 px-4 py-2 rounded-button text-sm font-medium transition-all duration-200 border-2 border-primary text-primary hover:bg-primary hover:text-black disabled:opacity-50 disabled:cursor-not-allowed"
-                          style={{
-                            fontFamily: "var(--font-onest)",
-                            fontSize: "14px",
-                            fontWeight: "500",
-                          }}
-                        >
-                          <WalletIcon className="h-4 w-4" />
-                          {isConnecting ? 'Connecting...' : 'Connect Wallet'}
-                        </button>
-                        {error && (
-                          <div className="text-xs text-red-400 max-w-48 text-right">
-                            {error}
-                          </div>
-                        )}
-                      </div>
+                      <button
+                        onClick={connectWallet}
+                        disabled={isConnecting}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 border border-primary text-primary hover:bg-primary hover:text-black disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <WalletIcon className="h-4 w-4" />
+                        <span className="hidden md:inline">{isConnecting ? 'Connecting...' : 'Connect'}</span>
+                      </button>
                     )}
                   </div>
                 )}
 
                 {/* Create Market Button */}
                 <Link href="/create-prediction" className="hidden md:block flex-shrink-0">
-                  <Button size="sm" variant="primary" className="whitespace-nowrap">
-                    Create Market
+                  <Button size="sm" variant="primary" className="whitespace-nowrap text-xs px-3 py-1.5">
+                    <span className="hidden lg:inline">Create Market</span>
+                    <span className="lg:hidden">Create</span>
                   </Button>
                 </Link>
 
-                {/* Settings Button - Placed after Create Market */}
+                {/* Settings Button */}
                 <button
                   onClick={() => setIsSettingsOpen(true)}
-                  className="hidden md:flex items-center justify-center p-2 rounded-button text-text-secondary hover:text-text-primary hover:bg-bg-card transition-colors"
+                  className="hidden md:flex items-center justify-center p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-card transition-colors"
                   title="Settings"
                 >
                   <Cog6ToothIcon className="h-5 w-5" />
@@ -449,14 +485,13 @@ export default function Header() {
                 {/* Mobile Menu Toggle */}
                 <button
                   onClick={() => {
-                    // Prevent rapid clicking
                     if (!isMenuOpen) {
                       setIsMenuOpen(true);
                     } else {
                       handleClose();
                     }
                   }}
-                  className="lg:hidden relative z-50 p-2 rounded-button bg-bg-card text-text-secondary hover:bg-[rgba(255,255,255,0.05)] hover:text-text-primary transition-colors border border-border-card"
+                  className="xl:hidden relative z-50 p-2 rounded-lg bg-bg-card text-text-secondary hover:bg-[rgba(255,255,255,0.05)] hover:text-text-primary transition-colors border border-border-card"
                   aria-label={isMenuOpen ? "Close menu" : "Open menu"}
                 >
                   <AnimatePresence mode="wait">
@@ -495,7 +530,7 @@ export default function Header() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-40 lg:hidden"
+              className="fixed inset-0 z-40 xl:hidden"
             >
               {/* Backdrop */}
               <div 
@@ -509,7 +544,7 @@ export default function Header() {
                 animate={{ x: 0 }}
                 exit={{ x: "100%" }}
                 transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                className="absolute right-0 top-0 h-full w-72 max-w-[85vw] glass-card"
+                className="absolute right-0 top-0 h-full w-80 max-w-[85vw] glass-card"
                 style={{ borderRadius: "0px" }}
                 onClick={(e) => e.stopPropagation()}
               >
@@ -520,8 +555,8 @@ export default function Header() {
                       <Image 
                         src="/logo.png" 
                         alt="BitRedict Logo" 
-                        width={160} 
-                        height={160} 
+                        width={140} 
+                        height={50} 
                         className="logo-color-shift"
                         priority 
                       />
@@ -529,10 +564,53 @@ export default function Header() {
                   </div>
 
                   {/* Navigation Links */}
-                  <nav className="flex-1 p-4 overflow-y-auto">
+                  <nav className="flex-1 p-4 overflow-y-auto space-y-6">
+                    {/* Primary Section */}
+                    <div>
+                      <h3 className="text-xs font-semibold text-text-muted mb-2 px-2 uppercase tracking-wider">Main</h3>
+                      <div className="space-y-1">
+                        <Link
+                          href="/markets"
+                          onClick={handleClose}
+                          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                            segment?.startsWith('markets') || segment === 'markets'
+                              ? "bg-gradient-primary text-black"
+                              : "text-text-secondary hover:text-text-primary hover:bg-bg-card"
+                          }`}
+                        >
+                          <ChartBarIcon className="h-5 w-5 flex-shrink-0" />
+                          <span>Markets</span>
+                        </Link>
+                        <Link
+                          href="/oddyssey"
+                          onClick={handleClose}
+                          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                            segment === "oddyssey"
+                              ? "bg-gradient-primary text-black"
+                              : "text-text-secondary hover:text-text-primary hover:bg-bg-card"
+                          }`}
+                        >
+                          <FireIcon className="h-5 w-5 flex-shrink-0" />
+                          <span>Oddyssey</span>
+                        </Link>
+                        <Link
+                          href="/rewards"
+                          onClick={handleClose}
+                          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                            segment === "rewards"
+                              ? "bg-gradient-primary text-black"
+                              : "text-text-secondary hover:text-text-primary hover:bg-bg-card"
+                          }`}
+                        >
+                          <TrophyIcon className="h-5 w-5 flex-shrink-0" />
+                          <span>Rewards</span>
+                        </Link>
+                      </div>
+                    </div>
+
                     {/* Bitredictor Section */}
-                    <div className="mb-4">
-                      <h3 className="text-xs font-semibold text-text-secondary mb-2 px-2">BITREDICTOR</h3>
+                    <div>
+                      <h3 className="text-xs font-semibold text-text-muted mb-2 px-2 uppercase tracking-wider">Bitredictor</h3>
                       <div className="space-y-1">
                         {bitredictorLinks.map((link) => (
                           <Link
@@ -545,16 +623,16 @@ export default function Header() {
                                 : "text-text-secondary hover:text-text-primary hover:bg-bg-card"
                             }`}
                           >
-                            <link.icon className="h-4 w-4 flex-shrink-0" />
-                            <span className="truncate">{link.label}</span>
+                            <link.icon className="h-5 w-5 flex-shrink-0" />
+                            <span>{link.label}</span>
                           </Link>
                         ))}
                       </div>
                     </div>
 
                     {/* Markets Section */}
-                    <div className="mb-4">
-                      <h3 className="text-xs font-semibold text-text-secondary mb-2 px-2">MARKETS</h3>
+                    <div>
+                      <h3 className="text-xs font-semibold text-text-muted mb-2 px-2 uppercase tracking-wider">Markets</h3>
                       <div className="space-y-1">
                         {marketsLinks.map((link) => (
                           <Link
@@ -567,18 +645,18 @@ export default function Header() {
                                 : "text-text-secondary hover:text-text-primary hover:bg-bg-card"
                             }`}
                           >
-                            <link.icon className="h-4 w-4 flex-shrink-0" />
-                            <span className="truncate">{link.label}</span>
+                            <link.icon className="h-5 w-5 flex-shrink-0" />
+                            <span>{link.label}</span>
                           </Link>
                         ))}
                       </div>
                     </div>
 
-                    {/* Other Navigation */}
-                    <div className="mb-4">
-                      <h3 className="text-xs font-semibold text-text-secondary mb-2 px-2">OTHER</h3>
+                    {/* More Section */}
+                    <div>
+                      <h3 className="text-xs font-semibold text-text-muted mb-2 px-2 uppercase tracking-wider">More</h3>
                       <div className="space-y-1">
-                        {links.map((link) => (
+                        {moreLinks.map((link) => (
                           <Link
                             key={link.href}
                             href={link.href}
@@ -589,15 +667,15 @@ export default function Header() {
                                 : "text-text-secondary hover:text-text-primary hover:bg-bg-card"
                             }`}
                           >
-                            <link.icon className="h-4 w-4 flex-shrink-0" />
-                            <span className="truncate">{link.label}</span>
+                            <link.icon className="h-5 w-5 flex-shrink-0" />
+                            <span>{link.label}</span>
                           </Link>
                         ))}
                       </div>
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="space-y-2">
+                    <div className="space-y-2 pt-4 border-t border-border-card">
                       <Link href="/create-prediction" onClick={handleClose}>
                         <Button fullWidth variant="primary" size="sm">
                           Create Market
@@ -610,7 +688,7 @@ export default function Header() {
                             <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-bg-card border border-border-input text-sm">
                               <div className={`w-2 h-2 rounded-full flex-shrink-0 ${isOnSomnia ? 'bg-green-500' : 'bg-orange-500'}`}></div>
                               <span className="text-text-secondary font-mono text-xs truncate">
-                                {address.slice(0, 6)}...{address.slice(-4)}
+                                {address.slice(0, 8)}...{address.slice(-6)}
                               </span>
                             </div>
                             {!isOnSomnia && (
@@ -635,28 +713,17 @@ export default function Header() {
                             </button>
                           </div>
                         ) : (
-                          <div className="w-full space-y-2">
-                            <button
-                              onClick={(e) => {
-                                e.preventDefault();
-                                connectWallet();
-                              }}
-                              disabled={isConnecting}
-                              className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 border-2 border-primary text-primary hover:bg-primary hover:text-black disabled:opacity-50 disabled:cursor-not-allowed"
-                              style={{
-                                fontFamily: "var(--font-onest)",
-                                fontWeight: "500",
-                              }}
-                            >
-                              <WalletIcon className="h-4 w-4" />
-                              {isConnecting ? 'Connecting...' : 'Connect Wallet'}
-                            </button>
-                            {error && (
-                              <div className="text-xs text-red-400 text-center px-2">
-                                {error}
-                              </div>
-                            )}
-                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              connectWallet();
+                            }}
+                            disabled={isConnecting}
+                            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 border-2 border-primary text-primary hover:bg-primary hover:text-black disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <WalletIcon className="h-4 w-4" />
+                            {isConnecting ? 'Connecting...' : 'Connect Wallet'}
+                          </button>
                         )
                       )}
                     </div>
@@ -684,6 +751,7 @@ export default function Header() {
   }
 }
 
+// Bitredictor Links - User Account & Community
 const bitredictorLinks = [
   {
     label: "Dashboard",
@@ -717,6 +785,7 @@ const bitredictorLinks = [
   },
 ];
 
+// Markets Links
 const marketsLinks = [
   {
     label: "All Markets",
@@ -725,7 +794,7 @@ const marketsLinks = [
     icon: ChartBarIcon,
   },
   {
-    label: "Boosted Markets",
+    label: "Boosted",
     href: "/markets/boosted",
     segment: "boosted",
     icon: BoltIcon,
@@ -737,32 +806,21 @@ const marketsLinks = [
     icon: ArrowTrendingUpIcon,
   },
   {
-    label: "Private (Whitelist)",
+    label: "Private",
     href: "/markets/private",
     segment: "private", 
     icon: LockClosedIcon,
   },
   {
-    label: "Combo Markets",
+    label: "Combo",
     href: "/markets/combo",
     segment: "combo",
     icon: Squares2X2Icon,
   },
 ];
 
-const links = [
-  {
-    label: "Oddyssey",
-    href: "/oddyssey",
-    segment: "oddyssey",
-    icon: FireIcon,
-  },
-  {
-    label: "Rewards",
-    href: "/rewards",
-    segment: "rewards",
-    icon: TrophyIcon,
-  },
+// More Links - Secondary Features
+const moreLinks = [
   {
     label: "Stats",
     href: "/stats",
