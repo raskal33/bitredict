@@ -320,16 +320,14 @@ export function useSomniaStreams(
       return;
     }
 
-    // ✅ Use WebSocket URL directly (no HTTP) for SDS WebSocket connection
+    // ✅ Use WebSocket URL for SDS WebSocket connection
     const wsUrl = process.env.NEXT_PUBLIC_SDS_WS_URL || 'wss://dream-rpc.somnia.network/ws';
     const rpcUrl = process.env.NEXT_PUBLIC_SDS_RPC_URL || 'https://dream-rpc.somnia.network';
 
     try {
-
-      console.log('🔌 [SDS] Initializing Somnia Data Streams SDK...', {
-        rpcUrl,
-        wsUrl
-      });
+      console.log('🔌 [SDS] Initializing Somnia Data Streams SDK...');
+      console.log('📡 [SDS] WebSocket URL:', wsUrl);
+      console.log('📡 [SDS] RPC URL:', rpcUrl);
 
       const httpClient = createPublicClient({
         chain: {
@@ -344,17 +342,17 @@ export function useSomniaStreams(
         transport: http(rpcUrl),
       }) as any;
 
-      // ✅ Create WebSocket client for real-time SDS subscriptions (Somnia Network's intended usage)
-      // Use WebSocket URL directly - no HTTP transport needed for SDS WebSocket
+      // ✅ Create WebSocket client for real-time SDS subscriptions
       let wsClient: any = null;
       try {
+        console.log('🔌 [SDS] Creating WebSocket client to:', wsUrl);
         wsClient = createPublicClient({
           chain: {
             ...somniaTestnet,
             rpcUrls: {
               ...somniaTestnet.rpcUrls,
               default: {
-                http: [rpcUrl],  // Required by type, but we use WebSocket transport
+                http: [rpcUrl],  // Required by type
                 webSocket: [wsUrl]  // ✅ WebSocket for SDS real-time subscriptions
               }
             }
@@ -368,9 +366,11 @@ export function useSomniaStreams(
           }),
         }) as any;
         wsClientRef.current = wsClient;
-        console.log('✅ [SDS] WebSocket client created for real-time subscriptions');
+        console.log('✅ [SDS] WebSocket client created successfully');
+        console.log('✅ [SDS] Connected to:', wsUrl);
       } catch (wsError) {
-        console.warn('⚠️ [SDS] WebSocket client creation failed:', wsError);
+        console.error('❌ [SDS] WebSocket client creation failed:', wsError);
+        console.error('❌ [SDS] Failed to connect to:', wsUrl);
         wsClientRef.current = null;
       }
       
@@ -387,7 +387,13 @@ export function useSomniaStreams(
       setIsFallback(false);
       setError(null);
 
-      console.log('✅ [SDS] SDK initialized successfully', wsClient ? 'with WebSocket for real-time SDS subscriptions' : 'with HTTP only (fallback)');
+      if (wsClient) {
+        console.log('✅ [SDS] SDK initialized successfully with WebSocket');
+        console.log('✅ [SDS] WebSocket connection: ACTIVE');
+        console.log('✅ [SDS] Ready for real-time subscriptions');
+      } else {
+        console.log('⚠️ [SDS] SDK initialized with HTTP only (WebSocket unavailable)');
+      }
 
       // ✅ Always enable fallback WebSocket for real-time updates via our backend
       // This ensures we have a reliable real-time connection even if SDS WebSocket is down
@@ -631,8 +637,7 @@ export function useSomniaStreams(
     
 
       if (sdkAvailable && sdsActive && isFirstSubscriber && !isPending) {
-        const contextConfig = EVENT_CONTEXT_MAP[eventType];
-        
+        // ✅ Use schema ID directly (no context needed)
         globalPendingSubscriptions.add(eventType);
         
         try {
@@ -828,25 +833,24 @@ export function useSomniaStreams(
                 throw new Error('SDK subscribe method not available - WebSocket required');
               }
               
-              // ✅ Use SDS subscribe() for real-time updates (Somnia Network's intended usage)
-              // Use context-based subscriptions (not somniaStreamsEventId)
-              const context = contextConfig;
+              // ✅ Use SDS subscribe() with schema ID (somniaStreamsEventId)
+              // Get schema ID directly (we generate it the same way backend does)
+              const schemaId = await getSchemaId(sdkToUse);
               
-              console.log(`📡 [SDS] Subscribing to ${eventType} via SDS (context: ${context})...`);
+              console.log(`📡 [SDS] Subscribing to ${eventType} via SDS...`);
+              console.log(`📡 [SDS] Schema ID: ${schemaId}`);
+              console.log(`📡 [SDS] Publisher: ${PUBLISHER_ADDRESS}`);
               
-              // ✅ CRITICAL: Use context parameter (not somniaStreamsEventId) for context-based subscriptions
-              // This matches the working implementation from commit 87e804b
-              const subscriptionParams = {
-                context: context,
-                ethCalls: [], // Empty array for context-based subscriptions
-                onlyPushChanges: false, // Get all data, not just changes
-                onData: (data: any) => {
+              // ✅ Use somniaStreamsEventId with schema ID directly
+              subscription = await (sdkToUse.streams.subscribe as any)({
+                somniaStreamsEventId: schemaId,  // ✅ Use schema ID directly
+                onData: (payload: any) => {
                   try {
-                    let actualData = data;
-                    if (data && data.result) {
-                      actualData = data.result;
+                    if (payload && payload.data) {
+                      processData(payload.data);
+                    } else if (payload) {
+                      processData(payload);
                     }
-                    processData(actualData);
                   } catch (processError) {
                     console.error(`❌ [SDS] Error processing data for ${eventType}:`, processError);
                   }
@@ -854,9 +858,7 @@ export function useSomniaStreams(
                 onError: (error: Error) => {
                   console.error(`❌ [SDS] Subscription error for ${eventType}:`, error);
                 }
-              };
-              
-              subscription = await sdkToUse.streams.subscribe(subscriptionParams);
+              });
               
               console.log(`✅ [SDS] Real-time subscription active for ${eventType}`);
               
