@@ -298,7 +298,7 @@ export function useSomniaStreams(
 ): UseSomniaStreamsReturn {
   const {
     enabled = true,
-    useFallback = false
+    useFallback = true  // ✅ FIX: Enable fallback by default for reliability
   } = options;
 
   const [isConnected, setIsConnected] = useState(false);
@@ -308,6 +308,7 @@ export function useSomniaStreams(
   
   const sdkRef = useRef<SDK | null>(globalSDKInstance);
   const wsRef = useRef<WebSocket | null>(null);
+  const initializeWebSocketFallbackRef = useRef<(() => void) | null>(null);
 
   const initializeSDK = useCallback(async () => {
     if (!enabled) return;
@@ -319,26 +320,35 @@ export function useSomniaStreams(
       return;
     }
 
-    try {
-      const rpcUrl = process.env.NEXT_PUBLIC_SDS_RPC_URL || 'https://dream-rpc.somnia.network';
-      const wsUrl = process.env.NEXT_PUBLIC_SDS_WS_URL || 'wss://dream-rpc.somnia.network/ws';
+    const rpcUrl = process.env.NEXT_PUBLIC_SDS_RPC_URL || 'https://dream-rpc.somnia.network';
+    const wsUrl = process.env.NEXT_PUBLIC_SDS_WS_URL || 'wss://dream-rpc.somnia.network/ws';
 
-      const publicClient = createPublicClient({
+    try {
+      // ✅ FIX: Initialize SDK with HTTP transport (for state queries)
+      // Reference: https://github.com/jayteemoney/neonsync/blob/main/src/hooks/useSomniaStream.ts
+      // The SDK should use HTTP for state queries, WebSocket is separate for real-time events
+      console.log('🔌 [SDS] Initializing Somnia Data Streams SDK...', {
+        rpcUrl,
+        wsUrl
+      });
+
+      const httpClient = createPublicClient({
         chain: {
           ...somniaTestnet,
           rpcUrls: {
             ...somniaTestnet.rpcUrls,
             default: {
-              http: [rpcUrl],
-              webSocket: [wsUrl]
+              http: [rpcUrl]
             }
           }
         },
-        transport: webSocket(wsUrl),
+        transport: http(rpcUrl),
       }) as any;
       
+      // Initialize SDK with HTTP client for state queries
+      // SDK's subscribe() method works with HTTP transport
       const sdk = new SDK({
-        public: publicClient
+        public: httpClient
       });
       
       globalSDKInstance = sdk;
@@ -348,14 +358,30 @@ export function useSomniaStreams(
       setIsFallback(false);
       setError(null);
 
+      console.log('✅ [SDS] SDK initialized successfully with HTTP transport');
+
+      // ✅ Always enable fallback WebSocket for real-time updates via our backend
+      // This ensures we have a reliable real-time connection even if SDS WebSocket is down
+      console.log('📡 Enabling WebSocket fallback for real-time updates');
+      setTimeout(() => {
+        if (!wsRef.current && !isWebSocketConnecting && initializeWebSocketFallbackRef.current) {
+          initializeWebSocketFallbackRef.current();
+        }
+      }, 1000); // Small delay to ensure SDK is fully initialized
+
     } catch (err) {
+      console.error('❌ Failed to initialize SDS SDK:', err);
       setError(err instanceof Error ? err : new Error(String(err)));
       setIsSDSActive(false);
       setIsConnected(false);
 
-      if (useFallback) {
-        initializeWebSocketFallback();
-      }
+      // ✅ Always try fallback if SDK initialization fails
+      console.log('📡 SDS SDK failed, enabling WebSocket fallback');
+      setTimeout(() => {
+        if (!wsRef.current && !isWebSocketConnecting && initializeWebSocketFallbackRef.current) {
+          initializeWebSocketFallbackRef.current();
+        }
+      }, 1000);
     }
   }, [enabled, useFallback]);
 
@@ -519,6 +545,11 @@ export function useSomniaStreams(
       setError(err instanceof Error ? err : new Error(String(err)));
     }
   }, [flushWebSocketSubscriptions, useFallback]);
+
+  // Store the function in a ref so it can be called from initializeSDK
+  useEffect(() => {
+    initializeWebSocketFallbackRef.current = initializeWebSocketFallback;
+  }, [initializeWebSocketFallback]);
 
   const subscribeToWebSocketChannel = useCallback((eventType: SDSEventType, poolId?: string) => {
     const channels = getChannelsForEvent(eventType, poolId);
@@ -771,8 +802,11 @@ export function useSomniaStreams(
               
               const somniaStreamsEventId = contextConfig;
               
+              // ✅ Try SDK's subscribe method first (works with HTTP transport)
+              // If it fails, fall back to polling
               try {
                 if (typeof sdkToUse.streams.subscribe === 'function') {
+                  console.log(`📡 [SDS] Attempting to subscribe to ${eventType} via SDK...`);
                   subscription = await (sdkToUse.streams.subscribe as any)({
                     somniaStreamsEventId: somniaStreamsEventId,
                     onData: (payload: any) => {
@@ -784,12 +818,16 @@ export function useSomniaStreams(
                     },
                     onError: (error: Error) => {
                       console.error(`❌ [SDS] Subscription error for ${eventType}:`, error);
+                      // If subscription fails, fall back to polling
+                      throw error;
                     }
                   });
+                  console.log(`✅ [SDS] Successfully subscribed to ${eventType} via SDK`);
                 } else {
                   throw new Error('Subscribe method not available in SDK');
                 }
               } catch (subscribeError: any) {
+                console.warn(`⚠️ [SDS] SDK subscribe failed for ${eventType}, falling back to polling:`, subscribeError);
                 
                 const schemaId = await getSchemaId(sdkToUse);
                 let pollInterval: NodeJS.Timeout | null = null;
