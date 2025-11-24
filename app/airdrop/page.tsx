@@ -120,7 +120,7 @@ export default function AirdropPage() {
     };
   };
 
-  const requirements = eligibility ? [
+  const requirements = eligibility?.requirements ? [
     getRequirementStatus(eligibility.requirements.faucetClaim, "1️⃣ Claim BITR from the faucet"),
     getRequirementStatus(eligibility.requirements.poolsCreated, "2️⃣ Create at least 3 prediction pools"),
     getRequirementStatus(eligibility.requirements.poolsParticipated, "3️⃣ Participate in at least 10 pools"),
@@ -263,18 +263,20 @@ export default function AirdropPage() {
                     </div>
 
                     {/* Progress Bar */}
-                    <div className="mt-8 p-6 glass-card rounded-xl">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-primary font-medium">Overall Progress</span>
-                        <span className="text-text-secondary">{calculateRequirementProgress(eligibility.requirements)}%</span>
+                    {eligibility?.requirements && (
+                      <div className="mt-8 p-6 glass-card rounded-xl">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-primary font-medium">Overall Progress</span>
+                          <span className="text-text-secondary">{calculateRequirementProgress(eligibility.requirements)}%</span>
+                        </div>
+                        <div className="w-full bg-white/10 rounded-full h-3">
+                          <div
+                            className="bg-gradient-somnia h-3 rounded-full transition-all duration-300"
+                            style={{ width: `${calculateRequirementProgress(eligibility.requirements)}%` }}
+                          />
+                        </div>
                       </div>
-                      <div className="w-full bg-white/10 rounded-full h-3">
-                        <div
-                          className="bg-gradient-somnia h-3 rounded-full transition-all duration-300"
-                          style={{ width: `${calculateRequirementProgress(eligibility.requirements)}%` }}
-                        />
-                      </div>
-                    </div>
+                    )}
                   </div>
                 ) : (
                   <div className="text-center py-12">
