@@ -121,11 +121,11 @@ export default function AirdropPage() {
   };
 
   const requirements = eligibility?.requirements ? [
-    getRequirementStatus(eligibility.requirements.faucetClaim, "1️⃣ Claim BITR from the faucet"),
-    getRequirementStatus(eligibility.requirements.poolsCreated, "2️⃣ Create at least 3 prediction pools"),
-    getRequirementStatus(eligibility.requirements.poolsParticipated, "3️⃣ Participate in at least 10 pools"),
-    getRequirementStatus(eligibility.requirements.stakingActivity, "4️⃣ Stake BITR"),
-    getRequirementStatus(eligibility.requirements.oddysseySlips, "5️⃣ Submit 5 Odyssey slips")
+    getRequirementStatus(eligibility.requirements?.faucetClaim, "1️⃣ Claim BITR from the faucet"),
+    getRequirementStatus(eligibility.requirements?.poolsCreated, "2️⃣ Create at least 3 prediction pools"),
+    getRequirementStatus(eligibility.requirements?.poolsParticipated, "3️⃣ Participate in at least 10 pools"),
+    getRequirementStatus(eligibility.requirements?.stakingActivity, "4️⃣ Stake BITR"),
+    getRequirementStatus(eligibility.requirements?.oddysseySlips, "5️⃣ Submit 5 Odyssey slips")
   ] : [];
 
   if (!isConnected) {
