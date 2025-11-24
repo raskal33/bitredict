@@ -130,10 +130,10 @@ export function calculateRequirementProgress(requirements: UserEligibility['requ
   let total = 5; // Total number of requirements
   
   if (requirements.faucetClaim) completed++;
-  if (requirements.sttActivityBeforeFaucet) completed++;
-  if (requirements.bitrActions.met) completed++;
+  if (requirements.poolsCreated?.met) completed++;
+  if (requirements.poolsParticipated?.met) completed++;
   if (requirements.stakingActivity) completed++;
-  if (requirements.oddysseySlips.met) completed++;
+  if (requirements.oddysseySlips?.met) completed++;
   
   return Math.round((completed / total) * 100);
 }

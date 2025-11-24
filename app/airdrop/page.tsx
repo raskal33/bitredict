@@ -121,11 +121,11 @@ export default function AirdropPage() {
   };
 
   const requirements = eligibility ? [
-    getRequirementStatus(eligibility.requirements.faucetClaim, "Claim Faucet Tokens"),
-    getRequirementStatus(eligibility.requirements.sttActivityBeforeFaucet, "STT Activity Before Faucet"),
-    getRequirementStatus(eligibility.requirements.bitrActions, "BITR Token Actions"),
-    getRequirementStatus(eligibility.requirements.stakingActivity, "Staking Activity"),
-    getRequirementStatus(eligibility.requirements.oddysseySlips, "Oddyssey Game Participation")
+    getRequirementStatus(eligibility.requirements.faucetClaim, "1️⃣ Claim BITR from the faucet"),
+    getRequirementStatus(eligibility.requirements.poolsCreated, "2️⃣ Create at least 3 prediction pools"),
+    getRequirementStatus(eligibility.requirements.poolsParticipated, "3️⃣ Participate in at least 10 pools"),
+    getRequirementStatus(eligibility.requirements.stakingActivity, "4️⃣ Stake BITR"),
+    getRequirementStatus(eligibility.requirements.oddysseySlips, "5️⃣ Submit 5 Odyssey slips")
   ] : [];
 
   if (!isConnected) {

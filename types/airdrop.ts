@@ -8,8 +8,12 @@ export interface FaucetClaim {
 
 export interface AirdropRequirements {
   faucetClaim: boolean;
-  sttActivityBeforeFaucet: boolean;
-  bitrActions: {
+  poolsCreated?: {
+    current: number;
+    required: number;
+    met: boolean;
+  };
+  poolsParticipated?: {
     current: number;
     required: number;
     met: boolean;
@@ -30,9 +34,12 @@ export interface SybilFlags {
 }
 
 export interface ActivityBreakdown {
+  poolsCreated?: number;
+  poolsParticipated?: number;
   poolCreations: number;
   betsPlaced: number;
   stakingActions: number;
+  oddysseySlips?: number;
   firstBITRActivity?: string;
   lastBITRActivity?: string;
 }
@@ -69,8 +76,8 @@ export interface AirdropStatistics {
   };
   requirementFunnel: {
     claimedFaucet: number;
-    hadSTTActivity: number;
-    sufficientBITRActions: number;
+    sufficientPoolsCreated: number;
+    sufficientPoolsParticipated: number;
     hasStaking: number;
     sufficientOddyssey: number;
     fullyEligible: number;
@@ -91,8 +98,9 @@ export interface AirdropStatistics {
     totalAirdropPool: string;
     faucetAmountPerUser: string;
     requirements: {
-      sttActivityBeforeFaucet: boolean;
-      minBITRActions: number;
+      faucetClaim: boolean;
+      minPoolsCreated: number;
+      minPoolsParticipated: number;
       stakingRequired: boolean;
       minOddysseySlips: number;
     };

@@ -1119,26 +1119,48 @@ export default function OddysseyPage() {
 
   // Calculate time left based on first match or cycle end time
   const calculateTimeLeft = useCallback(() => {
-    // First check if we have cycle end time from stats
+    // First check if we have cycle end time from stats (betting deadline)
     if (stats && stats.currentCycleEndTime) {
       const now = new Date().getTime();
       const endTime = new Date(stats.currentCycleEndTime).getTime();
       const timeDifference = endTime - now;
 
+      // If betting deadline has passed, check if matches have actually started
       if (timeDifference <= 0 || isNaN(timeDifference)) {
-        setTimeLeft({ hours: 0, minutes: 0, seconds: 0 });
         setIsExpired(true);
-        setHasStartedMatches(true);
+        // Don't set hasStartedMatches here - let checkStartedMatches determine this
+        // Check actual match times to see if matches have started
+        if (matches && matches.length > 0) {
+          const sortedMatches = [...matches].sort((a, b) => 
+            new Date(a.match_date).getTime() - new Date(b.match_date).getTime()
+          );
+          const firstMatch = sortedMatches[0];
+          if (firstMatch) {
+            const matchTime = new Date(firstMatch.match_date).getTime();
+            const matchTimeDifference = matchTime - now;
+            // If first match hasn't started yet, show countdown to first match
+            if (matchTimeDifference > 0) {
+              const hours = Math.floor(matchTimeDifference / (1000 * 60 * 60)) || 0;
+              const minutes = Math.floor((matchTimeDifference % (1000 * 60 * 60)) / (1000 * 60)) || 0;
+              const seconds = Math.floor((matchTimeDifference % (1000 * 60)) / 1000) || 0;
+              setTimeLeft({ hours, minutes, seconds });
+              return;
+            }
+          }
+        }
+        // All time has passed, set to zero
+        setTimeLeft({ hours: 0, minutes: 0, seconds: 0 });
         return;
       }
 
-      const hours = Math.floor(timeDifference / (1000 * 60 * 60));
-      const minutes = Math.floor((timeDifference % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((timeDifference % (1000 * 60)) / 1000);
+      // Betting deadline hasn't passed, show countdown to deadline
+      const hours = Math.floor(timeDifference / (1000 * 60 * 60)) || 0;
+      const minutes = Math.floor((timeDifference % (1000 * 60 * 60)) / (1000 * 60)) || 0;
+      const seconds = Math.floor((timeDifference % (1000 * 60)) / 1000) || 0;
 
-      setTimeLeft({ hours: hours || 0, minutes: minutes || 0, seconds: seconds || 0 });
+      setTimeLeft({ hours, minutes, seconds });
       setIsExpired(false);
-      setHasStartedMatches(false);
+      // Don't modify hasStartedMatches here - let checkStartedMatches handle it
       return;
     }
 
@@ -1168,7 +1190,7 @@ export default function OddysseyPage() {
     if (timeDifference <= 0 || isNaN(timeDifference)) {
       setTimeLeft({ hours: 0, minutes: 0, seconds: 0 });
       setIsExpired(true);
-      setHasStartedMatches(true);
+      // Don't set hasStartedMatches here - let checkStartedMatches determine this
     } else {
       const hours = Math.floor(timeDifference / (1000 * 60 * 60)) || 0;
       const minutes = Math.floor((timeDifference % (1000 * 60 * 60)) / (1000 * 60)) || 0;
@@ -1176,7 +1198,7 @@ export default function OddysseyPage() {
 
       setTimeLeft({ hours, minutes, seconds });
       setIsExpired(false);
-      setHasStartedMatches(false);
+      // Don't modify hasStartedMatches here - let checkStartedMatches handle it
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matches, stats?.currentCycleEndTime]); // stats is checked inside, adding it would cause infinite loops
@@ -1731,8 +1753,8 @@ export default function OddysseyPage() {
               >
               <CurrencyDollarIcon className="h-12 w-12 mx-auto mb-4 text-primary" />
               <h3 className="text-2xl font-bold text-white mb-1">{(stats.currentCycleSlips || 0).toLocaleString()}</h3>
-              <p className="text-lg font-semibold text-text-secondary mb-1">Slips for Current Cycle</p>
-              <p className="text-sm text-text-muted">Total slips placed</p>
+              <p className="text-lg font-semibold text-text-secondary mb-1">Total Slips</p>
+              <p className="text-sm text-text-muted">Current Cycle</p>
               </motion.div>
 
             <motion.div
@@ -1803,7 +1825,11 @@ export default function OddysseyPage() {
               <span className="text-sm font-medium">Refresh</span>
             </button>
           </div>
-          {isExpired || !stats || !stats.currentCycleEndTime ? (
+          {hasStartedMatches ? (
+            <div className="text-red-400 font-bold text-2xl">
+              First match started, betting closed
+            </div>
+          ) : isExpired && (!matches || matches.length === 0 || !stats?.currentCycleEndTime) ? (
             <div className="text-red-400 font-bold text-2xl">
               Betting is closed - cycle has ended
             </div>

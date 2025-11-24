@@ -245,6 +245,18 @@ export default function Header() {
                   </Link>
 
                   <Link
+                    href="/faucet"
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
+                      segment === "faucet"
+                        ? "bg-gradient-primary text-black shadow-button"
+                        : "text-text-secondary hover:text-text-primary hover:bg-bg-card"
+                    }`}
+                  >
+                    <BeakerIcon className="h-4 w-4" />
+                    <span className="hidden 2xl:inline">Faucet</span>
+                  </Link>
+
+                  <Link
                     href="/airdrop"
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
                       segment === "airdrop"
@@ -618,6 +630,18 @@ export default function Header() {
                           <span>Rewards</span>
                         </Link>
                         <Link
+                          href="/faucet"
+                          onClick={handleClose}
+                          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                            segment === "faucet"
+                              ? "bg-gradient-primary text-black"
+                              : "text-text-secondary hover:text-text-primary hover:bg-bg-card"
+                          }`}
+                        >
+                          <BeakerIcon className="h-5 w-5 flex-shrink-0" />
+                          <span>Faucet</span>
+                        </Link>
+                        <Link
                           href="/airdrop"
                           onClick={handleClose}
                           className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
@@ -850,12 +874,6 @@ const moreLinks = [
     href: "/staking",
     segment: "staking",
     icon: CurrencyDollarIcon,
-  },
-  {
-    label: "Faucet",
-    href: "/faucet",
-    segment: "faucet",
-    icon: BeakerIcon,
   },
   {
     label: "Docs",
