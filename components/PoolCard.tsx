@@ -1,13 +1,18 @@
 "use client";
 
 import React, { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, PanInfo } from "framer-motion";
 import { Users, Clock, TrendingUp } from "lucide-react";
+import { HeartIcon, ShareIcon } from "@heroicons/react/24/outline";
+import { HeartIcon as HeartIconSolid } from "@heroicons/react/24/solid";
 import { formatEther } from "viem";
 import Image from "next/image";
 import EnhancedPoolCard, { EnhancedPool } from "./EnhancedPoolCard";
 import { calculateSellOdds } from "../utils/poolCalculations";
 import { usePoolProgress } from "../hooks/useSomniaStreams";
+import { usePoolSocialStats } from "../hooks/usePoolSocialStats";
+import { useAccount } from "wagmi";
+import { toast } from "react-hot-toast";
 
 interface PoolCardProps {
   pool: EnhancedPool;
@@ -473,6 +478,290 @@ export const PoolCardNFT = ({ pool, onClick }: PoolCardProps) => {
 };
 
 // Catalog view component - Grid of NFT cards with hover effects
+// Swipeable Pool Cards Component for Mobile
+const SwipeablePoolCards = ({ 
+  pools, 
+  onPoolClick 
+}: { 
+  pools: EnhancedPool[]; 
+  onPoolClick?: (pool: EnhancedPool) => void;
+}) => {
+  const [currentIndex, setCurrentIndex] = React.useState(0);
+  const [direction, setDirection] = React.useState(0);
+  const [isDragging, setIsDragging] = React.useState(false);
+  const constraintsRef = React.useRef<HTMLDivElement>(null);
+  const { address } = useAccount();
+  
+  const currentPool = pools[currentIndex];
+  const nextPool = pools[currentIndex + 1];
+  const prevPool = pools[currentIndex - 1];
+  
+  // Social stats for current pool
+  const { socialStats, isLiked, isLoading: isLikeLoading, toggleLike } = usePoolSocialStats(currentPool?.id || '');
+
+  const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    setIsDragging(false);
+    const swipeThreshold = 50;
+    const velocityThreshold = 500;
+
+    if (Math.abs(info.offset.x) > swipeThreshold || Math.abs(info.velocity.x) > velocityThreshold) {
+      if (info.offset.x > 0 && currentIndex > 0) {
+        // Swipe right - go to previous
+        setCurrentIndex(currentIndex - 1);
+        setDirection(-1);
+        setTimeout(() => setDirection(0), 300); // Reset direction after animation
+      } else if (info.offset.x < 0 && currentIndex < pools.length - 1) {
+        // Swipe left - go to next
+        setCurrentIndex(currentIndex + 1);
+        setDirection(1);
+        setTimeout(() => setDirection(0), 300); // Reset direction after animation
+      }
+    }
+  };
+
+  const goToNext = () => {
+    if (currentIndex < pools.length - 1) {
+      setDirection(1);
+      setCurrentIndex(currentIndex + 1);
+      setTimeout(() => setDirection(0), 300);
+    }
+  };
+
+  const goToPrev = () => {
+    if (currentIndex > 0) {
+      setDirection(-1);
+      setCurrentIndex(currentIndex - 1);
+      setTimeout(() => setDirection(0), 300);
+    }
+  };
+
+  // Share pool function
+  const handleShare = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!currentPool) return;
+    
+    const poolUrl = `${window.location.origin}/bet/${currentPool.id}`;
+    const shareText = `Check out this prediction pool: ${currentPool.title || `Pool #${currentPool.id}`}`;
+    
+    // Try Web Share API first (mobile native sharing)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: currentPool.title || `Pool #${currentPool.id}`,
+          text: shareText,
+          url: poolUrl,
+        });
+        toast.success('Shared!');
+        return;
+      } catch (error: unknown) {
+        // User cancelled or error, fall back to clipboard
+        if (error instanceof Error && error.name !== 'AbortError') {
+          console.error('Error sharing:', error);
+        }
+      }
+    }
+    
+    // Fallback: Copy to clipboard
+    try {
+      await navigator.clipboard.writeText(poolUrl);
+      toast.success('Link copied to clipboard!');
+    } catch (error) {
+      console.error('Failed to copy:', error);
+      toast.error('Failed to copy link');
+    }
+  };
+
+  // Handle like
+  const handleLike = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!address) {
+      toast.error('Please connect your wallet to like pools');
+      return;
+    }
+    toggleLike();
+  };
+
+  if (pools.length === 0) return null;
+
+  return (
+    <div className="relative w-full h-[600px] md:hidden" ref={constraintsRef}>
+      {/* Progress Indicator */}
+      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 flex gap-1.5">
+        {pools.map((_, index) => (
+          <div
+            key={index}
+            className={`h-1.5 rounded-full transition-all duration-300 ${
+              index === currentIndex
+                ? 'w-8 bg-cyan-400'
+                : index < currentIndex
+                ? 'w-1.5 bg-cyan-400/50'
+                : 'w-1.5 bg-slate-600/50'
+            }`}
+          />
+        ))}
+      </div>
+
+      {/* Card Counter */}
+      <div className="absolute top-4 right-4 z-20 bg-slate-900/80 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs text-white font-semibold">
+        {currentIndex + 1} / {pools.length}
+      </div>
+
+      {/* Swipeable Cards Stack */}
+      <div className="relative w-full h-full">
+        {/* Previous Card (peeking) */}
+        {prevPool && (
+          <motion.div
+            initial={{ x: -100, opacity: 0, scale: 0.9 }}
+            animate={{ 
+              x: direction === -1 ? -20 : -100,
+              opacity: direction === -1 ? 0.3 : 0,
+              scale: direction === -1 ? 0.95 : 0.9,
+            }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="absolute inset-0 pointer-events-none"
+            style={{ zIndex: 1 }}
+          >
+            <div className="w-full h-full flex items-center justify-center">
+              <div className="w-[90%] max-w-[320px]">
+                <PoolCardNFT pool={prevPool} onClick={() => {}} />
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Current Card */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentIndex}
+            drag="x"
+            dragConstraints={{ left: -200, right: 200 }}
+            dragElastic={0.2}
+            onDragStart={() => setIsDragging(true)}
+            onDragEnd={handleDragEnd}
+            initial={{ x: direction === 1 ? -300 : direction === -1 ? 300 : 0, opacity: 0, scale: 0.9 }}
+            animate={{ x: 0, opacity: 1, scale: 1 }}
+            exit={{ x: direction === 1 ? 300 : -300, opacity: 0, scale: 0.9 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="absolute inset-0"
+            style={{ zIndex: 2, cursor: isDragging ? 'grabbing' : 'grab' }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <div className="w-full h-full flex items-center justify-center p-4">
+              <div className="w-full max-w-[320px]">
+                <PoolCardNFT 
+                  pool={currentPool} 
+                  onClick={() => onPoolClick?.(currentPool)}
+                />
+              </div>
+            </div>
+          </motion.div>
+        </AnimatePresence>
+
+        {/* Next Card (peeking) */}
+        {nextPool && (
+          <motion.div
+            initial={{ x: 100, opacity: 0, scale: 0.9 }}
+            animate={{ 
+              x: direction === 1 ? 20 : 100,
+              opacity: direction === 1 ? 0.3 : 0,
+              scale: direction === 1 ? 0.95 : 0.9,
+            }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="absolute inset-0 pointer-events-none"
+            style={{ zIndex: 1 }}
+          >
+            <div className="w-full h-full flex items-center justify-center">
+              <div className="w-[90%] max-w-[320px]">
+                <PoolCardNFT pool={nextPool} onClick={() => {}} />
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </div>
+
+      {/* Social Actions Bar - Mobile */}
+      {currentPool && (
+        <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 z-20 flex items-center gap-3 bg-slate-900/90 backdrop-blur-md px-4 py-2.5 rounded-full border border-slate-700/50">
+          {/* Like Button */}
+          <button
+            onClick={handleLike}
+            disabled={isLikeLoading}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
+              isLiked
+                ? 'bg-pink-500/20 text-pink-400'
+                : 'bg-slate-800/50 text-gray-300 hover:bg-slate-700/50 hover:text-pink-400'
+            } ${isLikeLoading ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}
+          >
+            {isLiked ? (
+              <HeartIconSolid className="w-4 h-4" />
+            ) : (
+              <HeartIcon className="w-4 h-4" />
+            )}
+            <span className="text-xs font-semibold">{socialStats?.likes || 0}</span>
+          </button>
+
+          {/* Share Button */}
+          <button
+            onClick={handleShare}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/50 text-gray-300 hover:bg-slate-700/50 hover:text-cyan-400 transition-all active:scale-95"
+          >
+            <ShareIcon className="w-4 h-4" />
+            <span className="text-xs font-semibold">Share</span>
+          </button>
+        </div>
+      )}
+
+      {/* Navigation Buttons */}
+      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20 flex gap-4">
+        <button
+          onClick={goToPrev}
+          disabled={currentIndex === 0}
+          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
+            currentIndex === 0
+              ? 'bg-slate-800/50 text-slate-600 cursor-not-allowed'
+              : 'bg-slate-800/80 backdrop-blur-sm text-white hover:bg-slate-700/80 active:scale-95'
+          }`}
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <button
+          onClick={goToNext}
+          disabled={currentIndex === pools.length - 1}
+          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
+            currentIndex === pools.length - 1
+              ? 'bg-slate-800/50 text-slate-600 cursor-not-allowed'
+              : 'bg-slate-800/80 backdrop-blur-sm text-white hover:bg-slate-700/80 active:scale-95'
+          }`}
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
+
+      {/* Swipe Hint */}
+      {currentIndex === 0 && !isDragging && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: [0, 1, 0] }}
+          transition={{ duration: 2, repeat: Infinity, repeatDelay: 1 }}
+          className="absolute bottom-20 left-1/2 transform -translate-x-1/2 z-10 text-white/60 text-xs flex items-center gap-2"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16l-4-4m0 0l4-4m-4 4h18" />
+          </svg>
+          <span>Swipe to browse</span>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+          </svg>
+        </motion.div>
+      )}
+    </div>
+  );
+};
+
 export const PoolCardCatalog = ({ 
   pools, 
   onPoolClick 
@@ -484,7 +773,13 @@ export const PoolCardCatalog = ({
 
   return (
     <div className="w-full overflow-hidden">
-      <div className="flex flex-wrap gap-4 p-3 justify-center items-start">
+      {/* Mobile: Swipeable Cards */}
+      <div className="md:hidden">
+        <SwipeablePoolCards pools={pools} onPoolClick={onPoolClick} />
+      </div>
+
+      {/* Desktop: Grid Layout */}
+      <div className="hidden md:flex flex-wrap gap-4 p-3 justify-center items-start">
         {pools.map((pool, index) => {
           const isHovered = hoveredPoolId === pool.id;
           return (
