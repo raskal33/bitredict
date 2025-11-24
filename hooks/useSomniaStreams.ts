@@ -280,16 +280,18 @@ interface UseSomniaStreamsReturn {
   reconnect: () => void;
 }
 
+// ✅ FIX: Match backend event schema IDs exactly
+// Backend emits events with these IDs (see backend/services/somnia-data-streams-service.js)
 const EVENT_CONTEXT_MAP: Record<SDSEventType, string> = {
-  'pool:created': 'bitredict:pools:created',
-  'pool:settled': 'bitredict:pools:settled',
-  'bet:placed': 'bitredict:bets',
-  'pool:progress': 'bitredict:pools:progress',
-  'reputation:changed': 'bitredict:reputation',
-  'liquidity:added': 'bitredict:liquidity',
-  'cycle:resolved': 'bitredict:cycles',
-  'slip:evaluated': 'bitredict:slips',
-  'prize:claimed': 'bitredict:prizes'
+  'pool:created': 'PoolCreated',           // ✅ Matches backend eventSchemaIds.poolCreated
+  'pool:settled': 'PoolSettled',           // ✅ Matches backend eventSchemaIds.poolSettled
+  'bet:placed': 'BetPlaced',               // ✅ Matches backend eventSchemaIds.betPlaced
+  'pool:progress': 'BetPlaced',            // ✅ Backend uses BetPlaced for pool progress updates
+  'reputation:changed': 'ReputationActionOccurred', // ✅ Matches backend eventSchemaIds.reputationActionOccurred
+  'liquidity:added': 'LiquidityAdded',     // ✅ Matches backend eventSchemaIds.liquidityAdded
+  'cycle:resolved': 'CycleResolved',       // ✅ Matches backend eventSchemaIds.cycleResolved
+  'slip:evaluated': 'SlipEvaluated',      // ✅ Matches backend eventSchemaIds.slipEvaluated
+  'prize:claimed': 'PrizeClaimed'         // ✅ Matches backend eventSchemaIds.prizeClaimed
 };
 
 export function useSomniaStreams(
