@@ -74,6 +74,10 @@ class OddysseyWebSocketService {
   private userAddress: string | null = null;
   private activeSubscriptions: Map<string, () => void> = new Map();
 
+  private normalizeAddress(address?: string | null) {
+    return address ? address.toLowerCase() : null;
+  }
+
   /**
    * Decode selection hash to human-readable selection
    */
@@ -131,18 +135,24 @@ class OddysseyWebSocketService {
    * Initialize subscriptions for a user
    */
   public initializeUserSubscriptions(userAddress: string) {
+    const normalizedAddress = this.normalizeAddress(userAddress);
+    if (!normalizedAddress) {
+      console.warn('⚠️ Cannot initialize WebSocket subscriptions without address');
+      return;
+    }
+
     // Only initialize if address changed
-    if (this.userAddress === userAddress && this.activeSubscriptions.size > 0) {
+    if (this.userAddress === normalizedAddress && this.activeSubscriptions.size > 0) {
       console.log('📡 User subscriptions already initialized');
       return;
     }
 
-    this.userAddress = userAddress;
-    console.log('📡 Initializing WebSocket subscriptions for user:', userAddress);
+    this.userAddress = normalizedAddress;
+    console.log('📡 Initializing WebSocket subscriptions for user:', normalizedAddress);
 
     // Subscribe to all user slip events
     const unsubscribeAll = websocketClient.subscribeToUserSlips(
-      userAddress,
+      normalizedAddress,
       (event: OddysseyWebSocketEvent) => {
         console.log('📡 Received slip event:', event);
         this.handleSlipEvent(event);
@@ -159,15 +169,20 @@ class OddysseyWebSocketService {
     userAddress: string,
     callback: (event: SlipPlacedEvent) => void
   ) {
+    const normalizedAddress = this.normalizeAddress(userAddress);
+    if (!normalizedAddress) {
+      return () => undefined;
+    }
+
     const unsubscribe = websocketClient.subscribeToSlipPlaced(
-      userAddress,
+      normalizedAddress,
       (data: SlipPlacedEvent) => {
         console.log('✅ Slip placed event:', data);
         callback(data);
       }
     );
 
-    const key = `slip:placed:${userAddress}`;
+    const key = `slip:placed:${normalizedAddress}`;
     this.activeSubscriptions.set(key, unsubscribe);
     return unsubscribe;
   }
@@ -179,15 +194,20 @@ class OddysseyWebSocketService {
     userAddress: string,
     callback: (event: SlipEvaluatedEvent) => void
   ) {
+    const normalizedAddress = this.normalizeAddress(userAddress);
+    if (!normalizedAddress) {
+      return () => undefined;
+    }
+
     const unsubscribe = websocketClient.subscribeToSlipEvaluated(
-      userAddress,
+      normalizedAddress,
       (data: SlipEvaluatedEvent) => {
         console.log('📊 Slip evaluated event:', data);
         callback(data);
       }
     );
 
-    const key = `slip:evaluated:${userAddress}`;
+    const key = `slip:evaluated:${normalizedAddress}`;
     this.activeSubscriptions.set(key, unsubscribe);
     return unsubscribe;
   }
@@ -199,15 +219,20 @@ class OddysseyWebSocketService {
     userAddress: string,
     callback: (event: SlipPrizeClaimedEvent) => void
   ) {
+    const normalizedAddress = this.normalizeAddress(userAddress);
+    if (!normalizedAddress) {
+      return () => undefined;
+    }
+
     const unsubscribe = websocketClient.subscribeToSlipPrizeClaimed(
-      userAddress,
+      normalizedAddress,
       (data: SlipPrizeClaimedEvent) => {
         console.log('🏆 Prize claimed event:', data);
         callback(data);
       }
     );
 
-    const key = `slip:prize_claimed:${userAddress}`;
+    const key = `slip:prize_claimed:${normalizedAddress}`;
     this.activeSubscriptions.set(key, unsubscribe);
     return unsubscribe;
   }

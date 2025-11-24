@@ -55,6 +55,7 @@ class WebSocketClient {
         this.isConnected = true;
         this.reconnectAttempts = 0;
         this.startHeartbeat();
+        this.resubscribeAllChannels();
       };
 
       this.ws.onmessage = (event) => {
@@ -79,6 +80,23 @@ class WebSocketClient {
     } catch (error) {
       console.error('Error creating WebSocket connection:', error);
       this.attemptReconnect();
+    }
+  }
+
+  private resubscribeAllChannels() {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    for (const channel of this.subscriptions.keys()) {
+      try {
+        this.ws.send(JSON.stringify({
+          type: 'subscribe',
+          channel
+        }));
+      } catch (error) {
+        console.error('Error resubscribing to channel:', channel, error);
+      }
     }
   }
 
@@ -157,6 +175,12 @@ class WebSocketClient {
         subscriptions.splice(index, 1);
         if (subscriptions.length === 0) {
           this.subscriptions.delete(channel);
+          if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(JSON.stringify({
+              type: 'unsubscribe',
+              channel
+            }));
+          }
         }
       }
     }
@@ -182,8 +206,9 @@ class WebSocketClient {
    * @param callback Callback function for slip events
    */
   public subscribeToUserSlips(userAddress: string, callback: (data: any) => void) {
-    console.log(`🎯 Subscribing to slips for user: ${userAddress}`);
-    return this.subscribe(`slips:user:${userAddress}`, callback);
+    const normalized = userAddress?.toLowerCase?.() || userAddress;
+    console.log(`🎯 Subscribing to slips for user: ${normalized}`);
+    return this.subscribe(`slips:user:${normalized}`, callback);
   }
 
   /**
@@ -192,8 +217,9 @@ class WebSocketClient {
    * @param callback Callback function for slip placed events
    */
   public subscribeToSlipPlaced(userAddress: string, callback: (data: any) => void) {
-    console.log(`🎯 Subscribing to slip:placed events for user: ${userAddress}`);
-    return this.subscribe(`slip:placed:user:${userAddress}`, callback);
+    const normalized = userAddress?.toLowerCase?.() || userAddress;
+    console.log(`🎯 Subscribing to slip:placed events for user: ${normalized}`);
+    return this.subscribe(`slip:placed:user:${normalized}`, callback);
   }
 
   /**
@@ -202,8 +228,9 @@ class WebSocketClient {
    * @param callback Callback function for slip evaluated events
    */
   public subscribeToSlipEvaluated(userAddress: string, callback: (data: any) => void) {
-    console.log(`🎯 Subscribing to slip:evaluated events for user: ${userAddress}`);
-    return this.subscribe(`slip:evaluated:user:${userAddress}`, callback);
+    const normalized = userAddress?.toLowerCase?.() || userAddress;
+    console.log(`🎯 Subscribing to slip:evaluated events for user: ${normalized}`);
+    return this.subscribe(`slip:evaluated:user:${normalized}`, callback);
   }
 
   /**
@@ -212,8 +239,9 @@ class WebSocketClient {
    * @param callback Callback function for prize claimed events
    */
   public subscribeToSlipPrizeClaimed(userAddress: string, callback: (data: any) => void) {
-    console.log(`🎯 Subscribing to slip:prize_claimed events for user: ${userAddress}`);
-    return this.subscribe(`slip:prize_claimed:user:${userAddress}`, callback);
+    const normalized = userAddress?.toLowerCase?.() || userAddress;
+    console.log(`🎯 Subscribing to slip:prize_claimed events for user: ${normalized}`);
+    return this.subscribe(`slip:prize_claimed:user:${normalized}`, callback);
   }
 
   /**
