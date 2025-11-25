@@ -489,6 +489,7 @@ const SwipeablePoolCards = ({
   const [currentIndex, setCurrentIndex] = React.useState(0);
   const [direction, setDirection] = React.useState(0);
   const [isDragging, setIsDragging] = React.useState(false);
+  const [showListView, setShowListView] = React.useState(false);
   const constraintsRef = React.useRef<HTMLDivElement>(null);
   const { address } = useAccount();
   
@@ -622,7 +623,7 @@ const SwipeablePoolCards = ({
             style={{ zIndex: 1 }}
           >
             <div className="w-full h-full flex items-center justify-center">
-              <div className="w-[90%] max-w-[320px]">
+              <div className="w-[90%] max-w-[320px] mx-auto">
                 <PoolCardNFT pool={prevPool} onClick={() => {}} />
               </div>
             </div>
@@ -646,8 +647,8 @@ const SwipeablePoolCards = ({
             style={{ zIndex: 2, cursor: isDragging ? 'grabbing' : 'grab' }}
             whileTap={{ scale: 0.98 }}
           >
-            <div className="w-full h-full flex items-center justify-center p-4">
-              <div className="w-full max-w-[320px]">
+            <div className="w-full h-full flex items-center justify-center">
+              <div className="w-full max-w-[320px] mx-auto">
                 <PoolCardNFT 
                   pool={currentPool} 
                   onClick={() => onPoolClick?.(currentPool)}
@@ -671,7 +672,7 @@ const SwipeablePoolCards = ({
             style={{ zIndex: 1 }}
           >
             <div className="w-full h-full flex items-center justify-center">
-              <div className="w-[90%] max-w-[320px]">
+              <div className="w-[90%] max-w-[320px] mx-auto">
                 <PoolCardNFT pool={nextPool} onClick={() => {}} />
               </div>
             </div>
@@ -680,69 +681,81 @@ const SwipeablePoolCards = ({
       </div>
 
       {/* Social Actions Bar - Mobile */}
-      {currentPool && (
-        <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 z-20 flex items-center gap-3 bg-slate-900/90 backdrop-blur-md px-4 py-2.5 rounded-full border border-slate-700/50">
-          {/* Like Button */}
-          <button
-            onClick={handleLike}
-            disabled={isLikeLoading}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
-              isLiked
-                ? 'bg-pink-500/20 text-pink-400'
-                : 'bg-slate-800/50 text-gray-300 hover:bg-slate-700/50 hover:text-pink-400'
-            } ${isLikeLoading ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}
-          >
-            {isLiked ? (
-              <HeartIconSolid className="w-4 h-4" />
-            ) : (
-              <HeartIcon className="w-4 h-4" />
-            )}
-            <span className="text-xs font-semibold">{socialStats?.likes || 0}</span>
-          </button>
+      {currentPool && !showListView && (
+        <div className="absolute bottom-16 left-1/2 transform -translate-x-1/2 z-20 flex flex-col items-center gap-3">
+          <div className="flex items-center gap-3 bg-slate-900/90 backdrop-blur-md px-4 py-2.5 rounded-full border border-slate-700/50">
+            {/* Like Button */}
+            <button
+              onClick={handleLike}
+              disabled={isLikeLoading}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all ${
+                isLiked
+                  ? 'bg-pink-500/20 text-pink-400'
+                  : 'bg-slate-800/50 text-gray-300 hover:bg-slate-700/50 hover:text-pink-400'
+              } ${isLikeLoading ? 'opacity-50 cursor-not-allowed' : 'active:scale-95'}`}
+            >
+              {isLiked ? (
+                <HeartIconSolid className="w-4 h-4" />
+              ) : (
+                <HeartIcon className="w-4 h-4" />
+              )}
+              <span className="text-xs font-semibold">{socialStats?.likes || 0}</span>
+            </button>
 
-          {/* Share Button */}
+            {/* Share Button */}
+            <button
+              onClick={handleShare}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/50 text-gray-300 hover:bg-slate-700/50 hover:text-cyan-400 transition-all active:scale-95"
+            >
+              <ShareIcon className="w-4 h-4" />
+              <span className="text-xs font-semibold">Share</span>
+            </button>
+          </div>
+          
+          {/* View All Button */}
           <button
-            onClick={handleShare}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800/50 text-gray-300 hover:bg-slate-700/50 hover:text-cyan-400 transition-all active:scale-95"
+            onClick={() => setShowListView(true)}
+            className="w-full max-w-[200px] px-4 py-2.5 bg-gradient-primary text-black font-semibold rounded-lg hover:opacity-90 transition-opacity active:scale-95 text-sm"
           >
-            <ShareIcon className="w-4 h-4" />
-            <span className="text-xs font-semibold">Share</span>
+            View All Pools
           </button>
         </div>
       )}
 
       {/* Navigation Buttons */}
-      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20 flex gap-4">
-        <button
-          onClick={goToPrev}
-          disabled={currentIndex === 0}
-          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
-            currentIndex === 0
-              ? 'bg-slate-800/50 text-slate-600 cursor-not-allowed'
-              : 'bg-slate-800/80 backdrop-blur-sm text-white hover:bg-slate-700/80 active:scale-95'
-          }`}
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <button
-          onClick={goToNext}
-          disabled={currentIndex === pools.length - 1}
-          className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
-            currentIndex === pools.length - 1
-              ? 'bg-slate-800/50 text-slate-600 cursor-not-allowed'
-              : 'bg-slate-800/80 backdrop-blur-sm text-white hover:bg-slate-700/80 active:scale-95'
-          }`}
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
-      </div>
+      {!showListView && (
+        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20 flex gap-4">
+          <button
+            onClick={goToPrev}
+            disabled={currentIndex === 0}
+            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
+              currentIndex === 0
+                ? 'bg-slate-800/50 text-slate-600 cursor-not-allowed'
+                : 'bg-slate-800/80 backdrop-blur-sm text-white hover:bg-slate-700/80 active:scale-95'
+            }`}
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <button
+            onClick={goToNext}
+            disabled={currentIndex === pools.length - 1}
+            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
+              currentIndex === pools.length - 1
+                ? 'bg-slate-800/50 text-slate-600 cursor-not-allowed'
+                : 'bg-slate-800/80 backdrop-blur-sm text-white hover:bg-slate-700/80 active:scale-95'
+            }`}
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* Swipe Hint */}
-      {currentIndex === 0 && !isDragging && (
+      {currentIndex === 0 && !isDragging && !showListView && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: [0, 1, 0] }}
@@ -756,6 +769,46 @@ const SwipeablePoolCards = ({
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
           </svg>
+        </motion.div>
+      )}
+
+      {/* List View */}
+      {showListView && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 20 }}
+          className="absolute inset-0 z-30 bg-gradient-main overflow-y-auto"
+        >
+          {/* Header */}
+          <div className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-700/50 px-4 py-3 flex items-center justify-between">
+            <h2 className="text-lg font-bold text-white">All Pools</h2>
+            <button
+              onClick={() => setShowListView(false)}
+              className="px-4 py-2 bg-slate-800/50 text-white rounded-lg hover:bg-slate-700/50 transition-colors text-sm font-medium"
+            >
+              Back
+            </button>
+          </div>
+
+          {/* Scrollable List */}
+          <div className="p-4 space-y-4">
+            {pools.map((pool, index) => (
+              <motion.div
+                key={pool.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05 }}
+                onClick={() => {
+                  onPoolClick?.(pool);
+                  setShowListView(false);
+                }}
+                className="cursor-pointer"
+              >
+                <PoolCardNFT pool={pool} onClick={() => {}} />
+              </motion.div>
+            ))}
+          </div>
         </motion.div>
       )}
     </div>
