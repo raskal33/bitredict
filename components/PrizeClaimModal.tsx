@@ -68,16 +68,22 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
       return;
     }
     
+    // ✅ FIX: Ensure we're loading for the correct address
+    const currentAddress = userAddress.toLowerCase();
+    console.log(`[PrizeClaimModal] Loading positions for address: ${currentAddress}`);
+    
     isLoadingRef.current = true;
     setIsLoading(true);
     
     try {
-      // Load pool prizes from rewards API
-      const rewardsResponse = await fetch(getAPIUrl(`/api/rewards/${userAddress}`));
+      // Load pool prizes from rewards API - using the current userAddress
+      const rewardsResponse = await fetch(getAPIUrl(`/api/rewards/${currentAddress}`));
       if (rewardsResponse.ok) {
         const rewardsData = await rewardsResponse.json();
         if (rewardsData.success && rewardsData.data) {
           const pools = rewardsData.data.rewards?.pools || [];
+          console.log(`[PrizeClaimModal] Loaded ${pools.length} pool positions for ${currentAddress}`);
+          
           setPoolPositions(pools.map((p: PoolClaimablePosition & { poolId: number; claimed?: boolean; claimableAmount?: number; stakeAmount?: number; currency?: string; settledAt?: string; txHash?: string }) => ({
             poolId: p.poolId,
             league: p.league,
@@ -96,39 +102,88 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
             .filter((p: PoolClaimablePosition & { claimed?: boolean; claimableAmount?: number }) => !p.claimed && (p.claimableAmount || 0) > 0)
             .map((p: PoolClaimablePosition & { poolId: number }) => p.poolId);
           setSelectedPoolPositions(new Set(unclaimedPools));
+        } else {
+          console.warn(`[PrizeClaimModal] No pool data returned for ${currentAddress}`);
+          setPoolPositions([]);
+          setSelectedPoolPositions(new Set());
         }
+      } else {
+        console.error(`[PrizeClaimModal] Failed to fetch rewards for ${currentAddress}:`, rewardsResponse.status);
+        setPoolPositions([]);
+        setSelectedPoolPositions(new Set());
       }
       
-      // Load Odyssey positions
-      const odysseyPrizes = await getAllClaimableOdysseyPrizes();
-      if (isMountedRef.current) {
-        setOdysseyPositions(odysseyPrizes);
-        
-        // Auto-select unclaimed winning Odyssey positions
-        const unclaimedOdysseyWinning = odysseyPrizes
-          .filter(p => !p.claimed && p.claimStatus === 'eligible')
-          .map(p => `${p.cycleId}-${p.slipId}`);
-        setSelectedOdysseyPositions(new Set(unclaimedOdysseyWinning));
+      // Load Odyssey positions - use userAddress prop (not connected wallet)
+      try {
+        const odysseyResponse = await fetch(getAPIUrl(`/api/claim-oddyssey/user/${currentAddress}/claimable`));
+        if (odysseyResponse.ok) {
+          const odysseyData = await odysseyResponse.json();
+          const odysseyPrizes = odysseyData.claimablePrizes || [];
+          console.log(`[PrizeClaimModal] Loaded ${odysseyPrizes.length} odyssey positions for ${currentAddress}`);
+          
+          if (isMountedRef.current) {
+            setOdysseyPositions(odysseyPrizes.map((p: any) => ({
+              cycleId: p.cycleId,
+              slipId: p.slipId,
+              userAddress: currentAddress,
+              correctCount: p.correctCount,
+              prizeAmount: p.prizeAmount?.toString() || '0',
+              claimed: p.already_claimed || false,
+              claimStatus: p.canClaim ? 'eligible' : 'not_eligible',
+              placedAt: p.placedAt ? new Date(p.placedAt) : new Date(),
+              evaluatedAt: p.evaluatedAt ? new Date(p.evaluatedAt) : undefined
+            })));
+            
+            // Auto-select unclaimed winning Odyssey positions
+            const unclaimedOdysseyWinning = odysseyPrizes
+              .filter((p: any) => !p.already_claimed && p.canClaim)
+              .map((p: any) => `${p.cycleId}-${p.slipId}`);
+            setSelectedOdysseyPositions(new Set(unclaimedOdysseyWinning));
+          }
+        } else {
+          console.warn(`[PrizeClaimModal] Failed to fetch odyssey prizes for ${currentAddress}:`, odysseyResponse.status);
+          if (isMountedRef.current) {
+            setOdysseyPositions([]);
+            setSelectedOdysseyPositions(new Set());
+          }
+        }
+      } catch (odysseyError) {
+        console.error('[PrizeClaimModal] Error loading odyssey positions:', odysseyError);
+        if (isMountedRef.current) {
+          setOdysseyPositions([]);
+          setSelectedOdysseyPositions(new Set());
+        }
       }
       
       hasLoadedRef.current = true;
       
     } catch (error) {
-      console.error('Error loading positions:', error);
+      console.error('[PrizeClaimModal] Error loading positions:', error);
       if (isMountedRef.current) {
         toast.error('Failed to load claimable positions');
       }
       hasLoadedRef.current = false;
+      setPoolPositions([]);
+      setOdysseyPositions([]);
     } finally {
       if (isMountedRef.current) {
         setIsLoading(false);
         isLoadingRef.current = false;
       }
     }
-  }, [userAddress, getAllClaimableOdysseyPrizes]);
+  }, [userAddress]); // Removed getAllClaimableOdysseyPrizes dependency since we're calling API directly
 
-  // ✅ FIX: Load claimable positions only when modal opens and userAddress is available
+  // Track previous userAddress to detect changes
+  const previousUserAddressRef = useRef<string | undefined>(userAddress);
+
+  // ✅ FIX: Load claimable positions when modal opens or userAddress changes
   useEffect(() => {
+    // Reset loaded state if userAddress changed
+    if (previousUserAddressRef.current !== userAddress) {
+      hasLoadedRef.current = false;
+      previousUserAddressRef.current = userAddress;
+    }
+
     if (isOpen && userAddress && !hasLoadedRef.current && !isLoadingRef.current) {
       loadPositions();
     }
@@ -141,6 +196,7 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
       // Reset refs and state when modal closes
       hasLoadedRef.current = false;
       isLoadingRef.current = false;
+      previousUserAddressRef.current = undefined;
       setPoolPositions([]);
       setOdysseyPositions([]);
       setSelectedPoolPositions(new Set());
