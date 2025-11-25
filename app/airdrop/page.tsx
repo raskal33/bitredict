@@ -95,6 +95,17 @@ export default function AirdropPage() {
     }
   }, [isConnected, address, fetchAirdropData]);
 
+  // Also refresh when staking data changes (user stakes/unstakes)
+  useEffect(() => {
+    if (isConnected && address && staking.userStakesWithRewards) {
+      // Refresh eligibility when staking changes
+      const timeout = setTimeout(() => {
+        fetchAirdropData();
+      }, 2000); // Small delay to ensure contract state is updated
+      return () => clearTimeout(timeout);
+    }
+  }, [staking.userStakesWithRewards?.length, isConnected, address]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Enhanced eligibility combines backend data with smart contract data
   // Used for potential future features
 
@@ -120,11 +131,39 @@ export default function AirdropPage() {
     };
   };
 
+  // Enhanced staking check: Use contract data if available, fallback to API
+  const hasStakesFromContract = staking.userStakesWithRewards && staking.userStakesWithRewards.length > 0;
+  const stakingCountFromContract = hasStakesFromContract ? staking.userStakesWithRewards.length : 0;
+  
+  // Merge contract data with API data for staking requirement
+  // Contract is source of truth, so prioritize contract data over API
+  const stakingRequirement = eligibility?.requirements?.stakingActivity;
+  const enhancedStakingRequirement = (() => {
+    // If we have contract data, use it (contract is source of truth)
+    if (hasStakesFromContract) {
+      return {
+        current: stakingCountFromContract,
+        required: 1,
+        met: true
+      };
+    }
+    // Otherwise use API data
+    if (stakingRequirement && typeof stakingRequirement === 'object' && 'current' in stakingRequirement) {
+      return stakingRequirement as { current: number; required: number; met: boolean };
+    }
+    // Fallback: no staking
+    return {
+      current: 0,
+      required: 1,
+      met: false
+    };
+  })();
+
   const requirements = eligibility?.requirements ? [
     getRequirementStatus(eligibility.requirements?.faucetClaim, "1️⃣ Claim BITR from the faucet"),
     getRequirementStatus(eligibility.requirements?.poolsCreated, "2️⃣ Create at least 3 prediction pools"),
     getRequirementStatus(eligibility.requirements?.poolsParticipated, "3️⃣ Participate in at least 10 pools"),
-    getRequirementStatus(eligibility.requirements?.stakingActivity, "4️⃣ Stake BITR"),
+    getRequirementStatus(enhancedStakingRequirement, "4️⃣ Stake BITR"),
     getRequirementStatus(eligibility.requirements?.oddysseySlips, "5️⃣ Submit 5 Odyssey slips")
   ] : [];
 

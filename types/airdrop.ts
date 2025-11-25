@@ -18,7 +18,11 @@ export interface AirdropRequirements {
     required: number;
     met: boolean;
   };
-  stakingActivity: boolean;
+  stakingActivity: {
+    current: number;
+    required: number;
+    met: boolean;
+  };
   oddysseySlips: {
     current: number;
     required: number;
