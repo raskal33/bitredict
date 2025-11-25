@@ -117,26 +117,37 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
         const odysseyResponse = await fetch(getAPIUrl(`/api/claim-oddyssey/user/${currentAddress}/claimable`));
         if (odysseyResponse.ok) {
           const odysseyData = await odysseyResponse.json();
-          const odysseyPrizes = odysseyData.claimablePrizes || [];
+          interface OdysseyPrizeResponse {
+            cycleId: number;
+            slipId: number;
+            correctCount: number;
+            prizeAmount?: number | string;
+            already_claimed?: boolean;
+            canClaim?: boolean;
+            placedAt?: string;
+            evaluatedAt?: string;
+          }
+          
+          const odysseyPrizes: OdysseyPrizeResponse[] = odysseyData.claimablePrizes || [];
           console.log(`[PrizeClaimModal] Loaded ${odysseyPrizes.length} odyssey positions for ${currentAddress}`);
           
           if (isMountedRef.current) {
-            setOdysseyPositions(odysseyPrizes.map((p: any) => ({
+            setOdysseyPositions(odysseyPrizes.map((p) => ({
               cycleId: p.cycleId,
               slipId: p.slipId,
               userAddress: currentAddress,
               correctCount: p.correctCount,
               prizeAmount: p.prizeAmount?.toString() || '0',
               claimed: p.already_claimed || false,
-              claimStatus: p.canClaim ? 'eligible' : 'not_eligible',
+              claimStatus: p.canClaim ? 'eligible' as const : 'not_eligible' as const,
               placedAt: p.placedAt ? new Date(p.placedAt) : new Date(),
               evaluatedAt: p.evaluatedAt ? new Date(p.evaluatedAt) : undefined
             })));
             
             // Auto-select unclaimed winning Odyssey positions
             const unclaimedOdysseyWinning = odysseyPrizes
-              .filter((p: any) => !p.already_claimed && p.canClaim)
-              .map((p: any) => `${p.cycleId}-${p.slipId}`);
+              .filter((p) => !p.already_claimed && p.canClaim)
+              .map((p) => `${p.cycleId}-${p.slipId}`);
             setSelectedOdysseyPositions(new Set(unclaimedOdysseyWinning));
           }
         } else {
