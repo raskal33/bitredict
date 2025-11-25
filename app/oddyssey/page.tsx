@@ -2189,137 +2189,141 @@ export default function OddysseyPage() {
                               </div>
 
                               {/* Desktop Layout */}
-                              <div className="hidden md:grid md:grid-cols-12 gap-2">
-                                {/* Time */}
-                                <div className="col-span-1 text-center">
-                                  <div className={`text-xs font-mono px-2 py-1 rounded ${
-                                    isMatchStarted(safeStartTimeToISOString(match.startTime))
-                                      ? "text-red-400 bg-red-500/10 border border-red-500/20"
-                                      : "text-text-secondary bg-primary/10"
-                                  }`}>
-                                    <div className="font-bold">
-                                      {new Date(safeStartTimeToISOString(match.startTime)).toLocaleTimeString('en-US', { 
-                                        hour: '2-digit', 
-                                        minute: '2-digit',
-                                        hour12: false
-                                      })}
+                              <div className="hidden md:block">
+                                {/* Header Row */}
+                                <div className="grid grid-cols-12 gap-2 mb-1">
+                                  <div className="col-span-1"></div>
+                                  <div className="col-span-4"></div>
+                                  <div className="col-span-3 text-center">
+                                    <div className="text-[10px] text-text-secondary font-semibold">1 X 2</div>
+                                  </div>
+                                  <div className="col-span-2 text-center">
+                                    <div className="text-[10px] text-text-secondary font-semibold">Over - Under</div>
+                                  </div>
+                                  <div className="col-span-2"></div>
+                                </div>
+                                
+                                {/* Content Row */}
+                                <div className="grid grid-cols-12 gap-2">
+                                  {/* Time */}
+                                  <div className="col-span-1 text-center">
+                                    <div className={`text-xs font-mono px-2 py-1 rounded ${
+                                      isMatchStarted(safeStartTimeToISOString(match.startTime))
+                                        ? "text-red-400 bg-red-500/10 border border-red-500/20"
+                                        : "text-text-secondary bg-primary/10"
+                                    }`}>
+                                      <div className="font-bold">
+                                        {new Date(safeStartTimeToISOString(match.startTime)).toLocaleTimeString('en-US', { 
+                                          hour: '2-digit', 
+                                          minute: '2-digit',
+                                          hour12: false
+                                        })}
+                                      </div>
+                                      {isMatchStarted(safeStartTimeToISOString(match.startTime)) ? (
+                                        <div className="text-[8px] text-red-400 font-bold">STARTED</div>
+                                      ) : (
+                                        <div className="text-[8px] text-text-muted">AM</div>
+                                      )}
                                     </div>
-                                    {isMatchStarted(safeStartTimeToISOString(match.startTime)) ? (
-                                      <div className="text-[8px] text-red-400 font-bold">STARTED</div>
-                                    ) : (
-                                      <div className="text-[8px] text-text-muted">AM</div>
-                                    )}
                                   </div>
-                                </div>
 
-                                {/* Match */}
-                                <div className="col-span-4 flex items-center justify-center">
-                                  <div className="text-sm font-semibold text-white text-center leading-tight">
-                                    <div className="truncate">{match.homeTeam}</div>
-                                    <div className="text-xs text-text-muted">vs</div>
-                                    <div className="truncate">{match.awayTeam}</div>
+                                  {/* Match */}
+                                  <div className="col-span-4 flex items-center justify-center">
+                                    <div className="text-sm font-semibold text-white text-center leading-tight">
+                                      <div className="truncate">{match.homeTeam}</div>
+                                      <div className="text-xs text-text-muted">vs</div>
+                                      <div className="truncate">{match.awayTeam}</div>
+                                    </div>
                                   </div>
-                                </div>
 
-                                {/* Market Type Label - Moneyline */}
-                                <div className="col-span-1 text-center flex flex-col justify-center">
-                                  <div className="text-[10px] text-text-muted mb-1">Moneyline</div>
-                                  <div className="text-[10px] text-text-secondary">1 X 2</div>
-                                </div>
-
-                                {/* Home Win (1) */}
-                                <div className="col-span-1 text-center">
-                                  <button
-                                    onClick={() => handlePickSelection(matchId, "home")}
-                                    disabled={isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired}
-                                    className={`w-full px-2 py-1 text-center rounded transition-all duration-200 font-bold text-xs ${
-                                      isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired
-                                        ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
-                                        : picks.find(p => p.id === matchId && p.pick === "home")
-                                        ? "bg-gradient-primary text-black shadow-md scale-105"
-                                        : "bg-primary/10 text-white hover:bg-primary/20 hover:text-primary border border-transparent hover:border-primary/30"
-                                    }`}
-                                  >
-                                    {match.oddsHome.toFixed(2)}
-                                  </button>
-                                </div>
-                                
-                                {/* Draw (X) */}
-                                <div className="col-span-1 text-center">
-                                  <button
-                                    onClick={() => handlePickSelection(matchId, "draw")}
-                                    disabled={isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired}
-                                    className={`w-full px-2 py-1 text-center rounded transition-all duration-200 font-bold text-xs ${
-                                      isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired
-                                        ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
-                                        : picks.find(p => p.id === matchId && p.pick === "draw")
-                                        ? "bg-gradient-secondary text-black shadow-md scale-105"
-                                        : "bg-secondary/10 text-white hover:bg-secondary/20 hover:text-secondary border border-transparent hover:border-secondary/30"
-                                    }`}
-                                  >
-                                    {match.oddsDraw.toFixed(2)}
-                                  </button>
-                                </div>
-                                
-                                {/* Away Win (2) */}
-                                <div className="col-span-1 text-center">
-                                  <button
-                                    onClick={() => handlePickSelection(matchId, "away")}
-                                    disabled={isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired}
-                                    className={`w-full px-2 py-1 text-center rounded transition-all duration-200 font-bold text-xs ${
-                                      isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired
-                                        ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
-                                        : picks.find(p => p.id === matchId && p.pick === "away")
-                                        ? "bg-gradient-accent text-black shadow-md scale-105"
-                                        : "bg-accent/10 text-white hover:bg-accent/20 hover:text-accent border border-transparent hover:border-accent/30"
-                                    }`}
-                                  >
-                                    {match.oddsAway.toFixed(2)}
-                                  </button>
-                                </div>
-                                
-                                {/* Market Type Label - Over/Under */}
-                                <div className="col-span-1 text-center flex flex-col justify-center">
-                                  <div className="text-[10px] text-text-muted mb-1">Over/Under</div>
-                                  <div className="text-[10px] text-text-secondary">2.5</div>
-                                </div>
-
-                                {/* Over/Under 2.5 */}
-                                <div className="col-span-1 text-center">
-                                  <div className="flex gap-1">
+                                  {/* Home Win (1) */}
+                                  <div className="col-span-1 text-center">
                                     <button
-                                      onClick={() => handlePickSelection(matchId, "over")}
+                                      onClick={() => handlePickSelection(matchId, "home")}
                                       disabled={isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired}
-                                      className={`flex-1 px-1 py-1 text-center rounded transition-all duration-200 font-bold text-xs ${
+                                      className={`w-full px-2 py-1 text-center rounded transition-all duration-200 font-bold text-xs ${
                                         isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired
                                           ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
-                                          : picks.find(p => p.id === matchId && p.pick === "over")
-                                          ? "bg-gradient-to-r from-blue-500 to-primary text-black shadow-md scale-105"
-                                          : "bg-blue-500/10 text-white hover:bg-blue-500/20 hover:text-blue-300 border border-transparent hover:border-blue-300/30"
+                                          : picks.find(p => p.id === matchId && p.pick === "home")
+                                          ? "bg-gradient-primary text-black shadow-md scale-105"
+                                          : "bg-primary/10 text-white hover:bg-primary/20 hover:text-primary border border-transparent hover:border-primary/30"
                                       }`}
                                     >
-                                      O{match.oddsOver.toFixed(2)}
-                                    </button>
-                                    <button
-                                      onClick={() => handlePickSelection(matchId, "under")}
-                                      disabled={isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired}
-                                      className={`flex-1 px-1 py-1 text-center rounded transition-all duration-200 font-bold text-xs ${
-                                        isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired
-                                          ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
-                                          : picks.find(p => p.id === matchId && p.pick === "under")
-                                          ? "bg-gradient-to-r from-purple-500 to-blue-600 text-black shadow-md scale-105"
-                                          : "bg-purple-500/10 text-white hover:bg-purple-500/20 hover:text-purple-300 border border-transparent hover:border-purple-300/30"
-                                      }`}
-                                    >
-                                      U{match.oddsUnder.toFixed(2)}
+                                      {match.oddsHome.toFixed(2)}
                                     </button>
                                   </div>
-                                </div>
+                                  
+                                  {/* Draw (X) */}
+                                  <div className="col-span-1 text-center">
+                                    <button
+                                      onClick={() => handlePickSelection(matchId, "draw")}
+                                      disabled={isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired}
+                                      className={`w-full px-2 py-1 text-center rounded transition-all duration-200 font-bold text-xs ${
+                                        isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired
+                                          ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
+                                          : picks.find(p => p.id === matchId && p.pick === "draw")
+                                          ? "bg-gradient-secondary text-black shadow-md scale-105"
+                                          : "bg-secondary/10 text-white hover:bg-secondary/20 hover:text-secondary border border-transparent hover:border-secondary/30"
+                                      }`}
+                                    >
+                                      {match.oddsDraw.toFixed(2)}
+                                    </button>
+                                  </div>
+                                  
+                                  {/* Away Win (2) */}
+                                  <div className="col-span-1 text-center">
+                                    <button
+                                      onClick={() => handlePickSelection(matchId, "away")}
+                                      disabled={isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired}
+                                      className={`w-full px-2 py-1 text-center rounded transition-all duration-200 font-bold text-xs ${
+                                        isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired
+                                          ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
+                                          : picks.find(p => p.id === matchId && p.pick === "away")
+                                          ? "bg-gradient-accent text-black shadow-md scale-105"
+                                          : "bg-accent/10 text-white hover:bg-accent/20 hover:text-accent border border-transparent hover:border-accent/30"
+                                      }`}
+                                    >
+                                      {match.oddsAway.toFixed(2)}
+                                    </button>
+                                  </div>
+                                  
+                                  {/* Over/Under 2.5 */}
+                                  <div className="col-span-2 text-center">
+                                    <div className="flex gap-1">
+                                      <button
+                                        onClick={() => handlePickSelection(matchId, "over")}
+                                        disabled={isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired}
+                                        className={`flex-1 px-1 py-1 text-center rounded transition-all duration-200 font-bold text-xs ${
+                                          isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired
+                                            ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
+                                            : picks.find(p => p.id === matchId && p.pick === "over")
+                                            ? "bg-gradient-to-r from-blue-500 to-primary text-black shadow-md scale-105"
+                                            : "bg-blue-500/10 text-white hover:bg-blue-500/20 hover:text-blue-300 border border-transparent hover:border-blue-300/30"
+                                        }`}
+                                      >
+                                        O{match.oddsOver.toFixed(2)}
+                                      </button>
+                                      <button
+                                        onClick={() => handlePickSelection(matchId, "under")}
+                                        disabled={isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired}
+                                        className={`flex-1 px-1 py-1 text-center rounded transition-all duration-200 font-bold text-xs ${
+                                          isMatchStarted(safeStartTimeToISOString(match.startTime)) || isExpired
+                                            ? "bg-slate-700/30 text-slate-400 cursor-not-allowed opacity-50"
+                                            : picks.find(p => p.id === matchId && p.pick === "under")
+                                            ? "bg-gradient-to-r from-purple-500 to-blue-600 text-black shadow-md scale-105"
+                                            : "bg-purple-500/10 text-white hover:bg-purple-500/20 hover:text-purple-300 border border-transparent hover:border-purple-300/30"
+                                        }`}
+                                      >
+                                        U{match.oddsUnder.toFixed(2)}
+                                      </button>
+                                    </div>
+                                  </div>
 
-                                {/* League */}
-                                <div className="col-span-1 text-center">
-                                  <div className="text-xs text-text-secondary truncate">
-                                    {match.leagueName}
+                                  {/* League */}
+                                  <div className="col-span-2 text-center">
+                                    <div className="text-xs text-text-secondary truncate">
+                                      {match.leagueName}
+                                    </div>
                                   </div>
                                 </div>
                               </div>
