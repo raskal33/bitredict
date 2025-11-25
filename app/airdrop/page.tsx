@@ -74,19 +74,24 @@ export default function AirdropPage() {
   });
 
   const fetchAirdropData = useCallback(async () => {
-    if (!address) return;
-    
     setLoading(true);
     try {
-              const [eligibilityData, statsData, leaderboardData] = await Promise.all([
-        checkAirdropEligibility(address),
+      const promises: Promise<unknown>[] = [
         getAirdropStatistics(),
         getAirdropLeaderboard(50).catch(() => [] as LeaderboardUser[])
-      ]);
+      ];
       
-      setEligibility(eligibilityData);
-      setStatistics(statsData);
-      setLeaderboard(leaderboardData as LeaderboardUser[]);
+      if (address) {
+        promises.push(checkAirdropEligibility(address));
+      }
+      
+      const results = await Promise.all(promises);
+      
+      if (address) {
+        setEligibility(results[2] as UserEligibility);
+      }
+      setStatistics(results[0] as AirdropStatistics);
+      setLeaderboard(results[1] as LeaderboardUser[]);
     } catch (error) {
       console.error("Error fetching airdrop data:", error);
       toast.error("Failed to load airdrop data");
@@ -96,15 +101,14 @@ export default function AirdropPage() {
   }, [address]);
 
   useEffect(() => {
-    if (isConnected && address) {
+    // Always fetch statistics and leaderboard, even if not connected
+    fetchAirdropData();
+    // Refresh data every 30 seconds (fallback if WebSocket fails)
+    const interval = setInterval(() => {
       fetchAirdropData();
-      // Refresh data every 30 seconds (fallback if WebSocket fails)
-      const interval = setInterval(() => {
-        fetchAirdropData();
-      }, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [isConnected, address, fetchAirdropData]);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [fetchAirdropData]);
 
   // ✅ Real-time leaderboard updates via WebSocket
   useEffect(() => {
