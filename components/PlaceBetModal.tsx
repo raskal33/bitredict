@@ -11,7 +11,7 @@ import {
 import { useAccount } from "wagmi";
 import { useRouter } from "next/navigation";
 import { usePools } from "@/hooks/usePools";
-import { toast } from "react-hot-toast";
+import { toast } from "@/utils/toast";
 import { EnhancedPool } from "./EnhancedPoolCard";
 import { usePoolProgress } from "@/hooks/useSomniaStreams";
 

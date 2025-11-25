@@ -5,7 +5,7 @@ import Button from "@/components/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAccount, useChainId, useWalletClient } from "wagmi";
-import { toast } from "react-hot-toast";
+import { toast } from "@/utils/toast";
 import { formatEther } from "viem";
 
 import { oddysseyService, type OddysseyMatch, type CycleInfo, type UserStats } from "@/services/oddysseyService";

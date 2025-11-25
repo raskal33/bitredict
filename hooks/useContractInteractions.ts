@@ -2,7 +2,7 @@ import { useAccount, useReadContract, useWriteContract, useWaitForTransactionRec
 import { CONTRACTS, CONTRACT_ADDRESSES } from '@/contracts';
 import { executeContractCall, getTransactionOptions } from '@/lib/network-connection';
 import { useCallback, useMemo } from 'react';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/utils/toast';
 import { keccak256, toBytes } from 'viem';
 import { ethers } from 'ethers';
 import { formatTeamNamesForPool } from '@/utils/teamNameFormatter';

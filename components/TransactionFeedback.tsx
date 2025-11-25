@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaTimesCircle, FaExclamationTriangle, FaSpinner, FaExternalLinkAlt, FaCopy, FaWallet, FaClock, FaCheckDouble } from 'react-icons/fa';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/utils/toast';
 
 export interface TransactionStatus {
   type: 'success' | 'error' | 'warning' | 'info' | 'pending' | 'confirming';

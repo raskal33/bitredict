@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAccount, useDisconnect, useChainId } from 'wagmi';
 import { useAppKit, useAppKitState } from '@reown/appkit/react';
 import { somniaNetwork } from '@/config/wagmi';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/utils/toast';
 
 export interface WalletConnectionState {
   isConnected: boolean;

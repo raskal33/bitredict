@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { toast } from "react-hot-toast";
+import { toast } from "@/utils/toast";
 import { optimizedPoolService, type OptimizedPool } from "@/services/optimizedPoolService";
 import { frontendCache } from "@/services/frontendCache";
 import RecentBetsLane from "@/components/RecentBetsLane";

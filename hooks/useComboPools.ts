@@ -4,7 +4,7 @@ import { ethers } from 'ethers';
 import { CONTRACTS } from '@/contracts';
 import { CONTRACT_ADDRESSES } from '@/config/wagmi';
 import { getTransactionOptions } from '@/lib/network-connection';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/utils/toast';
 
 export interface ComboCondition {
   marketId: string;           // SportMonks match ID (bytes32)

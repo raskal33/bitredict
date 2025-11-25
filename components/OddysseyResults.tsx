@@ -11,7 +11,7 @@ import {
   EyeIcon
 } from '@heroicons/react/24/outline';
 import { FaSpinner } from 'react-icons/fa';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/utils/toast';
 import { format, parseISO } from 'date-fns';
 
 import { oddysseyService, ResultsByDate } from '@/services/oddysseyService';

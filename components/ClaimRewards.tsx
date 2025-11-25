@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt, useReadContract } from "wagmi";
-import { toast } from "react-hot-toast";
+import { toast } from "@/utils/toast";
 import { CONTRACT_ADDRESSES } from "@/config/wagmi";
 import BitredictPoolCoreArtifact from "@/contracts/abis/BitredictPoolCore.json";
 

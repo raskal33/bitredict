@@ -14,7 +14,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { FaChartLine, FaSearch } from 'react-icons/fa';
 import PrizeClaimModal from '@/components/PrizeClaimModal';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/utils/toast';
 import Button from '@/components/button';
 import RecentBetsLane from '@/components/RecentBetsLane';
 import AnimatedTitle from '@/components/AnimatedTitle';

@@ -15,7 +15,7 @@
 'use client';
 
 import { useEffect, useRef, useCallback } from 'react';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/utils/toast';
 import { useAccount } from 'wagmi';
 import {
   usePoolUpdates,

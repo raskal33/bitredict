@@ -3,7 +3,7 @@
 import React, { useState, useCallback } from 'react';
 import { useAccount } from 'wagmi';
 import { usePoolCore, useFaucet } from '@/hooks/useContractInteractions'; // ✅ FIX: Removed usePoolFactory - not needed
-import { toast } from 'react-hot-toast';
+import { toast } from '@/utils/toast';
 import { 
   OracleType, 
   MarketType, 

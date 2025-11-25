@@ -8,7 +8,7 @@ import {
   CheckCircleIcon,
   FireIcon
 } from '@heroicons/react/24/outline';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/utils/toast';
 import Button from './button';
 import { useNewClaimService, type OdysseyClaimablePosition } from '@/services/newClaimService';
 import { useWalletConnection } from '@/hooks/useWalletConnection';

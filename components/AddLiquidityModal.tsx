@@ -10,7 +10,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { useAccount } from "wagmi";
 import { usePools } from "@/hooks/usePools";
-import { toast } from "react-hot-toast";
+import { toast } from "@/utils/toast";
 import { EnhancedPool } from "./EnhancedPoolCard";
 
 interface AddLiquidityModalProps {

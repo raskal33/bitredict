@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useAccount } from 'wagmi';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/utils/toast';
 
 interface SocialStats {
   likes: number;

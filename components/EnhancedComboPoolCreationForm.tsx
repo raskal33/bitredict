@@ -16,7 +16,7 @@ import {
   MagnifyingGlassIcon,
   XMarkIcon
 } from '@heroicons/react/24/outline';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/utils/toast';
 import Button from '@/components/button';
 import AmountInput from '@/components/AmountInput';
 import Textarea from '@/components/textarea';

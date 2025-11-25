@@ -4,7 +4,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { useAccount } from 'wagmi';
 import { keccak256, toHex } from 'viem';
 import { usePoolCore, usePoolFactory, useFaucet } from '@/hooks/useContractInteractions';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/utils/toast';
 
 interface CreateCryptoMarketFormProps {
   onSuccess?: (poolId: string) => void;

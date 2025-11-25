@@ -29,7 +29,7 @@ import { useBITRToken } from "@/hooks/useBITRToken";
 import { TransactionFeedback } from "@/components/TransactionFeedback";
 import { optimizedPoolService } from "@/services/optimizedPoolService";
 import { frontendCache } from "@/services/frontendCache";
-import { toast } from "react-hot-toast";
+import { toast } from "@/utils/toast";
 import { PoolExplanationService, PoolExplanation } from "@/services/poolExplanationService";
 import PoolTitleRow from "@/components/PoolTitleRow";
 import CryptoTitleRow from "@/components/CryptoTitleRow";

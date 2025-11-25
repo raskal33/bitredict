@@ -19,7 +19,7 @@ import {
   HandRaisedIcon,
   CheckIcon
 } from "@heroicons/react/24/outline";
-import { toast } from "react-hot-toast";
+import { toast } from "@/utils/toast";
 import { useTransactionFeedback, TransactionFeedback } from "@/components/TransactionFeedback";
 import Button from "@/components/button";
 import AmountInput from "@/components/AmountInput";

@@ -9,7 +9,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useCycleUpdates, useSlipUpdates } from '@/hooks/useSomniaStreams';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/utils/toast';
 import { useAccount } from 'wagmi';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 

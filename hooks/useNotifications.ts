@@ -3,6 +3,7 @@ import { useAccount } from 'wagmi';
 import { useWebSocket } from './useWebSocket';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://bitredict-backend.fly.dev';
+const NOTIFICATION_DEDUP_WINDOW_MS = 4000;
 
 export interface Notification {
   id: number;
@@ -15,12 +16,62 @@ export interface Notification {
   createdAt: string;
 }
 
+const buildNotificationSignature = (notification: Partial<Notification>) => {
+  const { type, title, message, data } = notification;
+  const relatedId =
+    (data && (data.poolId || data.slipId || data.cycleId || data.betId || data.matchId)) ||
+    '';
+  return `${type || 'unknown'}|${title || ''}|${message || ''}|${relatedId}`;
+};
+
 export function useNotifications() {
   const { address } = useAccount();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const isMountedRef = useRef(true);
+  const notificationHashesRef = useRef<Map<string, number>>(new Map());
+
+  const rememberNotificationSignature = useCallback(
+    (notification: Notification, timestamp: number = Date.now()) => {
+      const signature = buildNotificationSignature(notification);
+      notificationHashesRef.current.set(signature, timestamp);
+      if (notificationHashesRef.current.size > 500) {
+        const firstKey = notificationHashesRef.current.keys().next().value;
+        if (firstKey) {
+          notificationHashesRef.current.delete(firstKey);
+        }
+      }
+    },
+    []
+  );
+
+  const shouldProcessNotification = useCallback(
+    (notification: Notification) => {
+      const signature = buildNotificationSignature(notification);
+      const now = Date.now();
+      const lastSeen = notificationHashesRef.current.get(signature);
+      if (lastSeen && now - lastSeen < NOTIFICATION_DEDUP_WINDOW_MS) {
+        console.warn('⚠️ Duplicate notification suppressed:', signature);
+        return false;
+      }
+      rememberNotificationSignature(notification, now);
+      return true;
+    },
+    [rememberNotificationSignature]
+  );
+
+  const dedupeNotificationList = useCallback((list: Notification[]) => {
+    const signatures = new Set<string>();
+    const cleaned: Notification[] = [];
+    list.forEach((notification) => {
+      const signature = buildNotificationSignature(notification);
+      if (signatures.has(signature)) return;
+      signatures.add(signature);
+      cleaned.push(notification);
+    });
+    return cleaned;
+  }, []);
 
   // Load notifications from localStorage on mount
   useEffect(() => {
@@ -61,8 +112,16 @@ export function useNotifications() {
       const data = await response.json();
 
       if (data.success && isMountedRef.current) {
-        setNotifications(data.notifications);
-        setUnreadCount(data.unreadCount);
+        const deduped = dedupeNotificationList(data.notifications || []);
+        setNotifications(deduped);
+        const unread = data.unreadCount ?? deduped.filter(n => !n.read).length;
+        setUnreadCount(unread);
+        deduped.forEach((notification) => {
+          const createdAtMs = notification.createdAt
+            ? new Date(notification.createdAt).getTime()
+            : Date.now();
+          rememberNotificationSignature(notification, createdAtMs);
+        });
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);
@@ -71,7 +130,7 @@ export function useNotifications() {
         setIsLoading(false);
       }
     }
-  }, [address]);
+  }, [address, dedupeNotificationList, rememberNotificationSignature]);
 
   // Handle WebSocket messages
   const handleMessage = useCallback((message: any) => {
@@ -84,6 +143,10 @@ export function useNotifications() {
       if (message.data.type === 'notification') {
         const newNotification = message.data.notification;
         
+        if (!shouldProcessNotification(newNotification)) {
+          return;
+        }
+        
         // ✅ DEDUPLICATION: Check if notification with this ID already exists
         setNotifications(prev => {
           const exists = prev.some(n => n.id === newNotification.id);
@@ -92,19 +155,12 @@ export function useNotifications() {
             return prev; // Don't add duplicate
           }
           
-          // Add new notification to the beginning
-          return [newNotification, ...prev].slice(0, 100); // Keep last 100
+          const updated = [newNotification, ...prev].slice(0, 100);
+          setUnreadCount(updated.filter(n => !n.read).length);
+          return updated;
         });
         
-        setUnreadCount(prev => {
-          // Check if we already counted this one
-          setNotifications(current => {
-            const count = current.filter(n => !n.read).length;
-            setUnreadCount(count); // Sync unread count based on actual notifications
-            return current;
-          });
-          return prev;
-        });
+        rememberNotificationSignature(newNotification);
         
         // Show browser notification if permission granted (only once per ID)
         if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
@@ -127,6 +183,10 @@ export function useNotifications() {
     else if (message.type === 'notification') {
       const newNotification = message.notification;
       
+      if (!shouldProcessNotification(newNotification)) {
+        return;
+      }
+      
       // ✅ DEDUPLICATION: Check if notification with this ID already exists
       setNotifications(prev => {
         const exists = prev.some(n => n.id === newNotification.id);
@@ -134,10 +194,12 @@ export function useNotifications() {
           console.warn(`⚠️ Duplicate notification detected: ${newNotification.id} - ignoring`);
           return prev;
         }
-        return [newNotification, ...prev].slice(0, 100);
+        const updated = [newNotification, ...prev].slice(0, 100);
+        setUnreadCount(updated.filter(n => !n.read).length);
+        return updated;
       });
       
-      setUnreadCount(prev => prev + 1);
+      rememberNotificationSignature(newNotification);
       
       if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
         new Notification(newNotification.title, {
@@ -148,7 +210,7 @@ export function useNotifications() {
     } else if (message.type === 'notification:unread_count') {
       setUnreadCount(message.unreadCount);
     }
-  }, []);
+  }, [rememberNotificationSignature, shouldProcessNotification]);
 
   // Connect to WebSocket
   const { isConnected } = useWebSocket({
@@ -176,10 +238,11 @@ export function useNotifications() {
       });
 
       if (response.ok) {
-        setNotifications(prev =>
-          prev.map(n => n.id === notificationId ? { ...n, read: true } : n)
-        );
-        setUnreadCount(prev => Math.max(0, prev - 1));
+        setNotifications(prev => {
+          const updated = prev.map(n => n.id === notificationId ? { ...n, read: true } : n);
+          setUnreadCount(updated.filter(n => !n.read).length);
+          return updated;
+        });
       }
     } catch (error) {
       console.error('Error marking as read:', error);
@@ -218,7 +281,11 @@ export function useNotifications() {
       });
 
       if (response.ok) {
-        setNotifications(prev => prev.filter(n => n.id !== notificationId));
+        setNotifications(prev => {
+          const updated = prev.filter(n => n.id !== notificationId);
+          setUnreadCount(updated.filter(n => !n.read).length);
+          return updated;
+        });
       }
     } catch (error) {
       console.error('Error deleting notification:', error);

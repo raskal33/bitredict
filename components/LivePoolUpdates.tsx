@@ -10,7 +10,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { usePoolUpdates, useBetUpdates, useSomniaStreams, type SDSPoolData, type SDSBetData } from '@/hooks/useSomniaStreams';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/utils/toast';
 import { useSoundEffects } from '@/hooks/useSoundEffects';
 import { useAnimationProps } from '@/utils/animationUtils';
 

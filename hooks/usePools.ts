@@ -3,7 +3,7 @@ import { useAccount, useReadContract, useWriteContract, useWaitForTransactionRec
 import { CONTRACTS, CONTRACT_ADDRESSES } from '@/contracts';
 import { formatUnits, parseUnits } from 'viem';
 import { encodeBytes32String } from 'ethers';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/utils/toast';
 import { convertPoolToReadableEnhanced } from '@/lib/bytes32-utils';
 import { useTransactionFeedback, TransactionStatus } from '@/components/TransactionFeedback';
 import { getTransactionOptions } from '@/lib/network-connection';

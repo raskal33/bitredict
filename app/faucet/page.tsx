@@ -3,7 +3,7 @@
 import { useEffect, useCallback, useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { useAccount } from "wagmi";
-import { toast } from "react-hot-toast";
+import { toast } from "@/utils/toast";
 import Button from "@/components/button";
 import AnimatedTitle from "@/components/AnimatedTitle";
 import LoadingSpinner from "@/components/LoadingSpinner";

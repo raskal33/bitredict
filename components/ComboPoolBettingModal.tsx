@@ -10,7 +10,7 @@ import {
   ExclamationTriangleIcon,
   CheckCircleIcon
 } from '@heroicons/react/24/outline';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/utils/toast';
 import Button from '@/components/button';
 import AmountInput from '@/components/AmountInput';
 import { formatEther } from 'viem';

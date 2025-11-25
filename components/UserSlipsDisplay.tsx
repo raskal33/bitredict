@@ -12,7 +12,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { OddysseyContractService, UserData } from '@/services/oddysseyContractService';
 import { motion } from 'framer-motion';
-import toast from 'react-hot-toast';
+import { toast } from '@/utils/toast';
 
 interface UserSlipsDisplayProps {
   userAddress: string;

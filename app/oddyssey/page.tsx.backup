@@ -4,7 +4,7 @@ import Button from "@/components/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAccount, useChainId } from "wagmi";
-import { toast } from "react-hot-toast";
+import { toast } from "@/utils/toast";
 
 import { oddysseyService } from "@/services/oddysseyService";
 import { useEnhancedOddyssey } from "@/hooks/useEnhancedOddyssey";

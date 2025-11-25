@@ -12,7 +12,7 @@ import { calculateSellOdds } from "../utils/poolCalculations";
 import { usePoolProgress } from "../hooks/useSomniaStreams";
 import { usePoolSocialStats } from "../hooks/usePoolSocialStats";
 import { useAccount } from "wagmi";
-import { toast } from "react-hot-toast";
+import { toast } from "@/utils/toast";
 
 interface PoolCardProps {
   pool: EnhancedPool;

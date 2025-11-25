@@ -13,7 +13,7 @@ import {
   TrophyIcon,
   ClockIcon,
 } from '@heroicons/react/24/outline';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/utils/toast';
 import { GuidedMarketService, FootballMatch } from '@/services/guidedMarketService';
 import { useComboPools, ComboCondition } from '@/hooks/useComboPools';
 import { useWalletConnection } from '@/hooks/useWalletConnection';

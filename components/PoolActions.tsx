@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import Button from '@/components/button';
-import { toast } from 'react-hot-toast';
+import { toast } from '@/utils/toast';
 import { CONTRACTS } from '@/contracts';
 
 interface Pool {
