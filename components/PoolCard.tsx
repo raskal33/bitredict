@@ -622,8 +622,8 @@ const SwipeablePoolCards = ({
             className="absolute inset-0 pointer-events-none"
             style={{ zIndex: 1 }}
           >
-            <div className="w-full h-full flex items-center justify-center">
-              <div className="w-[90%] max-w-[320px] mx-auto">
+            <div className="w-full h-full flex items-center justify-center px-4">
+              <div className="w-full max-w-[320px]">
                 <PoolCardNFT pool={prevPool} onClick={() => {}} />
               </div>
             </div>
@@ -647,8 +647,8 @@ const SwipeablePoolCards = ({
             style={{ zIndex: 2, cursor: isDragging ? 'grabbing' : 'grab' }}
             whileTap={{ scale: 0.98 }}
           >
-            <div className="w-full h-full flex items-center justify-center">
-              <div className="w-full max-w-[320px] mx-auto">
+            <div className="w-full h-full flex items-center justify-center px-4">
+              <div className="w-full max-w-[320px]">
                 <PoolCardNFT 
                   pool={currentPool} 
                   onClick={() => onPoolClick?.(currentPool)}
@@ -671,8 +671,8 @@ const SwipeablePoolCards = ({
             className="absolute inset-0 pointer-events-none"
             style={{ zIndex: 1 }}
           >
-            <div className="w-full h-full flex items-center justify-center">
-              <div className="w-[90%] max-w-[320px] mx-auto">
+            <div className="w-full h-full flex items-center justify-center px-4">
+              <div className="w-full max-w-[320px]">
                 <PoolCardNFT pool={nextPool} onClick={() => {}} />
               </div>
             </div>
@@ -792,7 +792,7 @@ const SwipeablePoolCards = ({
           </div>
 
           {/* Scrollable List */}
-          <div className="p-4 space-y-4">
+          <div className="p-4 space-y-4 flex flex-col items-center">
             {pools.map((pool, index) => (
               <motion.div
                 key={pool.id}
@@ -803,7 +803,7 @@ const SwipeablePoolCards = ({
                   onPoolClick?.(pool);
                   setShowListView(false);
                 }}
-                className="cursor-pointer"
+                className="cursor-pointer w-full max-w-[320px]"
               >
                 <PoolCardNFT pool={pool} onClick={() => {}} />
               </motion.div>
