@@ -2,7 +2,6 @@ import { useAccount, useWalletClient, useWriteContract, useWaitForTransactionRec
 import { parseEther, type Address } from 'viem';
 import { CONTRACT_ADDRESSES } from '@/config/wagmi';
 import { CONTRACTS } from '@/contracts';
-import { getTransactionOptions } from '@/lib/network-connection';
 import BitredictPoolCoreArtifact from '@/contracts/abis/BitredictPoolCore.json';
 import OddysseyArtifact from '@/contracts/abis/Oddyssey.json';
 
@@ -95,11 +94,13 @@ export class NewClaimService {
       }
 
       // ✅ FIX: Use writeContract directly with user's wallet (like ClaimRewards component)
+      // Add explicit gas limit to prevent gas estimation issues (backend uses 450000)
       const hash = await writeContract({
         address: CONTRACT_ADDRESSES.POOL_CORE,
         abi: BitredictPoolCoreABI,
         functionName: 'claim',
         args: [BigInt(poolId)],
+        gas: BigInt(450000), // Explicit gas limit matching backend
       });
 
       console.log('✅ Pool prize claim transaction submitted:', hash);
@@ -197,11 +198,13 @@ export class NewClaimService {
       }
 
       // ✅ FIX: Use writeContract directly with user's wallet
+      // Add explicit gas limit to prevent gas estimation issues
       const hash = await writeContract({
         address: CONTRACT_ADDRESSES.ODDYSSEY,
         abi: OddysseyABI,
         functionName: 'claimPrize',
         args: [BigInt(cycleId), BigInt(slipId)],
+        gas: BigInt(300000), // Explicit gas limit for claimPrize
       });
 
       console.log('✅ Odyssey prize claim transaction submitted:', hash);
