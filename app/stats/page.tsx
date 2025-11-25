@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Chart as ChartJS,
@@ -37,6 +37,7 @@ import { useUnifiedAnalyticsDashboard } from "@/hooks/useContractAnalytics";
 import { AnalyticsCard, ModernChart } from "@/components/analytics";
 import AnimatedTitle from "@/components/AnimatedTitle";
 import AnalyticsDashboard from "@/components/AnalyticsDashboard";
+import { getAPIUrl } from "@/config/api";
 
 ChartJS.register(
   CategoryScale,
@@ -80,23 +81,116 @@ function formatNumber(value: number | string | null | undefined, decimals: numbe
   return num.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
+interface CategoryData {
+  category: string;
+  poolCount: number;
+  totalVolume: number;
+  percentage?: number;
+}
+
+interface VolumeHistoryData {
+  date: string;
+  volume: number;
+  pools: number;
+  users: number;
+}
+
 export default function StatsPage() {
   const [activeTab, setActiveTab] = useState<"overview" | "analytics" | "leaderboard" | "enhanced">("overview");
   const [timeframe, setTimeframe] = useState<"24h" | "7d" | "30d" | "all">("7d");
   
+  // Real data state
+  const [categoryData, setCategoryData] = useState<CategoryData[]>([]);
+  const [volumeHistory, setVolumeHistory] = useState<VolumeHistoryData[]>([]);
+  const [oracleDistribution, setOracleDistribution] = useState({ guided: 0, open: 0 });
+  const [isLoadingCharts, setIsLoadingCharts] = useState(true);
+  
   // Use the unified analytics dashboard hook
   const { 
     globalStats, 
-    marketIntelligence,
     activePools,
     isLoading,
     error,
     refetchAll
   } = useUnifiedAnalyticsDashboard(timeframe);
 
+  // ✅ Fetch real category data
+  useEffect(() => {
+    const fetchCategoryData = async () => {
+      try {
+        setIsLoadingCharts(true);
+        const response = await fetch(getAPIUrl(`/api/analytics/categories?timeframe=${timeframe}`));
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success && result.data?.detailed && Array.isArray(result.data.detailed)) {
+            const totalPools = result.data.detailed.reduce((sum: number, cat: CategoryData) => sum + (cat.poolCount || 0), 0);
+            const categories = result.data.detailed.map((cat: CategoryData) => ({
+              category: cat.category || 'Other',
+              poolCount: cat.poolCount || 0,
+              totalVolume: cat.totalVolume || 0,
+              percentage: totalPools > 0 ? ((cat.poolCount || 0) / totalPools * 100) : 0
+            }));
+            setCategoryData(categories);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching category data:', error);
+      }
+    };
+
+    const fetchVolumeHistory = async () => {
+      try {
+        const response = await fetch(getAPIUrl(`/api/analytics/volume-history?timeframe=${timeframe}`));
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success && result.data && Array.isArray(result.data)) {
+            setVolumeHistory(result.data);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching volume history:', error);
+      }
+    };
+
+    const fetchOracleDistribution = async () => {
+      try {
+        const response = await fetch(getAPIUrl(`/api/analytics/global?timeframe=${timeframe}`));
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success && result.data) {
+            // Use oracleDistribution from API if available, otherwise calculate
+            if (result.data.oracleDistribution) {
+              setOracleDistribution({
+                guided: result.data.oracleDistribution.guided || 0,
+                open: result.data.oracleDistribution.open || 0
+              });
+            } else {
+              // Fallback: Calculate from pools
+              const guidedPools = result.data.guidedPools || 0;
+              const openPools = result.data.openPools || 0;
+              const total = guidedPools + openPools;
+              setOracleDistribution({
+                guided: total > 0 ? Math.round((guidedPools / total) * 100) : 0,
+                open: total > 0 ? Math.round((openPools / total) * 100) : 0
+              });
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching oracle distribution:', error);
+      } finally {
+        setIsLoadingCharts(false);
+      }
+    };
+
+    fetchCategoryData();
+    fetchVolumeHistory();
+    fetchOracleDistribution();
+  }, [timeframe]);
+
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-main text-white">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -117,7 +211,7 @@ export default function StatsPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-main text-white">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -132,7 +226,7 @@ export default function StatsPage() {
           </p>
           <button
             onClick={() => refetchAll()}
-            className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-bold py-2 px-6 rounded-lg transition-all duration-200"
+            className="bg-gradient-primary text-black font-bold py-2 px-6 rounded-lg transition-all duration-200 hover:opacity-90"
           >
             Retry
           </button>
@@ -150,32 +244,56 @@ export default function StatsPage() {
   const dailyActiveUsers = globalStats?.engagementMetrics?.dailyActiveUsers ?? 0;
   const platformHealth = globalStats?.performanceInsights?.platformHealth ?? 'good';
 
-  // ✅ FIX: Get category stats from market intelligence - ensure proper type handling
-  interface CategoryData {
-    category?: string;
-    poolCount?: number;
-    totalVolume?: number;
-  }
-  const categoryData = marketIntelligence && Array.isArray(marketIntelligence) && marketIntelligence.length > 0
-    ? marketIntelligence.map((cat: CategoryData) => ({
-        category: String(cat?.category || 'Other'),
-        count: Number(cat?.poolCount || 0),
-        volume: Number(cat?.totalVolume || 0)
-      }))
-    : [
-        { category: 'Sports', count: 0, volume: 0 },
-        { category: 'Crypto', count: 0, volume: 0 },
-        { category: 'Politics', count: 0, volume: 0 },
-        { category: 'Finance', count: 0, volume: 0 }
-      ];
-
-  const totalCategoryPools = categoryData.reduce((sum, cat) => sum + cat.count, 0);
+  // ✅ Prepare real category chart data
+  const totalCategoryPools = categoryData.reduce((sum, cat) => sum + cat.poolCount, 0);
   const categoryChartData = {
-    labels: categoryData.map(cat => String(cat.category)),
+    labels: categoryData.length > 0 ? categoryData.map(cat => String(cat.category)) : ['No Data'],
     datasets: [{
-      data: categoryData.map(cat => totalCategoryPools > 0 ? Number((cat.count / totalCategoryPools * 100).toFixed(2)) : 0),
-      backgroundColor: ['#22C7FF', '#FF0080', '#8C00FF', '#00D9A5'],
+      data: categoryData.length > 0 
+        ? categoryData.map(cat => totalCategoryPools > 0 ? Number((cat.poolCount / totalCategoryPools * 100).toFixed(2)) : 0)
+        : [0],
+      backgroundColor: ['#22C7FF', '#FF0080', '#8C00FF', '#00D9A5', '#FFB800', '#FF6B6B', '#4ECDC4', '#95E1D3'],
       borderWidth: 0,
+    }],
+  };
+
+  // ✅ Prepare real volume history chart data
+  const volumeChartData = {
+    labels: volumeHistory.length > 0 
+      ? volumeHistory.map(v => new Date(v.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
+      : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    datasets: [
+      {
+        label: 'Volume (STT)',
+        data: volumeHistory.length > 0 
+          ? volumeHistory.map(v => Number((v.volume / 1e18).toFixed(2)))
+          : [0, 0, 0, 0, 0, 0, 0],
+        borderColor: '#22C7FF',
+        backgroundColor: 'rgba(34, 199, 255, 0.1)',
+        fill: true,
+        tension: 0.4,
+      },
+      {
+        label: 'Active Pools',
+        data: volumeHistory.length > 0 
+          ? volumeHistory.map(v => v.pools || 0)
+          : [0, 0, 0, 0, 0, 0, 0],
+        borderColor: '#FF0080',
+        backgroundColor: 'rgba(255, 0, 128, 0.1)',
+        fill: true,
+        tension: 0.4,
+      },
+    ],
+  };
+
+  // ✅ Prepare real oracle distribution chart data
+  const oracleChartData = {
+    labels: ['Guided Oracle', 'Open Oracle'],
+    datasets: [{
+      label: 'Pools',
+      data: [oracleDistribution.guided || 0, oracleDistribution.open || 0],
+      backgroundColor: ['rgba(34, 199, 255, 0.8)', 'rgba(255, 0, 128, 0.8)'],
+      borderRadius: 8,
     }],
   };
 
@@ -192,7 +310,7 @@ export default function StatsPage() {
     : [];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900">
+    <div className="min-h-screen bg-gradient-main text-white">
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -213,7 +331,7 @@ export default function StatsPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.2 }}
-              className="text-lg text-gray-300 max-w-3xl mx-auto"
+              className="text-lg text-text-secondary max-w-3xl mx-auto"
             >
               Real-time insights into platform activity, performance metrics, and market trends with advanced data visualization.
             </motion.p>
@@ -226,7 +344,7 @@ export default function StatsPage() {
             transition={{ delay: 0.1 }}
             className="flex justify-center"
           >
-            <div className="glass-card p-2 rounded-xl inline-flex gap-2">
+            <div className="bg-slate-800/30 backdrop-blur-xl border border-slate-700/50 rounded-xl p-2 inline-flex gap-2">
               {[
                 { id: "24h", label: "24H", icon: ClockIcon },
                 { id: "7d", label: "7D", icon: ArrowTrendingUpIcon },
@@ -238,8 +356,8 @@ export default function StatsPage() {
                   onClick={() => setTimeframe(period.id as "24h" | "7d" | "30d" | "all")}
                   className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
                     timeframe === period.id
-                      ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/50"
-                      : "text-gray-300 hover:text-white hover:bg-white/10"
+                      ? "bg-gradient-primary text-black shadow-md shadow-cyan-500/20"
+                      : "text-text-secondary hover:text-primary hover:bg-white/10"
                   }`}
                 >
                   <period.icon className="w-4 h-4" />
@@ -296,7 +414,7 @@ export default function StatsPage() {
             transition={{ delay: 0.3 }}
             className="flex justify-center"
           >
-            <div className="glass-card p-2 rounded-xl inline-flex gap-2">
+            <div className="bg-slate-800/30 backdrop-blur-xl border border-slate-700/50 rounded-xl p-2 inline-flex gap-2">
               {[
                 { id: "overview", label: "Overview", icon: GlobeAltIcon },
                 { id: "analytics", label: "Analytics", icon: ChartBarIcon },
@@ -308,8 +426,8 @@ export default function StatsPage() {
                   onClick={() => setActiveTab(tab.id as "overview" | "analytics" | "leaderboard" | "enhanced")}
                   className={`flex items-center gap-2 px-6 py-3 text-sm font-medium rounded-lg transition-all duration-200 ${
                     activeTab === tab.id
-                      ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/50"
-                      : "text-gray-300 hover:text-white hover:bg-white/10"
+                      ? "bg-gradient-primary text-black shadow-md shadow-cyan-500/20"
+                      : "text-text-secondary hover:text-primary hover:bg-white/10"
                   }`}
                 >
                   <tab.icon className="h-4 w-4" />
@@ -331,33 +449,31 @@ export default function StatsPage() {
               >
                 {/* Market Intelligence Charts */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <div className="glass-card p-6">
+                  <div className="bg-slate-800/30 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
                     <ModernChart
                       title="Market Type Distribution"
                       type="doughnut"
                       data={categoryChartData}
                       height={400}
                     />
+                    {isLoadingCharts && (
+                      <div className="text-center text-text-secondary py-4">Loading category data...</div>
+                    )}
+                    {!isLoadingCharts && categoryData.length === 0 && (
+                      <div className="text-center text-text-secondary py-4">No category data available</div>
+                    )}
                   </div>
                   
-                  <div className="glass-card p-6">
+                  <div className="bg-slate-800/30 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
                     <ModernChart
                       title="Oracle Distribution"
                       type="bar"
-                      data={{
-                        labels: ['Guided Oracle', 'Open Oracle'],
-                        datasets: [{
-                          label: 'Pools',
-                          data: [
-                            totalPools > 0 ? Math.round(totalPools * 0.75) : 0,
-                            totalPools > 0 ? Math.round(totalPools * 0.25) : 0,
-                          ],
-                          backgroundColor: ['rgba(34, 199, 255, 0.8)', 'rgba(255, 0, 128, 0.8)'],
-                          borderRadius: 8,
-                        }],
-                      }}
+                      data={oracleChartData}
                       height={400}
                     />
+                    {isLoadingCharts && (
+                      <div className="text-center text-text-secondary py-4">Loading oracle data...</div>
+                    )}
                   </div>
                 </div>
 
@@ -400,52 +516,45 @@ export default function StatsPage() {
               >
                 {/* Advanced Analytics Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <div className="glass-card p-6">
+                  <div className="bg-slate-800/30 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
                     <ModernChart
                       title="Platform Performance"
                       subtitle="Key metrics over time"
                       type="line"
-                      data={{
-                        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-                        datasets: [
-                          {
-                            label: 'Volume (STT)',
-                            data: [120, 190, 300, 500, 200, 300, 450],
-                            borderColor: '#22C7FF',
-                            backgroundColor: 'rgba(34, 199, 255, 0.1)',
-                            fill: true,
-                            tension: 0.4,
-                          },
-                          {
-                            label: 'Active Pools',
-                            data: [15, 25, 35, 45, 30, 40, 55],
-                            borderColor: '#FF0080',
-                            backgroundColor: 'rgba(255, 0, 128, 0.1)',
-                            fill: true,
-                            tension: 0.4,
-                          },
-                        ],
-                      }}
+                      data={volumeChartData}
                       height={400}
                     />
+                    {isLoadingCharts && (
+                      <div className="text-center text-text-secondary py-4">Loading volume history...</div>
+                    )}
+                    {!isLoadingCharts && volumeHistory.length === 0 && (
+                      <div className="text-center text-text-secondary py-4">No volume data available</div>
+                    )}
                   </div>
                   
-                  <div className="glass-card p-6">
+                  <div className="bg-slate-800/30 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
                     <ModernChart
                       title="User Engagement"
                       subtitle="Platform activity patterns"
                       type="bar"
                       data={{
-                        labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00'],
+                        labels: volumeHistory.length > 0 
+                          ? volumeHistory.map(v => new Date(v.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }))
+                          : ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00'],
                         datasets: [{
                           label: 'Active Users',
-                          data: [45, 32, 78, 120, 95, 85],
+                          data: volumeHistory.length > 0 
+                            ? volumeHistory.map(v => v.users || 0)
+                            : [0, 0, 0, 0, 0, 0],
                           backgroundColor: 'rgba(255, 0, 128, 0.8)',
                           borderRadius: 8,
                         }],
                       }}
                       height={400}
                     />
+                    {isLoadingCharts && (
+                      <div className="text-center text-text-secondary py-4">Loading user data...</div>
+                    )}
                   </div>
                 </div>
 
@@ -453,15 +562,17 @@ export default function StatsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <AnalyticsCard
                     title="Peak Activity"
-                    value="16:00 UTC"
-                    subtitle="Most active hour"
+                    value={volumeHistory.length > 0 
+                      ? new Date(volumeHistory.reduce((max, v) => v.volume > max.volume ? v : max, volumeHistory[0])?.date || '').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                      : 'N/A'}
+                    subtitle="Most active day"
                     icon={ClockIcon}
                     color="primary"
                   />
                   
                   <AnalyticsCard
                     title="Top Category"
-                    value={categoryData.length > 0 && categoryData[0].count > 0 ? categoryData[0].category : 'N/A'}
+                    value={categoryData.length > 0 && categoryData[0].poolCount > 0 ? categoryData[0].category : 'N/A'}
                     subtitle="Most popular market"
                     icon={TrophyIcon}
                     color="secondary"
@@ -488,7 +599,7 @@ export default function StatsPage() {
               >
                 {/* Top Performers */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <div className="glass-card p-6">
+                  <div className="bg-slate-800/30 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
                     <div className="flex items-center justify-between mb-6">
                       <h3 className="text-xl font-bold text-white flex items-center gap-2">
                         <TrophySolid className="h-6 w-6 text-yellow-400" />
@@ -510,20 +621,20 @@ export default function StatsPage() {
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: 0.1 * index }}
-                            className="flex items-center justify-between p-4 rounded-lg bg-gray-800/50 hover:bg-gray-800/70 transition-all duration-200 border border-gray-700/50"
+                            className="flex items-center justify-between p-4 rounded-lg bg-slate-700/30 hover:bg-slate-700/50 transition-all duration-200 border border-slate-600/50"
                           >
                             <div className="flex items-center gap-4">
                               <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${
                                 index === 0 ? "bg-yellow-400 text-black" :
                                 index === 1 ? "bg-gray-300 text-black" :
                                 index === 2 ? "bg-orange-400 text-black" :
-                                "bg-gradient-to-r from-cyan-500 to-blue-500 text-white"
+                                "bg-gradient-primary text-black"
                               }`}>
                                 {index + 1}
                               </div>
                               <div>
                                 <p className="font-medium text-white">Pool #{poolId}</p>
-                                <div className="flex items-center gap-4 text-sm text-gray-400">
+                                <div className="flex items-center gap-4 text-sm text-text-secondary">
                                   <span>{typeof creator === 'string' && creator.length > 10 ? `${creator.slice(0, 6)}...${creator.slice(-4)}` : creator}</span>
                                   <span>{stake > 0 ? formatVolume(stake) : '0 STT'}</span>
                                 </div>
@@ -539,12 +650,12 @@ export default function StatsPage() {
                           </motion.div>
                         );
                       }) : (
-                        <div className="text-center text-gray-400 py-8">No active pools available</div>
+                        <div className="text-center text-text-secondary py-8">No active pools available</div>
                       )}
                     </div>
                   </div>
 
-                  <div className="glass-card p-6">
+                  <div className="bg-slate-800/30 backdrop-blur-xl border border-slate-700/50 rounded-xl p-6">
                     <div className="flex items-center justify-between mb-6">
                       <h3 className="text-xl font-bold text-white flex items-center gap-2">
                         <FireSolid className="h-6 w-6 text-orange-400" />
@@ -564,15 +675,15 @@ export default function StatsPage() {
                             initial={{ opacity: 0, x: 20 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: 0.1 * index }}
-                            className="flex items-center justify-between p-4 rounded-lg bg-gray-800/50 hover:bg-gray-800/70 transition-all duration-200 border border-gray-700/50"
+                            className="flex items-center justify-between p-4 rounded-lg bg-slate-700/30 hover:bg-slate-700/50 transition-all duration-200 border border-slate-600/50"
                           >
                             <div className="flex items-center gap-4">
-                              <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-orange-500 to-red-500 flex items-center justify-center font-bold text-sm text-white">
+                              <div className="w-8 h-8 rounded-lg bg-gradient-secondary flex items-center justify-center font-bold text-sm text-white">
                                 🔥
                               </div>
                               <div>
                                 <p className="font-medium text-white">Pool #{poolId}</p>
-                                <div className="flex items-center gap-4 text-sm text-gray-400">
+                                <div className="flex items-center gap-4 text-sm text-text-secondary">
                                   <span>{category}</span>
                                   <span>{odds > 0 ? `${(odds / 100).toFixed(2)}x` : '1.0x'} odds</span>
                                 </div>
@@ -580,12 +691,12 @@ export default function StatsPage() {
                             </div>
                             <div className="text-right">
                               <p className="text-sm font-medium text-green-400">+{Math.floor(Math.random() * 50)}%</p>
-                              <p className="text-sm text-gray-400">trending</p>
+                              <p className="text-sm text-text-secondary">trending</p>
                             </div>
                           </motion.div>
                         );
                       }) : (
-                        <div className="text-center text-gray-400 py-8">No trending pools available</div>
+                        <div className="text-center text-text-secondary py-8">No trending pools available</div>
                       )}
                     </div>
                   </div>

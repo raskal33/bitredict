@@ -112,13 +112,13 @@ export default function AirdropPage() {
       const updateData = leaderboardUpdate.data as { leaderboard?: Array<Record<string, unknown>> };
       if (updateData && updateData.leaderboard && Array.isArray(updateData.leaderboard)) {
         setLeaderboard(updateData.leaderboard.map((user: Record<string, unknown>) => ({
-          rank: user.rank || 0,
-          address: user.address || '',
-          airdropAmount: user.airdropAmount || '0',
-          bitrActions: user.bitrActions || 0,
-          oddysseySlips: user.oddysseySlips || 0,
-          hasStaking: user.hasStaking || false,
-          activityScore: user.activityScore || 0
+          rank: typeof user.rank === 'number' ? user.rank : typeof user.rank === 'string' ? parseInt(user.rank) : 0,
+          address: String(user.address || ''),
+          airdropAmount: user.airdropAmount ? String(user.airdropAmount) : '0',
+          bitrActions: typeof user.bitrActions === 'number' ? user.bitrActions : typeof user.bitrActions === 'string' ? parseInt(user.bitrActions) : 0,
+          oddysseySlips: typeof user.oddysseySlips === 'number' ? user.oddysseySlips : typeof user.oddysseySlips === 'string' ? parseInt(user.oddysseySlips) : 0,
+          hasStaking: Boolean(user.hasStaking),
+          activityScore: typeof user.activityScore === 'number' ? user.activityScore : typeof user.activityScore === 'string' ? parseInt(user.activityScore) : 0
         })));
         console.log('📡 Real-time leaderboard update received via WebSocket');
       }
