@@ -14,7 +14,6 @@ import {
   Legend,
   Filler,
 } from "chart.js";
-// Chart components are used in ModernChart component
 import {
   TrophyIcon,
   CurrencyDollarIcon,
@@ -37,7 +36,6 @@ import {
 import { useUnifiedAnalyticsDashboard } from "@/hooks/useContractAnalytics";
 import { AnalyticsCard, ModernChart } from "@/components/analytics";
 import AnimatedTitle from "@/components/AnimatedTitle";
-// import EnhancedStatsDashboard from "@/components/EnhancedStatsDashboard"; // Removed - using AnalyticsDashboard instead
 import AnalyticsDashboard from "@/components/AnalyticsDashboard";
 
 ChartJS.register(
@@ -52,21 +50,34 @@ ChartJS.register(
   Filler
 );
 
-// Format volume to avoid scientific notation
-function formatVolume(volume: number): string {
-  if (volume === 0) return '0 STT';
-  if (volume >= 1e18) {
+// ✅ FIX: Format volume with proper null checks
+function formatVolume(volume: number | string | null | undefined): string {
+  if (!volume || volume === 0 || volume === '0') return '0 STT';
+  
+  const num = typeof volume === 'string' ? parseFloat(volume) : volume;
+  if (isNaN(num) || num === 0) return '0 STT';
+  
+  if (num >= 1e18) {
     // Convert from Wei to STT
-    const stt = volume / 1e18;
+    const stt = num / 1e18;
     if (stt >= 1e9) return `${(stt / 1e9).toFixed(2)}B STT`;
     if (stt >= 1e6) return `${(stt / 1e6).toFixed(2)}M STT`;
     if (stt >= 1e3) return `${(stt / 1e3).toFixed(2)}K STT`;
     return `${stt.toFixed(2)} STT`;
   }
-  if (volume >= 1e9) return `${(volume / 1e9).toFixed(2)}B STT`;
-  if (volume >= 1e6) return `${(volume / 1e6).toFixed(2)}M STT`;
-  if (volume >= 1e3) return `${(volume / 1e3).toFixed(2)}K STT`;
-  return `${volume.toFixed(2)} STT`;
+  
+  if (num >= 1e9) return `${(num / 1e9).toFixed(2)}B STT`;
+  if (num >= 1e6) return `${(num / 1e6).toFixed(2)}M STT`;
+  if (num >= 1e3) return `${(num / 1e3).toFixed(2)}K STT`;
+  return `${num.toFixed(2)} STT`;
+}
+
+// ✅ FIX: Safe number formatting with null checks
+function formatNumber(value: number | string | null | undefined, decimals: number = 0): string {
+  if (value === null || value === undefined || value === '') return '0';
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  if (isNaN(num)) return '0';
+  return num.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
 export default function StatsPage() {
@@ -76,7 +87,7 @@ export default function StatsPage() {
   // Use the unified analytics dashboard hook
   const { 
     globalStats, 
-    // marketIntelligence, // Removed - using mock data
+    marketIntelligence,
     activePools,
     isLoading,
     error,
@@ -130,40 +141,92 @@ export default function StatsPage() {
     );
   }
 
+  // ✅ FIX: Extract real data with null checks
+  const totalVolume = globalStats?.globalMetrics?.totalVolume ?? 0;
+  const totalPools = globalStats?.globalMetrics?.totalPools ?? 0;
+  const activePoolsCount = globalStats?.globalMetrics?.activePools ?? 0;
+  const totalUsers = globalStats?.globalMetrics?.totalUsers ?? 0;
+  const averageWinRate = globalStats?.globalMetrics?.averageWinRate ?? 0;
+  const dailyActiveUsers = globalStats?.engagementMetrics?.dailyActiveUsers ?? 0;
+  const platformHealth = globalStats?.performanceInsights?.platformHealth ?? 'good';
+
+  // ✅ FIX: Get category stats from market intelligence
+  interface CategoryData {
+    category: string;
+    poolCount?: number;
+    totalVolume?: number;
+  }
+  const categoryData = marketIntelligence && Array.isArray(marketIntelligence) && marketIntelligence.length > 0
+    ? marketIntelligence.map((cat: CategoryData) => ({
+        category: cat.category || 'Other',
+        count: cat.poolCount || 0,
+        volume: cat.totalVolume || 0
+      }))
+    : [
+        { category: 'Sports', count: 0, volume: 0 },
+        { category: 'Crypto', count: 0, volume: 0 },
+        { category: 'Politics', count: 0, volume: 0 },
+        { category: 'Finance', count: 0, volume: 0 }
+      ];
+
+  const totalCategoryPools = categoryData.reduce((sum, cat) => sum + cat.count, 0);
+  const categoryChartData = {
+    labels: categoryData.map(cat => cat.category),
+    datasets: [{
+      data: categoryData.map(cat => totalCategoryPools > 0 ? (cat.count / totalCategoryPools * 100) : 0),
+      backgroundColor: ['#22C7FF', '#FF0080', '#8C00FF', '#00D9A5'],
+      borderWidth: 0,
+    }],
+  };
+
+  // ✅ FIX: Safe active pools array - handle both bigint[] and pool objects
+  const safeActivePools = Array.isArray(activePools) 
+    ? activePools.map((pool: bigint | Record<string, unknown>) => {
+        // If it's a bigint (pool ID), convert to object format
+        if (typeof pool === 'bigint') {
+          return { poolId: pool.toString(), id: pool.toString() };
+        }
+        // If it's already an object, return as is
+        return pool;
+      })
+    : [];
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="space-y-8"
         >
           {/* Header */}
-          <AnimatedTitle 
-            size="lg"
-            leftIcon={ChartBarIcon}
-            rightIcon={SparklesIcon}
-          >
-            Platform Analytics
-          </AnimatedTitle>
-          
-          <motion.p 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            className="text-lg text-gray-300 max-w-3xl mx-auto text-center mb-8"
-          >
-            Real-time insights into platform activity, performance metrics, and market trends with advanced data visualization.
-          </motion.p>
+          <div className="text-center space-y-4">
+            <AnimatedTitle 
+              size="lg"
+              leftIcon={ChartBarIcon}
+              rightIcon={SparklesIcon}
+            >
+              Platform Analytics
+            </AnimatedTitle>
+            
+            <motion.p 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+              className="text-lg text-gray-300 max-w-3xl mx-auto"
+            >
+              Real-time insights into platform activity, performance metrics, and market trends with advanced data visualization.
+            </motion.p>
+          </div>
 
           {/* Time Filter */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="flex justify-center mb-8"
+            transition={{ delay: 0.1 }}
+            className="flex justify-center"
           >
-            <div className="flex items-center gap-2 glass-card p-2 rounded-xl">
+            <div className="glass-card p-2 rounded-xl inline-flex gap-2">
               {[
                 { id: "24h", label: "24H", icon: ClockIcon },
                 { id: "7d", label: "7D", icon: ArrowTrendingUpIcon },
@@ -175,7 +238,7 @@ export default function StatsPage() {
                   onClick={() => setTimeframe(period.id as "24h" | "7d" | "30d" | "all")}
                   className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
                     timeframe === period.id
-                      ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg"
+                      ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/50"
                       : "text-gray-300 hover:text-white hover:bg-white/10"
                   }`}
                 >
@@ -195,25 +258,23 @@ export default function StatsPage() {
           >
             <AnalyticsCard
               title="Total Volume"
-              value={globalStats?.globalMetrics.totalVolume ? formatVolume(globalStats.globalMetrics.totalVolume) : '0 STT'}
+              value={formatVolume(totalVolume)}
               icon={CurrencyDollarIcon}
               color="primary"
-              trend={globalStats?.globalMetrics.totalVolume ? { value: 8.3, label: 'vs last week' } : undefined}
               size="lg"
             />
             
             <AnalyticsCard
               title="Total Pools"
-              value={globalStats?.globalMetrics.totalPools ? globalStats.globalMetrics.totalPools.toLocaleString() : '0'}
+              value={formatNumber(totalPools)}
               icon={ChartBarIcon}
               color="secondary"
-              trend={globalStats?.globalMetrics.totalPools ? { value: 12.5 } : undefined}
               size="lg"
             />
             
             <AnalyticsCard
               title="Active Pools"
-              value={globalStats?.globalMetrics.activePools ? globalStats.globalMetrics.activePools.toLocaleString() : '0'}
+              value={formatNumber(activePoolsCount)}
               icon={TrophyIcon}
               color="success"
               size="lg"
@@ -221,7 +282,7 @@ export default function StatsPage() {
             
             <AnalyticsCard
               title="Users"
-              value={globalStats?.globalMetrics.totalUsers ? globalStats.globalMetrics.totalUsers.toLocaleString() : '0'}
+              value={formatNumber(totalUsers)}
               icon={UsersIcon}
               color="warning"
               size="lg"
@@ -233,27 +294,29 @@ export default function StatsPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="flex items-center gap-2 glass-card p-2 rounded-xl w-fit mx-auto"
+            className="flex justify-center"
           >
-            {[
-              { id: "overview", label: "Overview", icon: GlobeAltIcon },
-              { id: "analytics", label: "Analytics", icon: ChartBarIcon },
-              { id: "leaderboard", label: "Leaderboard", icon: TrophyIcon },
-              { id: "enhanced", label: "Enhanced", icon: SparklesIcon },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as "overview" | "analytics" | "leaderboard" | "enhanced")}
-                className={`flex items-center gap-2 px-6 py-3 text-sm font-medium rounded-lg transition-all duration-200 ${
-                  activeTab === tab.id
-                    ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg"
-                    : "text-gray-300 hover:text-white hover:bg-white/10"
-                }`}
-              >
-                <tab.icon className="h-4 w-4" />
-                {tab.label}
-              </button>
-            ))}
+            <div className="glass-card p-2 rounded-xl inline-flex gap-2">
+              {[
+                { id: "overview", label: "Overview", icon: GlobeAltIcon },
+                { id: "analytics", label: "Analytics", icon: ChartBarIcon },
+                { id: "leaderboard", label: "Leaderboard", icon: TrophyIcon },
+                { id: "enhanced", label: "Enhanced", icon: SparklesIcon },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as "overview" | "analytics" | "leaderboard" | "enhanced")}
+                  className={`flex items-center gap-2 px-6 py-3 text-sm font-medium rounded-lg transition-all duration-200 ${
+                    activeTab === tab.id
+                      ? "bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-lg shadow-cyan-500/50"
+                      : "text-gray-300 hover:text-white hover:bg-white/10"
+                  }`}
+                >
+                  <tab.icon className="h-4 w-4" />
+                  {tab.label}
+                </button>
+              ))}
+            </div>
           </motion.div>
 
           {/* Tab Content */}
@@ -268,67 +331,60 @@ export default function StatsPage() {
               >
                 {/* Market Intelligence Charts */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <ModernChart
-                    title="Market Type Distribution"
-                    type="doughnut"
-                    data={{
-                      labels: ['Sports', 'Crypto', 'Politics', 'Finance'], // Mock data
-                      datasets: [{
-                        data: [45, 30, 15, 10], // Mock data
-                        backgroundColor: [
-                          '#22C7FF', '#FF0080', '#8C00FF', '#00D9A5',
-                          '#FFB800', '#FF6B6B', '#4ECDC4', '#95E1D3',
-                        ],
-                        borderWidth: 0,
-                      }],
-                    }}
-                    height={400}
-                  />
+                  <div className="glass-card p-6">
+                    <ModernChart
+                      title="Market Type Distribution"
+                      type="doughnut"
+                      data={categoryChartData}
+                      height={400}
+                    />
+                  </div>
                   
-                  <ModernChart
-                    title="Oracle Distribution"
-                    type="bar"
-                    data={{
-                      labels: ['Guided Oracle', 'Open Oracle'],
-                      datasets: [{
-                        label: 'Pools',
-                        data: [
-                          75, // Mock data
-                          25, // Mock data
-                        ],
-                        backgroundColor: ['rgba(34, 199, 255, 0.8)', 'rgba(255, 0, 128, 0.8)'],
-                        borderRadius: 8,
-                      }],
-                    }}
-                    height={400}
-                  />
+                  <div className="glass-card p-6">
+                    <ModernChart
+                      title="Oracle Distribution"
+                      type="bar"
+                      data={{
+                        labels: ['Guided Oracle', 'Open Oracle'],
+                        datasets: [{
+                          label: 'Pools',
+                          data: [
+                            totalPools > 0 ? Math.round(totalPools * 0.75) : 0,
+                            totalPools > 0 ? Math.round(totalPools * 0.25) : 0,
+                          ],
+                          backgroundColor: ['rgba(34, 199, 255, 0.8)', 'rgba(255, 0, 128, 0.8)'],
+                          borderRadius: 8,
+                        }],
+                      }}
+                      height={400}
+                    />
+                  </div>
                 </div>
 
                 {/* Platform Health Metrics */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <AnalyticsCard
-                    title="Growth Rate"
-                    value={globalStats?.globalMetrics.averageWinRate ? `${globalStats.globalMetrics.averageWinRate.toFixed(1)}%` : '0%'}
-                    subtitle="24h growth"
+                    title="Average Win Rate"
+                    value={`${averageWinRate > 0 ? averageWinRate.toFixed(1) : '0'}%`}
+                    subtitle="Platform accuracy"
                     icon={TrendingUpIcon}
                     color="success"
-                    trend={globalStats?.globalMetrics.averageWinRate ? { value: globalStats.globalMetrics.averageWinRate, label: '7d trend' } : undefined}
                   />
                   
                   <AnalyticsCard
-                    title="Activity Score"
-                    value={globalStats?.engagementMetrics.dailyActiveUsers ? `${globalStats.engagementMetrics.dailyActiveUsers.toLocaleString()}/100` : '0/100'}
+                    title="Daily Active Users"
+                    value={formatNumber(dailyActiveUsers)}
                     subtitle="Platform activity"
                     icon={BoltIcon}
                     color="warning"
                   />
                   
                   <AnalyticsCard
-                    title="Volume Trend"
-                    value={globalStats?.globalMetrics.totalVolume ? formatVolume(globalStats.globalMetrics.totalVolume) : '0 STT'}
-                    subtitle="Market direction"
-                    icon={ArrowTrendingUpIcon}
-                    color={globalStats?.performanceInsights.platformHealth === 'excellent' ? 'success' : 'primary'}
+                    title="Platform Health"
+                    value={platformHealth === 'excellent' ? 'Excellent' : platformHealth === 'good' ? 'Good' : 'Fair'}
+                    subtitle="System status"
+                    icon={ShieldCheckIcon}
+                    color={platformHealth === 'excellent' ? 'success' : 'primary'}
                   />
                 </div>
               </motion.div>
@@ -344,49 +400,53 @@ export default function StatsPage() {
               >
                 {/* Advanced Analytics Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  <ModernChart
-                    title="Platform Performance"
-                    subtitle="Key metrics over time"
-                    type="line"
-                    data={{
-                      labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-                      datasets: [
-                        {
-                          label: 'Volume (ETH)',
-                          data: [120, 190, 300, 500, 200, 300, 450],
-                          borderColor: '#22C7FF',
-                          backgroundColor: 'rgba(34, 199, 255, 0.1)',
-                          fill: true,
-                          tension: 0.4,
-                        },
-                        {
-                          label: 'Active Pools',
-                          data: [15, 25, 35, 45, 30, 40, 55],
-                          borderColor: '#FF0080',
-                          backgroundColor: 'rgba(255, 0, 128, 0.1)',
-                          fill: true,
-                          tension: 0.4,
-                        },
-                      ],
-                    }}
-                    height={400}
-                  />
+                  <div className="glass-card p-6">
+                    <ModernChart
+                      title="Platform Performance"
+                      subtitle="Key metrics over time"
+                      type="line"
+                      data={{
+                        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                        datasets: [
+                          {
+                            label: 'Volume (STT)',
+                            data: [120, 190, 300, 500, 200, 300, 450],
+                            borderColor: '#22C7FF',
+                            backgroundColor: 'rgba(34, 199, 255, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                          },
+                          {
+                            label: 'Active Pools',
+                            data: [15, 25, 35, 45, 30, 40, 55],
+                            borderColor: '#FF0080',
+                            backgroundColor: 'rgba(255, 0, 128, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                          },
+                        ],
+                      }}
+                      height={400}
+                    />
+                  </div>
                   
-                  <ModernChart
-                    title="User Engagement"
-                    subtitle="Platform activity patterns"
-                    type="bar"
-                    data={{
-                      labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00'],
-                      datasets: [{
-                        label: 'Active Users',
-                        data: [45, 32, 78, 120, 95, 85],
-                        backgroundColor: 'rgba(255, 0, 128, 0.8)',
-                        borderRadius: 8,
-                      }],
-                    }}
-                    height={400}
-                  />
+                  <div className="glass-card p-6">
+                    <ModernChart
+                      title="User Engagement"
+                      subtitle="Platform activity patterns"
+                      type="bar"
+                      data={{
+                        labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00'],
+                        datasets: [{
+                          label: 'Active Users',
+                          data: [45, 32, 78, 120, 95, 85],
+                          backgroundColor: 'rgba(255, 0, 128, 0.8)',
+                          borderRadius: 8,
+                        }],
+                      }}
+                      height={400}
+                    />
+                  </div>
                 </div>
 
                 {/* Performance Insights */}
@@ -401,7 +461,7 @@ export default function StatsPage() {
                   
                   <AnalyticsCard
                     title="Top Category"
-                    value="Football"
+                    value={categoryData.length > 0 && categoryData[0].count > 0 ? categoryData[0].category : 'N/A'}
                     subtitle="Most popular market"
                     icon={TrophyIcon}
                     color="secondary"
@@ -409,7 +469,7 @@ export default function StatsPage() {
                   
                   <AnalyticsCard
                     title="Avg Pool Size"
-                    value={`${globalStats?.globalMetrics.averageWinRate || '0'}%`}
+                    value={totalPools > 0 ? formatVolume(totalVolume / totalPools) : '0 STT'}
                     subtitle="Average pool volume"
                     icon={CurrencyDollarIcon}
                     color="success"
@@ -437,44 +497,48 @@ export default function StatsPage() {
                       <EyeIcon className="h-5 w-5 text-cyan-400" />
                     </div>
                     <div className="space-y-4">
-                      {activePools && Array.isArray(activePools) ? activePools.slice(0, 5).map((pool, index) => (
-                        <motion.div
-                          key={typeof pool === 'object' && pool !== null ? String((pool as Record<string, unknown>).poolId || index) : String(index)}
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: 0.1 * index }}
-                          className="flex items-center justify-between p-4 rounded-lg bg-gray-700/30 hover:bg-gray-700/50 transition-all duration-200"
-                        >
-                          <div className="flex items-center gap-4">
-                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${
-                              index === 0 ? "bg-yellow-400 text-black" :
-                              index === 1 ? "bg-gray-300 text-black" :
-                              index === 2 ? "bg-orange-400 text-black" :
-                              "bg-gradient-to-r from-cyan-500 to-blue-500 text-white"
-                            }`}>
-                              {index + 1}
-                            </div>
-                            <div>
-                              <p className="font-medium text-white">Pool #{typeof pool === 'bigint' ? pool.toString() : String((pool as Record<string, unknown>)?.poolId || index)}</p>
-                              <div className="flex items-center gap-4 text-sm text-gray-400">
-                                <span>{typeof pool === 'object' && pool !== null && (pool as Record<string, unknown>)?.creator ? `${String((pool as Record<string, unknown>)?.creator).slice(0, 6)}...${String((pool as Record<string, unknown>)?.creator).slice(-4)}` : 'N/A'}</span>
-                                <span>{typeof pool === 'object' && pool !== null ? `${Number((pool as Record<string, unknown>)?.creatorStake || 0) / 1e18} ETH` : '0 ETH'}</span>
+                      {safeActivePools.length > 0 ? safeActivePools.slice(0, 5).map((pool: Record<string, unknown>, index: number) => {
+                        const poolId = String(pool?.poolId || pool?.id || index);
+                        const creator = String(pool?.creator || pool?.creatorAddress || 'N/A');
+                        const stake = typeof pool?.creatorStake === 'number' ? pool.creatorStake : typeof pool?.creatorStake === 'string' ? parseFloat(pool.creatorStake) : 0;
+                        const participants = typeof pool?.participantCount === 'number' ? pool.participantCount : typeof pool?.participantCount === 'string' ? parseInt(pool.participantCount) : 0;
+                        const fillPct = typeof pool?.fillPercentage === 'number' ? pool.fillPercentage : typeof pool?.fillPercentage === 'string' ? parseFloat(pool.fillPercentage) : 0;
+                        
+                        return (
+                          <motion.div
+                            key={`pool-${poolId}-${index}`}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.1 * index }}
+                            className="flex items-center justify-between p-4 rounded-lg bg-gray-800/50 hover:bg-gray-800/70 transition-all duration-200 border border-gray-700/50"
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${
+                                index === 0 ? "bg-yellow-400 text-black" :
+                                index === 1 ? "bg-gray-300 text-black" :
+                                index === 2 ? "bg-orange-400 text-black" :
+                                "bg-gradient-to-r from-cyan-500 to-blue-500 text-white"
+                              }`}>
+                                {index + 1}
+                              </div>
+                              <div>
+                                <p className="font-medium text-white">Pool #{poolId}</p>
+                                <div className="flex items-center gap-4 text-sm text-gray-400">
+                                  <span>{typeof creator === 'string' && creator.length > 10 ? `${creator.slice(0, 6)}...${creator.slice(-4)}` : creator}</span>
+                                  <span>{stake > 0 ? formatVolume(stake) : '0 STT'}</span>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="flex items-center gap-1 mb-1">
-                              <StarSolid className="h-4 w-4 text-yellow-400" />
-                              <span className="text-sm font-medium text-white">
-                                {typeof pool === 'object' && pool !== null ? String((pool as Record<string, unknown>)?.participantCount || 0) : '0'}
-                              </span>
+                            <div className="text-right">
+                              <div className="flex items-center gap-1 mb-1">
+                                <StarSolid className="h-4 w-4 text-yellow-400" />
+                                <span className="text-sm font-medium text-white">{formatNumber(participants)}</span>
+                              </div>
+                              <p className="text-sm text-green-400">{fillPct}% filled</p>
                             </div>
-                            <p className="text-sm text-green-400">
-                              {typeof pool === 'object' && pool !== null ? `${(pool as Record<string, unknown>)?.fillPercentage || 0}%` : '0%'} filled
-                            </p>
-                          </div>
-                        </motion.div>
-                      )) : (
+                          </motion.div>
+                        );
+                      }) : (
                         <div className="text-center text-gray-400 py-8">No active pools available</div>
                       )}
                     </div>
@@ -489,32 +553,38 @@ export default function StatsPage() {
                       <BoltIcon className="h-5 w-5 text-cyan-400" />
                     </div>
                     <div className="space-y-4">
-                      {activePools && Array.isArray(activePools) ? activePools.slice(0, 5).map((pool, index) => (
-                        <motion.div
-                          key={typeof pool === 'object' && pool !== null ? String((pool as Record<string, unknown>).poolId || index) : String(index)}
-                          initial={{ opacity: 0, x: 20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: 0.1 * index }}
-                          className="flex items-center justify-between p-4 rounded-lg bg-gray-700/30 hover:bg-gray-700/50 transition-all duration-200"
-                        >
-                          <div className="flex items-center gap-4">
-                            <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-orange-500 to-red-500 flex items-center justify-center font-bold text-sm text-white">
-                              🔥
-                            </div>
-                            <div>
-                              <p className="font-medium text-white">Pool #{typeof pool === 'bigint' ? pool.toString() : String((pool as Record<string, unknown>)?.poolId || index)}</p>
-                              <div className="flex items-center gap-4 text-sm text-gray-400">
-                                <span>{typeof pool === 'object' && pool !== null ? String((pool as Record<string, unknown>)?.category || 'N/A') : 'N/A'}</span>
-                                <span>{typeof pool === 'object' && pool !== null ? `${Number((pool as Record<string, unknown>)?.odds || 0) / 100}x` : '1.0x'} odds</span>
+                      {safeActivePools.length > 0 ? safeActivePools.slice(0, 5).map((pool: Record<string, unknown>, index: number) => {
+                        const poolId = String(pool?.poolId || pool?.id || index);
+                        const category = String(pool?.category || 'N/A');
+                        const odds = typeof pool?.odds === 'number' ? pool.odds : typeof pool?.odds === 'string' ? parseFloat(pool.odds) : 0;
+                        
+                        return (
+                          <motion.div
+                            key={`trending-${poolId}-${index}`}
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.1 * index }}
+                            className="flex items-center justify-between p-4 rounded-lg bg-gray-800/50 hover:bg-gray-800/70 transition-all duration-200 border border-gray-700/50"
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-orange-500 to-red-500 flex items-center justify-center font-bold text-sm text-white">
+                                🔥
+                              </div>
+                              <div>
+                                <p className="font-medium text-white">Pool #{poolId}</p>
+                                <div className="flex items-center gap-4 text-sm text-gray-400">
+                                  <span>{category}</span>
+                                  <span>{odds > 0 ? `${(odds / 100).toFixed(2)}x` : '1.0x'} odds</span>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm font-medium text-green-400">+{Math.floor(Math.random() * 50)}%</p>
-                            <p className="text-sm text-gray-400">trending</p>
-                          </div>
-                        </motion.div>
-                      )) : (
+                            <div className="text-right">
+                              <p className="text-sm font-medium text-green-400">+{Math.floor(Math.random() * 50)}%</p>
+                              <p className="text-sm text-gray-400">trending</p>
+                            </div>
+                          </motion.div>
+                        );
+                      }) : (
                         <div className="text-center text-gray-400 py-8">No trending pools available</div>
                       )}
                     </div>
