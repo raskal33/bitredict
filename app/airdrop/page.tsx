@@ -9,6 +9,7 @@ import LoadingSpinner from "@/components/LoadingSpinner";
 import { useBITRToken } from "@/hooks/useBITRToken";
 import { useFaucet } from "@/hooks/useFaucet";
 import { useStaking } from "@/hooks/useStaking";
+import { useWebSocket } from "@/hooks/useWebSocket";
 import { 
   checkAirdropEligibility, 
   getAirdropStatistics,
@@ -62,6 +63,16 @@ export default function AirdropPage() {
   const faucet = useFaucet();
   const staking = useStaking();
 
+  // ✅ WebSocket for real-time leaderboard updates
+  const [leaderboardUpdate, setLeaderboardUpdate] = useState<Record<string, unknown> | null>(null);
+  const { isConnected: wsConnected } = useWebSocket({
+    channel: 'airdrop:leaderboard',
+    onMessage: (message: Record<string, unknown>) => {
+      setLeaderboardUpdate(message);
+    },
+    enabled: activeTab === 'leaderboard'
+  });
+
   const fetchAirdropData = useCallback(async () => {
     if (!address) return;
     
@@ -87,13 +98,32 @@ export default function AirdropPage() {
   useEffect(() => {
     if (isConnected && address) {
       fetchAirdropData();
-      // Refresh data every 30 seconds
+      // Refresh data every 30 seconds (fallback if WebSocket fails)
       const interval = setInterval(() => {
         fetchAirdropData();
       }, 30000);
       return () => clearInterval(interval);
     }
   }, [isConnected, address, fetchAirdropData]);
+
+  // ✅ Real-time leaderboard updates via WebSocket
+  useEffect(() => {
+    if (leaderboardUpdate && leaderboardUpdate.type === 'update' && leaderboardUpdate.channel === 'airdrop:leaderboard') {
+      const updateData = leaderboardUpdate.data as { leaderboard?: Array<Record<string, unknown>> };
+      if (updateData && updateData.leaderboard && Array.isArray(updateData.leaderboard)) {
+        setLeaderboard(updateData.leaderboard.map((user: Record<string, unknown>) => ({
+          rank: user.rank || 0,
+          address: user.address || '',
+          airdropAmount: user.airdropAmount || '0',
+          bitrActions: user.bitrActions || 0,
+          oddysseySlips: user.oddysseySlips || 0,
+          hasStaking: user.hasStaking || false,
+          activityScore: user.activityScore || 0
+        })));
+        console.log('📡 Real-time leaderboard update received via WebSocket');
+      }
+    }
+  }, [leaderboardUpdate]);
 
   // Also refresh when staking data changes (user stakes/unstakes)
   useEffect(() => {
@@ -445,9 +475,17 @@ export default function AirdropPage() {
                 <div className="p-4 bg-accent/20 rounded-xl">
                   <FaTrophy className="h-8 w-8 text-accent" />
                 </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-primary">Airdrop Leaderboard</h2>
-                  <p className="text-text-secondary">Top participants by allocation amount</p>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-2xl font-bold text-primary">Airdrop Leaderboard</h2>
+                    {wsConnected && (
+                      <span className="px-2 py-1 bg-green-500/20 border border-green-500/30 rounded text-xs text-green-400 flex items-center gap-1">
+                        <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                        Live
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-text-secondary">Top participants by allocation amount {wsConnected ? '(Real-time updates)' : ''}</p>
                 </div>
               </div>
 

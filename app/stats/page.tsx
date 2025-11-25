@@ -150,17 +150,17 @@ export default function StatsPage() {
   const dailyActiveUsers = globalStats?.engagementMetrics?.dailyActiveUsers ?? 0;
   const platformHealth = globalStats?.performanceInsights?.platformHealth ?? 'good';
 
-  // ✅ FIX: Get category stats from market intelligence
+  // ✅ FIX: Get category stats from market intelligence - ensure proper type handling
   interface CategoryData {
-    category: string;
+    category?: string;
     poolCount?: number;
     totalVolume?: number;
   }
   const categoryData = marketIntelligence && Array.isArray(marketIntelligence) && marketIntelligence.length > 0
     ? marketIntelligence.map((cat: CategoryData) => ({
-        category: cat.category || 'Other',
-        count: cat.poolCount || 0,
-        volume: cat.totalVolume || 0
+        category: String(cat?.category || 'Other'),
+        count: Number(cat?.poolCount || 0),
+        volume: Number(cat?.totalVolume || 0)
       }))
     : [
         { category: 'Sports', count: 0, volume: 0 },
@@ -171,9 +171,9 @@ export default function StatsPage() {
 
   const totalCategoryPools = categoryData.reduce((sum, cat) => sum + cat.count, 0);
   const categoryChartData = {
-    labels: categoryData.map(cat => cat.category),
+    labels: categoryData.map(cat => String(cat.category)),
     datasets: [{
-      data: categoryData.map(cat => totalCategoryPools > 0 ? (cat.count / totalCategoryPools * 100) : 0),
+      data: categoryData.map(cat => totalCategoryPools > 0 ? Number((cat.count / totalCategoryPools * 100).toFixed(2)) : 0),
       backgroundColor: ['#22C7FF', '#FF0080', '#8C00FF', '#00D9A5'],
       borderWidth: 0,
     }],
