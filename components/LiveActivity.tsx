@@ -3,6 +3,13 @@
  * 
  * Shows real-time activity events (bets placed, pools created, liquidity added)
  * Positioned at left bottom, opens onClick, closed by default
+ * 
+ * ✅ Uses Somnia Data Streams (SDS) for real-time updates:
+ * - Subscribes to 'BetPlaced' events via useBetUpdates
+ * - Subscribes to 'PoolCreated' events via usePoolCreatedUpdates
+ * - Subscribes to 'LiquidityAdded' events via useLiquidityAddedUpdates
+ * - Event IDs match backend eventSchemaIds (BetPlaced, PoolCreated, LiquidityAdded)
+ * - Falls back to WebSocket if SDS is unavailable
  */
 
 'use client';
