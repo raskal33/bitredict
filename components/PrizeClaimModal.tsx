@@ -14,6 +14,7 @@ import { useNewClaimService, type OdysseyClaimablePosition } from '@/services/ne
 import { useWalletConnection } from '@/hooks/useWalletConnection';
 import { getAPIUrl } from '@/config/api';
 import LoadingSpinner from './LoadingSpinner';
+import { formatNumber } from '@/utils/number-helpers';
 
 interface PrizeClaimModalProps {
   isOpen: boolean;
@@ -484,11 +485,11 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
           </div>
 
           {/* Summary */}
-          <div className="p-6 border-b border-border-card bg-bg-card/50">
+          <div className="p-6 border-b border-border-card backdrop-blur-xl bg-bg-dark/95" style={{ background: 'rgba(17, 24, 39, 0.95)', backdropFilter: 'blur(12px)' }}>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="text-center">
                 <div className="text-2xl font-bold text-green-400">
-                  {totalClaimableAmount.toFixed(4)}
+                  {formatNumber(totalClaimableAmount, 2)}
                 </div>
                 <div className="text-sm text-text-secondary">Total Claimable</div>
               </div>
@@ -500,7 +501,7 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-accent">
-                  {selectedAmount.toFixed(4)}
+                  {formatNumber(selectedAmount, 2)}
                 </div>
                 <div className="text-sm text-text-secondary">Selected Amount</div>
               </div>
@@ -636,10 +637,10 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
                           <div className={`font-bold ${
                             position.claimableAmount > 0 ? 'text-green-400' : 'text-red-400'
                           }`}>
-                            {position.claimableAmount > 0 ? '+' : ''}{position.claimableAmount.toFixed(4)} {position.currency}
+                            {position.claimableAmount > 0 ? '+' : ''}{formatNumber(position.claimableAmount, 2)} {position.currency}
                           </div>
                           <div className="text-xs text-text-secondary">
-                            Stake: {position.stakeAmount.toFixed(4)} {position.currency}
+                            Stake: {formatNumber(position.stakeAmount, 2)} {position.currency}
                           </div>
                         </div>
 
@@ -709,7 +710,7 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
                           <div className={`font-bold ${
                             position.claimStatus === 'eligible' ? 'text-green-400' : 'text-red-400'
                           }`}>
-                            {position.claimStatus === 'eligible' ? '+' : ''}{parseFloat(position.prizeAmount).toFixed(4)} STT
+                            {position.claimStatus === 'eligible' ? '+' : ''}{formatNumber(parseFloat(position.prizeAmount), 2)} STT
                           </div>
                           <div className="text-xs text-text-secondary">
                             {position.claimStatus === 'eligible' ? 'Prize' : position.reason || 'Not Eligible'}

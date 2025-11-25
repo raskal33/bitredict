@@ -3,6 +3,11 @@ import { parseEther, type Address } from 'viem';
 import { CONTRACT_ADDRESSES } from '@/config/wagmi';
 import { CONTRACTS } from '@/contracts';
 import { getTransactionOptions } from '@/lib/network-connection';
+import BitredictPoolCoreArtifact from '@/contracts/abis/BitredictPoolCore.json';
+import OddysseyArtifact from '@/contracts/abis/Oddyssey.json';
+
+const BitredictPoolCoreABI = BitredictPoolCoreArtifact.abi;
+const OddysseyABI = OddysseyArtifact.abi;
 
 /**
  * New Claim Service for Pool and Odyssey Claims
@@ -73,50 +78,45 @@ export class NewClaimService {
   }
 
   /**
-   * Claim pool prize using backend API
+   * Claim pool prize using direct contract interaction (user's wallet)
+   * ✅ FIX: Use writeContract directly instead of backend API
    */
   static async claimPoolPrize(
     poolId: number,
     walletClient: any,
-    address: Address
+    address: Address,
+    writeContract?: any
   ): Promise<ClaimResult> {
     try {
       console.log('🏆 Claiming pool prize for:', poolId);
       
-      // Call backend API to execute claim
-      const response = await fetch(`/api/claim-pools/${poolId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userAddress: address,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to claim pool prize');
+      if (!writeContract) {
+        throw new Error('writeContract function is required');
       }
 
-      const data = await response.json();
-      
-      console.log('✅ Pool prize claimed successfully:', data.transactionHash);
+      // ✅ FIX: Use writeContract directly with user's wallet (like ClaimRewards component)
+      const hash = await writeContract({
+        address: CONTRACT_ADDRESSES.POOL_CORE,
+        abi: BitredictPoolCoreABI,
+        functionName: 'claim',
+        args: [BigInt(poolId)],
+      });
+
+      console.log('✅ Pool prize claim transaction submitted:', hash);
       return { 
         success: true, 
-        transactionHash: data.transactionHash,
-        claimedAmount: data.claimedAmount 
+        transactionHash: hash,
       };
       
     } catch (error) {
       console.error('❌ Pool prize claim error:', error);
       
       if (error instanceof Error) {
-        if (error.message.includes('user rejected')) {
+        if (error.message.includes('user rejected') || error.message.includes('User rejected')) {
           return { success: false, error: 'User rejected transaction' };
-        } else if (error.message.includes('Already claimed')) {
+        } else if (error.message.includes('Already claimed') || error.message.includes('already claimed')) {
           return { success: false, error: 'Prize already claimed' };
-        } else if (error.message.includes('Not eligible')) {
+        } else if (error.message.includes('Not eligible') || error.message.includes('not eligible')) {
           return { success: false, error: 'Not eligible to claim this prize' };
         } else if (error.message.includes('insufficient funds')) {
           return { success: false, error: 'Insufficient gas funds' };
@@ -179,51 +179,46 @@ export class NewClaimService {
   }
 
   /**
-   * Claim Odyssey prize using backend API
+   * Claim Odyssey prize using direct contract interaction (user's wallet)
+   * ✅ FIX: Use writeContract directly instead of backend API
    */
   static async claimOdysseyPrize(
     cycleId: number,
     slipId: number,
     walletClient: any,
-    address: Address
+    address: Address,
+    writeContract?: any
   ): Promise<ClaimResult> {
     try {
       console.log('🏆 Claiming Odyssey prize for:', { cycleId, slipId });
       
-      // Call backend API to execute claim
-      const response = await fetch(`/api/claim-oddyssey/${cycleId}/${slipId}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userAddress: address,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to claim Odyssey prize');
+      if (!writeContract) {
+        throw new Error('writeContract function is required');
       }
 
-      const data = await response.json();
-      
-      console.log('✅ Odyssey prize claimed successfully:', data.transactionHash);
+      // ✅ FIX: Use writeContract directly with user's wallet
+      const hash = await writeContract({
+        address: CONTRACT_ADDRESSES.ODDYSSEY,
+        abi: OddysseyABI,
+        functionName: 'claimPrize',
+        args: [BigInt(cycleId), BigInt(slipId)],
+      });
+
+      console.log('✅ Odyssey prize claim transaction submitted:', hash);
       return { 
         success: true, 
-        transactionHash: data.transactionHash,
-        claimedAmount: data.claimedAmount 
+        transactionHash: hash,
       };
       
     } catch (error) {
       console.error('❌ Odyssey prize claim error:', error);
       
       if (error instanceof Error) {
-        if (error.message.includes('user rejected')) {
+        if (error.message.includes('user rejected') || error.message.includes('User rejected')) {
           return { success: false, error: 'User rejected transaction' };
-        } else if (error.message.includes('Already claimed')) {
+        } else if (error.message.includes('Already claimed') || error.message.includes('already claimed')) {
           return { success: false, error: 'Prize already claimed' };
-        } else if (error.message.includes('Not eligible')) {
+        } else if (error.message.includes('Not eligible') || error.message.includes('not eligible')) {
           return { success: false, error: 'Not eligible to claim this prize' };
         } else if (error.message.includes('insufficient funds')) {
           return { success: false, error: 'Insufficient gas funds' };
@@ -244,6 +239,7 @@ export class NewClaimService {
     positions: OdysseyClaimablePosition[],
     walletClient: any,
     address: Address,
+    writeContract: any,
     onProgress?: (completed: number, total: number) => void
   ): Promise<{ successful: number; failed: number; results: ClaimResult[] }> {
     const results: ClaimResult[] = [];
@@ -254,11 +250,13 @@ export class NewClaimService {
       const position = positions[i];
       
       try {
+        // ✅ FIX: Pass writeContract to claimOdysseyPrize
         const result = await this.claimOdysseyPrize(
           position.cycleId, 
           position.slipId, 
           walletClient, 
-          address
+          address,
+          writeContract
         );
         
         results.push(result);
@@ -303,6 +301,7 @@ export class NewClaimService {
 export function useNewClaimService() {
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
+  const { writeContract } = useWriteContract();
   
   const claimPoolPrize = async (poolId: number) => {
     if (!isConnected || !address) {
@@ -313,7 +312,12 @@ export function useNewClaimService() {
       throw new Error('Wallet client not available');
     }
     
-    return await NewClaimService.claimPoolPrize(poolId, walletClient, address);
+    if (!writeContract) {
+      throw new Error('writeContract not available');
+    }
+    
+    // ✅ FIX: Pass writeContract to use direct contract interaction
+    return await NewClaimService.claimPoolPrize(poolId, walletClient, address, writeContract);
   };
   
   const claimOdysseyPrize = async (cycleId: number, slipId: number) => {
@@ -325,7 +329,12 @@ export function useNewClaimService() {
       throw new Error('Wallet client not available');
     }
     
-    return await NewClaimService.claimOdysseyPrize(cycleId, slipId, walletClient, address);
+    if (!writeContract) {
+      throw new Error('writeContract not available');
+    }
+    
+    // ✅ FIX: Pass writeContract to use direct contract interaction
+    return await NewClaimService.claimOdysseyPrize(cycleId, slipId, walletClient, address, writeContract);
   };
   
   const batchClaimOdysseyPrizes = async (
@@ -340,7 +349,12 @@ export function useNewClaimService() {
       throw new Error('Wallet client not available');
     }
     
-    return await NewClaimService.batchClaimOdysseyPrizes(positions, walletClient, address, onProgress);
+    if (!writeContract) {
+      throw new Error('writeContract not available');
+    }
+    
+    // ✅ FIX: Pass writeContract to each claim
+    return await NewClaimService.batchClaimOdysseyPrizes(positions, walletClient, address, writeContract, onProgress);
   };
   
   const getPoolClaimStatus = async (poolId: number) => {
