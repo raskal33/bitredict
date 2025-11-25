@@ -55,7 +55,6 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
   const {
     claimOdysseyPrize,
     batchClaimOdysseyPrizes,
-    getAllClaimableOdysseyPrizes,
     claimPoolPrize,
     isConnected: isNewConnected
   } = useNewClaimService();
