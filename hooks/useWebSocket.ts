@@ -114,13 +114,18 @@ export function useWebSocket({ channel, onMessage, enabled = true }: UseWebSocke
 
   useEffect(() => {
     isMountedRef.current = true;
-    connect();
+    
+    // Only connect if enabled and channel is provided
+    if (enabled && channel) {
+      connect();
+    }
 
     return () => {
       isMountedRef.current = false;
       disconnect();
     };
-  }, [connect, disconnect]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channel, enabled]); // Only depend on channel and enabled, not the functions
 
   return {
     isConnected,

@@ -243,11 +243,18 @@ export class RealAnalyticsService {
       
       const result = await response.json();
       
-      if (!result.success || !result.data || !Array.isArray(result.data.categories)) {
+      if (!result.success || !result.data) {
         throw new Error('Invalid response format');
       }
 
-      return result.data.categories.map((cat: any) => ({
+      // Backend returns result.data.detailed, not result.data.categories
+      const categories = Array.isArray(result.data.categories) 
+        ? result.data.categories 
+        : Array.isArray(result.data.detailed)
+        ? result.data.detailed
+        : [];
+
+      return categories.map((cat: any) => ({
         category: cat.category || cat.name || 'Unknown',
         poolCount: parseNumberSafe(cat.pool_count || cat.count),
         totalVolume: parseNumberSafe(cat.total_volume || cat.volume),
