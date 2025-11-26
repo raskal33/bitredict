@@ -1353,8 +1353,10 @@ export default function OddysseyPage() {
         setIsSuccess(true);
           showSuccess("Slip Placed Successfully!", "Your predictions have been submitted to the blockchain and are now active in the competition", txHash);
         setPicks([]);
-        // Refresh data
-        initializeContract();
+        // Refresh user data (wallet is already initialized)
+        if (isConnected && address && walletClient) {
+          initializeUserData();
+        }
       }, 3000);
         
       } catch (transactionError) {
