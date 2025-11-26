@@ -280,18 +280,18 @@ interface UseSomniaStreamsReturn {
   reconnect: () => void;
 }
 
-// ✅ FIX: Match backend event schema IDs exactly
-// Backend emits events with these IDs (see backend/services/somnia-data-streams-service.js)
+// ✅ FIX: Match backend event IDs exactly - backend uses bitredict:* context names
+// Backend emits events with these IDs (see backend/services/somnia-data-streams-service.js contexts)
 const EVENT_CONTEXT_MAP: Record<SDSEventType, string> = {
-  'pool:created': 'PoolCreated',           // ✅ Matches backend eventSchemaIds.poolCreated
-  'pool:settled': 'PoolSettled',           // ✅ Matches backend eventSchemaIds.poolSettled
-  'bet:placed': 'BetPlaced',               // ✅ Matches backend eventSchemaIds.betPlaced
-  'pool:progress': 'BetPlaced',            // ✅ Backend uses BetPlaced for pool progress updates
-  'reputation:changed': 'ReputationActionOccurred', // ✅ Matches backend eventSchemaIds.reputationActionOccurred
-  'liquidity:added': 'LiquidityAdded',     // ✅ Matches backend eventSchemaIds.liquidityAdded
-  'cycle:resolved': 'CycleResolved',       // ✅ Matches backend eventSchemaIds.cycleResolved
-  'slip:evaluated': 'SlipEvaluated',      // ✅ Matches backend eventSchemaIds.slipEvaluated
-  'prize:claimed': 'PrizeClaimed'         // ✅ Matches backend eventSchemaIds.prizeClaimed
+  'pool:created': 'bitredict:pools:created',     // ✅ Matches backend contexts.poolsCreated
+  'pool:settled': 'bitredict:pools:settled',     // ✅ Matches backend contexts.poolsSettled
+  'bet:placed': 'bitredict:bets',                // ✅ Matches backend contexts.bets
+  'pool:progress': 'bitredict:pools:progress',   // ✅ Matches backend contexts.poolsProgress
+  'reputation:changed': 'bitredict:reputation',   // ✅ Matches backend contexts.reputation
+  'liquidity:added': 'bitredict:liquidity',      // ✅ Matches backend contexts.liquidity
+  'cycle:resolved': 'bitredict:cycles',           // ✅ Matches backend contexts.cycles
+  'slip:evaluated': 'bitredict:slips',           // ✅ Matches backend contexts.slips
+  'prize:claimed': 'bitredict:prizes'             // ✅ Matches backend contexts.prizes
 };
 
 export function useSomniaStreams(

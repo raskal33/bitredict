@@ -5,11 +5,11 @@
  * Positioned at left bottom, opens onClick, closed by default
  * 
  * ✅ Uses Somnia Data Streams (SDS) for real-time updates:
- * - Subscribes to 'BetPlaced' events via useBetUpdates
- * - Subscribes to 'PoolCreated' events via usePoolCreatedUpdates
- * - Subscribes to 'LiquidityAdded' events via useLiquidityAddedUpdates
- * - Event IDs match backend eventSchemaIds (BetPlaced, PoolCreated, LiquidityAdded)
- * - Falls back to WebSocket if SDS is unavailable
+ * - Subscribes to 'bitredict:bets' events via useBetUpdates
+ * - Subscribes to 'bitredict:pools:created' events via usePoolCreatedUpdates
+ * - Subscribes to 'bitredict:liquidity' events via useLiquidityAddedUpdates
+ * - Event IDs match backend contexts (bitredict:pools:created, bitredict:bets, bitredict:liquidity)
+ * - SDS only - no WebSocket fallback
  */
 
 'use client';
@@ -50,35 +50,32 @@ export function LiveActivity() {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const panelRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const [sdsStatus, setSdsStatus] = useState<{ isConnected: boolean; isSDSActive: boolean; isFallback: boolean }>({
+  const [sdsStatus, setSdsStatus] = useState<{ isConnected: boolean; isSDSActive: boolean }>({
     isConnected: false,
-    isSDSActive: false,
-    isFallback: false
+    isSDSActive: false
   });
   const processedEventIds = useRef<Set<string>>(new Set()); // ✅ FIX: Prevent duplicate events
 
-  // ✅ FIX: Get SDS connection status from useSomniaStreams directly
-  const { isConnected, isSDSActive, isFallback } = useSomniaStreams({ enabled: true });
+  // ✅ FIX: Get SDS connection status from useSomniaStreams directly (no fallback)
+  const { isConnected, isSDSActive } = useSomniaStreams({ enabled: true, useFallback: false });
   
   useEffect(() => {
-    setSdsStatus({ isConnected, isSDSActive, isFallback });
-    console.log(`📡 LiveActivity SDS Status:`, { isConnected, isSDSActive, isFallback });
+    setSdsStatus({ isConnected, isSDSActive });
+    console.log(`📡 LiveActivity SDS Status:`, { isConnected, isSDSActive });
     
     // ✅ Log connection status for debugging
-    if (!isConnected && !isSDSActive && !isFallback) {
-      console.warn('⚠️ LiveActivity: No connection to SDS or WebSocket fallback');
-    } else if (isSDSActive) {
+    if (!isConnected || !isSDSActive) {
+      console.warn('⚠️ LiveActivity: Not connected to SDS');
+    } else {
       console.log('✅ LiveActivity: Connected to Somnia Data Streams (SDS)');
-    } else if (isFallback) {
-      console.log('✅ LiveActivity: Using WebSocket fallback');
     }
-  }, [isConnected, isSDSActive, isFallback]);
+  }, [isConnected, isSDSActive]);
 
   // ✅ DEBUG: Log when component mounts and SDS status
   useEffect(() => {
     console.log('📡 LiveActivity: Component mounted, subscribing to events...');
-    console.log('📡 LiveActivity: Current SDS Status:', { isConnected, isSDSActive, isFallback });
-  }, [isConnected, isSDSActive, isFallback]);
+    console.log('📡 LiveActivity: Current SDS Status:', { isConnected, isSDSActive });
+  }, [isConnected, isSDSActive]);
 
   // Subscribe to bet placed events
   useBetUpdates((betData: {
@@ -618,7 +615,7 @@ export function LiveActivity() {
           )}
           {/* ✅ SDS Status Indicator */}
           <div className="flex items-center gap-1 ml-2">
-            <div className={`w-2 h-2 rounded-full ${sdsStatus.isSDSActive ? 'bg-green-400 animate-pulse' : sdsStatus.isFallback ? 'bg-yellow-400' : 'bg-red-400'}`} title={sdsStatus.isSDSActive ? 'SDS Active' : sdsStatus.isFallback ? 'WebSocket Fallback' : 'Not Connected'} />
+            <div className={`w-2 h-2 rounded-full ${sdsStatus.isSDSActive ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`} title={sdsStatus.isSDSActive ? 'SDS Active' : 'Not Connected'} />
           </div>
         </div>
         <button
@@ -645,24 +642,18 @@ export function LiveActivity() {
             <BoltIcon className="w-8 h-8 mx-auto mb-2 text-gray-600" />
             <p>No activity yet</p>
             <p className="text-[10px] mt-1">Activity will appear here in real-time</p>
-            {/* ✅ Debug: Show SDS connection status */}
-            <div className="mt-2 text-[10px]">
-              <p>SDS: {sdsStatus.isSDSActive ? '✅ Active' : '❌ Inactive'}</p>
-              <p>Connected: {sdsStatus.isConnected ? '✅' : '❌'}</p>
-              <p>Fallback: {sdsStatus.isFallback ? '✅' : '❌'}</p>
-            </div>
             {/* ✅ SDS Connection Status */}
             <div className="mt-4 pt-4 border-t border-gray-700">
-              <p className="text-[10px] text-gray-600 mb-1">Connection Status:</p>
+              <p className="text-[10px] text-gray-600 mb-1">SDS Connection Status:</p>
               <div className="flex items-center justify-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${sdsStatus.isSDSActive ? 'bg-green-400 animate-pulse' : sdsStatus.isFallback ? 'bg-yellow-400' : 'bg-red-400'}`} />
+                <div className={`w-2 h-2 rounded-full ${sdsStatus.isSDSActive ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`} />
                 <span className="text-[10px]">
-                  {sdsStatus.isSDSActive ? 'SDS Active ✓' : sdsStatus.isFallback ? 'WebSocket Fallback ⚠' : 'Not Connected ✗'}
+                  {sdsStatus.isSDSActive ? 'SDS Active ✓' : 'Not Connected ✗'}
                 </span>
               </div>
-              {!sdsStatus.isSDSActive && !sdsStatus.isFallback && (
+              {!sdsStatus.isSDSActive && (
                 <p className="text-[9px] text-gray-500 mt-2">
-                  Waiting for connection...
+                  Waiting for SDS connection...
                 </p>
               )}
             </div>
