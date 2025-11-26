@@ -301,27 +301,7 @@ export default function OddysseyPage() {
     }
   }, [isConnected, address, walletClient]);
 
-  // Initialize contract data (legacy - now only for wallet-specific setup)
-  const initializeContract = useCallback(async () => {
-    if (!isConnected || !address || !walletClient || isInitializing || isInitialized) return;
-    
-    try {
-      setIsInitializing(true);
-      console.log('🎯 Initializing Oddyssey contract...');
-      
-      // Initialize Oddyssey service with wallet client
-      oddysseyService.setWalletClient(walletClient);
-      
-      setIsInitialized(true);
-      console.log('✅ Contract initialized successfully');
-      
-    } catch (error) {
-      console.error('❌ Error initializing contract:', error);
-      setError(error as Error);
-    } finally {
-      setIsInitializing(false);
-    }
-  }, [isConnected, address, walletClient, isInitializing, isInitialized]);
+  // Removed duplicate initialization - now handled in the enhanced wallet initialization below
 
   // Initialize public data on component mount (no wallet required)
   useEffect(() => {
@@ -546,84 +526,27 @@ export default function OddysseyPage() {
     };
   }, [isConnected, address]);
 
-  // Enhanced wallet initialization with mobile support
+  // Optimized wallet initialization - immediate and non-blocking
   useEffect(() => {
     if (isConnected && address && walletClient && !isInitialized && !isInitializing) {
-      console.log('✅ Initializing wallet and contract...');
+      // Immediate initialization without blocking validation
+      // The wallet client from wagmi is already validated, so we can trust it
+      console.log('✅ Initializing wallet and contract (optimized)...');
       
-      // Enhanced wallet client validation for mobile devices
-      const validateWalletClient = async () => {
-        try {
-          // Check if wallet client is properly initialized
-          if (!walletClient || !walletClient.account) {
-            throw new Error('Wallet client not properly initialized');
-          }
-          
-          // Additional mobile-specific validation
-          if (typeof window !== 'undefined' && window.ethereum) {
-            try {
-              // Check if wallet is still connected
-              const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-              if (!accounts || accounts.length === 0) {
-                throw new Error('Wallet connection lost');
-              }
-              
-              // Verify the connected account matches
-              if (accounts[0]?.toLowerCase() !== address?.toLowerCase()) {
-                throw new Error('Account mismatch detected');
-              }
-            } catch (error) {
-              console.warn('Wallet connection validation failed:', error);
-              // Continue with initialization but log the warning
-            }
-          }
-          
-          return true;
-        } catch (error) {
-          console.error('❌ Wallet client validation failed:', error);
-          throw error;
-        }
-      };
+      setIsInitializing(true);
       
-      // Initialize contract directly here to avoid dependency issues
-      const initContract = async () => {
-        try {
-          setIsInitializing(true);
-          console.log('🎯 Validating wallet client...');
-          
-          // Validate wallet client first
-          await validateWalletClient();
-          
-          console.log('✅ Wallet client validated, setting up service...');
-      oddysseyService.setWalletClient(walletClient);
-          
-          console.log('🎯 Initializing Oddyssey contract...');
-          
-          setIsInitialized(true);
-          console.log('✅ Contract initialized successfully');
-          
-        } catch (error) {
-          console.error('❌ Error initializing contract:', error);
-          setError(error as Error);
-          
-          // Show user-friendly error message
-          if (error instanceof Error) {
-            if (error.message.includes('Wallet connection lost')) {
-              showError("Wallet Connection Lost", "Please reconnect your wallet and try again.");
-            } else if (error.message.includes('Account mismatch')) {
-              showError("Account Mismatch", "Please ensure you're using the correct wallet account.");
-            } else if (error.message.includes('Wallet client not properly initialized')) {
-              showError("Wallet Not Ready", "Please ensure your wallet is properly connected and try again.");
-            } else {
-              showError("Initialization Failed", "Failed to initialize the contract. Please try refreshing the page.");
-            }
-          }
-        } finally {
-          setIsInitializing(false);
-        }
-      };
-      
-      initContract();
+      // Set wallet client immediately - this is a synchronous operation
+      try {
+        oddysseyService.setWalletClient(walletClient);
+        setIsInitialized(true);
+        console.log('✅ Contract initialized successfully (optimized)');
+      } catch (error) {
+        console.error('❌ Error initializing contract:', error);
+        setError(error as Error);
+        showError("Initialization Failed", "Failed to initialize the contract. Please try refreshing the page.");
+      } finally {
+        setIsInitializing(false);
+      }
     }
   }, [isConnected, address, walletClient, isInitialized, isInitializing, showError]);
 
