@@ -263,6 +263,18 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
   // Track previous userAddress to detect changes
   const previousUserAddressRef = useRef<string | undefined>(userAddress);
 
+  // ✅ FIX: Lock body scroll when modal is open (prevent footer overlap)
+  useEffect(() => {
+    if (!isOpen || typeof document === 'undefined') {
+      return;
+    }
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isOpen]);
+
   // ✅ FIX: Load claimable positions when modal opens or userAddress changes
   useEffect(() => {
     // Reset loaded state if userAddress changed
@@ -550,73 +562,93 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
 
   return (
     <AnimatePresence>
+      {/* ✅ FIX: Higher z-index to ensure modal is above footer, proper positioning for mobile */}
       <div
-        className="fixed inset-0 z-[200] bg-black/50 backdrop-blur-sm overflow-y-auto"
+        className="fixed inset-0 z-[9999] bg-black/70 backdrop-blur-md overflow-y-auto overscroll-contain"
         onClick={onClose}
+        style={{ 
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          width: '100%',
+          height: '100%',
+          overflow: 'auto',
+          WebkitOverflowScrolling: 'touch'
+        }}
       >
-        <div className="flex min-h-screen items-center justify-center p-4">
+        {/* ✅ FIX: Proper padding for mobile, ensure modal is centered and scrollable */}
+        <div className="flex min-h-full items-start sm:items-center justify-center p-3 sm:p-4 md:p-6 py-4 sm:py-6 md:py-8">
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="glass-card rounded-2xl border border-border-card w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl"
+            className="glass-card rounded-xl sm:rounded-2xl border border-border-card w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col shadow-2xl my-auto"
             onClick={(e) => e.stopPropagation()}
+            style={{ 
+              marginTop: 'auto',
+              marginBottom: 'auto',
+              position: 'relative',
+              zIndex: 10000
+            }}
           >
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-border-card">
-            <div className="flex items-center gap-3">
-              <TrophyIcon className="h-6 w-6 text-primary" />
-              <h2 className="text-xl font-bold text-text-primary">Claim Prizes</h2>
+          <div className="flex items-center justify-between p-4 sm:p-6 border-b border-border-card bg-bg-dark/80 backdrop-blur-sm">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <TrophyIcon className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+              <h2 className="text-lg sm:text-xl font-bold text-white">Claim Prizes</h2>
             </div>
             <button
               onClick={onClose}
-              className="text-text-secondary hover:text-text-primary transition-colors"
+              className="text-white/70 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10"
+              aria-label="Close modal"
             >
-              <XMarkIcon className="h-6 w-6" />
+              <XMarkIcon className="h-5 w-5 sm:h-6 sm:w-6" />
             </button>
           </div>
 
           {/* Summary */}
-          <div className="p-6 border-b border-border-card backdrop-blur-xl bg-bg-dark/95" style={{ background: 'rgba(17, 24, 39, 0.95)', backdropFilter: 'blur(12px)' }}>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="p-4 sm:p-6 border-b border-border-card backdrop-blur-xl bg-bg-dark/95" style={{ background: 'rgba(17, 24, 39, 0.95)', backdropFilter: 'blur(12px)' }}>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
               <div className="text-center">
-                <div className="text-2xl font-bold text-green-400">
+                <div className="text-xl sm:text-2xl font-bold text-green-400">
                   {formatNumber(totalClaimableAmount, 2)}
                 </div>
-                <div className="text-sm text-text-secondary">Total Claimable</div>
+                <div className="text-xs sm:text-sm text-white/60">Total Claimable</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-secondary">
+                <div className="text-xl sm:text-2xl font-bold text-secondary">
                   {totalUnclaimedCount}
                 </div>
-                <div className="text-sm text-text-secondary">Unclaimed Positions</div>
+                <div className="text-xs sm:text-sm text-white/60">Unclaimed Positions</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-accent">
+                <div className="text-xl sm:text-2xl font-bold text-accent">
                   {formatNumber(selectedAmount, 2)}
                 </div>
-                <div className="text-sm text-text-secondary">Selected Amount</div>
+                <div className="text-xs sm:text-sm text-white/60">Selected Amount</div>
               </div>
             </div>
           </div>
 
           {/* Tabs */}
-          <div className="p-4 border-b border-border-card">
-            <div className="flex gap-2">
+          <div className="p-3 sm:p-4 border-b border-border-card bg-bg-dark/50">
+            <div className="flex gap-2 overflow-x-auto scrollbar-hide">
               {(['all', 'pool', 'oddyssey'] as PrizeTab[]).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors capitalize ${
+                  className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors capitalize whitespace-nowrap flex items-center gap-1 ${
                     activeTab === tab
                       ? 'bg-gradient-primary text-black'
-                      : 'bg-bg-card text-text-secondary hover:text-text-primary hover:bg-bg-card-hover'
+                      : 'bg-bg-card text-white/70 hover:text-white hover:bg-bg-card-hover'
                   }`}
                 >
-                  {tab === 'all' && <TrophyIcon className="h-4 w-4 inline mr-1" />}
-                  {tab === 'pool' && <TrophyIcon className="h-4 w-4 inline mr-1" />}
-                  {tab === 'oddyssey' && <FireIcon className="h-4 w-4 inline mr-1" />}
+                  {tab === 'all' && <TrophyIcon className="h-3 w-3 sm:h-4 sm:w-4" />}
+                  {tab === 'pool' && <TrophyIcon className="h-3 w-3 sm:h-4 sm:w-4" />}
+                  {tab === 'oddyssey' && <FireIcon className="h-3 w-3 sm:h-4 sm:w-4" />}
                   {tab}
                 </button>
               ))}
@@ -624,18 +656,18 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
           </div>
 
           {/* Controls */}
-          <div className="p-6 border-b border-border-card">
-            <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+          <div className="p-4 sm:p-6 border-b border-border-card bg-bg-dark/30">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center justify-between">
               {/* Filter */}
-              <div className="flex gap-2">
+              <div className="flex gap-2 overflow-x-auto scrollbar-hide">
                 {(['all', 'unclaimed', 'claimed'] as const).map((filterType) => (
                   <button
                     key={filterType}
                     onClick={() => setFilter(filterType)}
-                    className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                    className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
                       filter === filterType
                         ? 'bg-gradient-primary text-black'
-                        : 'bg-bg-card text-text-secondary hover:text-text-primary hover:bg-bg-card-hover'
+                        : 'bg-bg-card text-white/70 hover:text-white hover:bg-bg-card-hover'
                     }`}
                   >
                     {filterType.charAt(0).toUpperCase() + filterType.slice(1)}
@@ -666,23 +698,23 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
           </div>
 
           {/* Positions List */}
-          <div className="flex-1 overflow-y-auto max-h-[60vh] bg-bg-dark/20">
+          <div className="flex-1 overflow-y-auto max-h-[50vh] sm:max-h-[60vh] bg-bg-dark/20 overscroll-contain">
             {isLoading ? (
-              <div className="flex items-center justify-center h-96">
+              <div className="flex items-center justify-center h-64 sm:h-96">
                 <div className="text-center">
                   <LoadingSpinner size="lg" />
-                  <span className="text-text-secondary mt-4 block">Loading positions...</span>
+                  <span className="text-white/70 mt-4 block text-sm sm:text-base">Loading positions...</span>
                 </div>
               </div>
             ) : pools.length === 0 && oddyssey.length === 0 ? (
-              <div className="flex items-center justify-center h-96">
+              <div className="flex items-center justify-center h-64 sm:h-96">
                 <div className="text-center">
-                  <TrophyIcon className="h-12 w-12 text-text-muted mx-auto mb-4" />
-                  <p className="text-text-secondary">No claimable positions found</p>
+                  <TrophyIcon className="h-10 w-10 sm:h-12 sm:w-12 text-white/40 mx-auto mb-4" />
+                  <p className="text-white/70 text-sm sm:text-base">No claimable positions found</p>
                 </div>
               </div>
             ) : (
-              <div className="space-y-2 p-6">
+              <div className="space-y-2 p-3 sm:p-4 md:p-6">
                 {/* Pool Positions */}
                 {pools.map((position) => (
                   <div
@@ -711,10 +743,10 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
                         )}
                         
                         <div>
-                          <h4 className="font-medium text-text-primary">
+                          <h4 className="font-medium text-white text-sm sm:text-base">
                             Pool #{position.poolId} - {position.league || position.category || 'Market'}
                           </h4>
-                          <div className="flex items-center gap-4 text-sm text-text-secondary">
+                          <div className="flex items-center gap-2 sm:gap-4 text-xs sm:text-sm text-white/60 flex-wrap">
                             {position.predictedOutcome && (
                               <span>{position.predictedOutcome}</span>
                             )}
@@ -725,14 +757,14 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
                         <div className="text-right">
-                          <div className={`font-bold ${
+                          <div className={`font-bold text-sm sm:text-base ${
                             position.claimableAmount > 0 ? 'text-green-400' : 'text-red-400'
                           }`}>
                             {position.claimableAmount > 0 ? '+' : ''}{formatNumber(position.claimableAmount, 2)} {position.currency}
                           </div>
-                          <div className="text-xs text-text-secondary">
+                          <div className="text-xs text-white/50">
                             Stake: {formatNumber(position.stakeAmount, 2)} {position.currency}
                           </div>
                         </div>
@@ -785,10 +817,10 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
                         )}
                         
                         <div>
-                          <h4 className="font-medium text-text-primary">
+                          <h4 className="font-medium text-white text-sm sm:text-base">
                             Cycle {position.cycleId} - Slip {position.slipId}
                           </h4>
-                          <div className="flex items-center gap-4 text-sm text-text-secondary">
+                          <div className="flex items-center gap-2 sm:gap-4 text-xs sm:text-sm text-white/60 flex-wrap">
                             <span>Correct: {position.correctCount}/10</span>
                             <span>Placed: {position.placedAt.toLocaleDateString()}</span>
                             {position.evaluatedAt && (
@@ -805,7 +837,7 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
                           }`}>
                             {position.claimStatus === 'eligible' ? '+' : ''}{formatNumber(parseFloat(position.prizeAmount), 2)} STT
                           </div>
-                          <div className="text-xs text-text-secondary">
+                          <div className="text-xs text-white/50">
                             {position.claimStatus === 'eligible' ? 'Prize' : position.reason || 'Not Eligible'}
                           </div>
                         </div>
@@ -834,9 +866,9 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
           </div>
 
           {/* Footer */}
-          <div className="p-6 border-t border-border-card bg-bg-card/50">
-            <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-              <div className="text-sm text-text-secondary">
+          <div className="p-4 sm:p-6 border-t border-border-card bg-bg-dark/80 backdrop-blur-sm sticky bottom-0">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center justify-between">
+              <div className="text-xs sm:text-sm text-white/70 text-center sm:text-left">
                 {isClaiming && claimProgress.total > 0 && (
                   <span>
                     Claiming {claimProgress.completed} of {claimProgress.total}...
@@ -844,11 +876,12 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
                 )}
               </div>
               
-              <div className="flex gap-3">
+              <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
                 <Button
                   onClick={loadPositions}
                   variant="outline"
                   disabled={isLoading || isClaiming}
+                  className="flex-1 sm:flex-none"
                 >
                   Refresh
                 </Button>
@@ -859,6 +892,7 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
                     variant="primary"
                     disabled={totalSelectedCount === 0 || isClaiming}
                     loading={isClaiming}
+                    className="flex-1 sm:flex-none"
                   >
                     Claim Selected ({totalSelectedCount})
                   </Button>
@@ -866,6 +900,7 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
                   <Button
                     onClick={connectWallet}
                     variant="primary"
+                    className="flex-1 sm:flex-none"
                   >
                     Connect Wallet
                   </Button>
