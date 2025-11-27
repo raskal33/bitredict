@@ -35,6 +35,19 @@ interface PoolClaimablePosition {
   txHash?: string;
 }
 
+type PoolStatusApiResponse = {
+  data?: {
+    alreadyClaimed?: boolean;
+    already_claimed?: boolean;
+    claimableAmount?: number | string;
+    claimable_amount?: number | string;
+  };
+  alreadyClaimed?: boolean;
+  already_claimed?: boolean;
+  claimableAmount?: number | string;
+  claimable_amount?: number | string;
+};
+
 type PrizeTab = 'all' | 'pool' | 'oddyssey';
 
 const TOKEN_DECIMALS = 1e18;
@@ -123,10 +136,43 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
             };
           });
 
-          setPoolPositions(normalizedPools);
+          const poolsWithStatus: PoolClaimablePosition[] = await Promise.all(
+            normalizedPools.map(async (pool) => {
+              try {
+                const statusResponse = await fetch(getAPIUrl(`/api/claim-pools/${pool.poolId}/${currentAddress}/status`));
+                if (statusResponse.ok) {
+                  const statusJson = (await statusResponse.json()) as PoolStatusApiResponse;
+                  const statusData = statusJson.data ?? statusJson ?? {};
+                  const statusRecord = statusData as Record<string, unknown>;
+                  const alreadyClaimed = Boolean(
+                    statusRecord['alreadyClaimed'] ?? statusRecord['already_claimed']
+                  );
+                  const claimableAmountRaw = (
+                    statusRecord['claimableAmount'] ?? statusRecord['claimable_amount']
+                  ) as number | string | undefined;
+
+                  return {
+                    ...pool,
+                    claimed: pool.claimed || alreadyClaimed,
+                    claimableAmount:
+                      alreadyClaimed
+                        ? 0
+                        : claimableAmountRaw !== undefined
+                        ? normalizeTokenAmount(claimableAmountRaw as number | string, pool.currency)
+                        : pool.claimableAmount
+                  };
+                }
+              } catch (statusError) {
+                console.warn(`[PrizeClaimModal] Failed to fetch status for pool ${pool.poolId}:`, statusError);
+              }
+              return pool;
+            })
+          );
+
+          setPoolPositions(poolsWithStatus);
           
           // Auto-select unclaimed pool positions
-          const unclaimedPools = normalizedPools
+          const unclaimedPools = poolsWithStatus
             .filter((p: PoolClaimablePosition) => !p.claimed && p.claimableAmount > 0)
             .map((p: PoolClaimablePosition) => p.poolId);
           setSelectedPoolPositions(new Set(unclaimedPools));
@@ -248,6 +294,19 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
       setActiveTab('all');
       setFilter('unclaimed');
     }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || typeof document === 'undefined') {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
   }, [isOpen]);
 
   // Cleanup on unmount
@@ -491,15 +550,19 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4" onClick={onClose}>
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          className="glass-card rounded-2xl border border-border-card w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl"
-          onClick={(e) => e.stopPropagation()}
-        >
+      <div
+        className="fixed inset-0 z-[200] bg-black/50 backdrop-blur-sm overflow-y-auto"
+        onClick={onClose}
+      >
+        <div className="flex min-h-screen items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className="glass-card rounded-2xl border border-border-card w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-border-card">
             <div className="flex items-center gap-3">
@@ -603,7 +666,7 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
           </div>
 
           {/* Positions List */}
-          <div className="flex-1 overflow-y-auto min-h-96 max-h-96 bg-bg-dark/20">
+          <div className="flex-1 overflow-y-auto max-h-[60vh] bg-bg-dark/20">
             {isLoading ? (
               <div className="flex items-center justify-center h-96">
                 <div className="text-center">
@@ -810,7 +873,8 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
               </div>
             </div>
           </div>
-        </motion.div>
+          </motion.div>
+        </div>
       </div>
     </AnimatePresence>
   );

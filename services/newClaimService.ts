@@ -93,14 +93,12 @@ export class NewClaimService {
         throw new Error('writeContract function is required');
       }
 
-      // ✅ FIX: Use writeContract directly with user's wallet (like ClaimRewards component)
-      // Add explicit gas limit to prevent gas estimation issues (backend uses 450000)
+      // ✅ Use writeContract directly with user's wallet (like ClaimRewards component)
       const hash = await writeContract({
         address: CONTRACT_ADDRESSES.POOL_CORE,
         abi: BitredictPoolCoreABI,
         functionName: 'claim',
         args: [BigInt(poolId)],
-        gas: BigInt(450000), // Explicit gas limit matching backend
       });
 
       console.log('✅ Pool prize claim transaction submitted:', hash);
@@ -197,14 +195,12 @@ export class NewClaimService {
         throw new Error('writeContract function is required');
       }
 
-      // ✅ FIX: Use writeContract directly with user's wallet
-      // Add explicit gas limit to prevent gas estimation issues
+      // ✅ Use writeContract directly with user's wallet
       const hash = await writeContract({
         address: CONTRACT_ADDRESSES.ODDYSSEY,
         abi: OddysseyABI,
         functionName: 'claimPrize',
         args: [BigInt(cycleId), BigInt(slipId)],
-        gas: BigInt(300000), // Explicit gas limit for claimPrize
       });
 
       console.log('✅ Odyssey prize claim transaction submitted:', hash);
