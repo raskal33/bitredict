@@ -129,7 +129,7 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
             evaluatedAt?: string;
           }
           
-          const odysseyPrizes: OdysseyPrizeResponse[] = odysseyData.claimablePrizes || [];
+          const odysseyPrizes: OdysseyPrizeResponse[] = (odysseyData?.data?.claimablePrizes ?? odysseyData.claimablePrizes ?? []);
           console.log(`[PrizeClaimModal] Loaded ${odysseyPrizes.length} odyssey positions for ${currentAddress}`);
           
           if (isMountedRef.current) {
