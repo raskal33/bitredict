@@ -173,13 +173,23 @@ export default function RewardsPage() {
     return true;
   });
   
-  const formatAmount = (amount: number, currency: string) => {
-    if (amount >= 1000000) {
-      return `${(amount / 1000000).toFixed(2)}M ${currency}`;
-    } else if (amount >= 1000) {
-      return `${(amount / 1000).toFixed(2)}K ${currency}`;
+  // Normalize token amounts - handle both wei-scale and already-normalized values
+  const normalizeAmount = (amount: number): number => {
+    // If amount looks like wei (> 1e15), normalize it
+    if (amount > 1e15) {
+      return amount / 1e18;
     }
-    return `${amount.toFixed(4)} ${currency}`;
+    return amount;
+  };
+
+  const formatAmount = (amount: number, currency: string) => {
+    const normalized = normalizeAmount(amount);
+    if (normalized >= 1000000) {
+      return `${(normalized / 1000000).toFixed(2)}M ${currency}`;
+    } else if (normalized >= 1000) {
+      return `${(normalized / 1000).toFixed(2)}K ${currency}`;
+    }
+    return `${normalized.toFixed(4)} ${currency}`;
   };
   
   const formatDate = (dateString?: string) => {
