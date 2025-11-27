@@ -287,25 +287,38 @@ export default function StakingPage() {
   const tierColor = TIER_COLORS[staking.userTier] || "text-gray-400";
 
   const getProgressToNextTier = (): number => {
-    if (!staking.tiers || staking.tiers.length === 0 || staking.userTier >= staking.tiers.length - 1) {
-      return 100; // Max tier reached
+    try {
+      if (!staking.tiers || staking.tiers.length === 0 || staking.userTier >= staking.tiers.length - 1) {
+        return 100; // Max tier reached
+      }
+      
+      const currentTier = staking.tiers[staking.userTier];
+      const nextTier = staking.tiers[staking.userTier + 1];
+      
+      if (!currentTier || !nextTier) {
+        return 100; // Safety fallback
+      }
+      
+      // Ensure all values are BigInt for consistent arithmetic
+      const currentThreshold = BigInt(currentTier.minStake?.toString() || '0');
+      const nextThreshold = BigInt(nextTier.minStake?.toString() || '0');
+      const currentStaked = parseUnits(staking.totalUserStaked || "0", 18);
+      
+      if (currentStaked <= currentThreshold) return 0;
+      if (nextThreshold <= currentThreshold) return 100; // Prevent division by zero
+      
+      // Convert to Number only after BigInt arithmetic
+      const numerator = Number(currentStaked - currentThreshold);
+      const denominator = Number(nextThreshold - currentThreshold);
+      
+      if (denominator === 0) return 100;
+      
+      const progress = numerator / denominator;
+      return Math.min(100, progress * 100);
+    } catch (error) {
+      console.error('Error calculating tier progress:', error);
+      return 0;
     }
-    
-    const currentTier = staking.tiers[staking.userTier];
-    const nextTier = staking.tiers[staking.userTier + 1];
-    
-    if (!currentTier || !nextTier) {
-      return 100; // Safety fallback
-    }
-    
-    const currentThreshold = currentTier.minStake;
-    const nextThreshold = nextTier.minStake;
-    const currentStaked = parseUnits(staking.totalUserStaked || "0", 18);
-    
-    if (currentStaked <= currentThreshold) return 0;
-    
-    const progress = Number(currentStaked - currentThreshold) / Number(nextThreshold - currentThreshold);
-    return Math.min(100, progress * 100);
   };
 
   const formatTimeRemaining = (unlockTime: number): string => {
