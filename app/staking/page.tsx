@@ -300,21 +300,30 @@ export default function StakingPage() {
       }
       
       // Ensure all values are BigInt for consistent arithmetic
-      const currentThreshold = BigInt(currentTier.minStake?.toString() || '0');
-      const nextThreshold = BigInt(nextTier.minStake?.toString() || '0');
+      const currentThreshold = typeof currentTier.minStake === 'bigint' 
+        ? currentTier.minStake 
+        : BigInt(String(currentTier.minStake || 0));
+      const nextThreshold = typeof nextTier.minStake === 'bigint' 
+        ? nextTier.minStake 
+        : BigInt(String(nextTier.minStake || 0));
       const currentStaked = parseUnits(staking.totalUserStaked || "0", 18);
       
+      // All BigInt comparisons and arithmetic
       if (currentStaked <= currentThreshold) return 0;
       if (nextThreshold <= currentThreshold) return 100; // Prevent division by zero
       
-      // Convert to Number only after BigInt arithmetic
-      const numerator = Number(currentStaked - currentThreshold);
-      const denominator = Number(nextThreshold - currentThreshold);
+      // Perform BigInt arithmetic first, then convert to Number
+      const numeratorBigInt = currentStaked - currentThreshold;
+      const denominatorBigInt = nextThreshold - currentThreshold;
+      
+      // Convert to Number only after all BigInt operations are complete
+      const numerator = Number(numeratorBigInt);
+      const denominator = Number(denominatorBigInt);
       
       if (denominator === 0) return 100;
       
       const progress = numerator / denominator;
-      return Math.min(100, progress * 100);
+      return Math.min(100, Math.max(0, progress * 100));
     } catch (error) {
       console.error('Error calculating tier progress:', error);
       return 0;
@@ -831,7 +840,11 @@ export default function StakingPage() {
                               <div>
                                 <p className="text-white font-medium">{staking.getTierName(index)}</p>
                                 <p className="text-gray-400 text-sm">
-                                  {formatPercentage((typeof tier.baseAPY === 'bigint' ? Number(tier.baseAPY) / 100 : tier.baseAPY / 100))} APY • Min: {staking.formatAmount(tier.minStake)} BITR
+                                  {formatPercentage(
+                                    (typeof tier.baseAPY === 'bigint' 
+                                      ? Number(tier.baseAPY) / 100 
+                                      : Number(tier.baseAPY || 0) / 100)
+                                  )} APY • Min: {staking.formatAmount(tier.minStake)} BITR
                                 </p>
                               </div>
                             </div>
@@ -940,7 +953,13 @@ export default function StakingPage() {
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span className="text-gray-400">Base APY:</span>
-                        <span className="text-white">{formatPercentage((Number(staking.tiers[selectedTier].baseAPY) / 100))}</span>
+                        <span className="text-white">
+                          {formatPercentage(
+                            (typeof staking.tiers[selectedTier].baseAPY === 'bigint' 
+                              ? Number(staking.tiers[selectedTier].baseAPY) 
+                              : Number(staking.tiers[selectedTier].baseAPY || 0)) / 100
+                          )}
+                        </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-400">Duration Bonus:</span>
@@ -949,7 +968,12 @@ export default function StakingPage() {
                       <div className="flex justify-between border-t border-gray-600 pt-1">
                         <span className="text-gray-400">Total APY:</span>
                         <span className="text-white font-medium">
-                          {formatPercentage(((Number(staking.tiers[selectedTier].baseAPY) / 100) + staking.getDurationBonus(selectedDuration)))}
+                          {formatPercentage(
+                            ((typeof staking.tiers[selectedTier].baseAPY === 'bigint' 
+                              ? Number(staking.tiers[selectedTier].baseAPY) 
+                              : Number(staking.tiers[selectedTier].baseAPY || 0)) / 100) + 
+                            Number(staking.getDurationBonus(selectedDuration))
+                          )}
                         </span>
                       </div>
                     </div>
