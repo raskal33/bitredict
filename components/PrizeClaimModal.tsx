@@ -37,6 +37,29 @@ interface PoolClaimablePosition {
 
 type PrizeTab = 'all' | 'pool' | 'oddyssey';
 
+const TOKEN_DECIMALS = 1e18;
+
+const normalizeTokenAmount = (
+  amount: number | string | undefined | null,
+  currency?: string
+): number => {
+  if (amount === undefined || amount === null) {
+    return 0;
+  }
+
+  const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+  if (!Number.isFinite(numericAmount)) {
+    return 0;
+  }
+
+  const normalizedCurrency = currency?.toUpperCase();
+  if (normalizedCurrency === 'BITR' || normalizedCurrency === 'STT') {
+    return numericAmount / TOKEN_DECIMALS;
+  }
+
+  return numericAmount;
+};
+
 export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeClaimModalProps) {
   const [activeTab, setActiveTab] = useState<PrizeTab>('all');
   const [poolPositions, setPoolPositions] = useState<PoolClaimablePosition[]>([]);
@@ -84,23 +107,28 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
           const pools = rewardsData.data.rewards?.pools || [];
           console.log(`[PrizeClaimModal] Loaded ${pools.length} pool positions for ${currentAddress}`);
           
-          setPoolPositions(pools.map((p: PoolClaimablePosition & { poolId: number; claimed?: boolean; claimableAmount?: number; stakeAmount?: number; currency?: string; settledAt?: string; txHash?: string }) => ({
-            poolId: p.poolId,
-            league: p.league,
-            category: p.category,
-            predictedOutcome: p.predictedOutcome,
-            claimableAmount: p.claimableAmount || 0,
-            stakeAmount: p.stakeAmount || 0,
-            currency: p.currency || 'STT',
-            claimed: p.claimed || false,
-            settledAt: p.settledAt,
-            txHash: p.txHash
-          })));
+          const normalizedPools: PoolClaimablePosition[] = pools.map((p: PoolClaimablePosition & { poolId: number; claimed?: boolean; claimableAmount?: number; stakeAmount?: number; currency?: string; settledAt?: string; settled_at?: string; txHash?: string }) => {
+            const currency = p.currency || 'STT';
+            return {
+              poolId: p.poolId,
+              league: p.league,
+              category: p.category,
+              predictedOutcome: p.predictedOutcome,
+              claimableAmount: normalizeTokenAmount(p.claimableAmount, currency),
+              stakeAmount: normalizeTokenAmount(p.stakeAmount, currency),
+              currency,
+              claimed: p.claimed || false,
+              settledAt: p.settled_at ?? p.settledAt,
+              txHash: p.txHash
+            };
+          });
+
+          setPoolPositions(normalizedPools);
           
           // Auto-select unclaimed pool positions
-          const unclaimedPools = pools
-            .filter((p: PoolClaimablePosition & { claimed?: boolean; claimableAmount?: number }) => !p.claimed && (p.claimableAmount || 0) > 0)
-            .map((p: PoolClaimablePosition & { poolId: number }) => p.poolId);
+          const unclaimedPools = normalizedPools
+            .filter((p: PoolClaimablePosition) => !p.claimed && p.claimableAmount > 0)
+            .map((p: PoolClaimablePosition) => p.poolId);
           setSelectedPoolPositions(new Set(unclaimedPools));
         } else {
           console.warn(`[PrizeClaimModal] No pool data returned for ${currentAddress}`);
@@ -133,22 +161,24 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
           console.log(`[PrizeClaimModal] Loaded ${odysseyPrizes.length} odyssey positions for ${currentAddress}`);
           
           if (isMountedRef.current) {
-            setOdysseyPositions(odysseyPrizes.map((p) => ({
+            const normalizedOdysseyPositions: OdysseyClaimablePosition[] = odysseyPrizes.map((p) => ({
               cycleId: p.cycleId,
               slipId: p.slipId,
               userAddress: currentAddress,
               correctCount: p.correctCount,
-              prizeAmount: p.prizeAmount?.toString() || '0',
+              prizeAmount: normalizeTokenAmount(p.prizeAmount, 'STT').toString(),
               claimed: p.already_claimed || false,
               claimStatus: p.canClaim ? 'eligible' as const : 'not_eligible' as const,
               placedAt: p.placedAt ? new Date(p.placedAt) : new Date(),
               evaluatedAt: p.evaluatedAt ? new Date(p.evaluatedAt) : undefined
-            })));
+            }));
+
+            setOdysseyPositions(normalizedOdysseyPositions);
             
             // Auto-select unclaimed winning Odyssey positions
-            const unclaimedOdysseyWinning = odysseyPrizes
-              .filter((p) => !p.already_claimed && p.canClaim)
-              .map((p) => `${p.cycleId}-${p.slipId}`);
+            const unclaimedOdysseyWinning = normalizedOdysseyPositions
+              .filter((p: OdysseyClaimablePosition) => !p.claimed && p.claimStatus === 'eligible')
+              .map((p: OdysseyClaimablePosition) => `${p.cycleId}-${p.slipId}`);
             setSelectedOdysseyPositions(new Set(unclaimedOdysseyWinning));
           }
         } else {
