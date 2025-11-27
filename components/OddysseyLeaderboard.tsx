@@ -42,7 +42,23 @@ export default function OddysseyLeaderboard({ cycleId, className = '' }: Oddysse
       setLoading(true);
       setError(null);
       
-      const response = await oddysseyService.getLeaderboard(cycleId);
+      // ✅ FIX: If no cycleId provided, use previous cycle (currentCycle - 1)
+      // Current cycle won't have winners during the cycle, so show last cycle's winners
+      let targetCycleId = cycleId;
+      if (!targetCycleId) {
+        try {
+          const currentCycle = await oddysseyService.getCurrentCycle();
+          const currentCycleNum = Number(currentCycle);
+          // Use previous cycle (currentCycle - 1), but ensure it's at least 1
+          targetCycleId = Math.max(1, currentCycleNum - 1);
+          console.log(`[OddysseyLeaderboard] No cycleId provided, using previous cycle: ${targetCycleId} (current: ${currentCycleNum})`);
+        } catch (err) {
+          console.warn('[OddysseyLeaderboard] Failed to get current cycle, using undefined:', err);
+          // If we can't get current cycle, let the API handle it (will return empty)
+        }
+      }
+      
+      const response = await oddysseyService.getLeaderboard(targetCycleId);
       
       if (response.success && response.data) {
         setLeaderboard(response.data.leaderboard || []);
