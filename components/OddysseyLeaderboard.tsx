@@ -1,14 +1,18 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   TrophyIcon,
   UserIcon,
   ClockIcon,
   ExclamationTriangleIcon,
   ChartBarIcon,
-  CurrencyDollarIcon
+  CurrencyDollarIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  CheckCircleIcon,
+  XCircleIcon
 } from '@heroicons/react/24/outline';
 import { oddysseyService } from '@/services/oddysseyService';
 
@@ -20,6 +24,29 @@ interface LeaderboardEntry {
   correctCount: number;
   placedAt: string;
   prizePercentage: number;
+}
+
+interface SlipPrediction {
+  matchId: number | string;
+  prediction: string;
+  odds: number;
+  homeTeam?: string;
+  awayTeam?: string;
+  leagueName?: string;
+  isCorrect?: boolean;
+  result?: {
+    home_score?: number;
+    away_score?: number;
+    outcome_1x2?: string;
+    outcome_ou25?: string;
+  };
+}
+
+interface SlipDetails {
+  slipId: number;
+  predictions: SlipPrediction[];
+  finalScore: number;
+  correctCount: number;
 }
 
 interface OddysseyLeaderboardProps {
@@ -36,6 +63,9 @@ export default function OddysseyLeaderboard({ cycleId, className = '' }: Oddysse
     totalPlayers: number;
     qualifiedPlayers: number;
   } | null>(null);
+  const [expandedSlips, setExpandedSlips] = useState<Set<number>>(new Set());
+  const [slipDetails, setSlipDetails] = useState<Map<number, SlipDetails>>(new Map());
+  const [loadingSlips, setLoadingSlips] = useState<Set<number>>(new Set());
 
   const fetchLeaderboard = useCallback(async () => {
     try {
@@ -125,6 +155,81 @@ export default function OddysseyLeaderboard({ cycleId, className = '' }: Oddysse
     return (score / 1000).toFixed(2);
   };
 
+  const fetchSlipDetails = useCallback(async (slipId: number) => {
+    // If already loaded, don't fetch again
+    if (slipDetails.has(slipId)) {
+      return;
+    }
+
+    setLoadingSlips(prev => new Set(prev).add(slipId));
+    try {
+      const response = await fetch(`/api/oddyssey/evaluated-slip/${slipId}?t=${Date.now()}`, {
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data) {
+          const slip = data.data;
+          setSlipDetails(prev => {
+            const newMap = new Map(prev);
+            newMap.set(slipId, {
+              slipId: slip.slipId || slipId,
+              predictions: slip.predictions || [],
+              finalScore: slip.finalScore || 0,
+              correctCount: slip.correctCount || 0
+            });
+            return newMap;
+          });
+        }
+      }
+    } catch (err) {
+      console.error(`Error fetching slip ${slipId} details:`, err);
+    } finally {
+      setLoadingSlips(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(slipId);
+        return newSet;
+      });
+    }
+  }, [slipDetails]);
+
+  const toggleSlipExpansion = useCallback((slipId: number) => {
+    setExpandedSlips(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(slipId)) {
+        newSet.delete(slipId);
+      } else {
+        newSet.add(slipId);
+        // Fetch details when expanding
+        fetchSlipDetails(slipId);
+      }
+      return newSet;
+    });
+  }, [fetchSlipDetails]);
+
+  const formatPrediction = (prediction: string) => {
+    // Format prediction for display
+    if (prediction === '1') return 'Home Win';
+    if (prediction === 'X') return 'Draw';
+    if (prediction === '2') return 'Away Win';
+    if (prediction.toLowerCase() === 'over') return 'Over 2.5';
+    if (prediction.toLowerCase() === 'under') return 'Under 2.5';
+    return prediction;
+  };
+
+  const formatOdds = (odds: number) => {
+    // Odds might be in different formats, normalize to decimal
+    if (odds > 100) {
+      return (odds / 1000).toFixed(2);
+    }
+    return odds.toFixed(2);
+  };
+
   if (loading) {
     return (
       <div className={`glass-card p-6 ${className}`}>
@@ -185,72 +290,187 @@ export default function OddysseyLeaderboard({ cycleId, className = '' }: Oddysse
 
       {/* Leaderboard Entries */}
       <div className="space-y-3">
-        {leaderboard.map((entry, index) => (
-          <motion.div
-            key={entry.slipId}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className={`glass-card p-4 border ${getRankColor(entry.rank)}`}
-          >
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-              {/* Rank */}
-              <div className="md:col-span-1 text-center">
-                {getRankIcon(entry.rank)}
+        {leaderboard.map((entry, index) => {
+          const isExpanded = expandedSlips.has(entry.slipId);
+          const details = slipDetails.get(entry.slipId);
+          const isLoading = loadingSlips.has(entry.slipId);
+
+          return (
+            <motion.div
+              key={entry.slipId}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+              className={`glass-card border ${getRankColor(entry.rank)} overflow-hidden`}
+            >
+              {/* Main Entry Row - Clickable */}
+              <div
+                onClick={() => toggleSlipExpansion(entry.slipId)}
+                className="p-4 cursor-pointer hover:bg-white/5 transition-colors"
+              >
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                  {/* Rank */}
+                  <div className="md:col-span-1 text-center">
+                    {getRankIcon(entry.rank)}
+                  </div>
+
+                  {/* Player */}
+                  <div className="md:col-span-4">
+                    <div className="flex items-center gap-2">
+                      <UserIcon className="h-4 w-4 text-text-muted" />
+                      <span className="font-mono text-sm text-white">
+                        {formatAddress(entry.playerAddress)}
+                      </span>
+                    </div>
+                    <div className="text-xs text-text-muted mt-1 flex items-center gap-1">
+                      Slip #{entry.slipId}
+                      {isExpanded ? (
+                        <ChevronUpIcon className="h-3 w-3 ml-1" />
+                      ) : (
+                        <ChevronDownIcon className="h-3 w-3 ml-1" />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Score */}
+                  <div className="md:col-span-2 text-center">
+                    <div className="text-lg font-bold text-white">
+                      {formatScore(entry.finalScore)}x
+                    </div>
+                    <div className="text-xs text-text-muted">Final Score</div>
+                  </div>
+
+                  {/* Correct Count */}
+                  <div className="md:col-span-2 text-center">
+                    <div className="text-lg font-bold text-green-400">
+                      {entry.correctCount}/10
+                    </div>
+                    <div className="text-xs text-text-muted">Correct</div>
+                  </div>
+
+                  {/* Prize */}
+                  <div className="md:col-span-2 text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <CurrencyDollarIcon className="h-4 w-4 text-yellow-400" />
+                      <span className="text-lg font-bold text-yellow-400">
+                        {entry.prizePercentage}%
+                      </span>
+                    </div>
+                    <div className="text-xs text-text-muted">Prize Share</div>
+                  </div>
+
+                  {/* Time */}
+                  <div className="md:col-span-1 text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <ClockIcon className="h-3 w-3 text-text-muted" />
+                      <span className="text-xs text-text-muted">
+                        {new Date(entry.placedAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              {/* Player */}
-              <div className="md:col-span-4">
-                <div className="flex items-center gap-2">
-                  <UserIcon className="h-4 w-4 text-text-muted" />
-                  <span className="font-mono text-sm text-white">
-                    {formatAddress(entry.playerAddress)}
-                  </span>
-                </div>
-                <div className="text-xs text-text-muted mt-1">
-                  Slip #{entry.slipId}
-                </div>
-              </div>
-
-              {/* Score */}
-              <div className="md:col-span-2 text-center">
-                <div className="text-lg font-bold text-white">
-                  {formatScore(entry.finalScore)}x
-                </div>
-                <div className="text-xs text-text-muted">Final Score</div>
-              </div>
-
-              {/* Correct Count */}
-              <div className="md:col-span-2 text-center">
-                <div className="text-lg font-bold text-green-400">
-                  {entry.correctCount}/10
-                </div>
-                <div className="text-xs text-text-muted">Correct</div>
-              </div>
-
-              {/* Prize */}
-              <div className="md:col-span-2 text-center">
-                <div className="flex items-center justify-center gap-1">
-                  <CurrencyDollarIcon className="h-4 w-4 text-yellow-400" />
-                  <span className="text-lg font-bold text-yellow-400">
-                    {entry.prizePercentage}%
-                  </span>
-                </div>
-                <div className="text-xs text-text-muted">Prize Share</div>
-              </div>
-
-              {/* Time */}
-              <div className="md:col-span-1 text-center">
-                <div className="flex items-center justify-center gap-1">
-                  <ClockIcon className="h-3 w-3 text-text-muted" />
-                  <span className="text-xs text-text-muted">
-                    {new Date(entry.placedAt).toLocaleDateString()}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        ))}
+              {/* Expanded Predictions Dropdown */}
+              <AnimatePresence>
+                {isExpanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="px-4 pb-4 pt-2 border-t border-white/10 bg-bg-dark/30">
+                      {isLoading ? (
+                        <div className="flex items-center justify-center py-8">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                          <span className="ml-3 text-text-secondary">Loading predictions...</span>
+                        </div>
+                      ) : details && details.predictions.length > 0 ? (
+                        <div className="space-y-2">
+                          <h4 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                            <ChartBarIcon className="h-4 w-4" />
+                            All 10 Predictions
+                          </h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            {details.predictions.map((pred, predIndex) => {
+                              const isCorrect = pred.isCorrect === true;
+                              const isIncorrect = pred.isCorrect === false;
+                              
+                              return (
+                                <motion.div
+                                  key={predIndex}
+                                  initial={{ opacity: 0, x: -10 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  transition={{ delay: predIndex * 0.05 }}
+                                  className={`p-3 rounded-lg border ${
+                                    isCorrect
+                                      ? 'bg-green-500/10 border-green-500/30'
+                                      : isIncorrect
+                                      ? 'bg-red-500/10 border-red-500/30'
+                                      : 'bg-white/5 border-white/10'
+                                  }`}
+                                >
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        {isCorrect && (
+                                          <CheckCircleIcon className="h-4 w-4 text-green-400 flex-shrink-0" />
+                                        )}
+                                        {isIncorrect && (
+                                          <XCircleIcon className="h-4 w-4 text-red-400 flex-shrink-0" />
+                                        )}
+                                        <span className="text-xs font-semibold text-white">
+                                          Match #{predIndex + 1}
+                                        </span>
+                                      </div>
+                                      {pred.homeTeam && pred.awayTeam && (
+                                        <div className="text-xs text-text-muted mb-1">
+                                          {pred.homeTeam} vs {pred.awayTeam}
+                                        </div>
+                                      )}
+                                      {pred.leagueName && (
+                                        <div className="text-xs text-text-muted mb-2">
+                                          {pred.leagueName}
+                                        </div>
+                                      )}
+                                      <div className="flex items-center gap-2">
+                                        <span className={`text-sm font-semibold ${
+                                          isCorrect ? 'text-green-400' : isIncorrect ? 'text-red-400' : 'text-white'
+                                        }`}>
+                                          {formatPrediction(pred.prediction)}
+                                        </span>
+                                        <span className="text-xs text-text-muted">
+                                          @ {formatOdds(pred.odds)}x
+                                        </span>
+                                      </div>
+                                      {pred.result && (
+                                        <div className="text-xs text-text-muted mt-1">
+                                          Result: {pred.result.home_score !== undefined && pred.result.away_score !== undefined
+                                            ? `${pred.result.home_score}-${pred.result.away_score}`
+                                            : 'N/A'}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </motion.div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center py-4 text-text-muted text-sm">
+                          No prediction details available
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          );
+        })}
       </div>
 
       {/* Empty State */}
