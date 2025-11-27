@@ -562,9 +562,9 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
 
   return (
     <AnimatePresence>
-      {/* ✅ FIX: Higher z-index to ensure modal is above footer, proper positioning for mobile */}
+      {/* ✅ FIX: Full viewport overlay with highest z-index */}
       <div
-        className="fixed inset-0 z-[9999] bg-black/70 backdrop-blur-md overflow-y-auto overscroll-contain"
+        className="fixed inset-0 flex items-center justify-center"
         onClick={onClose}
         style={{ 
           position: 'fixed',
@@ -572,108 +572,96 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
           left: 0,
           right: 0,
           bottom: 0,
-          width: '100%',
-          height: '100%',
-          overflow: 'auto',
-          WebkitOverflowScrolling: 'touch'
+          zIndex: 99999,
+          backgroundColor: 'rgba(0, 0, 0, 0.85)',
+          backdropFilter: 'blur(8px)',
+          padding: '16px'
         }}
       >
-        {/* ✅ FIX: Proper padding for mobile, ensure modal is centered and scrollable */}
-        <div className="flex min-h-full items-start sm:items-center justify-center p-3 sm:p-4 md:p-6 py-4 sm:py-6 md:py-8">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="glass-card rounded-xl sm:rounded-2xl border border-border-card w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col shadow-2xl my-auto"
-            onClick={(e) => e.stopPropagation()}
-            style={{ 
-              marginTop: 'auto',
-              marginBottom: 'auto',
-              position: 'relative',
-              zIndex: 10000
-            }}
-          >
-          {/* Header */}
-          <div className="flex items-center justify-between p-4 sm:p-6 border-b border-border-card bg-bg-dark/80 backdrop-blur-sm">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <TrophyIcon className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-              <h2 className="text-lg sm:text-xl font-bold text-white">Claim Prizes</h2>
+        {/* ✅ FIX: Compact modal centered in viewport */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          transition={{ type: "spring", damping: 25, stiffness: 300 }}
+          className="w-full max-w-2xl overflow-hidden flex flex-col rounded-xl border border-cyan-500/30"
+          onClick={(e) => e.stopPropagation()}
+          style={{ 
+            maxHeight: 'calc(100vh - 32px)',
+            backgroundColor: 'rgba(10, 15, 30, 0.98)',
+            boxShadow: '0 0 40px rgba(0, 255, 255, 0.1), 0 0 80px rgba(0, 0, 0, 0.5)'
+          }}
+        >
+          {/* Header - Compact */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-cyan-500/20 bg-gradient-to-r from-cyan-500/10 to-transparent">
+            <div className="flex items-center gap-2">
+              <TrophyIcon className="h-5 w-5 text-cyan-400" />
+              <h2 className="text-base font-bold text-white">Claim Prizes</h2>
             </div>
             <button
               onClick={onClose}
-              className="text-white/70 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10"
+              className="text-white/60 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/10"
               aria-label="Close modal"
             >
-              <XMarkIcon className="h-5 w-5 sm:h-6 sm:w-6" />
+              <XMarkIcon className="h-5 w-5" />
             </button>
           </div>
 
-          {/* Summary */}
-          <div className="p-4 sm:p-6 border-b border-border-card backdrop-blur-xl bg-bg-dark/95" style={{ background: 'rgba(17, 24, 39, 0.95)', backdropFilter: 'blur(12px)' }}>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-              <div className="text-center">
-                <div className="text-xl sm:text-2xl font-bold text-green-400">
-                  {formatNumber(totalClaimableAmount, 2)}
-                </div>
-                <div className="text-xs sm:text-sm text-white/60">Total Claimable</div>
+          {/* Summary - Compact */}
+          <div className="px-4 py-3 border-b border-cyan-500/10 bg-black/30">
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div>
+                <div className="text-lg font-bold text-green-400">{formatNumber(totalClaimableAmount, 2)}</div>
+                <div className="text-xs text-white/50">Claimable</div>
               </div>
-              <div className="text-center">
-                <div className="text-xl sm:text-2xl font-bold text-secondary">
-                  {totalUnclaimedCount}
-                </div>
-                <div className="text-xs sm:text-sm text-white/60">Unclaimed Positions</div>
+              <div>
+                <div className="text-lg font-bold text-cyan-400">{totalUnclaimedCount}</div>
+                <div className="text-xs text-white/50">Unclaimed</div>
               </div>
-              <div className="text-center">
-                <div className="text-xl sm:text-2xl font-bold text-accent">
-                  {formatNumber(selectedAmount, 2)}
-                </div>
-                <div className="text-xs sm:text-sm text-white/60">Selected Amount</div>
+              <div>
+                <div className="text-lg font-bold text-yellow-400">{formatNumber(selectedAmount, 2)}</div>
+                <div className="text-xs text-white/50">Selected</div>
               </div>
             </div>
           </div>
 
-          {/* Tabs */}
-          <div className="p-3 sm:p-4 border-b border-border-card bg-bg-dark/50">
-            <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+          {/* Tabs - Compact */}
+          <div className="px-4 py-2 border-b border-cyan-500/10 bg-black/20">
+            <div className="flex gap-1">
               {(['all', 'pool', 'oddyssey'] as PrizeTab[]).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors capitalize whitespace-nowrap flex items-center gap-1 ${
+                  className={`px-3 py-1.5 rounded text-xs font-medium transition-all capitalize ${
                     activeTab === tab
-                      ? 'bg-gradient-primary text-black'
-                      : 'bg-bg-card text-white/70 hover:text-white hover:bg-bg-card-hover'
+                      ? 'bg-cyan-500 text-black'
+                      : 'text-white/60 hover:text-white hover:bg-white/5'
                   }`}
                 >
-                  {tab === 'all' && <TrophyIcon className="h-3 w-3 sm:h-4 sm:w-4" />}
-                  {tab === 'pool' && <TrophyIcon className="h-3 w-3 sm:h-4 sm:w-4" />}
-                  {tab === 'oddyssey' && <FireIcon className="h-3 w-3 sm:h-4 sm:w-4" />}
                   {tab}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Controls */}
-          <div className="p-4 sm:p-6 border-b border-border-card bg-bg-dark/30">
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center justify-between">
-              {/* Filter */}
-              <div className="flex gap-2 overflow-x-auto scrollbar-hide">
-                {(['all', 'unclaimed', 'claimed'] as const).map((filterType) => (
-                  <button
-                    key={filterType}
-                    onClick={() => setFilter(filterType)}
-                    className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-colors whitespace-nowrap ${
-                      filter === filterType
-                        ? 'bg-gradient-primary text-black'
-                        : 'bg-bg-card text-white/70 hover:text-white hover:bg-bg-card-hover'
-                    }`}
-                  >
-                    {filterType.charAt(0).toUpperCase() + filterType.slice(1)}
-                  </button>
-                ))}
-              </div>
+          {/* Controls - Compact */}
+          <div className="px-4 py-2 border-b border-cyan-500/10 bg-black/10 flex items-center justify-between gap-2">
+            {/* Filter */}
+            <div className="flex gap-1">
+              {(['all', 'unclaimed', 'claimed'] as const).map((filterType) => (
+                <button
+                  key={filterType}
+                  onClick={() => setFilter(filterType)}
+                  className={`px-2 py-1 rounded text-xs font-medium transition-all ${
+                    filter === filterType
+                      ? 'bg-white/20 text-white'
+                      : 'text-white/50 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  {filterType.charAt(0).toUpperCase() + filterType.slice(1)}
+                </button>
+              ))}
+            </div>
 
               {/* Selection Controls */}
               <div className="flex gap-2">
@@ -697,80 +685,74 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
             </div>
           </div>
 
-          {/* Positions List */}
-          <div className="flex-1 overflow-y-auto max-h-[50vh] sm:max-h-[60vh] bg-bg-dark/20 overscroll-contain">
+          {/* Positions List - Compact */}
+          <div className="flex-1 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 280px)', minHeight: '200px' }}>
             {isLoading ? (
-              <div className="flex items-center justify-center h-64 sm:h-96">
+              <div className="flex items-center justify-center h-48">
                 <div className="text-center">
                   <LoadingSpinner size="lg" />
-                  <span className="text-white/70 mt-4 block text-sm sm:text-base">Loading positions...</span>
+                  <span className="text-white/60 mt-2 block text-xs">Loading...</span>
                 </div>
               </div>
             ) : pools.length === 0 && oddyssey.length === 0 ? (
-              <div className="flex items-center justify-center h-64 sm:h-96">
+              <div className="flex items-center justify-center h-48">
                 <div className="text-center">
-                  <TrophyIcon className="h-10 w-10 sm:h-12 sm:w-12 text-white/40 mx-auto mb-4" />
-                  <p className="text-white/70 text-sm sm:text-base">No claimable positions found</p>
+                  <TrophyIcon className="h-8 w-8 text-white/30 mx-auto mb-2" />
+                  <p className="text-white/50 text-sm">No claimable positions</p>
                 </div>
               </div>
             ) : (
-              <div className="space-y-2 p-3 sm:p-4 md:p-6">
-                {/* Pool Positions */}
+              <div className="space-y-1 p-3">
+                {/* Pool Positions - Compact */}
                 {pools.map((position) => (
                   <div
                     key={`pool-${position.poolId}`}
-                    className={`p-4 rounded-lg border transition-all ${
+                    className={`px-3 py-2 rounded border transition-all flex items-center justify-between gap-2 ${
                       position.claimed
-                        ? 'bg-bg-card/30 border-border-card'
+                        ? 'bg-white/5 border-white/10 opacity-60'
                         : position.claimableAmount > 0
                         ? 'bg-green-500/10 border-green-500/30'
-                        : 'bg-red-500/10 border-red-500/30'
+                        : 'bg-red-500/5 border-red-500/20'
                     } ${
                       selectedPoolPositions.has(position.poolId) && !position.claimed
-                        ? 'ring-2 ring-primary'
+                        ? 'ring-1 ring-cyan-400'
                         : ''
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        {!position.claimed && position.claimableAmount > 0 && (
-                          <input
-                            type="checkbox"
-                            checked={selectedPoolPositions.has(position.poolId)}
-                            onChange={() => togglePoolPositionSelection(position.poolId)}
-                            className="w-4 h-4 text-primary bg-bg-card border-border-input rounded focus:ring-primary"
-                          />
-                        )}
-                        
-                        <div>
-                          <h4 className="font-medium text-white text-sm sm:text-base">
-                            Pool #{position.poolId} - {position.league || position.category || 'Market'}
-                          </h4>
-                          <div className="flex items-center gap-2 sm:gap-4 text-xs sm:text-sm text-white/60 flex-wrap">
-                            {position.predictedOutcome && (
-                              <span>{position.predictedOutcome}</span>
-                            )}
-                            {position.settledAt && (
-                              <span>Settled: {new Date(position.settledAt).toLocaleDateString()}</span>
-                            )}
-                          </div>
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      {!position.claimed && position.claimableAmount > 0 && (
+                        <input
+                          type="checkbox"
+                          checked={selectedPoolPositions.has(position.poolId)}
+                          onChange={() => togglePoolPositionSelection(position.poolId)}
+                          className="w-3.5 h-3.5 text-cyan-400 bg-black/50 border-white/30 rounded focus:ring-cyan-400 flex-shrink-0"
+                        />
+                      )}
+                      
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-medium text-white text-xs truncate">
+                          Pool #{position.poolId} - {position.league || position.category || 'Market'}
+                        </h4>
+                        <div className="text-xs text-white/40 truncate">
+                          {position.predictedOutcome || (position.settledAt && new Date(position.settledAt).toLocaleDateString())}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="text-right">
+                        <div className={`font-bold text-xs ${
+                          position.claimableAmount > 0 ? 'text-green-400' : 'text-red-400'
+                        }`}>
+                          {position.claimableAmount > 0 ? '+' : ''}{formatNumber(position.claimableAmount, 2)}
+                        </div>
+                        <div className="text-xs text-white/40">
+                          {formatNumber(position.stakeAmount, 2)} {position.currency}
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
-                        <div className="text-right">
-                          <div className={`font-bold text-sm sm:text-base ${
-                            position.claimableAmount > 0 ? 'text-green-400' : 'text-red-400'
-                          }`}>
-                            {position.claimableAmount > 0 ? '+' : ''}{formatNumber(position.claimableAmount, 2)} {position.currency}
-                          </div>
-                          <div className="text-xs text-white/50">
-                            Stake: {formatNumber(position.stakeAmount, 2)} {position.currency}
-                          </div>
-                        </div>
-
                         {position.claimed ? (
-                          <CheckCircleIcon className="h-6 w-6 text-green-400" />
+                          <CheckCircleIcon className="h-4 w-4 text-green-400" />
                         ) : position.claimableAmount > 0 ? (
                           <Button
                             onClick={() => handleClaimPoolSingle(position.poolId)}
@@ -778,86 +760,83 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
                             size="sm"
                             disabled={isClaiming}
                             loading={isClaiming}
+                            className="text-xs px-2 py-1"
                           >
                             Claim
                           </Button>
                         ) : (
-                          <span className="text-red-400 text-sm">Not Eligible</span>
+                          <span className="text-red-400/60 text-xs">N/A</span>
                         )}
                       </div>
                     </div>
                   </div>
                 ))}
 
-                {/* Odyssey Positions */}
+                {/* Odyssey Positions - Compact */}
                 {oddyssey.map((position) => (
                   <div
                     key={`${position.cycleId}-${position.slipId}`}
-                    className={`p-4 rounded-lg border transition-all ${
+                    className={`px-3 py-2 rounded border transition-all flex items-center justify-between gap-2 ${
                       position.claimed
-                        ? 'bg-bg-card/30 border-border-card'
+                        ? 'bg-white/5 border-white/10 opacity-60'
                         : position.claimStatus === 'eligible'
-                        ? 'bg-green-500/10 border-green-500/30'
-                        : 'bg-red-500/10 border-red-500/30'
+                        ? 'bg-purple-500/10 border-purple-500/30'
+                        : 'bg-red-500/5 border-red-500/20'
                     } ${
                       selectedOdysseyPositions.has(`${position.cycleId}-${position.slipId}`) && !position.claimed
-                        ? 'ring-2 ring-primary'
+                        ? 'ring-1 ring-purple-400'
                         : ''
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        {!position.claimed && position.claimStatus === 'eligible' && (
-                          <input
-                            type="checkbox"
-                            checked={selectedOdysseyPositions.has(`${position.cycleId}-${position.slipId}`)}
-                            onChange={() => toggleOdysseyPositionSelection(position.cycleId, position.slipId)}
-                            className="w-4 h-4 text-primary bg-bg-card border-border-input rounded focus:ring-primary"
-                          />
-                        )}
-                        
-                        <div>
-                          <h4 className="font-medium text-white text-sm sm:text-base">
-                            Cycle {position.cycleId} - Slip {position.slipId}
-                          </h4>
-                          <div className="flex items-center gap-2 sm:gap-4 text-xs sm:text-sm text-white/60 flex-wrap">
-                            <span>Correct: {position.correctCount}/10</span>
-                            <span>Placed: {position.placedAt.toLocaleDateString()}</span>
-                            {position.evaluatedAt && (
-                              <span>Evaluated: {position.evaluatedAt.toLocaleDateString()}</span>
-                            )}
-                          </div>
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      {!position.claimed && position.claimStatus === 'eligible' && (
+                        <input
+                          type="checkbox"
+                          checked={selectedOdysseyPositions.has(`${position.cycleId}-${position.slipId}`)}
+                          onChange={() => toggleOdysseyPositionSelection(position.cycleId, position.slipId)}
+                          className="w-3.5 h-3.5 text-purple-400 bg-black/50 border-white/30 rounded focus:ring-purple-400 flex-shrink-0"
+                        />
+                      )}
+                      
+                      <div className="min-w-0 flex-1">
+                        <h4 className="font-medium text-white text-xs flex items-center gap-1">
+                          <FireIcon className="h-3 w-3 text-purple-400 flex-shrink-0" />
+                          Cycle {position.cycleId} · Slip {position.slipId}
+                        </h4>
+                        <div className="text-xs text-white/40">
+                          {position.correctCount}/10 correct
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="text-right">
+                        <div className={`font-bold text-xs ${
+                          position.claimStatus === 'eligible' ? 'text-purple-400' : 'text-red-400'
+                        }`}>
+                          {position.claimStatus === 'eligible' ? '+' : ''}{formatNumber(parseFloat(position.prizeAmount), 2)} STT
+                        </div>
+                        <div className="text-xs text-white/40">
+                          {position.claimStatus === 'eligible' ? 'Prize' : 'N/A'}
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <div className={`font-bold ${
-                            position.claimStatus === 'eligible' ? 'text-green-400' : 'text-red-400'
-                          }`}>
-                            {position.claimStatus === 'eligible' ? '+' : ''}{formatNumber(parseFloat(position.prizeAmount), 2)} STT
-                          </div>
-                          <div className="text-xs text-white/50">
-                            {position.claimStatus === 'eligible' ? 'Prize' : position.reason || 'Not Eligible'}
-                          </div>
-                        </div>
-
-                        {position.claimed ? (
-                          <CheckCircleIcon className="h-6 w-6 text-green-400" />
-                        ) : position.claimStatus === 'eligible' ? (
-                          <Button
-                            onClick={() => handleClaimOdysseySingle(position)}
-                            variant="primary"
-                            size="sm"
-                            disabled={isClaiming}
-                            loading={isClaiming}
-                          >
-                            Claim
-                          </Button>
-                        ) : (
-                          <span className="text-red-400 text-sm">Not Eligible</span>
-                        )}
-                      </div>
+                      {position.claimed ? (
+                        <CheckCircleIcon className="h-4 w-4 text-green-400" />
+                      ) : position.claimStatus === 'eligible' ? (
+                        <Button
+                          onClick={() => handleClaimOdysseySingle(position)}
+                          variant="primary"
+                          size="sm"
+                          disabled={isClaiming}
+                          loading={isClaiming}
+                          className="text-xs px-2 py-1"
+                        >
+                          Claim
+                        </Button>
+                      ) : (
+                        <span className="text-red-400/60 text-xs">N/A</span>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -865,51 +844,46 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
             )}
           </div>
 
-          {/* Footer */}
-          <div className="p-4 sm:p-6 border-t border-border-card bg-bg-dark/80 backdrop-blur-sm sticky bottom-0">
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-stretch sm:items-center justify-between">
-              <div className="text-xs sm:text-sm text-white/70 text-center sm:text-left">
-                {isClaiming && claimProgress.total > 0 && (
-                  <span>
-                    Claiming {claimProgress.completed} of {claimProgress.total}...
-                  </span>
-                )}
-              </div>
+          {/* Footer - Compact */}
+          <div className="px-4 py-3 border-t border-cyan-500/20 bg-black/50 flex items-center justify-between gap-2">
+            <div className="text-xs text-white/50">
+              {isClaiming && claimProgress.total > 0 && (
+                <span>Claiming {claimProgress.completed}/{claimProgress.total}...</span>
+              )}
+            </div>
+            
+            <div className="flex gap-2">
+              <Button
+                onClick={loadPositions}
+                variant="outline"
+                disabled={isLoading || isClaiming}
+                className="text-xs px-3 py-1.5"
+              >
+                Refresh
+              </Button>
               
-              <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
+              {isNewConnected ? (
                 <Button
-                  onClick={loadPositions}
-                  variant="outline"
-                  disabled={isLoading || isClaiming}
-                  className="flex-1 sm:flex-none"
+                  onClick={handleBatchClaim}
+                  variant="primary"
+                  disabled={totalSelectedCount === 0 || isClaiming}
+                  loading={isClaiming}
+                  className="text-xs px-3 py-1.5"
                 >
-                  Refresh
+                  Claim ({totalSelectedCount})
                 </Button>
-                
-                {isNewConnected ? (
-                  <Button
-                    onClick={handleBatchClaim}
-                    variant="primary"
-                    disabled={totalSelectedCount === 0 || isClaiming}
-                    loading={isClaiming}
-                    className="flex-1 sm:flex-none"
-                  >
-                    Claim Selected ({totalSelectedCount})
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={connectWallet}
-                    variant="primary"
-                    className="flex-1 sm:flex-none"
-                  >
-                    Connect Wallet
-                  </Button>
-                )}
-              </div>
+              ) : (
+                <Button
+                  onClick={connectWallet}
+                  variant="primary"
+                  className="text-xs px-3 py-1.5"
+                >
+                  Connect
+                </Button>
+              )}
             </div>
           </div>
-          </motion.div>
-        </div>
+        </motion.div>
       </div>
     </AnimatePresence>
   );
