@@ -38,7 +38,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(data);
+    // Backend returns { leaderboard: [...], totalEligible: ..., totalUsers: ..., showingTop: ... }
+    // Frontend expects just the array, so extract leaderboard property
+    if (data.leaderboard && Array.isArray(data.leaderboard)) {
+      return NextResponse.json(data.leaderboard);
+    }
+
+    // Fallback: return empty array if structure is unexpected
+    console.warn('Unexpected leaderboard response structure:', data);
+    return NextResponse.json([]);
   } catch (error) {
     console.error('Error fetching airdrop leaderboard:', error);
     return NextResponse.json(
