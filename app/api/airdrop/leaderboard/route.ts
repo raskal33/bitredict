@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Proxy request to backend
-    const backendResponse = await fetch(`${BACKEND_URL}/airdrop/leaderboard?limit=${limitNum}`, {
+    const backendResponse = await fetch(`${BACKEND_URL}/api/airdrop/leaderboard?limit=${limitNum}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
