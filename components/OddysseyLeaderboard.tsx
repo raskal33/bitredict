@@ -559,11 +559,6 @@ export default function OddysseyLeaderboard({ cycleId: propCycleId, className = 
                                             : pred.result.outcome_1x2 || pred.result.outcome_ou25 || 'N/A'}
                                         </div>
                                       )}
-                                      {pred.homeScore !== null && pred.awayScore !== null && (
-                                        <div className="text-xs text-text-muted mt-1">
-                                          Score: {pred.homeScore}-{pred.awayScore}
-                                        </div>
-                                      )}
                                     </div>
                                   </div>
                                 </motion.div>
