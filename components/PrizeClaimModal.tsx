@@ -145,22 +145,31 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
                   const statusData = statusJson.data ?? statusJson ?? {};
                   const statusRecord = statusData as Record<string, unknown>;
                   const alreadyClaimed = Boolean(
-                    statusRecord['alreadyClaimed'] ?? statusRecord['already_claimed']
+                    statusRecord['alreadyClaimed'] ?? statusRecord['already_claimed'] ?? false
                   );
                   const claimableAmountRaw = (
                     statusRecord['claimableAmount'] ?? statusRecord['claimable_amount']
                   ) as number | string | undefined;
+                  const canClaim = Boolean(statusRecord['canClaim'] ?? false);
+
+                  // Use claimableAmount from status if available, otherwise keep original
+                  let finalClaimableAmount = pool.claimableAmount;
+                  if (claimableAmountRaw !== undefined && !alreadyClaimed && canClaim) {
+                    // Status endpoint returns amount in token units (not wei), so no normalization needed
+                    const amount = typeof claimableAmountRaw === 'string' ? parseFloat(claimableAmountRaw) : claimableAmountRaw;
+                    if (Number.isFinite(amount) && amount > 0) {
+                      finalClaimableAmount = amount;
+                    }
+                  }
 
                   return {
                     ...pool,
                     claimed: pool.claimed || alreadyClaimed,
-                    claimableAmount:
-                      alreadyClaimed
-                        ? 0
-                        : claimableAmountRaw !== undefined
-                        ? normalizeTokenAmount(claimableAmountRaw as number | string, pool.currency)
-                        : pool.claimableAmount
+                    claimableAmount: alreadyClaimed ? 0 : finalClaimableAmount
                   };
+                } else {
+                  // Status endpoint failed, but keep the pool with original data
+                  console.warn(`[PrizeClaimModal] Status endpoint returned ${statusResponse.status} for pool ${pool.poolId}`);
                 }
               } catch (statusError) {
                 console.warn(`[PrizeClaimModal] Failed to fetch status for pool ${pool.poolId}:`, statusError);
@@ -204,20 +213,35 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
           }
           
           const odysseyPrizes: OdysseyPrizeResponse[] = (odysseyData?.data?.claimablePrizes ?? odysseyData.claimablePrizes ?? []);
-          console.log(`[PrizeClaimModal] Loaded ${odysseyPrizes.length} odyssey positions for ${currentAddress}`);
+          console.log(`[PrizeClaimModal] Loaded ${odysseyPrizes.length} odyssey positions for ${currentAddress}`, odysseyPrizes);
           
           if (isMountedRef.current) {
-            const normalizedOdysseyPositions: OdysseyClaimablePosition[] = odysseyPrizes.map((p) => ({
-              cycleId: p.cycleId,
-              slipId: p.slipId,
-              userAddress: currentAddress,
-              correctCount: p.correctCount,
-              prizeAmount: normalizeTokenAmount(p.prizeAmount, 'STT').toString(),
-              claimed: p.already_claimed || false,
-              claimStatus: p.canClaim ? 'eligible' as const : 'not_eligible' as const,
-              placedAt: p.placedAt ? new Date(p.placedAt) : new Date(),
-              evaluatedAt: p.evaluatedAt ? new Date(p.evaluatedAt) : undefined
-            }));
+            const normalizedOdysseyPositions: OdysseyClaimablePosition[] = odysseyPrizes.map((p) => {
+              // Backend now returns prizeAmount in token units (already normalized from wei)
+              let prizeAmount = 0;
+              if (p.prizeAmount !== undefined && p.prizeAmount !== null) {
+                const rawAmount = typeof p.prizeAmount === 'string' ? parseFloat(p.prizeAmount) : p.prizeAmount;
+                // Backend normalizes to token units, so use directly (but double-check for safety)
+                if (rawAmount > 1e10) {
+                  // Still in wei somehow, normalize it
+                  prizeAmount = normalizeTokenAmount(rawAmount, 'STT');
+                } else {
+                  prizeAmount = rawAmount;
+                }
+              }
+              
+              return {
+                cycleId: p.cycleId,
+                slipId: p.slipId,
+                userAddress: currentAddress,
+                correctCount: p.correctCount,
+                prizeAmount: prizeAmount.toString(),
+                claimed: p.already_claimed || false,
+                claimStatus: (p.canClaim && prizeAmount > 0) ? 'eligible' as const : 'not_eligible' as const,
+                placedAt: p.placedAt ? new Date(p.placedAt) : new Date(),
+                evaluatedAt: p.evaluatedAt ? new Date(p.evaluatedAt) : undefined
+              };
+            });
 
             setOdysseyPositions(normalizedOdysseyPositions);
             
@@ -765,10 +789,10 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
                         <div className={`font-bold text-xs ${
                           position.claimableAmount > 0 ? 'text-green-400' : 'text-red-400'
                         }`}>
-                          {position.claimableAmount > 0 ? '+' : ''}{formatNumber(position.claimableAmount, 2)}
+                          {position.claimableAmount > 0 ? '+' : ''}{formatNumber(position.claimableAmount, 2)} {position.currency}
                         </div>
                         <div className="text-xs text-white/40">
-                          {formatNumber(position.stakeAmount, 2)} {position.currency}
+                          Stake: {formatNumber(position.stakeAmount, 2)} {position.currency}
                         </div>
                       </div>
 
