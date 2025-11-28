@@ -123,10 +123,13 @@ export default function OddysseyLeaderboard({ cycleId: propCycleId, className = 
       if (response.success && response.data) {
         const leaderboardData = response.data.leaderboard || [];
         
+        console.log(`[OddysseyLeaderboard] Received ${leaderboardData.length} entries, checking for predictions...`);
+        
         // Store predictions from leaderboard response directly (no need to fetch separately)
         const leaderboardWithPredictions = leaderboardData.map((entry: LeaderboardEntry) => {
           // If predictions are already included from backend, use them
           if (entry.predictions && entry.predictions.length > 0) {
+            console.log(`[OddysseyLeaderboard] Entry ${entry.slipId} has ${entry.predictions.length} predictions from backend`);
             setSlipDetails(prev => {
               const newMap = new Map(prev);
               newMap.set(entry.slipId, {
@@ -137,6 +140,8 @@ export default function OddysseyLeaderboard({ cycleId: propCycleId, className = 
               });
               return newMap;
             });
+          } else {
+            console.log(`[OddysseyLeaderboard] Entry ${entry.slipId} has NO predictions in response`);
           }
           return entry;
         });
