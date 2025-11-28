@@ -780,20 +780,20 @@ export default function UserSlipsDisplay({ userAddress, className = "" }: UserSl
                       )}
                     </div>
                     
-                    {/* Prize Claiming Button */}
+                    {/* Prize Claiming Button - Enhanced */}
                     {slip.prizeAmount && !slip.prizeClaimed && (
                       <button
                         onClick={() => handleClaimPrize(slip.cycleId, slip.slip_id!)}
                         disabled={getPrizeButtonState(slip).disabled}
-                        className={`px-4 py-3 sm:px-6 sm:py-2 font-medium rounded-lg transition-colors touch-manipulation ${
+                        className={`px-5 py-2.5 sm:px-6 sm:py-2 font-bold rounded-xl transition-all duration-300 touch-manipulation ${
                           getPrizeButtonState(slip).variant === 'primary' 
-                            ? 'bg-yellow-500 hover:bg-yellow-600 text-black'
+                            ? 'bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-400 hover:to-amber-400 text-black shadow-lg shadow-yellow-500/30 hover:shadow-yellow-500/50 hover:scale-105 animate-pulse'
                             : getPrizeButtonState(slip).variant === 'green'
-                            ? 'bg-green-500 text-white cursor-not-allowed'
-                            : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                            ? 'bg-green-500/20 text-green-400 border border-green-500/30 cursor-not-allowed'
+                            : 'bg-gray-600/50 text-gray-400 border border-gray-500/30 cursor-not-allowed'
                         }`}
                       >
-                        {getPrizeButtonState(slip).text}
+                        🏆 {getPrizeButtonState(slip).text}
                       </button>
                     )}
                     

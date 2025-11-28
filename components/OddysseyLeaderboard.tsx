@@ -344,22 +344,21 @@ export default function OddysseyLeaderboard({ cycleId: propCycleId, className = 
           animate={{ opacity: 1, y: 0 }}
           className="glass-card p-4"
         >
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-4">
-              <TrophyIcon className="h-6 w-6 text-yellow-400" />
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+            <div className="flex items-center gap-3">
+              <TrophyIcon className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-400 flex-shrink-0" />
               <div>
-                <h3 className="text-lg font-bold text-white">
-                  {leaderboardInfo.cycleId ? `Cycle #${leaderboardInfo.cycleId} Leaderboard` : 'Current Leaderboard'}
+                <h3 className="text-base sm:text-lg font-bold text-white">
+                  {leaderboardInfo.cycleId ? `Cycle #${leaderboardInfo.cycleId}` : 'Leaderboard'}
                 </h3>
-                <p className="text-sm text-text-muted">
-                  {leaderboardInfo.qualifiedPlayers} qualified / {leaderboardInfo.totalPlayers} total players
+                <p className="text-xs sm:text-sm text-text-muted">
+                  {leaderboardInfo.qualifiedPlayers} qualified / {leaderboardInfo.totalPlayers} players
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-4">
-              {/* Cycle Picker */}
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-text-muted whitespace-nowrap">Cycle:</label>
+            <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
+              {/* Cycle Picker - Glassmorphism Style */}
+              <div className="relative">
                 <select
                   value={selectedCycleId || ''}
                   onChange={(e) => {
@@ -369,26 +368,27 @@ export default function OddysseyLeaderboard({ cycleId: propCycleId, className = 
                     setExpandedSlips(new Set());
                     setSlipDetails(new Map());
                   }}
-                  className="px-3 py-1.5 bg-bg-dark border border-primary/30 rounded-lg text-white text-sm focus:outline-none focus:border-primary min-w-[200px]"
+                  className="appearance-none px-3 sm:px-4 py-2 bg-black/40 backdrop-blur-md border border-primary/20 rounded-xl text-white text-xs sm:text-sm focus:outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/20 transition-all duration-200 cursor-pointer min-w-[140px] sm:min-w-[220px] pr-8"
                   disabled={loadingCycles}
                 >
                   {loadingCycles ? (
-                    <option>Loading cycles...</option>
+                    <option className="bg-bg-dark text-white">Loading...</option>
                   ) : (
                     <>
-                      <option value="">Auto (Previous Cycle)</option>
+                      <option value="" className="bg-bg-dark text-white">Previous Cycle</option>
                       {availableCycles.map((cycle) => (
-                        <option key={cycle.cycleId} value={cycle.cycleId}>
-                          Cycle #{cycle.cycleId} ({new Date(cycle.startDate).toLocaleDateString()}) - {cycle.playerCount} players
+                        <option key={cycle.cycleId} value={cycle.cycleId} className="bg-bg-dark text-white">
+                          #{cycle.cycleId} • {new Date(cycle.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} • {cycle.playerCount}p
                         </option>
                       ))}
                     </>
                   )}
                 </select>
+                <ChevronDownIcon className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-primary/60 pointer-events-none" />
               </div>
-              <div className="text-right">
-                <div className="text-sm text-text-muted">Min. 7 correct</div>
-                <div className="text-lg font-bold text-yellow-400">Top 5 Win</div>
+              <div className="text-right hidden sm:block">
+                <div className="text-xs text-text-muted">Min. 7 correct</div>
+                <div className="text-sm font-bold text-yellow-400">Top 5 Win</div>
               </div>
             </div>
           </div>
@@ -413,16 +413,57 @@ export default function OddysseyLeaderboard({ cycleId: propCycleId, className = 
               {/* Main Entry Row - Clickable */}
               <div
                 onClick={() => toggleSlipExpansion(entry.slipId)}
-                className="p-4 cursor-pointer hover:bg-white/5 transition-colors"
+                className="p-3 sm:p-4 cursor-pointer hover:bg-white/5 transition-colors"
               >
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                {/* Mobile Layout */}
+                <div className="flex sm:hidden flex-col gap-3">
+                  {/* Top Row: Rank + Player + Expand */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {getRankIcon(entry.rank)}
+                      <div>
+                        <span className="font-mono text-xs text-white">
+                          {formatAddress(entry.playerAddress)}
+                        </span>
+                        <div className="text-[10px] text-text-muted">
+                          Slip #{entry.slipId}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {isExpanded ? (
+                        <ChevronUpIcon className="h-4 w-4 text-text-muted" />
+                      ) : (
+                        <ChevronDownIcon className="h-4 w-4 text-text-muted" />
+                      )}
+                    </div>
+                  </div>
+                  {/* Bottom Row: Stats */}
+                  <div className="flex items-center justify-between text-center bg-black/20 rounded-lg p-2">
+                    <div>
+                      <div className="text-sm font-bold text-white">{formatScore(entry.finalScore)}x</div>
+                      <div className="text-[9px] text-text-muted">Score</div>
+                    </div>
+                    <div>
+                      <div className="text-sm font-bold text-green-400">{entry.correctCount}/10</div>
+                      <div className="text-[9px] text-text-muted">Correct</div>
+                    </div>
+                    <div>
+                      <div className="text-sm font-bold text-yellow-400">{entry.prizePercentage}%</div>
+                      <div className="text-[9px] text-text-muted">Prize</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Desktop Layout */}
+                <div className="hidden sm:grid grid-cols-12 gap-4 items-center">
                   {/* Rank */}
-                  <div className="md:col-span-1 text-center">
+                  <div className="col-span-1 text-center">
                     {getRankIcon(entry.rank)}
                   </div>
 
                   {/* Player */}
-                  <div className="md:col-span-4">
+                  <div className="col-span-4">
                     <div className="flex items-center gap-2">
                       <UserIcon className="h-4 w-4 text-text-muted" />
                       <span className="font-mono text-sm text-white">
@@ -440,7 +481,7 @@ export default function OddysseyLeaderboard({ cycleId: propCycleId, className = 
                   </div>
 
                   {/* Score */}
-                  <div className="md:col-span-2 text-center">
+                  <div className="col-span-2 text-center">
                     <div className="text-lg font-bold text-white">
                       {formatScore(entry.finalScore)}x
                     </div>
@@ -448,7 +489,7 @@ export default function OddysseyLeaderboard({ cycleId: propCycleId, className = 
                   </div>
 
                   {/* Correct Count */}
-                  <div className="md:col-span-2 text-center">
+                  <div className="col-span-2 text-center">
                     <div className="text-lg font-bold text-green-400">
                       {entry.correctCount}/10
                     </div>
@@ -456,7 +497,7 @@ export default function OddysseyLeaderboard({ cycleId: propCycleId, className = 
                   </div>
 
                   {/* Prize */}
-                  <div className="md:col-span-2 text-center">
+                  <div className="col-span-2 text-center">
                     <div className="flex items-center justify-center gap-1">
                       <CurrencyDollarIcon className="h-4 w-4 text-yellow-400" />
                       <span className="text-lg font-bold text-yellow-400">
@@ -467,13 +508,19 @@ export default function OddysseyLeaderboard({ cycleId: propCycleId, className = 
                   </div>
 
                   {/* Time */}
-                  <div className="md:col-span-1 text-center">
-                    <div className="flex items-center justify-center gap-1">
+                  <div className="col-span-1 text-center flex flex-col items-center gap-1">
+                    <div className="flex items-center gap-1">
                       <ClockIcon className="h-3 w-3 text-text-muted" />
                       <span className="text-xs text-text-muted">
                         {new Date(entry.placedAt).toLocaleDateString()}
                       </span>
                     </div>
+                    {/* Winner badge */}
+                    {entry.prizePercentage > 0 && (
+                      <span className="mt-1 px-2 py-0.5 text-[10px] font-bold bg-yellow-500/20 text-yellow-400 rounded-full border border-yellow-500/30">
+                        WINNER
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>

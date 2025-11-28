@@ -1490,18 +1490,11 @@ class OddysseyService {
   // Get leaderboard from backend
   async getLeaderboard(cycleId?: number): Promise<{ success: boolean; data: any }> {
     try {
-      // Add cache-busting parameter to ensure fresh data
-      const cacheBuster = `?t=${Date.now()}`;
+      // Simple fetch without custom headers to avoid CORS issues
       const url = cycleId 
-        ? `https://bitredict-backend.fly.dev/api/oddyssey/leaderboard/${cycleId}${cacheBuster}`
-        : `https://bitredict-backend.fly.dev/api/oddyssey/leaderboard${cacheBuster}`;
-      const response = await fetch(url, {
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
-      });
+        ? `https://bitredict-backend.fly.dev/api/oddyssey/leaderboard/${cycleId}`
+        : 'https://bitredict-backend.fly.dev/api/oddyssey/leaderboard';
+      const response = await fetch(url);
       const data = await response.json();
       console.log('[oddysseyService] Leaderboard response:', {
         cycleId,
