@@ -354,14 +354,17 @@ export default function OddysseyLeaderboard({ cycleId: propCycleId, className = 
             <div className="flex items-center gap-4">
               {/* Cycle Picker */}
               <div className="flex items-center gap-2">
-                <label className="text-sm text-text-muted">Cycle:</label>
+                <label className="text-sm text-text-muted whitespace-nowrap">Cycle:</label>
                 <select
                   value={selectedCycleId || ''}
                   onChange={(e) => {
                     const newCycleId = e.target.value ? parseInt(e.target.value) : undefined;
                     setSelectedCycleId(newCycleId);
+                    // Clear expanded slips when changing cycle
+                    setExpandedSlips(new Set());
+                    setSlipDetails(new Map());
                   }}
-                  className="px-3 py-1.5 bg-bg-dark border border-primary/30 rounded-lg text-white text-sm focus:outline-none focus:border-primary"
+                  className="px-3 py-1.5 bg-bg-dark border border-primary/30 rounded-lg text-white text-sm focus:outline-none focus:border-primary min-w-[200px]"
                   disabled={loadingCycles}
                 >
                   {loadingCycles ? (

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = false;
@@ -6,7 +6,7 @@ export const runtime = 'nodejs';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'https://bitredict-backend.fly.dev';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const backendResponse = await fetch(`${BACKEND_URL}/api/oddyssey/cycles`, {
       method: 'GET',
