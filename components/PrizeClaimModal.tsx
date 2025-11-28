@@ -136,7 +136,8 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
             };
           });
 
-          const poolsWithStatus: PoolClaimablePosition[] = await Promise.all(
+          // ✅ FIX: Filter out null results (refunded pools)
+          const poolsWithStatusRaw = await Promise.all(
             normalizedPools.map(async (pool) => {
               try {
                 const statusResponse = await fetch(getAPIUrl(`/api/claim-pools/${pool.poolId}/${currentAddress}/status`));
@@ -147,10 +148,17 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
                   const alreadyClaimed = Boolean(
                     statusRecord['alreadyClaimed'] ?? statusRecord['already_claimed'] ?? false
                   );
+                  const isRefunded = Boolean(statusRecord['isRefunded'] ?? false);
                   const claimableAmountRaw = (
                     statusRecord['claimableAmount'] ?? statusRecord['claimable_amount']
                   ) as number | string | undefined;
                   const canClaim = Boolean(statusRecord['canClaim'] ?? false);
+
+                  // ✅ FIX: Skip refunded pools entirely (no prize to claim)
+                  if (isRefunded) {
+                    console.log(`[PrizeClaimModal] Pool ${pool.poolId} is refunded, skipping`);
+                    return null; // Will be filtered out
+                  }
 
                   // Use claimableAmount from status if available, otherwise keep original
                   let finalClaimableAmount = pool.claimableAmount;
@@ -176,6 +184,11 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
               }
               return pool;
             })
+          );
+
+          // ✅ FIX: Filter out null results (refunded pools)
+          const poolsWithStatus: PoolClaimablePosition[] = poolsWithStatusRaw.filter(
+            (p): p is PoolClaimablePosition => p !== null
           );
 
           setPoolPositions(poolsWithStatus);
