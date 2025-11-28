@@ -17,7 +17,7 @@ export const somniaNetwork: AppKitNetwork = {
         process.env.NODE_ENV === 'development' 
           ? 'http://localhost:8080/api/rpc-proxy'
           : process.env.NEXT_PUBLIC_RPC_URL || 'https://dream-rpc.somnia.network/',
-        'https://rpc.ankr.com/somnia_testnet/c8e336679a7fe85909f310fbbdd5fbb18d3b7560b1d3eca7aa97874b0bb81e97'
+        process.env.ANKR_RPC_URL || 'https://rpc.ankr.com/somnia_testnet'
       ],
     },
   },
@@ -27,8 +27,11 @@ export const somniaNetwork: AppKitNetwork = {
   testnet: true,
 }
 
-// Get project ID from environment
-const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '6a0514d82fb621e41aa6cad5473883a3'
+// SECURITY FIX: Remove hardcoded fallback - require environment variable
+const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID;
+if (!projectId) {
+  throw new Error('NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID environment variable is required');
+}
 
 // Create the networks array
 const networks = [somniaNetwork, mainnet, sepolia] as [AppKitNetwork, ...AppKitNetwork[]]
@@ -113,12 +116,14 @@ export const NETWORK_CONFIG = {
   explorerUrl: 'https://explorer.somnia.network',
 }
 
-// Global gas settings - Optimized for Somnia Network
+// SECURITY FIX: Gas settings should be dynamic, not hardcoded
+// These are fallback values - actual gas should be estimated per transaction
 export const GAS_SETTINGS = {
-  gas: BigInt(10000000), // 10M gas limit (reduced for lightweight functions)
-  gasPrice: BigInt(6000000000), // 6 gwei (Somnia testnet optimized)
-  maxFeePerGas: BigInt(10000000000), // 10 gwei max fee
-  maxPriorityFeePerGas: BigInt(2000000000), // 2 gwei priority fee
+  // Note: These are fallback values. Always use gas estimation for actual transactions.
+  gas: BigInt(10000000), // 10M gas limit (fallback only)
+  gasPrice: BigInt(6000000000), // 6 gwei (fallback only)
+  maxFeePerGas: BigInt(10000000000), // 10 gwei max fee (fallback only)
+  maxPriorityFeePerGas: BigInt(2000000000), // 2 gwei priority fee (fallback only)
 }
 
 // Robust network connection settings
@@ -126,7 +131,7 @@ export const NETWORK_CONNECTION_CONFIG = {
   // Multiple RPC endpoints for redundancy
   rpcUrls: [
     'https://dream-rpc.somnia.network/',
-    'https://rpc.ankr.com/somnia_testnet/c8e336679a7fe85909f310fbbdd5fbb18d3b7560b1d3eca7aa97874b0bb81e97',
+    process.env.ANKR_RPC_URL || 'https://rpc.ankr.com/somnia_testnet',
   ],
   // Connection retry settings
   retryAttempts: 3,

@@ -10,8 +10,35 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://bitredict-
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const limit = searchParams.get('limit') || '50';
-    const offset = searchParams.get('offset') || '0';
+    let limit = searchParams.get('limit') || '50';
+    let offset = searchParams.get('offset') || '0';
+    
+    // SECURITY FIX: Validate and sanitize limit and offset to prevent resource exhaustion
+    const limitNum = parseInt(limit);
+    const offsetNum = parseInt(offset);
+    
+    if (isNaN(limitNum) || limitNum < 1 || limitNum > 100) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Invalid limit parameter. Must be between 1 and 100'
+        },
+        { status: 400 }
+      );
+    }
+    
+    if (isNaN(offsetNum) || offsetNum < 0 || offsetNum > 10000) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Invalid offset parameter. Must be between 0 and 10000'
+        },
+        { status: 400 }
+      );
+    }
+    
+    limit = String(limitNum);
+    offset = String(offsetNum);
     // const category = searchParams.get('category') || 'all'; // Unused variable
 
     // Fetch pools from backend

@@ -19,6 +19,31 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
+    // SECURITY FIX: Validate playerAddress format
+    if (!playerAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
+      return NextResponse.json({
+        success: false,
+        message: 'Invalid wallet address format'
+      }, { status: 400 });
+    }
+
+    // SECURITY FIX: Validate predictions content (not just length)
+    for (let i = 0; i < predictions.length; i++) {
+      const pred = predictions[i];
+      if (!pred || typeof pred !== 'object') {
+        return NextResponse.json({
+          success: false,
+          message: `Invalid prediction format at index ${i}`
+        }, { status: 400 });
+      }
+      if (!pred.matchId || (typeof pred.matchId !== 'number' && typeof pred.matchId !== 'string')) {
+        return NextResponse.json({
+          success: false,
+          message: `Invalid matchId at index ${i}`
+        }, { status: 400 });
+      }
+    }
+
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://bitredict-backend.fly.dev';
 
     const response = await fetch(`${backendUrl}/api/oddyssey/place-slip`, {

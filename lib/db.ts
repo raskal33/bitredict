@@ -1,7 +1,17 @@
-// This is a placeholder for database connection and query logic.
-// The actual implementation will be added later.
+// SECURITY FIX: Placeholder database implementation with warning
+// This should NOT be used in production - it's a stub that returns mock data
+// If this is accidentally used, it will cause data integrity issues
 
 export const query = async (queryString: string, params: unknown[] = []) => {
+  // SECURITY FIX: Log warning if this is used in production
+  if (process.env.NODE_ENV === 'production') {
+    console.error('⚠️ SECURITY WARNING: Placeholder database query() called in production!');
+    console.error('   This is a stub implementation that returns mock data.');
+    console.error('   Query:', queryString.substring(0, 100));
+    throw new Error('Placeholder database implementation cannot be used in production');
+  }
+  
+  console.warn("⚠️ Using placeholder database - this returns mock data only!");
   console.log("Executing query:", queryString, params);
   
   if (queryString.includes('SUM(bet_amount) as total')) {

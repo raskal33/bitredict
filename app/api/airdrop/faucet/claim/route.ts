@@ -24,10 +24,51 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // TODO: Add additional validation here such as:
-    // - Rate limiting
-    // - Signature verification
-    // - Smart contract interaction
+    // SECURITY FIX: Require signature verification
+    if (!signature) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Signature required',
+          message: 'Please provide a signature to verify ownership'
+        },
+        { status: 400 }
+      );
+    }
+    
+    // SECURITY FIX: Basic rate limiting (simple in-memory implementation)
+    // Note: For production, use a proper rate limiting service
+    interface RateLimitRecord {
+      count: number;
+      resetTime: number;
+    }
+    
+    type RateLimitStore = Map<string, RateLimitRecord>;
+    
+    const rateLimitKey = `faucet-claim:${userAddress}`;
+    const globalObj = global as typeof globalThis & { rateLimitStore?: RateLimitStore };
+    const rateLimitStore = globalObj.rateLimitStore || new Map<string, RateLimitRecord>();
+    const now = Date.now();
+    const record = rateLimitStore.get(rateLimitKey);
+    const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
+    const RATE_LIMIT_MAX = 3; // 3 claims per minute per address
+    
+    if (record && now < record.resetTime) {
+      if (record.count >= RATE_LIMIT_MAX) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: 'Rate limit exceeded',
+            message: 'Too many requests. Please try again later.'
+          },
+          { status: 429 }
+        );
+      }
+      record.count++;
+    } else {
+      rateLimitStore.set(rateLimitKey, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
+    }
+    globalObj.rateLimitStore = rateLimitStore;
     
     // For now, proxy to backend (in production, this might interact directly with smart contracts)
     const backendResponse = await fetch(`${BACKEND_URL}/airdrop/faucet/claim`, {

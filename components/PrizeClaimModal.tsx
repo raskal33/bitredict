@@ -263,15 +263,33 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
   // Track previous userAddress to detect changes
   const previousUserAddressRef = useRef<string | undefined>(userAddress);
 
-  // ✅ FIX: Lock body scroll when modal is open (prevent footer overlap)
+  // ✅ FIX: Lock body scroll when modal is open (prevent footer overlap and page scroll)
   useEffect(() => {
     if (!isOpen || typeof document === 'undefined') {
       return;
     }
+    
+    // Store original values
     const previousOverflow = document.body.style.overflow;
+    const previousPosition = document.body.style.position;
+    const previousTop = document.body.style.top;
+    const scrollY = window.scrollY;
+    
+    // Lock body scroll
     document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = '100%';
+    
     return () => {
+      // Restore original values
       document.body.style.overflow = previousOverflow;
+      document.body.style.position = previousPosition;
+      document.body.style.top = previousTop;
+      document.body.style.width = '';
+      
+      // Restore scroll position
+      window.scrollTo(0, scrollY);
     };
   }, [isOpen]);
 
@@ -308,18 +326,7 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
     }
   }, [isOpen]);
 
-  useEffect(() => {
-    if (!isOpen || typeof document === 'undefined') {
-      return;
-    }
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [isOpen]);
+  // Removed duplicate body scroll lock - handled above
 
   // Cleanup on unmount
   useEffect(() => {
@@ -560,10 +567,20 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
 
   const { pools, oddyssey } = getFilteredPositions();
 
+  // ✅ FIX: Only render modal when isOpen is true
+  if (!isOpen) {
+    return null;
+  }
+
   return (
-    <AnimatePresence>
-      {/* ✅ FIX: Full viewport overlay with highest z-index */}
-      <div
+    <AnimatePresence mode="wait">
+      {/* ✅ FIX: Full viewport overlay with highest z-index (above navbar) */}
+      <motion.div
+        key="modal-overlay"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }}
         className="fixed inset-0 flex items-center justify-center"
         onClick={onClose}
         style={{ 
@@ -572,24 +589,29 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
           left: 0,
           right: 0,
           bottom: 0,
-          zIndex: 99999,
+          zIndex: 999999, // Higher than navbar (typically 1000-10000)
           backgroundColor: 'rgba(0, 0, 0, 0.85)',
           backdropFilter: 'blur(8px)',
-          padding: '16px'
+          padding: '16px',
+          overflow: 'auto' // Allow scrolling if modal is taller than viewport
         }}
       >
-        {/* ✅ FIX: Compact modal centered in viewport */}
+        {/* ✅ FIX: Compact modal centered in viewport, positioned above navbar */}
         <motion.div
+          key="modal-content"
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          className="w-full max-w-2xl overflow-hidden flex flex-col rounded-xl border border-cyan-500/30"
+          className="w-full max-w-2xl overflow-hidden flex flex-col rounded-xl border border-cyan-500/30 my-auto"
           onClick={(e) => e.stopPropagation()}
           style={{ 
-            maxHeight: 'calc(100vh - 32px)',
+            maxHeight: 'calc(100vh - 64px)', // Account for padding top and bottom
+            marginTop: 'auto',
+            marginBottom: 'auto',
             backgroundColor: 'rgba(10, 15, 30, 0.98)',
-            boxShadow: '0 0 40px rgba(0, 255, 255, 0.1), 0 0 80px rgba(0, 0, 0, 0.5)'
+            boxShadow: '0 0 40px rgba(0, 255, 255, 0.1), 0 0 80px rgba(0, 0, 0, 0.5)',
+            zIndex: 1000000 // Even higher for content
           }}
         >
           {/* Header - Compact */}
@@ -663,30 +685,29 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
               ))}
             </div>
 
-              {/* Selection Controls */}
-              <div className="flex gap-2">
-                <Button
-                  onClick={selectAll}
-                  variant="outline"
-                  size="sm"
-                  disabled={totalUnclaimedCount === 0}
-                >
-                  Select All
-                </Button>
-                <Button
-                  onClick={deselectAll}
-                  variant="outline"
-                  size="sm"
-                  disabled={totalSelectedCount === 0}
-                >
-                  Deselect All
-                </Button>
-              </div>
+            {/* Selection Controls */}
+            <div className="flex gap-2">
+              <Button
+                onClick={selectAll}
+                variant="outline"
+                size="sm"
+                disabled={totalUnclaimedCount === 0}
+              >
+                Select All
+              </Button>
+              <Button
+                onClick={deselectAll}
+                variant="outline"
+                size="sm"
+                disabled={totalSelectedCount === 0}
+              >
+                Deselect All
+              </Button>
             </div>
           </div>
 
           {/* Positions List - Compact */}
-          <div className="flex-1 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 280px)', minHeight: '200px' }}>
+          <div className="flex-1 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 400px)', minHeight: '200px' }}>
             {isLoading ? (
               <div className="flex items-center justify-center h-48">
                 <div className="text-center">
@@ -751,23 +772,22 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
                         </div>
                       </div>
 
-                        {position.claimed ? (
-                          <CheckCircleIcon className="h-4 w-4 text-green-400" />
-                        ) : position.claimableAmount > 0 ? (
-                          <Button
-                            onClick={() => handleClaimPoolSingle(position.poolId)}
-                            variant="primary"
-                            size="sm"
-                            disabled={isClaiming}
-                            loading={isClaiming}
-                            className="text-xs px-2 py-1"
-                          >
-                            Claim
-                          </Button>
-                        ) : (
-                          <span className="text-red-400/60 text-xs">N/A</span>
-                        )}
-                      </div>
+                      {position.claimed ? (
+                        <CheckCircleIcon className="h-4 w-4 text-green-400" />
+                      ) : position.claimableAmount > 0 ? (
+                        <Button
+                          onClick={() => handleClaimPoolSingle(position.poolId)}
+                          variant="primary"
+                          size="sm"
+                          disabled={isClaiming}
+                          loading={isClaiming}
+                          className="text-xs px-2 py-1"
+                        >
+                          Claim
+                        </Button>
+                      ) : (
+                        <span className="text-red-400/60 text-xs">N/A</span>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -884,7 +904,7 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
             </div>
           </div>
         </motion.div>
-      </div>
+      </motion.div>
     </AnimatePresence>
   );
 }

@@ -41,13 +41,12 @@ export async function GET(
     const data = await response.json();
     return NextResponse.json(data);
   } catch (error: unknown) {
+    // SECURITY FIX: Sanitize error messages to prevent information leakage
     console.error('Error proxying social comments:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
       {
         success: false,
         error: 'Failed to fetch comments',
-        details: errorMessage,
       },
       { status: 500 }
     );
@@ -81,13 +80,12 @@ export async function POST(
     const data = await response.json();
     return NextResponse.json(data);
   } catch (error: unknown) {
+    // SECURITY FIX: Sanitize error messages to prevent information leakage
     console.error('Error proxying social comment POST:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
       {
         success: false,
         error: 'Failed to post comment',
-        details: errorMessage,
       },
       { status: 500 }
     );

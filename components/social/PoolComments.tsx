@@ -33,9 +33,16 @@ export default function PoolComments({ poolId, comments, onAddComment }: PoolCom
   };
 
   const renderComment = (comment: Comment) => {
+    // SECURITY FIX: React escapes by default, providing XSS protection
+    // We ensure safe fallback values for username and content
+    const safeUsername = comment.author.username || 'Anonymous';
+    const safeContent = comment.content || '';
+    
     return (
       <div key={comment.id}>
-        <p>{comment.author.username}: {comment.content}</p>
+        <p>
+          <span className="font-semibold">{safeUsername}</span>: {safeContent}
+        </p>
       </div>
     );
   };
