@@ -849,31 +849,100 @@ export function useSomniaStreams(
                 somniaStreamsEventId: somniaStreamsEventId,  // ✅ Event ID string (e.g., "bitredict:bets")
                 ethCalls: [],  // ✅ Empty array (no on-chain enrichment needed)
                 onlyPushChanges: false,  // ✅ Get all data, not just changes
-                onData: (data: any) => {
+                onData: async (data: any) => {
                   try {
-                    console.log(`📦 [SDS] ✅ RECEIVED DATA for ${eventType}:`, JSON.stringify(data, null, 2));
-                    // Data structure from setAndEmitEvents: the data itself, not wrapped
-                    // Try different possible structures
-                    let actualData = data;
+                    console.log(`📦 [SDS] ✅ RECEIVED EVENT NOTIFICATION for ${eventType}:`, JSON.stringify(data, null, 2));
                     
-                    // Check if data is wrapped in result
-                    if (data && typeof data === 'object') {
-                      if (data.result) {
-                        actualData = data.result;
-                      } else if (data.data) {
-                        actualData = data.data;
-                      } else if (data.jsonData) {
-                        // If it's the encoded JSON string, parse it
-                        try {
-                          actualData = JSON.parse(data.jsonData);
-                        } catch (e) {
-                          actualData = data;
-                        }
-                      }
+                    // ✅ CRITICAL: Event notifications have empty data ("0x"), we need to fetch the actual data
+                    // Backend stores data via set() and emits events separately, so we fetch the latest data
+                    const sdkToUse = sdkRef.current || globalSDKInstance;
+                    if (!sdkToUse) {
+                      console.error(`❌ [SDS] SDK not available to fetch data for ${eventType}`);
+                      return;
                     }
                     
-                    console.log(`📦 [SDS] Processing data for ${eventType}:`, actualData);
-                    processData(actualData);
+                    try {
+                      // Get schema ID for the JSON schema
+                      const schemaId = await getSchemaId(sdkToUse);
+                      
+                      // ✅ Add small delay to ensure data is available (backend publishes set() then emits event)
+                      await new Promise(resolve => setTimeout(resolve, 500));
+                      
+                      // Fetch the latest published data for this schema from the publisher
+                      console.log(`📡 [SDS] Fetching latest data for ${eventType} from publisher ${PUBLISHER_ADDRESS}...`);
+                      const latestData = await sdkToUse.streams.getLastPublishedDataForSchema(
+                        schemaId,
+                        PUBLISHER_ADDRESS
+                      );
+                      
+                      if (!latestData) {
+                        console.warn(`⚠️ [SDS] No data found for ${eventType} (may need to wait for block confirmation)`);
+                        // Retry once after a longer delay
+                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        const retryData = await sdkToUse.streams.getLastPublishedDataForSchema(
+                          schemaId,
+                          PUBLISHER_ADDRESS
+                        );
+                        if (!retryData) {
+                          console.warn(`⚠️ [SDS] Still no data after retry for ${eventType}`);
+                          return;
+                        }
+                        console.log(`📦 [SDS] ✅ FETCHED DATA (retry) for ${eventType}:`, retryData);
+                        processData(retryData);
+                        return;
+                      }
+                      
+                      console.log(`📦 [SDS] ✅ FETCHED DATA for ${eventType}:`, latestData);
+                      
+                      // ✅ Filter: Only process if data matches expected event type structure
+                      // Since all events use the same schema, we need to validate the data structure
+                      let shouldProcess = true;
+                      if (eventType === 'bet:placed' && latestData) {
+                        // Check if data has bet-related fields
+                        const dataStr = JSON.stringify(latestData);
+                        shouldProcess = dataStr.includes('bettor') || dataStr.includes('poolId');
+                      } else if (eventType === 'pool:created' && latestData) {
+                        const dataStr = JSON.stringify(latestData);
+                        shouldProcess = dataStr.includes('creator') && dataStr.includes('poolId') && !dataStr.includes('isSettled');
+                      } else if (eventType === 'liquidity:added' && latestData) {
+                        const dataStr = JSON.stringify(latestData);
+                        shouldProcess = dataStr.includes('provider') && dataStr.includes('poolId');
+                      }
+                      
+                      if (shouldProcess) {
+                        // Process the fetched data
+                        processData(latestData);
+                      } else {
+                        console.log(`⚠️ [SDS] Fetched data doesn't match event type ${eventType}, skipping`);
+                      }
+                    } catch (fetchError: any) {
+                      // If fetching fails, try to process the event notification data directly
+                      console.warn(`⚠️ [SDS] Failed to fetch data for ${eventType}, trying event data:`, fetchError?.message);
+                      
+                      // Try to extract data from event notification
+                      let actualData = data;
+                      if (data && typeof data === 'object') {
+                        if (data.result) {
+                          actualData = data.result;
+                        } else if (data.data) {
+                          actualData = data.data;
+                        } else if (data.jsonData) {
+                          try {
+                            actualData = JSON.parse(data.jsonData);
+                          } catch (e) {
+                            actualData = data;
+                          }
+                        }
+                      }
+                      
+                      // Only process if we have meaningful data (not just event log structure)
+                      if (actualData && typeof actualData === 'object' && actualData.data !== '0x' && actualData.topics) {
+                        console.log(`📦 [SDS] Processing event notification data for ${eventType}:`, actualData);
+                        processData(actualData);
+                      } else {
+                        console.warn(`⚠️ [SDS] Event notification has no usable data for ${eventType}`);
+                      }
+                    }
                   } catch (processError) {
                     console.error(`❌ [SDS] Error processing data for ${eventType}:`, processError);
                   }
