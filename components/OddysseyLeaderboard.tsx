@@ -24,6 +24,7 @@ interface LeaderboardEntry {
   correctCount: number;
   placedAt: string;
   prizePercentage: number;
+  predictions?: SlipPrediction[]; // Include predictions with match results from backend
 }
 
 interface SlipPrediction {
@@ -54,10 +55,22 @@ interface OddysseyLeaderboardProps {
   className?: string;
 }
 
-export default function OddysseyLeaderboard({ cycleId, className = '' }: OddysseyLeaderboardProps) {
+interface Cycle {
+  cycleId: number;
+  startDate: string;
+  endDate: string;
+  slipCount: number;
+  playerCount: number;
+  isResolved: boolean;
+}
+
+export default function OddysseyLeaderboard({ cycleId: propCycleId, className = '' }: OddysseyLeaderboardProps) {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedCycleId, setSelectedCycleId] = useState<number | undefined>(propCycleId);
+  const [availableCycles, setAvailableCycles] = useState<Cycle[]>([]);
+  const [loadingCycles, setLoadingCycles] = useState(false);
   const [leaderboardInfo, setLeaderboardInfo] = useState<{
     cycleId: number | null;
     totalPlayers: number;
@@ -67,31 +80,68 @@ export default function OddysseyLeaderboard({ cycleId, className = '' }: Oddysse
   const [slipDetails, setSlipDetails] = useState<Map<number, SlipDetails>>(new Map());
   const [loadingSlips, setLoadingSlips] = useState<Set<number>>(new Set());
 
+  // Fetch available cycles
+  const fetchAvailableCycles = useCallback(async () => {
+    try {
+      setLoadingCycles(true);
+      const response = await fetch('/api/oddyssey/cycles');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data) {
+          setAvailableCycles(data.data);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching cycles:', err);
+    } finally {
+      setLoadingCycles(false);
+    }
+  }, []);
+
   const fetchLeaderboard = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       
-      // ✅ FIX: If no cycleId provided, use previous cycle (currentCycle - 1)
-      // Current cycle won't have winners during the cycle, so show last cycle's winners
-      let targetCycleId = cycleId;
+      // Use selectedCycleId or propCycleId, or default to previous cycle
+      let targetCycleId = selectedCycleId || propCycleId;
       if (!targetCycleId) {
         try {
           const currentCycle = await oddysseyService.getCurrentCycle();
           const currentCycleNum = Number(currentCycle);
           // Use previous cycle (currentCycle - 1), but ensure it's at least 1
           targetCycleId = Math.max(1, currentCycleNum - 1);
+          setSelectedCycleId(targetCycleId);
           console.log(`[OddysseyLeaderboard] No cycleId provided, using previous cycle: ${targetCycleId} (current: ${currentCycleNum})`);
         } catch (err) {
           console.warn('[OddysseyLeaderboard] Failed to get current cycle, using undefined:', err);
-          // If we can't get current cycle, let the API handle it (will return empty)
         }
       }
       
       const response = await oddysseyService.getLeaderboard(targetCycleId);
       
       if (response.success && response.data) {
-        setLeaderboard(response.data.leaderboard || []);
+        const leaderboardData = response.data.leaderboard || [];
+        
+        // Store predictions from leaderboard response directly (no need to fetch separately)
+        const leaderboardWithPredictions = leaderboardData.map((entry: LeaderboardEntry) => {
+          // If predictions are already included from backend, use them
+          if (entry.predictions && entry.predictions.length > 0) {
+            setSlipDetails(prev => {
+              const newMap = new Map(prev);
+              newMap.set(entry.slipId, {
+                slipId: entry.slipId,
+                predictions: entry.predictions!,
+                finalScore: entry.finalScore,
+                correctCount: entry.correctCount
+              });
+              return newMap;
+            });
+          }
+          return entry;
+        });
+        
+        setLeaderboard(leaderboardWithPredictions);
         setLeaderboardInfo({
           cycleId: response.data.cycleId,
           totalPlayers: response.data.totalPlayers || 0,
@@ -111,7 +161,11 @@ export default function OddysseyLeaderboard({ cycleId, className = '' }: Oddysse
     } finally {
       setLoading(false);
     }
-  }, [cycleId]);
+  }, [selectedCycleId, propCycleId]);
+
+  useEffect(() => {
+    fetchAvailableCycles();
+  }, [fetchAvailableCycles]);
 
   useEffect(() => {
     fetchLeaderboard();
@@ -161,6 +215,23 @@ export default function OddysseyLeaderboard({ cycleId, className = '' }: Oddysse
       return;
     }
 
+    // Check if predictions are already in the leaderboard entry
+    const leaderboardEntry = leaderboard.find(e => e.slipId === slipId);
+    if (leaderboardEntry && leaderboardEntry.predictions && leaderboardEntry.predictions.length > 0) {
+      setSlipDetails(prev => {
+        const newMap = new Map(prev);
+        newMap.set(slipId, {
+          slipId: slipId,
+          predictions: leaderboardEntry.predictions!,
+          finalScore: leaderboardEntry.finalScore,
+          correctCount: leaderboardEntry.correctCount
+        });
+        return newMap;
+      });
+      return;
+    }
+
+    // Fallback: fetch from API if not in leaderboard response
     setLoadingSlips(prev => new Set(prev).add(slipId));
     try {
       const response = await fetch(`/api/oddyssey/evaluated-slip/${slipId}?t=${Date.now()}`, {
@@ -196,7 +267,7 @@ export default function OddysseyLeaderboard({ cycleId, className = '' }: Oddysse
         return newSet;
       });
     }
-  }, [slipDetails]);
+  }, [slipDetails, leaderboard]);
 
   const toggleSlipExpansion = useCallback((slipId: number) => {
     setExpandedSlips(prev => {
@@ -261,14 +332,14 @@ export default function OddysseyLeaderboard({ cycleId, className = '' }: Oddysse
 
   return (
     <div className={`space-y-6 ${className}`}>
-      {/* Leaderboard Info */}
+      {/* Leaderboard Info with Cycle Picker */}
       {leaderboardInfo && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="glass-card p-4"
         >
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-4">
               <TrophyIcon className="h-6 w-6 text-yellow-400" />
               <div>
@@ -280,9 +351,37 @@ export default function OddysseyLeaderboard({ cycleId, className = '' }: Oddysse
                 </p>
               </div>
             </div>
-            <div className="text-right">
-              <div className="text-sm text-text-muted">Min. 7 correct</div>
-              <div className="text-lg font-bold text-yellow-400">Top 5 Win</div>
+            <div className="flex items-center gap-4">
+              {/* Cycle Picker */}
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-text-muted">Cycle:</label>
+                <select
+                  value={selectedCycleId || ''}
+                  onChange={(e) => {
+                    const newCycleId = e.target.value ? parseInt(e.target.value) : undefined;
+                    setSelectedCycleId(newCycleId);
+                  }}
+                  className="px-3 py-1.5 bg-bg-dark border border-primary/30 rounded-lg text-white text-sm focus:outline-none focus:border-primary"
+                  disabled={loadingCycles}
+                >
+                  {loadingCycles ? (
+                    <option>Loading cycles...</option>
+                  ) : (
+                    <>
+                      <option value="">Auto (Previous Cycle)</option>
+                      {availableCycles.map((cycle) => (
+                        <option key={cycle.cycleId} value={cycle.cycleId}>
+                          Cycle #{cycle.cycleId} ({new Date(cycle.startDate).toLocaleDateString()}) - {cycle.playerCount} players
+                        </option>
+                      ))}
+                    </>
+                  )}
+                </select>
+              </div>
+              <div className="text-right">
+                <div className="text-sm text-text-muted">Min. 7 correct</div>
+                <div className="text-lg font-bold text-yellow-400">Top 5 Win</div>
+              </div>
             </div>
           </div>
         </motion.div>
@@ -449,7 +548,12 @@ export default function OddysseyLeaderboard({ cycleId, className = '' }: Oddysse
                                         <div className="text-xs text-text-muted mt-1">
                                           Result: {pred.result.home_score !== undefined && pred.result.away_score !== undefined
                                             ? `${pred.result.home_score}-${pred.result.away_score}`
-                                            : 'N/A'}
+                                            : pred.result.outcome_1x2 || pred.result.outcome_ou25 || 'N/A'}
+                                        </div>
+                                      )}
+                                      {pred.homeScore !== null && pred.awayScore !== null && (
+                                        <div className="text-xs text-text-muted mt-1">
+                                          Score: {pred.homeScore}-{pred.awayScore}
                                         </div>
                                       )}
                                     </div>

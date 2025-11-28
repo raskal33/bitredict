@@ -367,16 +367,22 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
     }
 
     setIsClaiming(true);
+    // Show pending toast
+    const pendingToastId = toast.loading(`Claiming pool #${poolId} prize...`);
+    
     try {
       const result = await claimPoolPrize(poolId);
 
-      if (result.success) {
+      // Dismiss pending toast
+      toast.dismiss(pendingToastId);
+
+      if (result.success && result.transactionHash) {
         toast.success(`Pool prize claimed successfully! 🎉`);
         
         // Update the position as claimed
         setPoolPositions(prev => prev.map(p => 
           p.poolId === poolId
-            ? { ...p, claimed: true }
+            ? { ...p, claimed: true, claimableAmount: 0 }
             : p
         ));
         
@@ -391,8 +397,10 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
         toast.error(result.error || 'Failed to claim pool prize');
       }
     } catch (error) {
+      toast.dismiss(pendingToastId);
       console.error('Pool claim error:', error);
-      toast.error('Failed to claim pool prize');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to claim pool prize';
+      toast.error(errorMessage);
     } finally {
       setIsClaiming(false);
     }
@@ -405,16 +413,22 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
     }
 
     setIsClaiming(true);
+    // Show pending toast
+    const pendingToastId = toast.loading(`Claiming Odyssey cycle #${position.cycleId} prize...`);
+    
     try {
       const result = await claimOdysseyPrize(position.cycleId, position.slipId);
 
-      if (result.success) {
+      // Dismiss pending toast
+      toast.dismiss(pendingToastId);
+
+      if (result.success && result.transactionHash) {
         toast.success(`Odyssey prize claimed successfully! 🎉`);
         
         // Update the position as claimed
         setOdysseyPositions(prev => prev.map(p => 
           p.cycleId === position.cycleId && p.slipId === position.slipId
-            ? { ...p, claimed: true }
+            ? { ...p, claimed: true, claimStatus: 'already_claimed' as const }
             : p
         ));
         
@@ -429,8 +443,10 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
         toast.error(result.error || 'Failed to claim Odyssey prize');
       }
     } catch (error) {
+      toast.dismiss(pendingToastId);
       console.error('Odyssey claim error:', error);
-      toast.error('Failed to claim Odyssey prize');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to claim Odyssey prize';
+      toast.error(errorMessage);
     } finally {
       setIsClaiming(false);
     }

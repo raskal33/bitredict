@@ -79,6 +79,7 @@ export class NewClaimService {
   /**
    * Claim pool prize using direct contract interaction (user's wallet)
    * ✅ FIX: Use writeContract directly instead of backend API
+   * ✅ FIX: Properly handle promise rejection and parse contract errors
    */
   static async claimPoolPrize(
     poolId: number,
@@ -94,6 +95,7 @@ export class NewClaimService {
       }
 
       // ✅ Use writeContract directly with user's wallet (like ClaimRewards component)
+      // writeContract returns a promise that resolves to the tx hash or rejects with an error
       const hash = await writeContract({
         address: CONTRACT_ADDRESSES.POOL_CORE,
         abi: BitredictPoolCoreABI,
@@ -101,30 +103,54 @@ export class NewClaimService {
         args: [BigInt(poolId)],
       });
 
+      // Only reach here if transaction was successfully submitted
+      if (!hash) {
+        throw new Error('Transaction failed - no hash returned');
+      }
+
       console.log('✅ Pool prize claim transaction submitted:', hash);
       return { 
         success: true, 
         transactionHash: hash,
       };
       
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('❌ Pool prize claim error:', error);
       
-      if (error instanceof Error) {
-        if (error.message.includes('user rejected') || error.message.includes('User rejected')) {
-          return { success: false, error: 'User rejected transaction' };
-        } else if (error.message.includes('Already claimed') || error.message.includes('already claimed')) {
-          return { success: false, error: 'Prize already claimed' };
-        } else if (error.message.includes('Not eligible') || error.message.includes('not eligible')) {
-          return { success: false, error: 'Not eligible to claim this prize' };
-        } else if (error.message.includes('insufficient funds')) {
-          return { success: false, error: 'Insufficient gas funds' };
-        }
+      // Parse error message from various error formats
+      let errorMessage = 'Pool prize claim failed';
+      const err = error as { message?: string; shortMessage?: string; details?: string; cause?: { message?: string; shortMessage?: string } };
+      
+      if (err.shortMessage) {
+        errorMessage = err.shortMessage;
+      } else if (err.message) {
+        errorMessage = err.message;
+      } else if (err.cause?.shortMessage) {
+        errorMessage = err.cause.shortMessage;
+      } else if (err.cause?.message) {
+        errorMessage = err.cause.message;
+      }
+      
+      // Check for specific error types
+      const lowerMessage = errorMessage.toLowerCase();
+      if (lowerMessage.includes('user rejected') || lowerMessage.includes('user denied')) {
+        return { success: false, error: 'User rejected transaction' };
+      } else if (lowerMessage.includes('already claimed') || lowerMessage.includes('alreadyclaimed')) {
+        return { success: false, error: 'Prize already claimed' };
+      } else if (lowerMessage.includes('not eligible') || lowerMessage.includes('noteligible') || lowerMessage.includes('not a winner')) {
+        return { success: false, error: 'Not eligible to claim this prize' };
+      } else if (lowerMessage.includes('insufficient funds') || lowerMessage.includes('insufficient balance')) {
+        return { success: false, error: 'Insufficient gas funds' };
+      } else if (lowerMessage.includes('pool not settled') || lowerMessage.includes('poolnotsettled')) {
+        return { success: false, error: 'Pool not yet settled' };
+      } else if (lowerMessage.includes('internal json-rpc error')) {
+        // Parse the actual contract error from the RPC error
+        return { success: false, error: 'Contract rejected transaction - check if you are eligible to claim' };
       }
       
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Pool prize claim failed'
+        error: errorMessage
       };
     }
   }
@@ -180,6 +206,7 @@ export class NewClaimService {
   /**
    * Claim Odyssey prize using direct contract interaction (user's wallet)
    * ✅ FIX: Use writeContract directly instead of backend API
+   * ✅ FIX: Properly handle promise rejection and parse contract errors
    */
   static async claimOdysseyPrize(
     cycleId: number,
@@ -203,30 +230,54 @@ export class NewClaimService {
         args: [BigInt(cycleId), BigInt(slipId)],
       });
 
+      // Only reach here if transaction was successfully submitted
+      if (!hash) {
+        throw new Error('Transaction failed - no hash returned');
+      }
+
       console.log('✅ Odyssey prize claim transaction submitted:', hash);
       return { 
         success: true, 
         transactionHash: hash,
       };
       
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('❌ Odyssey prize claim error:', error);
       
-      if (error instanceof Error) {
-        if (error.message.includes('user rejected') || error.message.includes('User rejected')) {
-          return { success: false, error: 'User rejected transaction' };
-        } else if (error.message.includes('Already claimed') || error.message.includes('already claimed')) {
-          return { success: false, error: 'Prize already claimed' };
-        } else if (error.message.includes('Not eligible') || error.message.includes('not eligible')) {
-          return { success: false, error: 'Not eligible to claim this prize' };
-        } else if (error.message.includes('insufficient funds')) {
-          return { success: false, error: 'Insufficient gas funds' };
-        }
+      // Parse error message from various error formats
+      let errorMessage = 'Odyssey prize claim failed';
+      const err = error as { message?: string; shortMessage?: string; details?: string; cause?: { message?: string; shortMessage?: string } };
+      
+      if (err.shortMessage) {
+        errorMessage = err.shortMessage;
+      } else if (err.message) {
+        errorMessage = err.message;
+      } else if (err.cause?.shortMessage) {
+        errorMessage = err.cause.shortMessage;
+      } else if (err.cause?.message) {
+        errorMessage = err.cause.message;
+      }
+      
+      // Check for specific error types
+      const lowerMessage = errorMessage.toLowerCase();
+      if (lowerMessage.includes('user rejected') || lowerMessage.includes('user denied')) {
+        return { success: false, error: 'User rejected transaction' };
+      } else if (lowerMessage.includes('already claimed') || lowerMessage.includes('alreadyclaimed')) {
+        return { success: false, error: 'Prize already claimed' };
+      } else if (lowerMessage.includes('not eligible') || lowerMessage.includes('noteligible') || lowerMessage.includes('not on leaderboard')) {
+        return { success: false, error: 'Not eligible to claim this prize' };
+      } else if (lowerMessage.includes('insufficient funds') || lowerMessage.includes('insufficient balance')) {
+        return { success: false, error: 'Insufficient gas funds' };
+      } else if (lowerMessage.includes('cycle not resolved') || lowerMessage.includes('cyclenotresolved')) {
+        return { success: false, error: 'Cycle not yet resolved' };
+      } else if (lowerMessage.includes('internal json-rpc error')) {
+        // Parse the actual contract error from the RPC error
+        return { success: false, error: 'Contract rejected transaction - check if you are eligible to claim' };
       }
       
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Odyssey prize claim failed'
+        error: errorMessage
       };
     }
   }
