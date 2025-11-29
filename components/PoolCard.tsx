@@ -607,8 +607,8 @@ const SwipeablePoolCards = ({
         {currentIndex + 1} / {pools.length}
       </div>
 
-      {/* Swipeable Cards Stack - Centered with proper spacing */}
-      <div className="relative flex-1 w-full flex items-center justify-center pb-32">
+      {/* Swipeable Cards Stack - Centered with proper spacing to prevent overlap */}
+      <div className="relative flex-1 w-full flex items-center justify-center overflow-hidden" style={{ paddingBottom: '200px', maxHeight: '400px' }}>
         {/* Previous Card (peeking) */}
         {prevPool && (
           <motion.div
@@ -622,7 +622,7 @@ const SwipeablePoolCards = ({
             className="absolute inset-0 pointer-events-none"
             style={{ zIndex: 1 }}
           >
-            <div className="w-full h-full flex items-center justify-center px-4">
+            <div className="w-full h-full flex items-center justify-center px-4 py-4">
               <div className="w-full max-w-[320px] mx-auto">
                 <PoolCardNFT pool={prevPool} onClick={() => {}} />
               </div>
@@ -647,7 +647,7 @@ const SwipeablePoolCards = ({
             style={{ zIndex: 2, cursor: isDragging ? 'grabbing' : 'grab' }}
             whileTap={{ scale: 0.98 }}
           >
-            <div className="w-full h-full flex items-center justify-center px-4">
+            <div className="w-full h-full flex items-center justify-center px-4 py-4">
               <div className="w-full max-w-[320px] mx-auto">
                 <PoolCardNFT 
                   pool={currentPool} 
@@ -671,7 +671,7 @@ const SwipeablePoolCards = ({
             className="absolute inset-0 pointer-events-none"
             style={{ zIndex: 1 }}
           >
-            <div className="w-full h-full flex items-center justify-center px-4">
+            <div className="w-full h-full flex items-center justify-center px-4 py-4">
               <div className="w-full max-w-[320px] mx-auto">
                 <PoolCardNFT pool={nextPool} onClick={() => {}} />
               </div>
@@ -680,10 +680,10 @@ const SwipeablePoolCards = ({
         )}
       </div>
 
-      {/* Social Actions Bar - Mobile - Fixed position to avoid overlap */}
+      {/* Social Actions Bar - Mobile - Positioned with clear separation from card */}
       {currentPool && !showListView && (
-        <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 z-20 flex flex-col items-center gap-3 w-full px-4">
-          <div className="flex items-center gap-3 bg-slate-900/90 backdrop-blur-md px-4 py-2.5 rounded-full border border-slate-700/50">
+        <div className="absolute bottom-28 left-1/2 transform -translate-x-1/2 z-20 flex flex-col items-center gap-3 w-full px-4">
+          <div className="flex items-center gap-3 bg-slate-900/90 backdrop-blur-md px-4 py-2.5 rounded-full border border-slate-700/50 shadow-lg">
             {/* Like Button */}
             <button
               onClick={handleLike}
@@ -715,14 +715,14 @@ const SwipeablePoolCards = ({
           {/* View All Button */}
           <button
             onClick={() => setShowListView(true)}
-            className="w-full max-w-[200px] px-4 py-2.5 bg-gradient-primary text-black font-semibold rounded-lg hover:opacity-90 transition-opacity active:scale-95 text-sm"
+            className="w-full max-w-[200px] px-4 py-2.5 bg-gradient-primary text-black font-semibold rounded-lg hover:opacity-90 transition-opacity active:scale-95 text-sm shadow-lg"
           >
             View All Pools
           </button>
         </div>
       )}
 
-      {/* Navigation Buttons - Fixed position to avoid overlap */}
+      {/* Navigation Buttons - Positioned at bottom with clear separation */}
       {!showListView && (
         <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20 flex gap-4">
           <button
@@ -760,7 +760,7 @@ const SwipeablePoolCards = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: [0, 1, 0] }}
           transition={{ duration: 2, repeat: Infinity, repeatDelay: 1 }}
-          className="absolute bottom-28 left-1/2 transform -translate-x-1/2 z-10 text-white/60 text-xs flex items-center gap-2"
+          className="absolute bottom-36 left-1/2 transform -translate-x-1/2 z-10 text-white/60 text-xs flex items-center gap-2"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16l-4-4m0 0l4-4m-4 4h18" />
