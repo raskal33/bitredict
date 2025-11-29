@@ -842,6 +842,7 @@ export function useSomniaStreams(
               
               console.log(`📡 [SDS] Subscribing to ${eventType} via SDS...`);
               console.log(`📡 [SDS] Event ID: ${somniaStreamsEventId}`);
+              console.log(`📡 [SDS] Publisher Address: ${PUBLISHER_ADDRESS}`);
               
               // ✅ Use somniaStreamsEventId (event ID string) as per SDK documentation
               // Note: "Failed to get event schemas" error may appear but is harmless for custom event IDs
@@ -850,6 +851,7 @@ export function useSomniaStreams(
                 ethCalls: [],  // ✅ Empty array (no on-chain enrichment needed)
                 onlyPushChanges: false,  // ✅ Get all data, not just changes
                 onData: async (data: any) => {
+                  console.log(`📦 [SDS] 🔔 EVENT NOTIFICATION RECEIVED for ${eventType}:`, data);
                   try {
                     console.log(`📦 [SDS] ✅ RECEIVED EVENT NOTIFICATION for ${eventType}:`, JSON.stringify(data, null, 2));
                     
@@ -866,55 +868,149 @@ export function useSomniaStreams(
                       const schemaId = await getSchemaId(sdkToUse);
                       
                       // ✅ Add small delay to ensure data is available (backend publishes set() then emits event)
-                      await new Promise(resolve => setTimeout(resolve, 500));
+                      await new Promise(resolve => setTimeout(resolve, 1000)); // Increased delay
                       
-                      // Fetch the latest published data for this schema from the publisher
-                      console.log(`📡 [SDS] Fetching latest data for ${eventType} from publisher ${PUBLISHER_ADDRESS}...`);
-                      const latestData = await sdkToUse.streams.getLastPublishedDataForSchema(
-                        schemaId,
-                        PUBLISHER_ADDRESS
-                      );
+                      // ✅ FIX: Try multiple methods to fetch data
+                      // Method 1: Try getAllPublishedDataForSchema and filter for most recent matching event
+                      console.log(`📡 [SDS] Fetching all published data for ${eventType} from publisher ${PUBLISHER_ADDRESS}...`);
+                      let latestData = null;
+                      
+                      try {
+                        // Try to get all data and filter for the most recent matching event
+                        if (typeof sdkToUse.streams.getAllPublisherDataForSchema === 'function') {
+                          const allData = await sdkToUse.streams.getAllPublisherDataForSchema(
+                            schemaId,
+                            PUBLISHER_ADDRESS
+                          );
+                          
+                          if (allData && Array.isArray(allData) && allData.length > 0) {
+                            // Filter data by event type and get the most recent
+                            const matchingData = allData
+                              .map(item => {
+                                try {
+                                  // Decode the data
+                                  const encoder = getJsonEncoder();
+                                  const decoded = encoder.decodeData(item.data);
+                                  let jsonString = '';
+                                  for (const field of decoded) {
+                                    if (field.name === 'jsonData') {
+                                      jsonString = field.value?.value || field.value || '';
+                                      break;
+                                    }
+                                  }
+                                  if (jsonString) {
+                                    const parsed = JSON.parse(jsonString);
+                                    return { data: parsed, timestamp: parsed.timestamp || 0 };
+                                  }
+                                } catch (e) {
+                                  return null;
+                                }
+                                return null;
+                              })
+                              .filter(item => {
+                                if (!item || !item.data) return false;
+                                const data = item.data;
+                                // Check if data matches event type
+                                if (eventType === 'bet:placed') {
+                                  return data.bettor && data.poolId;
+                                } else if (eventType === 'pool:created') {
+                                  return data.creator && data.poolId && !data.isSettled;
+                                } else if (eventType === 'liquidity:added') {
+                                  return data.provider && data.poolId;
+                                }
+                                return true;
+                              })
+                              .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+                            
+                            if (matchingData.length > 0) {
+                              latestData = matchingData[0].data;
+                              console.log(`📦 [SDS] ✅ FOUND MATCHING DATA from getAllPublisherDataForSchema for ${eventType}`);
+                            }
+                          }
+                        }
+                      } catch (getAllError) {
+                        console.warn(`⚠️ [SDS] getAllPublisherDataForSchema failed, trying getLastPublishedDataForSchema:`, getAllError?.message);
+                      }
+                      
+                      // Method 2: Fallback to getLastPublishedDataForSchema
+                      if (!latestData) {
+                        console.log(`📡 [SDS] Trying getLastPublishedDataForSchema for ${eventType}...`);
+                        const lastData = await sdkToUse.streams.getLastPublishedDataForSchema(
+                          schemaId,
+                          PUBLISHER_ADDRESS
+                        );
+                        
+                        if (lastData) {
+                          // Decode and validate
+                          try {
+                            const encoder = getJsonEncoder();
+                            let decodedData = null;
+                            
+                            if (typeof lastData === 'string' && (lastData as string).startsWith('0x')) {
+                              const decoded = encoder.decodeData(lastData as `0x${string}`);
+                              let jsonString = '';
+                              for (const field of decoded) {
+                                if (field.name === 'jsonData') {
+                                  const val = field.value?.value || field.value;
+                                  jsonString = typeof val === 'string' ? val : String(val || '');
+                                  break;
+                                }
+                              }
+                              if (jsonString) {
+                                decodedData = JSON.parse(jsonString);
+                              }
+                            } else if (lastData && typeof lastData === 'object') {
+                              decodedData = lastData;
+                            }
+                            
+                            if (decodedData && typeof decodedData === 'object') {
+                              // Validate it matches the event type
+                              const dataStr = JSON.stringify(decodedData);
+                              let shouldProcess = false;
+                              
+                              if (eventType === 'bet:placed') {
+                                shouldProcess = ((decodedData as any).bettor || (decodedData as any).bettorAddress) && (decodedData as any).poolId;
+                              } else if (eventType === 'pool:created') {
+                                shouldProcess = ((decodedData as any).creator || (decodedData as any).creatorAddress) && (decodedData as any).poolId && !(decodedData as any).isSettled;
+                              } else if (eventType === 'liquidity:added') {
+                                shouldProcess = ((decodedData as any).provider || (decodedData as any).providerAddress) && (decodedData as any).poolId;
+                              } else {
+                                shouldProcess = true; // For other event types, accept any data
+                              }
+                              
+                              if (shouldProcess) {
+                                latestData = decodedData;
+                                console.log(`📦 [SDS] ✅ FOUND DATA from getLastPublishedDataForSchema for ${eventType}`);
+                              } else {
+                                console.warn(`⚠️ [SDS] Data from getLastPublishedDataForSchema doesn't match ${eventType}, skipping`);
+                              }
+                            }
+                          } catch (decodeError) {
+                            console.warn(`⚠️ [SDS] Failed to decode data:`, decodeError?.message);
+                          }
+                        }
+                      }
                       
                       if (!latestData) {
-                        console.warn(`⚠️ [SDS] No data found for ${eventType} (may need to wait for block confirmation)`);
+                        console.warn(`⚠️ [SDS] No data found for ${eventType} after trying all methods`);
                         // Retry once after a longer delay
-                        await new Promise(resolve => setTimeout(resolve, 2000));
+                        await new Promise(resolve => setTimeout(resolve, 3000));
                         const retryData = await sdkToUse.streams.getLastPublishedDataForSchema(
                           schemaId,
                           PUBLISHER_ADDRESS
                         );
-                        if (!retryData) {
+                        if (retryData) {
+                          console.log(`📦 [SDS] ✅ FETCHED DATA (retry) for ${eventType}:`, retryData);
+                          processData(retryData);
+                          return;
+                        } else {
                           console.warn(`⚠️ [SDS] Still no data after retry for ${eventType}`);
                           return;
                         }
-                        console.log(`📦 [SDS] ✅ FETCHED DATA (retry) for ${eventType}:`, retryData);
-                        processData(retryData);
-                        return;
                       }
                       
-                      console.log(`📦 [SDS] ✅ FETCHED DATA for ${eventType}:`, latestData);
-                      
-                      // ✅ Filter: Only process if data matches expected event type structure
-                      // Since all events use the same schema, we need to validate the data structure
-                      let shouldProcess = true;
-                      if (eventType === 'bet:placed' && latestData) {
-                        // Check if data has bet-related fields
-                        const dataStr = JSON.stringify(latestData);
-                        shouldProcess = dataStr.includes('bettor') || dataStr.includes('poolId');
-                      } else if (eventType === 'pool:created' && latestData) {
-                        const dataStr = JSON.stringify(latestData);
-                        shouldProcess = dataStr.includes('creator') && dataStr.includes('poolId') && !dataStr.includes('isSettled');
-                      } else if (eventType === 'liquidity:added' && latestData) {
-                        const dataStr = JSON.stringify(latestData);
-                        shouldProcess = dataStr.includes('provider') && dataStr.includes('poolId');
-                      }
-                      
-                      if (shouldProcess) {
-                        // Process the fetched data
-                        processData(latestData);
-                      } else {
-                        console.log(`⚠️ [SDS] Fetched data doesn't match event type ${eventType}, skipping`);
-                      }
+                      console.log(`📦 [SDS] ✅ PROCESSING DATA for ${eventType}:`, latestData);
+                      processData(latestData);
                     } catch (fetchError: any) {
                       // If fetching fails, try to process the event notification data directly
                       console.warn(`⚠️ [SDS] Failed to fetch data for ${eventType}, trying event data:`, fetchError?.message);
@@ -958,6 +1054,28 @@ export function useSomniaStreams(
               });
               
               console.log(`✅ [SDS] Real-time subscription active for ${eventType}`);
+              console.log(`✅ [SDS] Subscription object:`, subscription ? 'Created' : 'NULL');
+              
+              // ✅ TEST: Try to fetch latest data immediately to verify SDS is working
+              setTimeout(async () => {
+                try {
+                  const sdkForTest = sdkRef.current || globalSDKInstance;
+                  if (!sdkForTest) return;
+                  
+                  const schemaId = await getSchemaId(sdkForTest);
+                  const testData = await sdkForTest.streams.getLastPublishedDataForSchema(
+                    schemaId,
+                    PUBLISHER_ADDRESS
+                  );
+                  if (testData) {
+                    console.log(`✅ [SDS] TEST: Successfully fetched data from SDS for ${eventType} - SDS is working!`);
+                  } else {
+                    console.warn(`⚠️ [SDS] TEST: No data found in SDS for ${eventType} - backend may not be publishing yet`);
+                  }
+                } catch (testError: any) {
+                  console.warn(`⚠️ [SDS] TEST: Failed to fetch test data for ${eventType}:`, testError?.message);
+                }
+              }, 2000);
               
               globalUnsubscribeFunctionsMap.set(eventType as any, () => {
                 try {
@@ -974,7 +1092,20 @@ export function useSomniaStreams(
             } catch (err: any) {
               // Log error but don't fail silently - SDS subscription is required
               console.error(`❌ [SDS] Failed to subscribe to ${eventType}:`, err?.message || err);
+              console.error(`❌ [SDS] Error details:`, {
+                eventType,
+                eventId: EVENT_CONTEXT_MAP[eventType],
+                publisher: PUBLISHER_ADDRESS,
+                sdkAvailable: !!sdkToUse,
+                error: err
+              });
               globalPendingSubscriptions.delete(eventType);
+              
+              // ✅ CRITICAL: If subscription fails, log a clear error message
+              console.error(`❌ [SDS] ⚠️ CRITICAL: SDS subscription failed for ${eventType}!`);
+              console.error(`   This means Live Activity will not receive real-time updates via SDS.`);
+              console.error(`   Check: 1) Backend is publishing events, 2) Event schemas are registered, 3) Network connectivity`);
+              
               // Don't throw - let it fail gracefully, backend WebSocket will provide updates
             }
           };
