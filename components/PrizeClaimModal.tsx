@@ -621,9 +621,6 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
   const totalClaimableSTT = unclaimedPoolsSTT.reduce((sum, p) => sum + p.claimableAmount, 0) + 
     unclaimedOdyssey.reduce((sum, p) => sum + parseFloat(p.prizeAmount), 0); // Odyssey pays in STT
   const totalClaimableBITR = unclaimedPoolsBITR.reduce((sum, p) => sum + p.claimableAmount, 0);
-  
-  // Combined total for display (keeping for backwards compatibility)
-  const totalClaimableAmount = totalClaimableSTT + totalClaimableBITR;
 
   const selectedPoolsSTT = poolPositions.filter(p => selectedPoolPositions.has(p.poolId) && p.currency === 'STT');
   const selectedPoolsBITR = poolPositions.filter(p => selectedPoolPositions.has(p.poolId) && p.currency === 'BITR');
@@ -632,9 +629,6 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
   const selectedAmountSTT = selectedPoolsSTT.reduce((sum, p) => sum + p.claimableAmount, 0) +
     selectedOdysseyList.reduce((sum, p) => sum + parseFloat(p.prizeAmount), 0);
   const selectedAmountBITR = selectedPoolsBITR.reduce((sum, p) => sum + p.claimableAmount, 0);
-  
-  // Combined selected amount
-  const selectedAmount = selectedAmountSTT + selectedAmountBITR;
 
   const totalUnclaimedCount = 
     poolPositions.filter(p => !p.claimed && p.claimableAmount > 0).length +
