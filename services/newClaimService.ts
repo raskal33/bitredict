@@ -78,34 +78,63 @@ export class NewClaimService {
 
   /**
    * Claim pool prize using direct contract interaction (user's wallet)
-   * ✅ FIX: Use writeContract directly instead of backend API
-   * ✅ FIX: Properly handle promise rejection and parse contract errors
+   * ✅ FIX: Use writeContractAsync directly instead of backend API
+   * ✅ FIX: Better error handling for undefined hash and contract reverts
    */
   static async claimPoolPrize(
     poolId: number,
     walletClient: any,
     address: Address,
-    writeContract?: any
+    writeContractAsync?: any
   ): Promise<ClaimResult> {
     try {
-      console.log('🏆 Claiming pool prize for:', poolId);
+      console.log('🏆 Claiming pool prize for:', poolId, 'by address:', address);
       
-      if (!writeContract) {
-        throw new Error('writeContract function is required');
+      if (!writeContractAsync) {
+        throw new Error('writeContractAsync function is required');
       }
 
-      // ✅ Use writeContract directly with user's wallet (like ClaimRewards component)
-      // writeContract returns a promise that resolves to the tx hash or rejects with an error
-      const hash = await writeContract({
-        address: CONTRACT_ADDRESSES.POOL_CORE,
-        abi: BitredictPoolCoreABI,
-        functionName: 'claim',
-        args: [BigInt(poolId)],
-      });
+      // ✅ Use writeContractAsync directly with user's wallet
+      // This returns a promise that resolves to the tx hash
+      let hash: string | undefined;
+      
+      try {
+        hash = await writeContractAsync({
+          address: CONTRACT_ADDRESSES.POOL_CORE,
+          abi: BitredictPoolCoreABI,
+          functionName: 'claim',
+          args: [BigInt(poolId)],
+        });
+      } catch (writeError: unknown) {
+        // Handle specific wallet/contract errors
+        const err = writeError as { message?: string; shortMessage?: string; details?: string };
+        const errMsg = err.shortMessage || err.message || 'Unknown error';
+        
+        console.error('❌ writeContractAsync failed:', errMsg);
+        
+        // Check for user rejection
+        if (errMsg.toLowerCase().includes('user rejected') || 
+            errMsg.toLowerCase().includes('user denied') ||
+            errMsg.toLowerCase().includes('rejected the request')) {
+          return { success: false, error: 'User rejected transaction' };
+        }
+        
+        // Check for contract revert
+        if (errMsg.toLowerCase().includes('execution reverted') ||
+            errMsg.toLowerCase().includes('revert')) {
+          return { success: false, error: 'Contract rejected: Not eligible to claim or already claimed' };
+        }
+        
+        throw writeError;
+      }
 
-      // Only reach here if transaction was successfully submitted
-      if (!hash) {
-        throw new Error('Transaction failed - no hash returned');
+      // Check if we got a valid hash
+      if (!hash || hash === '0x' || hash.length < 10) {
+        console.error('❌ Invalid hash returned:', hash);
+        return { 
+          success: false, 
+          error: 'Transaction may have been rejected or failed - please check your wallet' 
+        };
       }
 
       console.log('✅ Pool prize claim transaction submitted:', hash);
@@ -205,34 +234,63 @@ export class NewClaimService {
 
   /**
    * Claim Odyssey prize using direct contract interaction (user's wallet)
-   * ✅ FIX: Use writeContract directly instead of backend API
-   * ✅ FIX: Properly handle promise rejection and parse contract errors
+   * ✅ FIX: Use writeContractAsync directly instead of backend API
+   * ✅ FIX: Better error handling for undefined hash and contract reverts
    */
   static async claimOdysseyPrize(
     cycleId: number,
     slipId: number,
     walletClient: any,
     address: Address,
-    writeContract?: any
+    writeContractAsync?: any
   ): Promise<ClaimResult> {
     try {
-      console.log('🏆 Claiming Odyssey prize for:', { cycleId, slipId });
+      console.log('🏆 Claiming Odyssey prize for:', { cycleId, slipId, address });
       
-      if (!writeContract) {
-        throw new Error('writeContract function is required');
+      if (!writeContractAsync) {
+        throw new Error('writeContractAsync function is required');
       }
 
-      // ✅ Use writeContract directly with user's wallet
-      const hash = await writeContract({
-        address: CONTRACT_ADDRESSES.ODDYSSEY,
-        abi: OddysseyABI,
-        functionName: 'claimPrize',
-        args: [BigInt(cycleId), BigInt(slipId)],
-      });
+      // ✅ Use writeContractAsync directly with user's wallet
+      let hash: string | undefined;
+      
+      try {
+        hash = await writeContractAsync({
+          address: CONTRACT_ADDRESSES.ODDYSSEY,
+          abi: OddysseyABI,
+          functionName: 'claimPrize',
+          args: [BigInt(cycleId), BigInt(slipId)],
+        });
+      } catch (writeError: unknown) {
+        // Handle specific wallet/contract errors
+        const err = writeError as { message?: string; shortMessage?: string; details?: string };
+        const errMsg = err.shortMessage || err.message || 'Unknown error';
+        
+        console.error('❌ writeContractAsync failed for Odyssey:', errMsg);
+        
+        // Check for user rejection
+        if (errMsg.toLowerCase().includes('user rejected') || 
+            errMsg.toLowerCase().includes('user denied') ||
+            errMsg.toLowerCase().includes('rejected the request')) {
+          return { success: false, error: 'User rejected transaction' };
+        }
+        
+        // Check for contract revert
+        if (errMsg.toLowerCase().includes('execution reverted') ||
+            errMsg.toLowerCase().includes('revert')) {
+          return { success: false, error: 'Contract rejected: Not eligible to claim or already claimed' };
+        }
+        
+        throw writeError;
+      }
 
-      // Only reach here if transaction was successfully submitted
-      if (!hash) {
-        throw new Error('Transaction failed - no hash returned');
+      // Check if we got a valid hash
+      if (!hash || hash === '0x' || hash.length < 10) {
+        console.error('❌ Invalid hash returned for Odyssey:', hash);
+        return { 
+          success: false, 
+          error: 'Transaction may have been rejected or failed - please check your wallet' 
+        };
       }
 
       console.log('✅ Odyssey prize claim transaction submitted:', hash);
