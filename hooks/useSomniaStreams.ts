@@ -826,8 +826,8 @@ export function useSomniaStreams(
           };
           
           const setupSubscription = async () => {
+            const sdkToUse = sdkRef.current || globalSDKInstance;
             try {
-              const sdkToUse = sdkRef.current || globalSDKInstance;
               if (!sdkToUse) {
                 throw new Error('SDK not available for subscription');
               }
@@ -888,13 +888,24 @@ export function useSomniaStreams(
                             const matchingData = allData
                               .map(item => {
                                 try {
+                                  // Type guard: check if item has data property
+                                  if (!item || typeof item !== 'object' || !('data' in item)) {
+                                    return null;
+                                  }
                                   // Decode the data
                                   const encoder = getJsonEncoder();
-                                  const decoded = encoder.decodeData(item.data);
+                                  const itemData = item.data as `0x${string}`;
+                                  const decoded = encoder.decodeData(itemData);
                                   let jsonString = '';
                                   for (const field of decoded) {
                                     if (field.name === 'jsonData') {
-                                      jsonString = field.value?.value || field.value || '';
+                                      // Convert field value to string properly
+                                      const fieldValue = field.value;
+                                      if (typeof fieldValue === 'object' && fieldValue !== null && 'value' in fieldValue) {
+                                        jsonString = String((fieldValue as { value: unknown }).value || '');
+                                      } else {
+                                        jsonString = String(fieldValue || '');
+                                      }
                                       break;
                                     }
                                   }
@@ -907,7 +918,7 @@ export function useSomniaStreams(
                                 }
                                 return null;
                               })
-                              .filter(item => {
+                              .filter((item): item is { data: any; timestamp: number } => {
                                 if (!item || !item.data) return false;
                                 const data = item.data;
                                 // Check if data matches event type
@@ -922,14 +933,15 @@ export function useSomniaStreams(
                               })
                               .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
                             
-                            if (matchingData.length > 0) {
+                            if (matchingData.length > 0 && matchingData[0]) {
                               latestData = matchingData[0].data;
                               console.log(`📦 [SDS] ✅ FOUND MATCHING DATA from getAllPublisherDataForSchema for ${eventType}`);
                             }
                           }
                         }
                       } catch (getAllError) {
-                        console.warn(`⚠️ [SDS] getAllPublisherDataForSchema failed, trying getLastPublishedDataForSchema:`, getAllError?.message);
+                        const errorMessage = getAllError instanceof Error ? getAllError.message : String(getAllError);
+                        console.warn(`⚠️ [SDS] getAllPublisherDataForSchema failed, trying getLastPublishedDataForSchema:`, errorMessage);
                       }
                       
                       // Method 2: Fallback to getLastPublishedDataForSchema
@@ -986,7 +998,8 @@ export function useSomniaStreams(
                               }
                             }
                           } catch (decodeError) {
-                            console.warn(`⚠️ [SDS] Failed to decode data:`, decodeError?.message);
+                            const errorMessage = decodeError instanceof Error ? decodeError.message : String(decodeError);
+                            console.warn(`⚠️ [SDS] Failed to decode data:`, errorMessage);
                           }
                         }
                       }
