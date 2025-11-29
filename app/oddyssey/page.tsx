@@ -2533,11 +2533,55 @@ export default function OddysseyPage() {
                 className="lg:col-span-3"
               >
                 <div className="glass-card p-4 sm:p-6 bg-gradient-to-br from-cyan-500/5 to-blue-500/5 border border-cyan-500/20 shadow-lg shadow-cyan-500/10">
-                  <h2 className="text-xl sm:text-2xl font-bold text-cyan-300 mb-4 sm:mb-6 flex items-center gap-2">
-                    <TrophyIcon className="h-5 w-5 sm:h-6 sm:w-6 text-cyan-400" />
-                    <span className="hidden sm:inline">My Submitted Slips</span>
-                    <span className="sm:hidden">My Slips</span>
-                  </h2>
+                  {/* Header with Title and Claim Button */}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 sm:mb-6">
+                    <h2 className="text-xl sm:text-2xl font-bold text-cyan-300 flex items-center gap-2">
+                      <TrophyIcon className="h-5 w-5 sm:h-6 sm:w-6 text-cyan-400" />
+                      <span className="hidden sm:inline">My Submitted Slips</span>
+                      <span className="sm:hidden">My Slips</span>
+                    </h2>
+                    
+                    {/* ✅ Claim Button for Winner Slips */}
+                    {(() => {
+                      const winnerSlips = allSlips.filter(slip => 
+                        slip.isEvaluated && 
+                        slip.correctCount >= 7 && 
+                        slip.status === 'won'
+                      );
+                      const unclaimedWinners = winnerSlips.filter(slip => {
+                        const slipData = slip as unknown as { prizeClaimed?: boolean };
+                        return !slipData.prizeClaimed;
+                      });
+                      
+                      if (unclaimedWinners.length > 0) {
+                        return (
+                          <motion.button
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => {
+                              const event = new CustomEvent('openPrizeClaimModal');
+                              window.dispatchEvent(event);
+                            }}
+                            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 
+                                       border border-yellow-500/40 rounded-xl text-yellow-300 font-semibold
+                                       hover:from-yellow-500/30 hover:to-orange-500/30 hover:border-yellow-500/60
+                                       transition-all duration-300 shadow-lg shadow-yellow-500/20 animate-pulse-glow"
+                          >
+                            <GiftIcon className="h-5 w-5" />
+                            <span className="hidden sm:inline">Claim {unclaimedWinners.length} Prize{unclaimedWinners.length > 1 ? 's' : ''}</span>
+                            <span className="sm:hidden">Claim ({unclaimedWinners.length})</span>
+                            <span className="flex h-3 w-3">
+                              <span className="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-yellow-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-3 w-3 bg-yellow-500"></span>
+                            </span>
+                          </motion.button>
+                        );
+                      }
+                      return null;
+                    })()}
+                  </div>
                   
                   <EnhancedSlipDisplay 
                     slips={allSlips} 
