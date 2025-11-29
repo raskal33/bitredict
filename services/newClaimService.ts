@@ -1,4 +1,4 @@
-import { useAccount, useWalletClient, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useWalletClient, useWriteContract } from 'wagmi';
 import { parseEther, type Address } from 'viem';
 import { CONTRACT_ADDRESSES } from '@/config/wagmi';
 import { CONTRACTS } from '@/contracts';
@@ -351,7 +351,10 @@ export class NewClaimService {
 export function useNewClaimService() {
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
-  const { writeContract } = useWriteContract();
+  // ✅ FIX: Use writeContractAsync instead of writeContract
+  // writeContract is synchronous and doesn't return a hash
+  // writeContractAsync returns a promise that resolves to the transaction hash
+  const { writeContractAsync } = useWriteContract();
   
   const claimPoolPrize = async (poolId: number) => {
     if (!isConnected || !address) {
@@ -362,12 +365,12 @@ export function useNewClaimService() {
       throw new Error('Wallet client not available');
     }
     
-    if (!writeContract) {
-      throw new Error('writeContract not available');
+    if (!writeContractAsync) {
+      throw new Error('writeContractAsync not available');
     }
     
-    // ✅ FIX: Pass writeContract to use direct contract interaction
-    return await NewClaimService.claimPoolPrize(poolId, walletClient, address, writeContract);
+    // ✅ FIX: Pass writeContractAsync to use direct contract interaction
+    return await NewClaimService.claimPoolPrize(poolId, walletClient, address, writeContractAsync);
   };
   
   const claimOdysseyPrize = async (cycleId: number, slipId: number) => {
@@ -379,12 +382,12 @@ export function useNewClaimService() {
       throw new Error('Wallet client not available');
     }
     
-    if (!writeContract) {
-      throw new Error('writeContract not available');
+    if (!writeContractAsync) {
+      throw new Error('writeContractAsync not available');
     }
     
-    // ✅ FIX: Pass writeContract to use direct contract interaction
-    return await NewClaimService.claimOdysseyPrize(cycleId, slipId, walletClient, address, writeContract);
+    // ✅ FIX: Pass writeContractAsync to use direct contract interaction
+    return await NewClaimService.claimOdysseyPrize(cycleId, slipId, walletClient, address, writeContractAsync);
   };
   
   const batchClaimOdysseyPrizes = async (
@@ -399,12 +402,12 @@ export function useNewClaimService() {
       throw new Error('Wallet client not available');
     }
     
-    if (!writeContract) {
-      throw new Error('writeContract not available');
+    if (!writeContractAsync) {
+      throw new Error('writeContractAsync not available');
     }
     
-    // ✅ FIX: Pass writeContract to each claim
-    return await NewClaimService.batchClaimOdysseyPrizes(positions, walletClient, address, writeContract, onProgress);
+    // ✅ FIX: Pass writeContractAsync to each claim
+    return await NewClaimService.batchClaimOdysseyPrizes(positions, walletClient, address, writeContractAsync, onProgress);
   };
   
   const getPoolClaimStatus = async (poolId: number) => {
@@ -440,6 +443,7 @@ export function useNewClaimService() {
     getAllClaimableOdysseyPrizes,
     isConnected,
     address,
-    walletClient: !!walletClient
+    walletClient: !!walletClient,
+    writeContractAsync: !!writeContractAsync
   };
 }
