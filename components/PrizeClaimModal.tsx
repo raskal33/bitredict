@@ -160,6 +160,17 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
                     return null; // Will be filtered out
                   }
 
+                  // ✅ FIX: Skip already claimed pools from display
+                  if (alreadyClaimed) {
+                    console.log(`[PrizeClaimModal] Pool ${pool.poolId} already claimed, marking as claimed`);
+                  }
+
+                  // ✅ FIX: Skip pools where user cannot claim (not eligible)
+                  if (!canClaim && !alreadyClaimed) {
+                    console.log(`[PrizeClaimModal] Pool ${pool.poolId} not claimable: ${statusRecord['reason'] || 'unknown reason'}`);
+                    return null; // Will be filtered out
+                  }
+
                   // Use claimableAmount from status if available, otherwise keep original
                   let finalClaimableAmount = pool.claimableAmount;
                   if (claimableAmountRaw !== undefined && !alreadyClaimed && canClaim) {
@@ -172,7 +183,7 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
 
                   return {
                     ...pool,
-                    claimed: pool.claimed || alreadyClaimed,
+                    claimed: alreadyClaimed,
                     claimableAmount: alreadyClaimed ? 0 : finalClaimableAmount
                   };
                 } else {
@@ -602,13 +613,28 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
     }
   };
 
-  const totalClaimableAmount = 
-    poolPositions.filter(p => !p.claimed && p.claimableAmount > 0).reduce((sum, p) => sum + p.claimableAmount, 0) +
-    odysseyPositions.filter(p => !p.claimed && p.claimStatus === 'eligible').reduce((sum, p) => sum + parseFloat(p.prizeAmount), 0);
+  // ✅ FIX: Calculate totals separately by currency (BITR vs STT)
+  const unclaimedPoolsSTT = poolPositions.filter(p => !p.claimed && p.claimableAmount > 0 && p.currency === 'STT');
+  const unclaimedPoolsBITR = poolPositions.filter(p => !p.claimed && p.claimableAmount > 0 && p.currency === 'BITR');
+  const unclaimedOdyssey = odysseyPositions.filter(p => !p.claimed && p.claimStatus === 'eligible');
+  
+  const totalClaimableSTT = unclaimedPoolsSTT.reduce((sum, p) => sum + p.claimableAmount, 0) + 
+    unclaimedOdyssey.reduce((sum, p) => sum + parseFloat(p.prizeAmount), 0); // Odyssey pays in STT
+  const totalClaimableBITR = unclaimedPoolsBITR.reduce((sum, p) => sum + p.claimableAmount, 0);
+  
+  // Combined total for display (keeping for backwards compatibility)
+  const totalClaimableAmount = totalClaimableSTT + totalClaimableBITR;
 
-  const selectedAmount = 
-    poolPositions.filter(p => selectedPoolPositions.has(p.poolId)).reduce((sum, p) => sum + p.claimableAmount, 0) +
-    odysseyPositions.filter(p => selectedOdysseyPositions.has(`${p.cycleId}-${p.slipId}`)).reduce((sum, p) => sum + parseFloat(p.prizeAmount), 0);
+  const selectedPoolsSTT = poolPositions.filter(p => selectedPoolPositions.has(p.poolId) && p.currency === 'STT');
+  const selectedPoolsBITR = poolPositions.filter(p => selectedPoolPositions.has(p.poolId) && p.currency === 'BITR');
+  const selectedOdysseyList = odysseyPositions.filter(p => selectedOdysseyPositions.has(`${p.cycleId}-${p.slipId}`));
+  
+  const selectedAmountSTT = selectedPoolsSTT.reduce((sum, p) => sum + p.claimableAmount, 0) +
+    selectedOdysseyList.reduce((sum, p) => sum + parseFloat(p.prizeAmount), 0);
+  const selectedAmountBITR = selectedPoolsBITR.reduce((sum, p) => sum + p.claimableAmount, 0);
+  
+  // Combined selected amount
+  const selectedAmount = selectedAmountSTT + selectedAmountBITR;
 
   const totalUnclaimedCount = 
     poolPositions.filter(p => !p.claimed && p.claimableAmount > 0).length +
@@ -682,11 +708,16 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
             </button>
           </div>
 
-          {/* Summary - Compact */}
+          {/* Summary - Compact with currency breakdown */}
           <div className="px-4 py-3 border-b border-cyan-500/10 bg-black/30">
             <div className="grid grid-cols-3 gap-2 text-center">
               <div>
-                <div className="text-lg font-bold text-green-400">{formatNumber(totalClaimableAmount, 2)}</div>
+                <div className="text-sm font-bold text-green-400">
+                  {totalClaimableBITR > 0 && <span>{formatNumber(totalClaimableBITR, 0)} BITR</span>}
+                  {totalClaimableBITR > 0 && totalClaimableSTT > 0 && <span className="mx-1">+</span>}
+                  {totalClaimableSTT > 0 && <span>{formatNumber(totalClaimableSTT, 2)} STT</span>}
+                  {totalClaimableBITR === 0 && totalClaimableSTT === 0 && <span>0</span>}
+                </div>
                 <div className="text-xs text-white/50">Claimable</div>
               </div>
               <div>
@@ -694,7 +725,12 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
                 <div className="text-xs text-white/50">Unclaimed</div>
               </div>
               <div>
-                <div className="text-lg font-bold text-yellow-400">{formatNumber(selectedAmount, 2)}</div>
+                <div className="text-sm font-bold text-yellow-400">
+                  {selectedAmountBITR > 0 && <span>{formatNumber(selectedAmountBITR, 0)} BITR</span>}
+                  {selectedAmountBITR > 0 && selectedAmountSTT > 0 && <span className="mx-1">+</span>}
+                  {selectedAmountSTT > 0 && <span>{formatNumber(selectedAmountSTT, 2)} STT</span>}
+                  {selectedAmountBITR === 0 && selectedAmountSTT === 0 && <span>0</span>}
+                </div>
                 <div className="text-xs text-white/50">Selected</div>
               </div>
             </div>
