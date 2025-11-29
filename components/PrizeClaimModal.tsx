@@ -35,19 +35,6 @@ interface PoolClaimablePosition {
   txHash?: string;
 }
 
-type PoolStatusApiResponse = {
-  data?: {
-    alreadyClaimed?: boolean;
-    already_claimed?: boolean;
-    claimableAmount?: number | string;
-    claimable_amount?: number | string;
-  };
-  alreadyClaimed?: boolean;
-  already_claimed?: boolean;
-  claimableAmount?: number | string;
-  claimable_amount?: number | string;
-};
-
 type PrizeTab = 'all' | 'pool' | 'oddyssey';
 
 const TOKEN_DECIMALS = 1e18;
@@ -120,94 +107,36 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
           const pools = rewardsData.data.rewards?.pools || [];
           console.log(`[PrizeClaimModal] Loaded ${pools.length} pool positions for ${currentAddress}`);
           
-          const normalizedPools: PoolClaimablePosition[] = pools.map((p: PoolClaimablePosition & { poolId: number; claimed?: boolean; claimableAmount?: number; stakeAmount?: number; currency?: string; settledAt?: string; settled_at?: string; txHash?: string }) => {
-            const currency = p.currency || 'STT';
-            return {
-              poolId: p.poolId,
-              league: p.league,
-              category: p.category,
-              predictedOutcome: p.predictedOutcome,
-              claimableAmount: normalizeTokenAmount(p.claimableAmount, currency),
-              stakeAmount: normalizeTokenAmount(p.stakeAmount, currency),
-              currency,
-              claimed: p.claimed || false,
-              settledAt: p.settled_at ?? p.settledAt,
-              txHash: p.txHash
-            };
-          });
-
-          // ✅ FIX: Filter out null results (refunded pools)
-          const poolsWithStatusRaw = await Promise.all(
-            normalizedPools.map(async (pool) => {
-              try {
-                const statusResponse = await fetch(getAPIUrl(`/api/claim-pools/${pool.poolId}/${currentAddress}/status`));
-                if (statusResponse.ok) {
-                  const statusJson = (await statusResponse.json()) as PoolStatusApiResponse;
-                  const statusData = statusJson.data ?? statusJson ?? {};
-                  const statusRecord = statusData as Record<string, unknown>;
-                  const alreadyClaimed = Boolean(
-                    statusRecord['alreadyClaimed'] ?? statusRecord['already_claimed'] ?? false
-                  );
-                  const isRefunded = Boolean(statusRecord['isRefunded'] ?? false);
-                  const claimableAmountRaw = (
-                    statusRecord['claimableAmount'] ?? statusRecord['claimable_amount']
-                  ) as number | string | undefined;
-                  const canClaim = Boolean(statusRecord['canClaim'] ?? false);
-
-                  // ✅ FIX: Skip refunded pools entirely (no prize to claim)
-                  if (isRefunded) {
-                    console.log(`[PrizeClaimModal] Pool ${pool.poolId} is refunded, skipping`);
-                    return null; // Will be filtered out
-                  }
-
-                  // ✅ FIX: Skip already claimed pools from display
-                  if (alreadyClaimed) {
-                    console.log(`[PrizeClaimModal] Pool ${pool.poolId} already claimed, marking as claimed`);
-                  }
-
-                  // ✅ FIX: Skip pools where user cannot claim (not eligible)
-                  if (!canClaim && !alreadyClaimed) {
-                    console.log(`[PrizeClaimModal] Pool ${pool.poolId} not claimable: ${statusRecord['reason'] || 'unknown reason'}`);
-                    return null; // Will be filtered out
-                  }
-
-                  // Use claimableAmount from status if available, otherwise keep original
-                  let finalClaimableAmount = pool.claimableAmount;
-                  if (claimableAmountRaw !== undefined && !alreadyClaimed && canClaim) {
-                    // Status endpoint returns amount in token units (not wei), so no normalization needed
-                    const amount = typeof claimableAmountRaw === 'string' ? parseFloat(claimableAmountRaw) : claimableAmountRaw;
-                    if (Number.isFinite(amount) && amount > 0) {
-                      finalClaimableAmount = amount;
-                    }
-                  }
-
-                  return {
-                    ...pool,
-                    claimed: alreadyClaimed,
-                    claimableAmount: alreadyClaimed ? 0 : finalClaimableAmount
-                  };
-                } else {
-                  // Status endpoint failed, but keep the pool with original data
-                  console.warn(`[PrizeClaimModal] Status endpoint returned ${statusResponse.status} for pool ${pool.poolId}`);
-                }
-              } catch (statusError) {
-                console.warn(`[PrizeClaimModal] Failed to fetch status for pool ${pool.poolId}:`, statusError);
-              }
-              return pool;
+          // ✅ FIX: Backend now returns contract-verified data - no need for individual status calls!
+          // This eliminates N+1 API calls and rate limit issues
+          const normalizedPools: PoolClaimablePosition[] = pools
+            .filter((p: { claimed?: boolean; claimableAmount?: number }) => {
+              // Backend already filters claimed pools, but double-check
+              // Also filter out pools with 0 claimable amount
+              return !p.claimed && (p.claimableAmount || 0) > 0;
             })
-          );
+            .map((p: PoolClaimablePosition & { poolId: number; claimed?: boolean; claimableAmount?: number; stakeAmount?: number; currency?: string; settledAt?: string; settled_at?: string; txHash?: string }) => {
+              const currency = p.currency || 'STT';
+              // Backend returns amounts in token units (already normalized), not wei
+              return {
+                poolId: p.poolId,
+                league: p.league,
+                category: p.category,
+                predictedOutcome: p.predictedOutcome,
+                claimableAmount: typeof p.claimableAmount === 'number' ? p.claimableAmount : 0,
+                stakeAmount: typeof p.stakeAmount === 'number' ? p.stakeAmount : 0,
+                currency,
+                claimed: false, // Already filtered out claimed pools
+                settledAt: p.settled_at ?? p.settledAt,
+                txHash: p.txHash
+              };
+            });
 
-          // ✅ FIX: Filter out null results (refunded pools)
-          const poolsWithStatus: PoolClaimablePosition[] = poolsWithStatusRaw.filter(
-            (p): p is PoolClaimablePosition => p !== null
-          );
-
-          setPoolPositions(poolsWithStatus);
+          console.log(`[PrizeClaimModal] Filtered to ${normalizedPools.length} claimable pools`);
+          setPoolPositions(normalizedPools);
           
-          // Auto-select unclaimed pool positions
-          const unclaimedPools = poolsWithStatus
-            .filter((p: PoolClaimablePosition) => !p.claimed && p.claimableAmount > 0)
-            .map((p: PoolClaimablePosition) => p.poolId);
+          // Auto-select all claimable pool positions (already filtered above)
+          const unclaimedPools = normalizedPools.map((p: PoolClaimablePosition) => p.poolId);
           setSelectedPoolPositions(new Set(unclaimedPools));
         } else {
           console.warn(`[PrizeClaimModal] No pool data returned for ${currentAddress}`);
