@@ -77,6 +77,72 @@ export function LiveActivity() {
     console.log('📡 LiveActivity: Current SDS Status:', { isConnected, isSDSActive });
   }, [isConnected, isSDSActive]);
 
+  // ✅ CRITICAL: Fetch last 20 actions on component mount
+  useEffect(() => {
+    const fetchRecentActivities = async () => {
+      try {
+        console.log('📡 LiveActivity: Fetching last 20 activities from API...');
+        const response = await fetch('https://bitredict-backend.fly.dev/api/live-activity/recent?limit=20');
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const data = await response.json();
+        
+        if (data.success && data.data?.activities) {
+          const activities = data.data.activities;
+          console.log(`✅ LiveActivity: Fetched ${activities.length} activities from API`);
+          
+          // Convert API activities to ActivityEvent format
+          const formattedEvents: ActivityEvent[] = activities.map((activity: any) => {
+            const eventId = activity.id;
+            return {
+              id: eventId,
+              timestamp: activity.timestamp,
+              type: activity.type === 'pool_created' ? 'pool_created' : 
+                    activity.type === 'bet' ? 'bet' : 
+                    activity.type === 'liquidity_added' ? 'liquidity_added' : 'bet',
+              poolId: activity.poolId,
+              user: activity.user,
+              amount: activity.amount,
+              currency: activity.currency || 'STT',
+              poolTitle: activity.poolTitle
+            };
+          });
+
+          // Filter to only recent events (last 5 minutes) and merge with existing
+          const now = Math.floor(Date.now() / 1000);
+          const fiveMinutesAgo = now - (5 * 60);
+          const recentEvents = formattedEvents.filter(e => e.timestamp >= fiveMinutesAgo);
+          
+          setEvents(prev => {
+            // Merge with existing events, avoiding duplicates
+            const existingIds = new Set(prev.map(e => e.id));
+            const newEvents = recentEvents.filter(e => !existingIds.has(e.id));
+            const merged = [...newEvents, ...prev];
+            // Sort by timestamp and limit to 50
+            return merged
+              .sort((a, b) => b.timestamp - a.timestamp)
+              .slice(0, 50);
+          });
+
+          // Mark events as seen
+          recentEvents.forEach(event => {
+            processedEventIds.current.add(event.id);
+          });
+        }
+      } catch (error) {
+        console.error('❌ LiveActivity: Failed to fetch recent activities:', error);
+        // Don't show error to user - just log it
+      }
+    };
+
+    // Fetch on mount and then every 30 seconds to keep data fresh
+    fetchRecentActivities();
+    const interval = setInterval(fetchRecentActivities, 30000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
   // Subscribe to bet placed events
   useBetUpdates((betData: {
     poolId?: string | number;
