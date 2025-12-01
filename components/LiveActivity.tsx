@@ -103,15 +103,23 @@ export function LiveActivity() {
             currency?: string;
             poolTitle?: string;
           }) => {
-            const eventId = activity.id;
+            // ✅ Normalize event ID to match real-time format (round timestamp, lowercase user)
+            const roundedTimestamp = Math.floor(activity.timestamp);
+            const normalizedUser = activity.user.toLowerCase();
+            const eventId = activity.type === 'pool_created' 
+              ? `pool-${activity.poolId}-${normalizedUser}-${roundedTimestamp}`
+              : activity.type === 'liquidity_added'
+              ? `lp-${activity.poolId}-${normalizedUser}-${roundedTimestamp}`
+              : `bet-${activity.poolId}-${normalizedUser}-${roundedTimestamp}`;
+            
             return {
               id: eventId,
-              timestamp: activity.timestamp,
+              timestamp: roundedTimestamp,
               type: activity.type === 'pool_created' ? 'pool_created' : 
                     activity.type === 'bet' ? 'bet' : 
                     activity.type === 'liquidity_added' ? 'liquidity_added' : 'bet',
               poolId: activity.poolId,
-              user: activity.user,
+              user: normalizedUser,
               amount: activity.amount,
               currency: activity.currency || 'STT',
               poolTitle: activity.poolTitle
@@ -124,10 +132,27 @@ export function LiveActivity() {
           const recentEvents = formattedEvents.filter(e => e.timestamp >= fiveMinutesAgo);
           
           setEvents(prev => {
-            // Merge with existing events, avoiding duplicates
+            // ✅ IMPROVED: Merge with existing events, avoiding duplicates by ID
             const existingIds = new Set(prev.map(e => e.id));
-            const newEvents = recentEvents.filter(e => !existingIds.has(e.id));
-            const merged = [...newEvents, ...prev];
+            const newEvents = recentEvents.filter(e => {
+              if (existingIds.has(e.id)) {
+                console.log(`⚠️ LiveActivity: Skipping duplicate event from API: ${e.id}`);
+                return false;
+              }
+              return true;
+            });
+            
+            // ✅ Also check processedEventIds to avoid duplicates from real-time
+            const filteredNewEvents = newEvents.filter(e => {
+              if (processedEventIds.current.has(e.id)) {
+                console.log(`⚠️ LiveActivity: Skipping duplicate event (already processed): ${e.id}`);
+                return false;
+              }
+              processedEventIds.current.add(e.id);
+              return true;
+            });
+            
+            const merged = [...filteredNewEvents, ...prev];
             // Sort by timestamp and limit to 50
             return merged
               .sort((a, b) => b.timestamp - a.timestamp)
@@ -203,8 +228,9 @@ export function LiveActivity() {
     
     const currency = betData.currency || ((betData as Record<string, unknown>).useBitr ? 'BITR' : 'STT');
     
-    // ✅ FIX: Create unique event ID to prevent duplicates
-    const eventId = `bet-${poolIdStr}-${bettorAddress}-${timestamp}`;
+    // ✅ FIX: Create unique event ID to prevent duplicates (round timestamp to nearest second to match API)
+    const roundedTimestamp = Math.floor(timestamp);
+    const eventId = `bet-${poolIdStr}-${bettorAddress.toLowerCase()}-${roundedTimestamp}`;
     if (processedEventIds.current.has(eventId)) {
       console.log(`⚠️ LiveActivity: Duplicate bet event prevented: ${eventId}`);
       return;
@@ -288,7 +314,9 @@ export function LiveActivity() {
     
     const currency = poolData.currency || ((poolData as Record<string, unknown>).useBitr ? 'BITR' : 'STT');
     
-    const eventId = `pool-${poolIdStr}-${creatorAddress}-${timestamp}`;
+    // ✅ FIX: Round timestamp to nearest second to match API format
+    const roundedTimestamp = Math.floor(timestamp);
+    const eventId = `pool-${poolIdStr}-${creatorAddress.toLowerCase()}-${roundedTimestamp}`;
     if (processedEventIds.current.has(eventId)) {
       console.log(`⚠️ LiveActivity: Duplicate pool event prevented: ${eventId}`);
       return;
@@ -372,7 +400,9 @@ export function LiveActivity() {
     
     const currency = liquidityData.currency || 'STT';
     
-    const eventId = `lp-${poolIdStr}-${providerAddress}-${timestamp}`;
+    // ✅ FIX: Round timestamp to nearest second to match API format
+    const roundedTimestamp = Math.floor(timestamp);
+    const eventId = `lp-${poolIdStr}-${providerAddress.toLowerCase()}-${roundedTimestamp}`;
     if (processedEventIds.current.has(eventId)) {
       console.log(`⚠️ LiveActivity: Duplicate liquidity event prevented: ${eventId}`);
       return;
@@ -750,14 +780,21 @@ export function LiveActivity() {
                       {formatTime(event.timestamp)}
                     </span>
                   </div>
-                  <div className="text-gray-400 text-[10px] truncate">
+                  {/* ✅ Pool ID - Always visible */}
+                  <div className="text-cyan-400 text-[10px] font-medium mb-1">
+                    Pool #{event.poolId}
+                  </div>
+                  {/* ✅ User address */}
+                  <div className="text-gray-400 text-[10px] mb-1">
                     {event.user.slice(0, 6)}...{event.user.slice(-4)}
                   </div>
-                  {event.poolTitle && (
-                    <div className="text-gray-300 text-[10px] mt-1 truncate">
-                      {event.poolTitle}
+                  {/* ✅ Pool title - Show full or truncated with tooltip */}
+                  {event.poolTitle ? (
+                    <div className="text-gray-300 text-[10px] mt-1 mb-1" title={event.poolTitle}>
+                      {event.poolTitle.length > 50 ? `${event.poolTitle.slice(0, 50)}...` : event.poolTitle}
                     </div>
-                  )}
+                  ) : null}
+                  {/* ✅ Amount */}
                   {event.amount && (
                     <div className="text-cyan-400 text-xs font-medium mt-1">
                       {parseFloat(event.amount).toFixed(2)} {event.currency}
