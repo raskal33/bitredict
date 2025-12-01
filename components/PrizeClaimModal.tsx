@@ -108,12 +108,20 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
           console.log(`[PrizeClaimModal] Loaded ${pools.length} pool positions for ${currentAddress}`);
           
           // ✅ FIX: Backend now returns contract-verified data - no need for individual status calls!
-          // This eliminates N+1 API calls and rate limit issues
+          // ✅ VALIDATION: Filter out claimed pools and pools with 0 claimable amount
           const normalizedPools: PoolClaimablePosition[] = pools
-            .filter((p: { claimed?: boolean; claimableAmount?: number }) => {
+            .filter((p: { poolId?: number; claimed?: boolean; claimableAmount?: number }) => {
               // Backend already filters claimed pools, but double-check
               // Also filter out pools with 0 claimable amount
-              return !p.claimed && (p.claimableAmount || 0) > 0;
+              if (p.claimed) {
+                console.log(`[PrizeClaimModal] Filtering out claimed pool #${p.poolId || 'unknown'}`);
+                return false;
+              }
+              if ((p.claimableAmount || 0) <= 0) {
+                console.log(`[PrizeClaimModal] Filtering out pool #${p.poolId || 'unknown'} with 0 claimable amount`);
+                return false;
+              }
+              return true;
             })
             .map((p: PoolClaimablePosition & { poolId: number; claimed?: boolean; claimableAmount?: number; stakeAmount?: number; currency?: string; settledAt?: string; settled_at?: string; txHash?: string }) => {
             const currency = p.currency || 'STT';
@@ -169,7 +177,27 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
           console.log(`[PrizeClaimModal] Loaded ${odysseyPrizes.length} odyssey positions for ${currentAddress}`, odysseyPrizes);
           
           if (isMountedRef.current) {
-            const normalizedOdysseyPositions: OdysseyClaimablePosition[] = odysseyPrizes.map((p) => {
+            // ✅ VALIDATION: Filter out already claimed prizes before processing
+            const claimableOdysseyPrizes = odysseyPrizes.filter((p) => {
+              if (p.already_claimed) {
+                console.log(`[PrizeClaimModal] Filtering out already claimed prize: Cycle ${p.cycleId}, Slip ${p.slipId}`);
+                return false;
+              }
+              if (!p.canClaim) {
+                console.log(`[PrizeClaimModal] Filtering out non-claimable prize: Cycle ${p.cycleId}, Slip ${p.slipId}`);
+                return false;
+              }
+              const prizeAmountNum = typeof p.prizeAmount === 'string' ? parseFloat(p.prizeAmount) : (p.prizeAmount || 0);
+              if (prizeAmountNum <= 0) {
+                console.log(`[PrizeClaimModal] Filtering out prize with 0 amount: Cycle ${p.cycleId}, Slip ${p.slipId}`);
+                return false;
+              }
+              return true;
+            });
+            
+            console.log(`[PrizeClaimModal] Filtered to ${claimableOdysseyPrizes.length} claimable odyssey prizes`);
+            
+            const normalizedOdysseyPositions: OdysseyClaimablePosition[] = claimableOdysseyPrizes.map((p) => {
               // Backend now returns prizeAmount in token units (already normalized from wei)
               let prizeAmount = 0;
               if (p.prizeAmount !== undefined && p.prizeAmount !== null) {
@@ -319,8 +347,32 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
       return;
     }
 
+    // ✅ VALIDATION: Check if prize exists and is already claimed before attempting claim
+    const position = poolPositions.find(p => p.poolId === poolId);
+    if (!position) {
+      toast.error(`Pool #${poolId} not found. Please refresh and try again.`);
+      return;
+    }
+
+    if (position.claimed) {
+      toast.error(`Pool #${poolId} prize has already been claimed.`);
+      // Remove from list since it's already claimed
+      setPoolPositions(prev => prev.filter(p => p.poolId !== poolId));
+      setSelectedPoolPositions(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(poolId);
+        return newSet;
+      });
+      return;
+    }
+
+    if (position.claimableAmount <= 0) {
+      toast.error(`Pool #${poolId} has no claimable amount.`);
+      return;
+    }
+
     setIsClaiming(true);
-    // Show pending toast
+    // Show pending toast with better error display
     const pendingToastId = toast.loading(`Claiming pool #${poolId} prize...`);
     
     try {
@@ -330,14 +382,12 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
       toast.dismiss(pendingToastId);
 
       if (result.success && result.transactionHash) {
-        toast.success(`Pool prize claimed successfully! 🎉`);
+        toast.success(`Pool prize claimed successfully! 🎉 Transaction: ${result.transactionHash.slice(0, 10)}...`, {
+          duration: 5000
+        });
         
-        // Update the position as claimed
-        setPoolPositions(prev => prev.map(p => 
-          p.poolId === poolId
-            ? { ...p, claimed: true, claimableAmount: 0 }
-            : p
-        ));
+        // ✅ FIX: Remove claimed pool immediately instead of marking as claimed
+        setPoolPositions(prev => prev.filter(p => p.poolId !== poolId));
         
         // Remove from selected positions
         setSelectedPoolPositions(prev => {
@@ -346,14 +396,33 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
           return newSet;
         });
         
+        // Reload positions to get updated state
+        setTimeout(() => loadPositions(), 2000);
+        
       } else {
-        toast.error(result.error || 'Failed to claim pool prize');
+        // ✅ IMPROVED ERROR DISPLAY
+        const errorMsg = result.error || 'Failed to claim pool prize';
+        const errorDetail = errorMsg.includes('already claimed') 
+          ? 'This prize has already been claimed. Refreshing...'
+          : errorMsg.includes('not eligible')
+          ? 'You are not eligible to claim this prize.'
+          : 'Please check your wallet and try again.';
+        toast.error(`Claim Failed: ${errorMsg}. ${errorDetail}`, {
+          duration: 7000
+        });
+        
+        // If already claimed, refresh positions
+        if (errorMsg.toLowerCase().includes('already claimed')) {
+          setTimeout(() => loadPositions(), 1000);
+        }
       }
     } catch (error) {
       toast.dismiss(pendingToastId);
       console.error('Pool claim error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to claim pool prize';
-      toast.error(errorMessage);
+      toast.error(`Claim Error: ${errorMessage}. An unexpected error occurred. Please try again or contact support if the issue persists.`, {
+        duration: 7000
+      });
     } finally {
       setIsClaiming(false);
     }
@@ -365,25 +434,76 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
       return;
     }
 
+    // ✅ VALIDATION: Check if prize exists and is already claimed before attempting claim
+    const existingPosition = odysseyPositions.find(p => 
+      p.cycleId === position.cycleId && p.slipId === position.slipId
+    );
+    
+    if (!existingPosition) {
+      toast.error(`Odyssey prize not found. Please refresh and try again.`);
+      return;
+    }
+
+    if (existingPosition.claimed || existingPosition.claimStatus === 'already_claimed') {
+      toast.error(`Cycle #${position.cycleId} Slip #${position.slipId} prize has already been claimed.`);
+      // Remove from list since it's already claimed
+      setOdysseyPositions(prev => prev.filter(p => 
+        !(p.cycleId === position.cycleId && p.slipId === position.slipId)
+      ));
+      setSelectedOdysseyPositions(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(`${position.cycleId}-${position.slipId}`);
+        return newSet;
+      });
+      return;
+    }
+
+    if (existingPosition.claimStatus !== 'eligible' || parseFloat(existingPosition.prizeAmount) <= 0) {
+      toast.error(`Cycle #${position.cycleId} Slip #${position.slipId} is not eligible for claiming.`);
+      return;
+    }
+
     setIsClaiming(true);
-    // Show pending toast
+    // Show pending toast with better error display
     const pendingToastId = toast.loading(`Claiming Odyssey cycle #${position.cycleId} prize...`);
     
     try {
+      // ✅ VALIDATION: Double-check claim status via API before claiming
+      try {
+        const statusCheck = await fetch(getAPIUrl(`/api/claim-oddyssey/${position.cycleId}/${position.slipId}/${userAddress}/status`));
+        if (statusCheck.ok) {
+          const statusData = await statusCheck.json();
+          if (statusData.data?.already_claimed) {
+            toast.dismiss(pendingToastId);
+            toast.error(`Prize already claimed. Refreshing...`);
+            setTimeout(() => loadPositions(), 1000);
+            return;
+          }
+          if (!statusData.data?.canClaim) {
+            toast.dismiss(pendingToastId);
+            toast.error(statusData.data?.reason || 'Cannot claim this prize');
+            return;
+          }
+        }
+      } catch (statusError) {
+        console.warn('Status check failed, proceeding with claim:', statusError);
+        // Continue with claim if status check fails
+      }
+
       const result = await claimOdysseyPrize(position.cycleId, position.slipId);
 
       // Dismiss pending toast
       toast.dismiss(pendingToastId);
 
       if (result.success && result.transactionHash) {
-        toast.success(`Odyssey prize claimed successfully! 🎉`);
+        toast.success(`Odyssey prize claimed successfully! 🎉 Transaction: ${result.transactionHash.slice(0, 10)}...`, {
+          duration: 5000
+        });
         
-        // Update the position as claimed
-        setOdysseyPositions(prev => prev.map(p => 
-          p.cycleId === position.cycleId && p.slipId === position.slipId
-            ? { ...p, claimed: true, claimStatus: 'already_claimed' as const }
-            : p
-        ));
+        // ✅ FIX: Update the position as claimed and immediately remove from list
+        setOdysseyPositions(prev => prev.filter(p => 
+          !(p.cycleId === position.cycleId && p.slipId === position.slipId)
+        )); // Remove claimed position immediately
         
         // Remove from selected positions
         setSelectedOdysseyPositions(prev => {
@@ -392,14 +512,33 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
           return newSet;
         });
         
+        // Reload positions to get updated state
+        setTimeout(() => loadPositions(), 2000);
+        
       } else {
-        toast.error(result.error || 'Failed to claim Odyssey prize');
+        // ✅ IMPROVED ERROR DISPLAY
+        const errorMsg = result.error || 'Failed to claim Odyssey prize';
+        const errorDetail = errorMsg.includes('already claimed') 
+          ? 'This prize has already been claimed. Refreshing...'
+          : errorMsg.includes('not eligible')
+          ? 'You are not eligible to claim this prize.'
+          : 'Please check your wallet and try again.';
+        toast.error(`Claim Failed: ${errorMsg}. ${errorDetail}`, {
+          duration: 7000
+        });
+        
+        // If already claimed, refresh positions
+        if (errorMsg.toLowerCase().includes('already claimed')) {
+          setTimeout(() => loadPositions(), 1000);
+        }
       }
     } catch (error) {
       toast.dismiss(pendingToastId);
       console.error('Odyssey claim error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to claim Odyssey prize';
-      toast.error(errorMessage);
+      toast.error(`Claim Error: ${errorMessage}. An unexpected error occurred. Please try again or contact support if the issue persists.`, {
+        duration: 7000
+      });
     } finally {
       setIsClaiming(false);
     }
@@ -434,28 +573,74 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
       // Claim pool prizes
       for (const pool of selectedPools) {
         try {
+          // ✅ VALIDATION: Check if pool still exists and is claimable before claiming
+          const existingPool = poolPositions.find(p => p.poolId === pool.poolId);
+          if (!existingPool || existingPool.claimed || existingPool.claimableAmount <= 0) {
+            console.log(`[Batch Claim] Skipping pool ${pool.poolId} - already claimed or not claimable`);
+            continue;
+          }
+          
           const result = await claimPoolPrize(pool.poolId);
           if (result.success) {
             completed++;
             setClaimProgress({ completed, total });
-            setPoolPositions(prev => prev.map(p => 
-              p.poolId === pool.poolId ? { ...p, claimed: true } : p
-            ));
+            // ✅ FIX: Remove claimed pool immediately instead of marking as claimed
+            setPoolPositions(prev => prev.filter(p => p.poolId !== pool.poolId));
+            // Remove from selected
+            setSelectedPoolPositions(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(pool.poolId);
+              return newSet;
+            });
+          } else {
+            // ✅ IMPROVED ERROR: Show error for failed claim
+            toast.error(`Failed to claim pool #${pool.poolId}: ${result.error || 'Unknown error'}`);
           }
         } catch (error) {
           console.error(`Failed to claim pool ${pool.poolId}:`, error);
+          toast.error(`Error claiming pool #${pool.poolId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
       }
       
       // Claim Odyssey prizes
       if (selectedOdysseyList.length > 0) {
-        const odysseyResult = await batchClaimOdysseyPrizes(
-          selectedOdysseyList,
-          (completedOdyssey) => {
-            setClaimProgress({ completed: completed + completedOdyssey, total });
+        // ✅ VALIDATION: Filter out already claimed prizes before batch claiming
+        const claimableOdysseyList = selectedOdysseyList.filter(p => {
+          const existing = odysseyPositions.find(pos => 
+            pos.cycleId === p.cycleId && pos.slipId === p.slipId
+          );
+          if (!existing || existing.claimed || existing.claimStatus !== 'eligible') {
+            console.log(`[Batch Claim] Skipping Odyssey prize: Cycle ${p.cycleId}, Slip ${p.slipId} - already claimed or not eligible`);
+            return false;
           }
-        );
-        completed += odysseyResult.successful;
+          return true;
+        });
+        
+        if (claimableOdysseyList.length > 0) {
+          const odysseyResult = await batchClaimOdysseyPrizes(
+            claimableOdysseyList,
+            (completedOdyssey) => {
+              setClaimProgress({ completed: completed + completedOdyssey, total });
+            }
+          );
+          completed += odysseyResult.successful;
+          
+          // ✅ FIX: Remove successfully claimed Odyssey positions immediately
+          // Derive successful positions from results array
+          odysseyResult.results.forEach((result, index) => {
+            if (result.success && claimableOdysseyList[index]) {
+              const pos = claimableOdysseyList[index];
+              setOdysseyPositions(prev => prev.filter(p => 
+                !(p.cycleId === pos.cycleId && p.slipId === pos.slipId)
+              ));
+              setSelectedOdysseyPositions(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(`${pos.cycleId}-${pos.slipId}`);
+                return newSet;
+              });
+            }
+          });
+        }
       }
       
       toast.success(`Batch claim completed! ${completed} of ${total} successful`);

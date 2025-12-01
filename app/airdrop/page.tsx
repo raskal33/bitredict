@@ -36,6 +36,7 @@ import {
   GiftIcon as GiftSolid,
   SparklesIcon as SparklesSolid
 } from "@heroicons/react/24/solid";
+import Button from "@/components/button";
 
 interface LeaderboardUser {
   rank: number;
@@ -78,7 +79,10 @@ export default function AirdropPage() {
     try {
       const promises: Promise<unknown>[] = [
         getAirdropStatistics(),
-        getAirdropLeaderboard(50).catch(() => [] as LeaderboardUser[])
+        getAirdropLeaderboard(50).catch((err) => {
+          console.error("Error fetching leaderboard:", err);
+          return [] as LeaderboardUser[];
+        })
       ];
       
       if (address) {
@@ -91,10 +95,19 @@ export default function AirdropPage() {
         setEligibility(results[2] as UserEligibility);
       }
       setStatistics(results[0] as AirdropStatistics);
-      setLeaderboard(results[1] as LeaderboardUser[]);
+      
+      // ✅ FIX: Ensure leaderboard is always an array
+      const leaderboardData = results[1] as LeaderboardUser[];
+      if (Array.isArray(leaderboardData)) {
+        setLeaderboard(leaderboardData);
+      } else {
+        console.warn("Leaderboard data is not an array:", leaderboardData);
+        setLeaderboard([]);
+      }
     } catch (error) {
       console.error("Error fetching airdrop data:", error);
       toast.error("Failed to load airdrop data");
+      setLeaderboard([]); // Ensure leaderboard is set to empty array on error
     } finally {
       setLoading(false);
     }
@@ -109,6 +122,14 @@ export default function AirdropPage() {
     }, 30000);
     return () => clearInterval(interval);
   }, [fetchAirdropData]);
+
+  // ✅ FIX: Refresh leaderboard when switching to leaderboard tab
+  useEffect(() => {
+    if (activeTab === 'leaderboard' && leaderboard.length === 0 && !loading) {
+      console.log('🔄 Refreshing leaderboard data...');
+      fetchAirdropData();
+    }
+  }, [activeTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ✅ Real-time leaderboard updates via WebSocket
   useEffect(() => {
@@ -217,29 +238,29 @@ export default function AirdropPage() {
     };
   })();
 
-  // ✅ FIX: Map API requirements correctly - API returns bitrActions (not poolsCreated/poolsParticipated)
+  // ✅ FIX: Map API requirements correctly - Updated to match user requirements
   const requirements = eligibility?.requirements ? [
     getRequirementStatus(
       typeof eligibility.requirements.faucetClaim === 'object' 
         ? eligibility.requirements.faucetClaim.hasClaimed 
         : eligibility.requirements.faucetClaim || false, 
-      "1️⃣ Claim BITR from the faucet"
+      "1️⃣ Claim BITR test tokens from the faucet"
     ),
     getRequirementStatus(
-      eligibility.requirements.bitrActions || { current: 0, required: 20, met: false },
-      "2️⃣ Complete 20+ BITR actions (pools or bets)"
+      eligibility.requirements.poolsCreated || { current: 0, required: 3, met: false },
+      "2️⃣ Create at least 3 prediction pools"
+    ),
+    getRequirementStatus(
+      eligibility.requirements.poolsParticipated || { current: 0, required: 10, met: false },
+      "3️⃣ Participate in at least 10 pools"
     ),
     getRequirementStatus(
       enhancedStakingRequirement,
-      "3️⃣ Stake BITR"
+      "4️⃣ Stake BITR on Testnet"
     ),
     getRequirementStatus(
-      eligibility.requirements.oddysseySlips || { current: 0, required: 3, met: false },
-      "4️⃣ Submit 3+ Oddyssey slips"
-    ),
-    getRequirementStatus(
-      eligibility.requirements.sttActivityBeforeFaucet ?? true,
-      "5️⃣ Have STT activity before faucet claim"
+      eligibility.requirements.oddysseySlips || { current: 0, required: 5, met: false },
+      "5️⃣ Submit 5 Odyssey slips"
     )
   ] : [];
 
@@ -647,7 +668,7 @@ export default function AirdropPage() {
                       </div>
                       <div>
                         <span className="text-primary font-semibold block">Play Oddyssey</span>
-                        <span className="text-text-muted text-xs">Submit 3+ slips</span>
+                        <span className="text-text-muted text-xs">Submit 5 slips</span>
                       </div>
                     </div>
                     <span className="text-accent group-hover:translate-x-1 transition-transform">→</span>
@@ -721,7 +742,12 @@ export default function AirdropPage() {
                 </div>
               </div>
 
-              {leaderboard.length > 0 ? (
+              {loading ? (
+                <div className="text-center py-12">
+                  <LoadingSpinner size="lg" />
+                  <p className="text-text-muted mt-4">Loading leaderboard...</p>
+                </div>
+              ) : leaderboard.length > 0 ? (
                 <div className="space-y-3">
                   {leaderboard.map((user, index) => {
                     const isEligible = (user as { isEligible?: boolean }).isEligible ?? false;
@@ -797,8 +823,16 @@ export default function AirdropPage() {
               ) : (
                 <div className="text-center py-12">
                   <FaUsers className="h-12 w-12 text-text-muted mx-auto mb-4" />
-                  <h3 className="text-xl font-bold text-primary mb-2">No Data Available</h3>
-                  <p className="text-text-muted">Leaderboard will be available soon</p>
+                  <h3 className="text-xl font-bold text-primary mb-2">No Leaderboard Data</h3>
+                  <p className="text-text-muted mb-4">No users found in the leaderboard yet.</p>
+                  <Button
+                    onClick={() => fetchAirdropData()}
+                    variant="outline"
+                    size="sm"
+                    className="mt-4"
+                  >
+                    Refresh Leaderboard
+                  </Button>
                 </div>
               )}
             </div>

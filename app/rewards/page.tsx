@@ -20,6 +20,7 @@ import RecentBetsLane from '@/components/RecentBetsLane';
 import AnimatedTitle from '@/components/AnimatedTitle';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { getAPIUrl } from '@/config/api';
+import { useSomniaStreams, type SDSPrizeClaimedData } from '@/hooks/useSomniaStreams';
 
 interface Reward {
   type: 'pool' | 'combo' | 'oddyssey';
@@ -132,14 +133,84 @@ export default function RewardsPage() {
     fetchPlatformClaims();
   }, [isConnected, address, fetchRewards, fetchPlatformClaims]);
   
-  // Poll for updates every 10 seconds
+  // ✅ SDS Subscriptions for real-time prize claimed, slips, and cycle updates
+  const { subscribe: subscribeSDS } = useSomniaStreams({ enabled: true });
+  
+  useEffect(() => {
+    // Subscribe to prize claimed events
+    const unsubPrizeClaimed = subscribeSDS('prize:claimed', (data) => {
+      const prizeData = data as SDSPrizeClaimedData;
+      console.log('📡 [SDS] Prize claimed event received:', prizeData);
+      
+      // Add to platform claims feed immediately
+      const newClaim: PlatformClaim = {
+        id: `prize-${prizeData.cycleId}-${prizeData.slipId}-${prizeData.timestamp}`,
+        type: 'oddyssey',
+        poolId: `${prizeData.cycleId}-${prizeData.slipId}`,
+        userAddress: prizeData.player,
+        amount: parseFloat(prizeData.prizeAmount) / 1e18, // Convert from wei
+        currency: 'STT',
+        claimedAt: new Date(prizeData.timestamp * 1000).toISOString(),
+        league: 'Oddyssey',
+        category: 'oddyssey',
+        outcome: `Cycle ${prizeData.cycleId} - Rank #${prizeData.rank + 1}`
+      };
+      
+      setPlatformClaims(prev => {
+        // Check if already exists
+        const exists = prev.find(c => c.id === newClaim.id);
+        if (exists) return prev;
+        
+        // Add to beginning of list
+        return [newClaim, ...prev].slice(0, 100); // Keep last 100
+      });
+      
+      // Refresh rewards if it's the current user
+      if (address && prizeData.player.toLowerCase() === address.toLowerCase()) {
+        setTimeout(() => fetchRewards(), 1000);
+      }
+      
+      // Refresh platform claims
+      setTimeout(() => fetchPlatformClaims(), 1000);
+    });
+    
+    // Subscribe to slip evaluated events
+    const unsubSlipEvaluated = subscribeSDS('slip:evaluated', (data) => {
+      const slipData = data as { player?: string; user?: string; bettor?: string };
+      console.log('📡 [SDS] Slip evaluated event received:', slipData);
+      // Refresh rewards if it's the current user
+      if (address && slipData.player && slipData.player.toLowerCase() === address.toLowerCase()) {
+        setTimeout(() => fetchRewards(), 1000);
+      }
+    });
+    
+    // Subscribe to cycle resolved events
+    const unsubCycleResolved = subscribeSDS('cycle:resolved', (data) => {
+      console.log('📡 [SDS] Cycle resolved event received:', data);
+      // Refresh rewards and claims
+      setTimeout(() => {
+        fetchPlatformClaims();
+        if (address && isConnected) {
+          fetchRewards();
+        }
+      }, 2000);
+    });
+    
+    return () => {
+      unsubPrizeClaimed();
+      unsubSlipEvaluated();
+      unsubCycleResolved();
+    };
+  }, [subscribeSDS, address, isConnected, fetchRewards, fetchPlatformClaims]);
+
+  // Poll for updates every 30 seconds (reduced frequency since we have real-time updates)
   useEffect(() => {
     const interval = setInterval(() => {
       fetchPlatformClaims();
       if (address && isConnected) {
         fetchRewards();
       }
-    }, 10000);
+    }, 30000); // Increased from 10s to 30s since we have real-time updates
     
     return () => clearInterval(interval);
   }, [address, isConnected, fetchRewards, fetchPlatformClaims]);

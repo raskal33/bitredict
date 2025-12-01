@@ -137,36 +137,21 @@ export function calculateRequirementProgress(requirements: UserEligibility['requ
     : requirements.faucetClaim || false;
   if (faucetClaimed) completed++;
   
-  // 2. BITR actions (20+ required)
-  if (requirements.bitrActions?.met) completed++;
+  // 2. Create at least 3 prediction pools
+  if (requirements.poolsCreated?.met) completed++;
   
-  // 3. Staking activity
+  // 3. Participate in at least 10 pools
+  if (requirements.poolsParticipated?.met) completed++;
+  
+  // 4. Staking activity
   if (typeof requirements.stakingActivity === 'boolean') {
     if (requirements.stakingActivity) completed++;
   } else if (requirements.stakingActivity?.met) {
     completed++;
   }
   
-  // 4. Oddyssey slips (3+ required)
+  // 5. Submit 5 Odyssey slips
   if (requirements.oddysseySlips?.met) completed++;
-  
-  // 5. STT activity before faucet
-  // This is checked via faucetClaim.hadPriorSTTActivity or sttActivityBeforeFaucet
-  const hadSTTActivity = typeof requirements.faucetClaim === 'object'
-    ? requirements.faucetClaim.hadPriorSTTActivity
-    : requirements.sttActivityBeforeFaucet ?? true;
-  
-  if (faucetClaimed) {
-    // Only check if faucet was claimed
-    if (hadSTTActivity) {
-      completed++;
-    }
-  } else {
-    // If faucet not claimed yet, don't count this requirement
-    // Adjust total to exclude this requirement
-    const adjustedTotal = total - 1;
-    return Math.round((completed / adjustedTotal) * 100);
-  }
   
   return Math.round((completed / total) * 100);
 }

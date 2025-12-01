@@ -21,8 +21,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Proxy request to backend
-    const backendResponse = await fetch(`${BACKEND_URL}/api/airdrop/leaderboard?limit=${limitNum}`, {
+    // ✅ FIX: Backend route is at /airdrop/leaderboard (not /api/airdrop/leaderboard)
+    const backendResponse = await fetch(`${BACKEND_URL}/airdrop/leaderboard?limit=${limitNum}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -32,20 +32,28 @@ export async function GET(request: NextRequest) {
     const data = await backendResponse.json();
 
     if (!backendResponse.ok) {
+      console.error('❌ Backend leaderboard API error:', data);
       return NextResponse.json(
         { error: data.error || 'Failed to fetch leaderboard' },
         { status: backendResponse.status }
       );
     }
 
-    // Backend returns { leaderboard: [...], totalEligible: ..., totalUsers: ..., showingTop: ... }
+    // ✅ FIX: Backend returns { leaderboard: [...], totalEligible: ..., totalUsers: ..., showingTop: ... }
     // Frontend expects just the array, so extract leaderboard property
     if (data.leaderboard && Array.isArray(data.leaderboard)) {
+      console.log(`✅ Leaderboard API: Returning ${data.leaderboard.length} users`);
       return NextResponse.json(data.leaderboard);
     }
 
+    // ✅ FIX: If data is already an array (direct response), return it
+    if (Array.isArray(data)) {
+      console.log(`✅ Leaderboard API: Data is already array with ${data.length} users`);
+      return NextResponse.json(data);
+    }
+
     // Fallback: return empty array if structure is unexpected
-    console.warn('Unexpected leaderboard response structure:', data);
+    console.warn('⚠️ Unexpected leaderboard response structure:', data);
     return NextResponse.json([]);
   } catch (error) {
     console.error('Error fetching airdrop leaderboard:', error);
