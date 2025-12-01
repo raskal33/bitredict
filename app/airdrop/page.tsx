@@ -144,12 +144,28 @@ export default function AirdropPage() {
   // Used for potential future features
 
   const getRequirementStatus = (requirement: unknown, label: string) => {
-    const isMet = (requirement as {met?: boolean})?.met || requirement === true;
-    const current = (requirement as {current?: number})?.current;
-    const required = (requirement as {required?: number})?.required;
+    // Handle boolean requirements (like faucetClaim)
+    if (typeof requirement === 'boolean') {
+      return {
+        label,
+        met: requirement,
+        icon: requirement ? FaCheckCircle : FaTimesCircle,
+        color: requirement ? "text-green-400" : "text-red-400",
+        bgColor: requirement ? "bg-green-500/10" : "bg-red-500/10",
+        borderColor: requirement ? "border-green-500/20" : "border-red-500/20",
+        current: requirement ? 1 : 0,
+        required: 1
+      };
+    }
+    
+    // Handle object requirements with current/required/met
+    const reqObj = requirement as {met?: boolean; current?: number; required?: number};
+    const isMet = reqObj?.met || false;
+    const current = reqObj?.current ?? 0;
+    const required = reqObj?.required ?? 0;
     
     let detail = "";
-    if (typeof current === 'number' && typeof required === 'number') {
+    if (typeof current === 'number' && typeof required === 'number' && required > 0) {
       detail = ` (${current}/${required})`;
     }
     
@@ -181,7 +197,15 @@ export default function AirdropPage() {
         met: true
       };
     }
-    // Otherwise use API data
+    // Handle boolean stakingActivity
+    if (typeof stakingRequirement === 'boolean') {
+      return {
+        current: stakingRequirement ? 1 : 0,
+        required: 1,
+        met: stakingRequirement
+      };
+    }
+    // Handle object stakingActivity
     if (stakingRequirement && typeof stakingRequirement === 'object' && 'current' in stakingRequirement) {
       return stakingRequirement as { current: number; required: number; met: boolean };
     }
@@ -193,12 +217,30 @@ export default function AirdropPage() {
     };
   })();
 
+  // ✅ FIX: Map API requirements correctly - API returns bitrActions (not poolsCreated/poolsParticipated)
   const requirements = eligibility?.requirements ? [
-    getRequirementStatus(eligibility.requirements?.faucetClaim, "1️⃣ Claim BITR from the faucet"),
-    getRequirementStatus(eligibility.requirements?.poolsCreated, "2️⃣ Create at least 3 prediction pools"),
-    getRequirementStatus(eligibility.requirements?.poolsParticipated, "3️⃣ Participate in at least 10 pools"),
-    getRequirementStatus(enhancedStakingRequirement, "4️⃣ Stake BITR"),
-    getRequirementStatus(eligibility.requirements?.oddysseySlips, "5️⃣ Submit 5 Odyssey slips")
+    getRequirementStatus(
+      typeof eligibility.requirements.faucetClaim === 'object' 
+        ? eligibility.requirements.faucetClaim.hasClaimed 
+        : eligibility.requirements.faucetClaim || false, 
+      "1️⃣ Claim BITR from the faucet"
+    ),
+    getRequirementStatus(
+      eligibility.requirements.bitrActions || { current: 0, required: 20, met: false },
+      "2️⃣ Complete 20+ BITR actions (pools or bets)"
+    ),
+    getRequirementStatus(
+      enhancedStakingRequirement,
+      "3️⃣ Stake BITR"
+    ),
+    getRequirementStatus(
+      eligibility.requirements.oddysseySlips || { current: 0, required: 3, met: false },
+      "4️⃣ Submit 3+ Oddyssey slips"
+    ),
+    getRequirementStatus(
+      eligibility.requirements.sttActivityBeforeFaucet ?? true,
+      "5️⃣ Have STT activity before faucet claim"
+    )
   ] : [];
 
   if (!isConnected) {
@@ -290,66 +332,179 @@ export default function AirdropPage() {
                       </div>
                     </div>
 
-                    {/* Allocation Display */}
-                    {eligibility.isEligible && (
-                      <div className="mb-8 p-6 bg-gradient-primary/10 border border-accent/20 rounded-xl">
-                        <div className="text-center">
-                          <h3 className="text-2xl font-bold text-primary mb-2">Your Allocation</h3>
-                          <p className="text-4xl font-bold gradient-text">
+                    {/* Allocation Display - Enhanced */}
+                    {eligibility.isEligible ? (
+                      <div className="mb-8 p-8 bg-gradient-to-br from-green-500/10 via-emerald-500/10 to-green-500/10 border-2 border-green-500/30 rounded-2xl relative overflow-hidden">
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-pulse" />
+                        <div className="relative z-10 text-center">
+                          <div className="inline-block p-3 bg-green-500/20 rounded-full mb-4">
+                            <FaGift className="h-8 w-8 text-green-400" />
+                          </div>
+                          <h3 className="text-2xl font-bold text-primary mb-2">🎉 You&apos;re Eligible!</h3>
+                          <p className="text-5xl font-bold gradient-text mb-2">
                             {formatBITRAmount(eligibility.airdropInfo?.airdropAmount || '0')} BITR
                           </p>
-                          <p className="text-text-secondary mt-2">Based on your activity and tier</p>
+                          <p className="text-text-secondary">Estimated allocation based on your activity</p>
+                          <div className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-green-500/20 border border-green-500/30 rounded-full">
+                            <FaCheckCircle className="h-4 w-4 text-green-400" />
+                            <span className="text-green-400 text-sm font-medium">All requirements met</span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mb-8 p-6 bg-gradient-to-br from-orange-500/10 via-yellow-500/10 to-orange-500/10 border border-orange-500/30 rounded-xl">
+                        <div className="text-center">
+                          <h3 className="text-xl font-bold text-primary mb-2">Keep Going!</h3>
+                          <p className="text-text-secondary">
+                            Complete all requirements to become eligible for the airdrop
+                          </p>
                         </div>
                       </div>
                     )}
 
-                    {/* Requirements */}
+                    {/* Requirements - Enhanced Design */}
                     <div className="space-y-4">
-                      <h3 className="text-xl font-bold text-primary mb-6">Requirements Checklist</h3>
+                      <div className="flex items-center justify-between mb-6">
+                        <h3 className="text-xl font-bold text-primary">Requirements Checklist</h3>
+                        <div className="text-sm text-text-secondary">
+                          {requirements.filter(r => r.met).length} / {requirements.length} Complete
+                        </div>
+                      </div>
                       
-                      {requirements.map((req, index) => (
-                        <motion.div
-                          key={index}
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: index * 0.1 }}
-                          className={`p-4 rounded-xl border ${req.bgColor} ${req.borderColor} transition-all hover:bg-opacity-80`}
-                        >
-                          <div className="flex items-center gap-4">
-                            <req.icon className={`h-6 w-6 ${req.color}`} />
-                            <div className="flex-1">
-                              <p className="text-primary font-medium">{req.label}</p>
-                              <p className="text-text-muted text-sm">
-                                {req.met ? "Completed ✓" : req.current !== undefined && req.required !== undefined 
-                                  ? `${req.current}/${req.required} required`
-                                  : "Not completed"}
-                              </p>
-                            </div>
-                            {req.met && (
-                              <div className="px-3 py-1 bg-green-500/20 rounded-full">
-                                <span className="text-green-400 text-sm font-medium">Done</span>
+                      {requirements.map((req, index) => {
+                        const progress = req.required > 0 ? (req.current / req.required) * 100 : (req.met ? 100 : 0);
+                        
+                        return (
+                          <motion.div
+                            key={index}
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: index * 0.1 }}
+                            className={`p-5 rounded-xl border-2 transition-all hover:scale-[1.02] ${
+                              req.met 
+                                ? 'bg-gradient-to-r from-green-500/10 to-emerald-500/10 border-green-500/30 shadow-lg shadow-green-500/10' 
+                                : 'bg-gradient-to-r from-gray-500/5 to-gray-600/5 border-gray-500/20'
+                            }`}
+                          >
+                            <div className="flex items-start gap-4">
+                              <div className={`p-3 rounded-lg ${
+                                req.met 
+                                  ? 'bg-green-500/20 border border-green-500/30' 
+                                  : 'bg-gray-500/10 border border-gray-500/20'
+                              }`}>
+                                <req.icon className={`h-6 w-6 ${req.color}`} />
                               </div>
-                            )}
-                          </div>
-                        </motion.div>
-                      ))}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-primary font-semibold text-base mb-2">{req.label}</p>
+                                
+                                {/* Progress indicator for numeric requirements */}
+                                {req.required > 1 && (
+                                  <div className="space-y-2">
+                                    <div className="flex items-center justify-between text-sm">
+                                      <span className="text-text-secondary">
+                                        {req.met ? (
+                                          <span className="text-green-400 font-medium">✓ Completed</span>
+                                        ) : (
+                                          <span className="text-orange-400">
+                                            {req.current} of {req.required} required
+                                          </span>
+                                        )}
+                                      </span>
+                                      <span className={`font-bold ${req.met ? 'text-green-400' : 'text-orange-400'}`}>
+                                        {Math.min(progress, 100).toFixed(0)}%
+                                      </span>
+                                    </div>
+                                    <div className="w-full bg-gray-700/50 rounded-full h-2 overflow-hidden">
+                                      <motion.div
+                                        initial={{ width: 0 }}
+                                        animate={{ width: `${Math.min(progress, 100)}%` }}
+                                        transition={{ duration: 0.5, delay: index * 0.1 }}
+                                        className={`h-2 rounded-full ${
+                                          req.met 
+                                            ? 'bg-gradient-to-r from-green-400 to-emerald-500' 
+                                            : 'bg-gradient-to-r from-orange-400 to-yellow-500'
+                                        }`}
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+                                
+                                {/* Simple checkmark for boolean requirements */}
+                                {req.required === 1 && (
+                                  <p className={`text-sm font-medium ${
+                                    req.met ? 'text-green-400' : 'text-red-400'
+                                  }`}>
+                                    {req.met ? '✓ Completed' : '✗ Not completed'}
+                                  </p>
+                                )}
+                              </div>
+                              
+                              {/* Status badge */}
+                              <div className={`px-4 py-2 rounded-lg font-semibold text-sm ${
+                                req.met
+                                  ? 'bg-green-500/20 border border-green-500/30 text-green-400'
+                                  : 'bg-gray-500/20 border border-gray-500/30 text-gray-400'
+                              }`}>
+                                {req.met ? '✓ Done' : 'Pending'}
+                              </div>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
                     </div>
 
-                    {/* Progress Bar */}
-                    {eligibility?.requirements && (
-                      <div className="mt-8 p-6 glass-card rounded-xl">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-primary font-medium">Overall Progress</span>
-                          <span className="text-text-secondary">{calculateRequirementProgress(eligibility.requirements)}%</span>
+                    {/* Progress Bar - Enhanced with count display */}
+                    {eligibility?.requirements && (() => {
+                      const progress = calculateRequirementProgress(eligibility.requirements);
+                      const completedCount = requirements.filter(r => r.met).length;
+                      const totalCount = requirements.length;
+                      
+                      return (
+                        <div className="mt-8 p-6 glass-card rounded-xl border border-accent/20">
+                          <div className="flex items-center justify-between mb-4">
+                            <div>
+                              <span className="text-primary font-bold text-lg">Overall Progress</span>
+                              <p className="text-text-secondary text-sm mt-1">
+                                {completedCount} of {totalCount} requirements completed
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <span className="text-2xl font-bold gradient-text">{progress}%</span>
+                              <p className="text-text-secondary text-xs mt-1">Complete</p>
+                            </div>
+                          </div>
+                          <div className="w-full bg-white/10 rounded-full h-4 overflow-hidden relative">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${progress}%` }}
+                              transition={{ duration: 0.8, ease: "easeOut" }}
+                              className="bg-gradient-somnia h-4 rounded-full relative overflow-hidden"
+                            >
+                              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse" />
+                            </motion.div>
+                          </div>
+                          <div className="mt-4 grid grid-cols-5 gap-2">
+                            {requirements.map((req, idx) => (
+                              <div
+                                key={idx}
+                                className={`text-center p-2 rounded-lg transition-all ${
+                                  req.met 
+                                    ? 'bg-green-500/20 border border-green-500/30' 
+                                    : 'bg-gray-500/10 border border-gray-500/20'
+                                }`}
+                              >
+                                <div className={`text-2xl mb-1 ${req.met ? 'text-green-400' : 'text-gray-400'}`}>
+                                  {req.met ? '✓' : '○'}
+                                </div>
+                                <div className={`text-xs font-medium ${req.met ? 'text-green-300' : 'text-gray-400'}`}>
+                                  {idx + 1}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                        <div className="w-full bg-white/10 rounded-full h-3">
-                          <div
-                            className="bg-gradient-somnia h-3 rounded-full transition-all duration-300"
-                            style={{ width: `${calculateRequirementProgress(eligibility.requirements)}%` }}
-                          />
-                        </div>
-                      </div>
-                    )}
+                      );
+                    })()}
                   </div>
                 ) : (
                   <div className="text-center py-12">
@@ -361,25 +516,36 @@ export default function AirdropPage() {
               </motion.div>
             </div>
 
-            {/* Sidebar */}
+            {/* Sidebar - Enhanced */}
             <div className="space-y-6">
-              {/* Current Status */}
+              {/* Current Status - Enhanced */}
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="glass-card rounded-2xl p-6"
+                className="glass-card rounded-2xl p-6 border border-accent/20"
               >
-                <h3 className="text-xl font-bold text-primary mb-6">Current Status</h3>
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-2 bg-accent/20 rounded-lg">
+                    <FaChartLine className="h-5 w-5 text-accent" />
+                  </div>
+                  <h3 className="text-xl font-bold text-primary">Current Status</h3>
+                </div>
                 
                 <div className="space-y-4">
-                  <div className="flex justify-between">
-                    <span className="text-text-secondary">BITR Balance</span>
-                    <span className="text-primary font-medium">{token.balance}</span>
+                  <div className="p-3 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 rounded-lg border border-cyan-500/20">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-text-secondary text-sm">BITR Balance</span>
+                      <FaCoins className="h-4 w-4 text-accent" />
+                    </div>
+                    <span className="text-primary font-bold text-lg">{token.balance}</span>
                   </div>
                   
-                  <div className="flex justify-between">
-                    <span className="text-text-secondary">Staked Amount</span>
-                    <span className="text-primary font-medium">
+                  <div className="p-3 bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-lg border border-purple-500/20">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-text-secondary text-sm">Staked Amount</span>
+                      <FaShieldAlt className="h-4 w-4 text-purple-400" />
+                    </div>
+                    <span className="text-primary font-bold text-lg">
                       {staking.userStakesWithRewards && staking.userStakesWithRewards.length > 0
                         ? formatBITRAmount(
                             staking.userStakesWithRewards
@@ -396,71 +562,133 @@ export default function AirdropPage() {
                     </span>
                   </div>
                   
-                  <div className="flex justify-between">
-                    <span className="text-text-secondary">Staking Tier</span>
-                    <span className="text-primary font-medium">{staking.userTierName || 'None'}</span>
+                  <div className="p-3 bg-gradient-to-r from-yellow-500/10 to-orange-500/10 rounded-lg border border-yellow-500/20">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-text-secondary text-sm">Staking Tier</span>
+                      <FaCrown className="h-4 w-4 text-yellow-400" />
+                    </div>
+                    <span className="text-primary font-bold text-lg">{staking.userTierName || 'None'}</span>
                   </div>
                   
-                  <div className="flex justify-between">
-                    <span className="text-text-secondary">Faucet Claims</span>
-                    <span className="text-primary font-medium">
-                      {(eligibility?.requirements?.faucetClaim || faucet.hasClaimed || (faucet.userInfo && faucet.userInfo.claimed))
-                        ? formatBITRAmount('20000000000000000000000')
-                        : '0 BITR'}
+                  <div className="p-3 bg-gradient-to-r from-green-500/10 to-emerald-500/10 rounded-lg border border-green-500/20">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-text-secondary text-sm">Faucet Claimed</span>
+                      <FaGift className="h-4 w-4 text-green-400" />
+                    </div>
+                    <span className="text-primary font-bold text-lg">
+                      {(
+                        (typeof eligibility?.requirements?.faucetClaim === 'object' 
+                          ? eligibility.requirements.faucetClaim.hasClaimed 
+                          : eligibility?.requirements?.faucetClaim) 
+                        || faucet.hasClaimed 
+                        || (faucet.userInfo && faucet.userInfo.claimed)
+                      )
+                        ? `${formatBITRAmount('20000000000000000000000')} BITR` 
+                        : 'Not claimed'}
                     </span>
                   </div>
                 </div>
               </motion.div>
 
-              {/* Quick Actions */}
+              {/* Quick Actions - Enhanced */}
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.1 }}
-                className="glass-card rounded-2xl p-6"
+                className="glass-card rounded-2xl p-6 border border-accent/20"
               >
-                <h3 className="text-xl font-bold text-primary mb-6">Quick Actions</h3>
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="p-2 bg-accent/20 rounded-lg">
+                    <SparklesSolid className="h-5 w-5 text-accent" />
+                  </div>
+                  <h3 className="text-xl font-bold text-primary">Quick Actions</h3>
+                </div>
                 
                 <div className="space-y-3">
                   <a
                     href="/faucet"
-                    className="w-full flex items-center justify-between p-3 glass-card hover:bg-white/10 rounded-lg transition-colors"
+                    className="group w-full flex items-center justify-between p-4 glass-card hover:bg-gradient-to-r hover:from-cyan-500/10 hover:to-blue-500/10 rounded-xl transition-all border border-transparent hover:border-cyan-500/30 hover:scale-[1.02]"
                   >
                     <div className="flex items-center gap-3">
-                      <FaCoins className="h-5 w-5 text-accent" />
-                      <span className="text-primary">Claim Faucet</span>
+                      <div className="p-2 bg-cyan-500/20 rounded-lg group-hover:bg-cyan-500/30 transition-colors">
+                        <FaCoins className="h-5 w-5 text-cyan-400" />
+                      </div>
+                      <div>
+                        <span className="text-primary font-semibold block">Claim Faucet</span>
+                        <span className="text-text-muted text-xs">Get 20K testnet BITR</span>
+                      </div>
                     </div>
+                    <span className="text-accent group-hover:translate-x-1 transition-transform">→</span>
                   </a>
                   
                   <a
                     href="/staking"
-                    className="w-full flex items-center justify-between p-3 glass-card hover:bg-white/10 rounded-lg transition-colors"
+                    className="group w-full flex items-center justify-between p-4 glass-card hover:bg-gradient-to-r hover:from-purple-500/10 hover:to-pink-500/10 rounded-xl transition-all border border-transparent hover:border-purple-500/30 hover:scale-[1.02]"
                   >
                     <div className="flex items-center gap-3">
-                      <FaShieldAlt className="h-5 w-5 text-accent" />
-                      <span className="text-primary">Start Staking</span>
+                      <div className="p-2 bg-purple-500/20 rounded-lg group-hover:bg-purple-500/30 transition-colors">
+                        <FaShieldAlt className="h-5 w-5 text-purple-400" />
+                      </div>
+                      <div>
+                        <span className="text-primary font-semibold block">Start Staking</span>
+                        <span className="text-text-muted text-xs">Earn rewards</span>
+                      </div>
                     </div>
+                    <span className="text-accent group-hover:translate-x-1 transition-transform">→</span>
                   </a>
                   
                   <a
                     href="/oddyssey"
-                    className="w-full flex items-center justify-between p-3 glass-card hover:bg-white/10 rounded-lg transition-colors"
+                    className="group w-full flex items-center justify-between p-4 glass-card hover:bg-gradient-to-r hover:from-green-500/10 hover:to-emerald-500/10 rounded-xl transition-all border border-transparent hover:border-green-500/30 hover:scale-[1.02]"
                   >
                     <div className="flex items-center gap-3">
-                      <FaGamepad className="h-5 w-5 text-accent" />
-                      <span className="text-primary">Play Oddyssey</span>
+                      <div className="p-2 bg-green-500/20 rounded-lg group-hover:bg-green-500/30 transition-colors">
+                        <FaGamepad className="h-5 w-5 text-green-400" />
+                      </div>
+                      <div>
+                        <span className="text-primary font-semibold block">Play Oddyssey</span>
+                        <span className="text-text-muted text-xs">Submit 3+ slips</span>
+                      </div>
                     </div>
+                    <span className="text-accent group-hover:translate-x-1 transition-transform">→</span>
                   </a>
                   
                   <a
                     href="/markets"
-                    className="w-full flex items-center justify-between p-3 glass-card hover:bg-white/10 rounded-lg transition-colors"
+                    className="group w-full flex items-center justify-between p-4 glass-card hover:bg-gradient-to-r hover:from-yellow-500/10 hover:to-orange-500/10 rounded-xl transition-all border border-transparent hover:border-yellow-500/30 hover:scale-[1.02]"
                   >
                     <div className="flex items-center gap-3">
-                      <FaChartLine className="h-5 w-5 text-accent" />
-                      <span className="text-primary">Trade Markets</span>
+                      <div className="p-2 bg-yellow-500/20 rounded-lg group-hover:bg-yellow-500/30 transition-colors">
+                        <FaChartLine className="h-5 w-5 text-yellow-400" />
+                      </div>
+                      <div>
+                        <span className="text-primary font-semibold block">Trade Markets</span>
+                        <span className="text-text-muted text-xs">Complete 20+ actions</span>
+                      </div>
                     </div>
+                    <span className="text-accent group-hover:translate-x-1 transition-transform">→</span>
                   </a>
+                </div>
+              </motion.div>
+
+              {/* Info Card */}
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.2 }}
+                className="glass-card rounded-2xl p-6 border border-blue-500/20 bg-gradient-to-br from-blue-500/5 to-cyan-500/5"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-blue-500/20 rounded-lg mt-1">
+                    <FaGift className="h-5 w-5 text-blue-400" />
+                  </div>
+                  <div>
+                    <h4 className="text-primary font-bold mb-2">About the Airdrop</h4>
+                    <p className="text-text-secondary text-sm leading-relaxed">
+                      5% of mainnet BITR supply (5M tokens) will be distributed to eligible testnet participants. 
+                      Complete all requirements to qualify!
+                    </p>
+                  </div>
                 </div>
               </motion.div>
             </div>
@@ -495,41 +723,76 @@ export default function AirdropPage() {
 
               {leaderboard.length > 0 ? (
                 <div className="space-y-3">
-                  {leaderboard.map((user, index) => (
-                    <motion.div
-                      key={user.address}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      className="flex items-center gap-4 p-4 glass-card rounded-xl"
-                    >
-                      <div className="w-8 h-8 bg-gradient-somnia rounded-full flex items-center justify-center">
-                        <span className="text-black font-bold text-sm">{index + 1}</span>
-                      </div>
-                      
-                      <div className="flex-1">
-                        <p className="text-primary font-medium">{formatAddress(user.address)}</p>
-                        <p className="text-text-muted text-sm">
-                          {user.bitrActions} BITR actions • {user.oddysseySlips} slips • {user.hasStaking ? 'Staked' : 'No staking'}
-                        </p>
-                      </div>
-                      
-                      <div className="text-right">
-                        <p className="text-primary font-bold">
-                          {user.airdropAmount ? formatBITRAmount(user.airdropAmount) : 'TBD'} BITR
-                        </p>
-                        <p className="text-text-muted text-sm">Score: {user.activityScore}</p>
-                      </div>
-                      
-                      {index < 3 && (
-                        <FaCrown className={`h-5 w-5 ${
-                          index === 0 ? 'text-accent' : 
-                          index === 1 ? 'text-text-secondary' : 
-                          'text-accent'
-                        }`} />
-                      )}
-                    </motion.div>
-                  ))}
+                  {leaderboard.map((user, index) => {
+                    const isEligible = (user as { isEligible?: boolean }).isEligible ?? false;
+                    const hasFaucetClaim = (user as { hasFaucetClaim?: boolean }).hasFaucetClaim ?? false;
+                    
+                    return (
+                      <motion.div
+                        key={user.address}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        className={`flex items-center gap-4 p-4 glass-card rounded-xl border transition-all hover:scale-[1.02] ${
+                          isEligible 
+                            ? 'border-green-500/30 bg-green-500/5' 
+                            : hasFaucetClaim
+                            ? 'border-yellow-500/30 bg-yellow-500/5'
+                            : 'border-gray-500/20'
+                        }`}
+                      >
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${
+                          index === 0 ? 'bg-gradient-to-r from-yellow-400 to-yellow-600 text-black' :
+                          index === 1 ? 'bg-gradient-to-r from-gray-300 to-gray-500 text-black' :
+                          index === 2 ? 'bg-gradient-to-r from-orange-400 to-orange-600 text-black' :
+                          'bg-gradient-somnia text-black'
+                        }`}>
+                          {index < 3 ? (
+                            <FaCrown className="h-5 w-5" />
+                          ) : (
+                            <span>#{index + 1}</span>
+                          )}
+                        </div>
+                        
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="text-primary font-semibold truncate">{formatAddress(user.address)}</p>
+                            {isEligible && (
+                              <span className="px-2 py-0.5 bg-green-500/20 border border-green-500/30 rounded-full text-xs text-green-400 font-medium">
+                                Eligible
+                              </span>
+                            )}
+                            {hasFaucetClaim && !isEligible && (
+                              <span className="px-2 py-0.5 bg-yellow-500/20 border border-yellow-500/30 rounded-full text-xs text-yellow-400 font-medium">
+                                Claimed Faucet
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-3 text-text-muted text-xs">
+                            <span className="flex items-center gap-1">
+                              <FaCoins className="h-3 w-3" />
+                              {user.bitrActions} actions
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <FaGamepad className="h-3 w-3" />
+                              {user.oddysseySlips} slips
+                            </span>
+                            <span className={`flex items-center gap-1 ${user.hasStaking ? 'text-green-400' : 'text-red-400'}`}>
+                              <FaShieldAlt className="h-3 w-3" />
+                              {user.hasStaking ? 'Staked' : 'No staking'}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div className="text-right min-w-[120px]">
+                          <p className="text-primary font-bold text-lg">
+                            {user.airdropAmount ? formatBITRAmount(user.airdropAmount) : 'TBD'} BITR
+                          </p>
+                          <p className="text-text-muted text-xs mt-1">Score: {user.activityScore}</p>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-12">

@@ -259,11 +259,12 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
   const venue = matchData.match?.venue || '';
   const matchDate = matchData.match?.date;
 
-  // Format goal scorers
-  const goalScorers = matchData.goalScorers || [];
+  // Format goal scorers - handle null/undefined
+  const goalScorers = (matchData.goalScorers && Array.isArray(matchData.goalScorers)) ? matchData.goalScorers : [];
   
   // Helper function to normalize team identification
-  const normalizeTeam = (team: string, player: string): 'home' | 'away' => {
+  const normalizeTeam = (team: string | null | undefined, player: string | null | undefined): 'home' | 'away' => {
+    if (!team) return 'home'; // Default to home if team is null/undefined
     if (team === 'home' || team === 'away') {
       return team;
     }
@@ -279,24 +280,24 @@ export default function MatchCenter({ fixtureId, marketId, className = "" }: Mat
   console.log('🔍 Goal Scorers Debug:', {
     totalGoals: goalScorers.length,
     goalScorers: goalScorers.map(g => ({
-      player: g.player,
-      minute: g.minute,
-      team: g.team,
-      rawTeam: g.team,
-      normalizedTeam: normalizeTeam(g.team, g.player)
+      player: g?.player || 'Unknown',
+      minute: g?.minute || 0,
+      team: g?.team || 'home',
+      rawTeam: g?.team,
+      normalizedTeam: normalizeTeam(g?.team, g?.player)
     })),
     homeTeam: homeTeam,
     awayTeam: awayTeam
   });
   
-  const homeGoals = goalScorers.filter((g: GoalScorer) => normalizeTeam(g.team, g.player) === 'home');
-  const awayGoals = goalScorers.filter((g: GoalScorer) => normalizeTeam(g.team, g.player) === 'away');
+  const homeGoals = goalScorers.filter((g: GoalScorer | null | undefined) => g && normalizeTeam(g.team, g.player) === 'home');
+  const awayGoals = goalScorers.filter((g: GoalScorer | null | undefined) => g && normalizeTeam(g.team, g.player) === 'away');
   
   console.log('🔍 Goals Filtered:', {
     homeGoals: homeGoals.length,
     awayGoals: awayGoals.length,
-    homeGoalsList: homeGoals.map(g => ({ player: g.player, minute: g.minute, team: g.team })),
-    awayGoalsList: awayGoals.map(g => ({ player: g.player, minute: g.minute, team: g.team }))
+    homeGoalsList: homeGoals.map(g => ({ player: g?.player || 'Unknown', minute: g?.minute || 0, team: g?.team || 'home' })),
+    awayGoalsList: awayGoals.map(g => ({ player: g?.player || 'Unknown', minute: g?.minute || 0, team: g?.team || 'away' }))
   });
 
   // Status badge

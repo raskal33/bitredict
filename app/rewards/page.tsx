@@ -195,18 +195,18 @@ export default function RewardsPage() {
   const formatDate = (dateString?: string | null) => {
     if (!dateString) return 'N/A';
     try {
-      const date = new Date(dateString);
+    const date = new Date(dateString);
       // ✅ FIX: Check if date is valid before formatting
       if (isNaN(date.getTime())) {
         return 'N/A';
       }
-      return date.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
     } catch {
       return 'N/A';
     }
@@ -239,21 +239,21 @@ export default function RewardsPage() {
           </div>
           {/* ✅ Only show claim button when wallet is connected */}
           {isConnected && address && (
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={() => setIsClaimModalOpen(true)}
-                variant="primary"
-                size="sm"
-                className="flex items-center gap-2"
-              >
-                <TrophyIcon className="h-4 w-4" />
-                Claim Rewards
-              </Button>
-              <div className="flex items-center gap-2 text-xs text-text-muted">
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                <span>{rewards?.summary.totalCount || 0} claimable</span>
-              </div>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setIsClaimModalOpen(true)}
+              variant="primary"
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <TrophyIcon className="h-4 w-4" />
+              Claim Rewards
+            </Button>
+            <div className="flex items-center gap-2 text-xs text-text-muted">
+              <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+              <span>{rewards?.summary.totalCount || 0} claimable</span>
             </div>
+          </div>
           )}
         </div>
 
@@ -355,16 +355,16 @@ export default function RewardsPage() {
 
             {/* Toggle My Rewards - Only show when wallet is connected */}
             {isConnected && address && (
-              <button
-                onClick={() => setShowEvents(!showEvents)}
-                className={`px-3 py-1.5 rounded-lg font-medium transition-all text-xs ${
-                  showEvents
-                    ? "bg-gradient-secondary text-white"
-                    : "glass-card text-text-secondary hover:text-primary hover:bg-white/10"
-                }`}
-              >
-                {showEvents ? 'Hide' : 'Show'} My Rewards
-              </button>
+            <button
+              onClick={() => setShowEvents(!showEvents)}
+              className={`px-3 py-1.5 rounded-lg font-medium transition-all text-xs ${
+                showEvents
+                  ? "bg-gradient-secondary text-white"
+                  : "glass-card text-text-secondary hover:text-primary hover:bg-white/10"
+              }`}
+            >
+              {showEvents ? 'Hide' : 'Show'} My Rewards
+            </button>
             )}
           </div>
         </div>

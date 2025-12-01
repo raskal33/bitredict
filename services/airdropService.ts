@@ -126,14 +126,47 @@ export function formatAddress(address: string, length: number = 8): string {
 
 // Calculate progress percentage for requirements
 export function calculateRequirementProgress(requirements: UserEligibility['requirements']): number {
-  let completed = 0;
-  let total = 5; // Total number of requirements
+  if (!requirements) return 0;
   
-  if (requirements.faucetClaim) completed++;
-  if (requirements.poolsCreated?.met) completed++;
-  if (requirements.poolsParticipated?.met) completed++;
-  if (requirements.stakingActivity) completed++;
+  let completed = 0;
+  const total = 5; // Total number of requirements
+  
+  // 1. Faucet claim
+  const faucetClaimed = typeof requirements.faucetClaim === 'object' 
+    ? requirements.faucetClaim.hasClaimed 
+    : requirements.faucetClaim || false;
+  if (faucetClaimed) completed++;
+  
+  // 2. BITR actions (20+ required)
+  if (requirements.bitrActions?.met) completed++;
+  
+  // 3. Staking activity
+  if (typeof requirements.stakingActivity === 'boolean') {
+    if (requirements.stakingActivity) completed++;
+  } else if (requirements.stakingActivity?.met) {
+    completed++;
+  }
+  
+  // 4. Oddyssey slips (3+ required)
   if (requirements.oddysseySlips?.met) completed++;
+  
+  // 5. STT activity before faucet
+  // This is checked via faucetClaim.hadPriorSTTActivity or sttActivityBeforeFaucet
+  const hadSTTActivity = typeof requirements.faucetClaim === 'object'
+    ? requirements.faucetClaim.hadPriorSTTActivity
+    : requirements.sttActivityBeforeFaucet ?? true;
+  
+  if (faucetClaimed) {
+    // Only check if faucet was claimed
+    if (hadSTTActivity) {
+      completed++;
+    }
+  } else {
+    // If faucet not claimed yet, don't count this requirement
+    // Adjust total to exclude this requirement
+    const adjustedTotal = total - 1;
+    return Math.round((completed / adjustedTotal) * 100);
+  }
   
   return Math.round((completed / total) * 100);
 }

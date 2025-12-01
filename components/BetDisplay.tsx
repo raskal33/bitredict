@@ -14,17 +14,18 @@ import {
 } from '@heroicons/react/24/solid';
 
 interface Bet {
-  bet_id: number;
+  bet_id: number | string;
   pool_id: string;
-  bettor_address: string;
+  bettor_address: string | null;
   amount: string;
   is_for_outcome: boolean;
-  transaction_hash: string;
-  block_number: number;
+  transaction_hash: string | null;
+  block_number: number | null;
   created_at: string;
   home_team?: string;
   away_team?: string;
   title?: string;
+  event_type?: 'bet' | 'liquidity_added';
 }
 
 interface BetDisplayProps {
@@ -62,12 +63,16 @@ export default function BetDisplay({ poolId, className = "" }: BetDisplayProps) 
         setBets(data.data.bets || []);
         
         // Calculate stats
-        const totalBets = data.data.bets?.length || 0;
-        const totalVolume = data.data.bets?.reduce((sum: number, bet: Bet) => sum + parseFloat(bet.amount), 0) || 0;
-        const yesBets = data.data.bets?.filter((bet: Bet) => bet.is_for_outcome).length || 0;
-        const noBets = data.data.bets?.filter((bet: Bet) => !bet.is_for_outcome).length || 0;
-        const yesVolume = data.data.bets?.filter((bet: Bet) => bet.is_for_outcome).reduce((sum: number, bet: Bet) => sum + parseFloat(bet.amount), 0) || 0;
-        const noVolume = data.data.bets?.filter((bet: Bet) => !bet.is_for_outcome).reduce((sum: number, bet: Bet) => sum + parseFloat(bet.amount), 0) || 0;
+        // ✅ FIX: Handle both bets and LP events
+        const allEvents = data.data.bets || [];
+        const totalBets = allEvents.length;
+        const totalVolume = allEvents.reduce((sum: number, bet: Bet) => sum + parseFloat(bet.amount || '0'), 0);
+        // YES bets are bets with is_for_outcome = true
+        const yesBets = allEvents.filter((bet: Bet) => bet.is_for_outcome === true).length;
+        // NO bets are bets with is_for_outcome = false OR LP events (event_type = 'liquidity_added')
+        const noBets = allEvents.filter((bet: Bet) => bet.is_for_outcome === false || bet.event_type === 'liquidity_added').length;
+        const yesVolume = allEvents.filter((bet: Bet) => bet.is_for_outcome === true).reduce((sum: number, bet: Bet) => sum + parseFloat(bet.amount || '0'), 0);
+        const noVolume = allEvents.filter((bet: Bet) => bet.is_for_outcome === false || bet.event_type === 'liquidity_added').reduce((sum: number, bet: Bet) => sum + parseFloat(bet.amount || '0'), 0);
         
         setStats({
           totalBets,
@@ -96,7 +101,9 @@ export default function BetDisplay({ poolId, className = "" }: BetDisplayProps) 
     return () => clearInterval(interval);
   }, [poolId, fetchBets]);
 
-  const formatAddress = (address: string) => {
+  const formatAddress = (address: string | null) => {
+    if (!address) return 'Unknown';
+    if (address.length < 10) return address;
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
@@ -261,15 +268,19 @@ export default function BetDisplay({ poolId, className = "" }: BetDisplayProps) 
                   </div>
                   
                   <div className="flex items-center gap-2">
-                    {bet.is_for_outcome ? (
+                    {bet.event_type === 'liquidity_added' ? (
+                      <div className="flex items-center gap-1 px-2 py-1 bg-purple-500/20 text-purple-400 rounded-full text-xs">
+                        💧
+                        LP ADDED
+                      </div>
+                    ) : bet.is_for_outcome ? (
                       <div className="flex items-center gap-1 px-2 py-1 bg-green-500/20 text-green-400 rounded-full text-xs">
                         <ThumbUpSolid className="w-3 h-3" />
                         YES
                       </div>
                     ) : (
-                      <div className="flex items-center gap-1 px-2 py-1 bg-purple-500/20 text-purple-400 rounded-full text-xs">
-                        💧
-                        LP ADDED
+                      <div className="flex items-center gap-1 px-2 py-1 bg-blue-500/20 text-blue-400 rounded-full text-xs">
+                        NO
                       </div>
                     )}
                   </div>
@@ -284,24 +295,28 @@ export default function BetDisplay({ poolId, className = "" }: BetDisplayProps) 
                     </span>
                   </div>
                   
-                  <div className="flex items-center gap-2 text-xs text-gray-400">
-                    <ClockIcon className="w-3 h-3" />
-                    Block #{bet.block_number}
-                  </div>
+                  {bet.block_number && bet.block_number > 0 && (
+                    <div className="flex items-center gap-2 text-xs text-gray-400">
+                      <ClockIcon className="w-3 h-3" />
+                      Block #{bet.block_number}
+                    </div>
+                  )}
                 </div>
                 
-                {/* Transaction Hash */}
-                <div className="mt-2 flex items-center gap-2">
-                  <span className="text-xs text-gray-500">Tx:</span>
-                  <a
-                    href={getExplorerUrl(bet.transaction_hash)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-cyan-400 hover:text-cyan-300 underline hover:no-underline transition-colors"
-                  >
-                    {bet.transaction_hash.slice(0, 6)}...{bet.transaction_hash.slice(-4)}
-                  </a>
-                </div>
+                {/* Transaction Hash - Only show if available */}
+                {bet.transaction_hash && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-xs text-gray-500">Tx:</span>
+                    <a
+                      href={getExplorerUrl(bet.transaction_hash)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-cyan-400 hover:text-cyan-300 underline hover:no-underline transition-colors"
+                    >
+                      {bet.transaction_hash.slice(0, 6)}...{bet.transaction_hash.slice(-4)}
+                    </a>
+                  </div>
+                )}
                 
                 {bet.title && (
                   <div className="mt-2 text-xs text-gray-500 truncate">

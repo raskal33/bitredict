@@ -116,21 +116,21 @@ export default function PrizeClaimModal({ isOpen, onClose, userAddress }: PrizeC
               return !p.claimed && (p.claimableAmount || 0) > 0;
             })
             .map((p: PoolClaimablePosition & { poolId: number; claimed?: boolean; claimableAmount?: number; stakeAmount?: number; currency?: string; settledAt?: string; settled_at?: string; txHash?: string }) => {
-              const currency = p.currency || 'STT';
+            const currency = p.currency || 'STT';
               // Backend returns amounts in token units (already normalized), not wei
-              return {
-                poolId: p.poolId,
-                league: p.league,
-                category: p.category,
-                predictedOutcome: p.predictedOutcome,
+            return {
+              poolId: p.poolId,
+              league: p.league,
+              category: p.category,
+              predictedOutcome: p.predictedOutcome,
                 claimableAmount: typeof p.claimableAmount === 'number' ? p.claimableAmount : 0,
                 stakeAmount: typeof p.stakeAmount === 'number' ? p.stakeAmount : 0,
-                currency,
+              currency,
                 claimed: false, // Already filtered out claimed pools
-                settledAt: p.settled_at ?? p.settledAt,
-                txHash: p.txHash
-              };
-            });
+              settledAt: p.settled_at ?? p.settledAt,
+              txHash: p.txHash
+            };
+          });
 
           console.log(`[PrizeClaimModal] Filtered to ${normalizedPools.length} claimable pools`);
           setPoolPositions(normalizedPools);

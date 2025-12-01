@@ -7,7 +7,12 @@ export interface FaucetClaim {
 }
 
 export interface AirdropRequirements {
-  faucetClaim: boolean;
+  faucetClaim: FaucetClaim | boolean; // Can be object or boolean for backward compatibility
+  bitrActions?: {
+    current: number;
+    required: number;
+    met: boolean;
+  };
   poolsCreated?: {
     current: number;
     required: number;
@@ -18,7 +23,7 @@ export interface AirdropRequirements {
     required: number;
     met: boolean;
   };
-  stakingActivity: {
+  stakingActivity: boolean | {
     current: number;
     required: number;
     met: boolean;
@@ -28,6 +33,7 @@ export interface AirdropRequirements {
     required: number;
     met: boolean;
   };
+  sttActivityBeforeFaucet?: boolean;
 }
 
 export interface SybilFlags {
