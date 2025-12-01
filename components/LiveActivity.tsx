@@ -93,7 +93,16 @@ export function LiveActivity() {
           console.log(`✅ LiveActivity: Fetched ${activities.length} activities from API`);
           
           // Convert API activities to ActivityEvent format
-          const formattedEvents: ActivityEvent[] = activities.map((activity: any) => {
+          const formattedEvents: ActivityEvent[] = activities.map((activity: {
+            id: string;
+            timestamp: number;
+            type: string;
+            poolId: string;
+            user: string;
+            amount?: string;
+            currency?: string;
+            poolTitle?: string;
+          }) => {
             const eventId = activity.id;
             return {
               id: eventId,
