@@ -41,9 +41,10 @@ export async function GET(request: NextRequest) {
 
     // ✅ FIX: Backend returns { leaderboard: [...], totalEligible: ..., totalUsers: ..., showingTop: ... }
     // Frontend expects just the array, so extract leaderboard property
-    if (data.leaderboard && Array.isArray(data.leaderboard)) {
-      console.log(`✅ Leaderboard API: Returning ${data.leaderboard.length} users`);
-      return NextResponse.json(data.leaderboard);
+    if (data && typeof data === 'object' && 'leaderboard' in data) {
+      const leaderboardArray = Array.isArray(data.leaderboard) ? data.leaderboard : [];
+      console.log(`✅ Leaderboard API: Returning ${leaderboardArray.length} users from backend response`);
+      return NextResponse.json(leaderboardArray);
     }
 
     // ✅ FIX: If data is already an array (direct response), return it
@@ -53,7 +54,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Fallback: return empty array if structure is unexpected
-    console.warn('⚠️ Unexpected leaderboard response structure:', data);
+    console.warn('⚠️ Unexpected leaderboard response structure:', JSON.stringify(data).substring(0, 200));
     return NextResponse.json([]);
   } catch (error) {
     console.error('Error fetching airdrop leaderboard:', error);

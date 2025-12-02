@@ -92,14 +92,28 @@ export default function AirdropPage() {
       const results = await Promise.all(promises);
       
       if (address) {
-        setEligibility(results[2] as UserEligibility);
+        const eligibilityData = results[2] as UserEligibility;
+        console.log('✅ Eligibility data loaded:', {
+          hasRequirements: !!eligibilityData?.requirements,
+          poolsCreated: eligibilityData?.requirements?.poolsCreated,
+          poolsParticipated: eligibilityData?.requirements?.poolsParticipated,
+          isEligible: eligibilityData?.isEligible
+        });
+        setEligibility(eligibilityData);
       }
       setStatistics(results[0] as AirdropStatistics);
       
       // ✅ FIX: Ensure leaderboard is always an array
-      const leaderboardData = results[1] as LeaderboardUser[];
+      const leaderboardData = results[1];
       if (Array.isArray(leaderboardData)) {
-        setLeaderboard(leaderboardData);
+        setLeaderboard(leaderboardData as LeaderboardUser[]);
+      } else if (leaderboardData && typeof leaderboardData === 'object' && 'leaderboard' in leaderboardData) {
+        // Handle case where API returns object with leaderboard property
+        const leaderboardArray = Array.isArray((leaderboardData as { leaderboard: unknown }).leaderboard) 
+          ? (leaderboardData as { leaderboard: LeaderboardUser[] }).leaderboard 
+          : [];
+        console.log(`✅ Extracted ${leaderboardArray.length} users from leaderboard object`);
+        setLeaderboard(leaderboardArray);
       } else {
         console.warn("Leaderboard data is not an array:", leaderboardData);
         setLeaderboard([]);
@@ -239,30 +253,44 @@ export default function AirdropPage() {
   })();
 
   // ✅ FIX: Map API requirements correctly - Updated to match user requirements
-  const requirements = eligibility?.requirements ? [
-    getRequirementStatus(
-      typeof eligibility.requirements.faucetClaim === 'object' 
-        ? eligibility.requirements.faucetClaim.hasClaimed 
-        : eligibility.requirements.faucetClaim || false, 
-      "1️⃣ Claim BITR test tokens from the faucet"
-    ),
-    getRequirementStatus(
-      eligibility.requirements.poolsCreated || { current: 0, required: 3, met: false },
-      "2️⃣ Create at least 3 prediction pools"
-    ),
-    getRequirementStatus(
-      eligibility.requirements.poolsParticipated || { current: 0, required: 10, met: false },
-      "3️⃣ Participate in at least 10 pools"
-    ),
-    getRequirementStatus(
-      enhancedStakingRequirement,
-      "4️⃣ Stake BITR on Testnet"
-    ),
-    getRequirementStatus(
-      eligibility.requirements.oddysseySlips || { current: 0, required: 5, met: false },
-      "5️⃣ Submit 5 Odyssey slips"
-    )
-  ] : [];
+  // Ensure requirements are always displayed, even if eligibility data is loading
+  const requirements = (() => {
+    if (!eligibility || !eligibility.requirements) {
+      // Return default requirements structure when data is not loaded yet
+      return [
+        getRequirementStatus(false, "1️⃣ Claim BITR test tokens from the faucet"),
+        getRequirementStatus({ current: 0, required: 3, met: false }, "2️⃣ Create at least 3 prediction pools"),
+        getRequirementStatus({ current: 0, required: 10, met: false }, "3️⃣ Participate in at least 10 pools"),
+        getRequirementStatus(enhancedStakingRequirement, "4️⃣ Stake BITR on Testnet"),
+        getRequirementStatus({ current: 0, required: 5, met: false }, "5️⃣ Submit 5 Odyssey slips")
+      ];
+    }
+    
+    return [
+      getRequirementStatus(
+        typeof eligibility.requirements.faucetClaim === 'object' 
+          ? eligibility.requirements.faucetClaim.hasClaimed 
+          : eligibility.requirements.faucetClaim || false, 
+        "1️⃣ Claim BITR test tokens from the faucet"
+      ),
+      getRequirementStatus(
+        eligibility.requirements.poolsCreated || { current: 0, required: 3, met: false },
+        "2️⃣ Create at least 3 prediction pools"
+      ),
+      getRequirementStatus(
+        eligibility.requirements.poolsParticipated || { current: 0, required: 10, met: false },
+        "3️⃣ Participate in at least 10 pools"
+      ),
+      getRequirementStatus(
+        enhancedStakingRequirement,
+        "4️⃣ Stake BITR on Testnet"
+      ),
+      getRequirementStatus(
+        eligibility.requirements.oddysseySlips || { current: 0, required: 5, met: false },
+        "5️⃣ Submit 5 Odyssey slips"
+      )
+    ];
+  })();
 
   if (!isConnected) {
     return (

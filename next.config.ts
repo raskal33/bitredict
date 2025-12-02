@@ -38,9 +38,10 @@ const nextConfig: NextConfig = {
             value: [
               "default-src 'self'",
               "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // Required for Next.js and some libraries
-              "style-src 'self' 'unsafe-inline'",
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com", // Allow Google Fonts
               "img-src 'self' data: https:",
-              "font-src 'self' data:",
+              "font-src 'self' data: https://fonts.gstatic.com", // Allow Google Fonts
+              "media-src 'self' data:", // Allow data: URLs for audio
               "connect-src 'self' https: wss:",
               "frame-ancestors 'none'",
             ].join('; '),
