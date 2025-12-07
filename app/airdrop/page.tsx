@@ -82,10 +82,13 @@ export default function AirdropPage() {
       console.log('📡 Airdrop eligibility update received:', message);
       setEligibilityUpdate(message);
       // Refresh eligibility data when update is received
-      if (message.type === 'update' && message.data?.requiresRefresh) {
-        setTimeout(() => {
-          fetchAirdropData();
-        }, 1000); // Small delay to ensure backend has updated
+      if (message.type === 'update' && message.data && typeof message.data === 'object' && 'requiresRefresh' in message.data) {
+        const data = message.data as { requiresRefresh?: boolean };
+        if (data.requiresRefresh) {
+          setTimeout(() => {
+            fetchAirdropData();
+          }, 1000); // Small delay to ensure backend has updated
+        }
       }
     },
     enabled: !!address && activeTab === 'eligibility'
@@ -194,9 +197,12 @@ export default function AirdropPage() {
 
   // ✅ NEW: Refresh eligibility when WebSocket update is received
   useEffect(() => {
-    if (eligibilityUpdate && eligibilityUpdate.type === 'update' && eligibilityUpdate.data?.requiresRefresh) {
-      console.log('🔄 Refreshing eligibility due to WebSocket update');
-      fetchAirdropData();
+    if (eligibilityUpdate && eligibilityUpdate.type === 'update' && eligibilityUpdate.data && typeof eligibilityUpdate.data === 'object' && 'requiresRefresh' in eligibilityUpdate.data) {
+      const data = eligibilityUpdate.data as { requiresRefresh?: boolean };
+      if (data.requiresRefresh) {
+        console.log('🔄 Refreshing eligibility due to WebSocket update');
+        fetchAirdropData();
+      }
     }
   }, [eligibilityUpdate]); // eslint-disable-line react-hooks/exhaustive-deps
 
