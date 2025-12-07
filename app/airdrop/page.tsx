@@ -74,6 +74,23 @@ export default function AirdropPage() {
     enabled: activeTab === 'leaderboard'
   });
 
+  // ✅ NEW: WebSocket for real-time eligibility updates
+  const [eligibilityUpdate, setEligibilityUpdate] = useState<Record<string, unknown> | null>(null);
+  useWebSocket({
+    channel: address ? `airdrop:eligibility:${address.toLowerCase()}` : null,
+    onMessage: (message: Record<string, unknown>) => {
+      console.log('📡 Airdrop eligibility update received:', message);
+      setEligibilityUpdate(message);
+      // Refresh eligibility data when update is received
+      if (message.type === 'update' && message.data?.requiresRefresh) {
+        setTimeout(() => {
+          fetchAirdropData();
+        }, 1000); // Small delay to ensure backend has updated
+      }
+    },
+    enabled: !!address && activeTab === 'eligibility'
+  });
+
   const fetchAirdropData = useCallback(async () => {
     setLoading(true);
     try {
@@ -174,6 +191,14 @@ export default function AirdropPage() {
       return () => clearTimeout(timeout);
     }
   }, [staking.userStakesWithRewards?.length, isConnected, address]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ✅ NEW: Refresh eligibility when WebSocket update is received
+  useEffect(() => {
+    if (eligibilityUpdate && eligibilityUpdate.type === 'update' && eligibilityUpdate.data?.requiresRefresh) {
+      console.log('🔄 Refreshing eligibility due to WebSocket update');
+      fetchAirdropData();
+    }
+  }, [eligibilityUpdate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Enhanced eligibility combines backend data with smart contract data
   // Used for potential future features

@@ -22,12 +22,16 @@ export async function GET(
       );
     }
 
-    // Proxy request to backend
-    const backendResponse = await fetch(`${BACKEND_URL}/airdrop/eligibility/${address}`, {
+    // Proxy request to backend with cache-busting
+    const backendResponse = await fetch(`${BACKEND_URL}/airdrop/eligibility/${address}?t=${Date.now()}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
       },
+      cache: 'no-store', // Next.js cache control
     });
 
     const data = await backendResponse.json();
@@ -39,7 +43,14 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(data);
+    // ✅ Add cache-busting headers to response
+    return NextResponse.json(data, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      },
+    });
   } catch (error) {
     console.error('Error checking airdrop eligibility:', error);
     return NextResponse.json(
