@@ -24,6 +24,7 @@ import { getPoolIcon } from "../services/crypto-icons";
 import { titleTemplatesService } from "../services/title-templates";
 import PlaceBetModal from "./PlaceBetModal";
 import AddLiquidityModal from "./AddLiquidityModal";
+import BoostPoolModal from "./BoostPoolModal";
 import { usePoolSocialStats } from "../hooks/usePoolSocialStats";
 import { HeartIcon as HeartIconSolid } from "@heroicons/react/24/solid";
 import UserAddressLink from "./UserAddressLink";
@@ -117,17 +118,13 @@ interface EnhancedPoolCardProps {
   index?: number;
   showSocialStats?: boolean;
   className?: string;
-  showBoostButton?: boolean;
-  onBoostPool?: (poolId: number, tier: 'BRONZE' | 'SILVER' | 'GOLD') => void;
 }
 
 export default function EnhancedPoolCard({ 
   pool, 
   index = 0, 
   showSocialStats = true, 
-  className = "",
-  showBoostButton = false,
-  onBoostPool
+  className = ""
 }: EnhancedPoolCardProps) {
   const router = useRouter();
   const { address } = useAccount();
@@ -483,23 +480,12 @@ export default function EnhancedPoolCard({
   };
   const isCreator = address && address.toLowerCase() === pool.creator.toLowerCase();
   const canBoost = isCreator && pool.eventStartTime > Date.now() / 1000;
-  const boostCosts = {
-    'BRONZE': 2,
-    'SILVER': 3,
-    'GOLD': 5
-  };
 
   const handleBoostClick = (e: React.MouseEvent) => {
     e.stopPropagation(); 
-    if (canBoost && onBoostPool) {
+    // Open boost modal for any user who can boost (creator before event start)
+    if (canBoost) {
       setShowBoostModal(true);
-    }
-  };
-
-  const handleBoostTierSelect = (tier: 'BRONZE' | 'SILVER' | 'GOLD') => {
-    if (onBoostPool) {
-      onBoostPool(pool.id, tier);
-      setShowBoostModal(false);
     }
   };
   return (
@@ -592,7 +578,7 @@ export default function EnhancedPoolCard({
             <span className="hidden sm:inline">COMBO</span>
           </div>
         )}
-        {showBoostButton && canBoost && (
+        {canBoost && (
           <button
             onClick={handleBoostClick}
               className="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold flex items-center gap-1 bg-gradient-to-r from-yellow-500/90 to-orange-500/90 backdrop-blur-sm text-black hover:from-yellow-400 hover:to-orange-400 transition-all transform hover:scale-105 pointer-events-auto"
@@ -970,73 +956,17 @@ export default function EnhancedPoolCard({
           )}
         </div>
       )}
-      {showBoostModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-gray-800 rounded-2xl p-6 max-w-md w-full border border-gray-600/30"
-          >
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-gradient-to-r from-yellow-500 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                <BoltIcon className="w-8 h-8 text-black" />
-              </div>
-              <h3 className="text-xl font-bold text-white mb-2">Boost Your Pool</h3>
-              <p className="text-gray-400 text-sm">
-                Increase visibility and attract more participants with a boost
-              </p>
-            </div>
-
-            <div className="space-y-3 mb-6">
-              {(['BRONZE', 'SILVER', 'GOLD'] as const).map((tier) => (
-                <button
-                  key={tier}
-                  onClick={() => handleBoostTierSelect(tier)}
-                  className={`w-full p-4 rounded-xl border-2 transition-all text-left ${
-                    tier === 'GOLD' 
-                      ? 'border-yellow-500/50 bg-yellow-500/10 hover:bg-yellow-500/20' 
-                      : tier === 'SILVER'
-                      ? 'border-gray-400/50 bg-gray-400/10 hover:bg-gray-400/20'
-                      : 'border-orange-500/50 bg-orange-500/10 hover:bg-orange-500/20'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                        tier === 'GOLD' ? 'bg-yellow-500' : 
-                        tier === 'SILVER' ? 'bg-gray-400' : 'bg-orange-500'
-                      }`}>
-                        <BoltIcon className="w-4 h-4 text-black" />
-                      </div>
-                      <div>
-                        <div className="font-bold text-white">{tier}</div>
-                        <div className="text-xs text-gray-400">
-                          {tier === 'GOLD' ? 'Pinned to top + Gold badge' :
-                           tier === 'SILVER' ? 'Front page + highlighted' :
-                           'Higher ranking'}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-bold text-white">{boostCosts[tier]} STT</div>
-                      <div className="text-xs text-gray-400">24h duration</div>
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowBoostModal(false)}
-                className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-500 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
+      {/* Boost Pool Modal */}
+      <BoostPoolModal
+        poolId={pool.id}
+        currentTier={pool.boostTier}
+        isOpen={showBoostModal}
+        onClose={() => setShowBoostModal(false)}
+        onSuccess={() => {
+          // Optionally refresh pool data after boost
+          console.log(`✅ Pool ${pool.id} boosted successfully`);
+        }}
+      />
       <PlaceBetModal
         pool={{
           ...pool,

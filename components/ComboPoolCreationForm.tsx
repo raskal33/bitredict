@@ -193,19 +193,29 @@ export default function ComboPoolCreationForm({ onSuccess, onClose }: {
     setIsLoading(true);
 
     try {
+      // Calculate earliest event start and latest event end from conditions
+      const earliestEventStart = formData.conditions.reduce((min, c) => 
+        c.eventStartTime.getTime() < min ? c.eventStartTime.getTime() : min, 
+        formData.conditions[0]?.eventStartTime.getTime() || Date.now()
+      );
+      const latestEventEnd = formData.conditions.reduce((max, c) => 
+        c.eventEndTime.getTime() > max ? c.eventEndTime.getTime() : max,
+        formData.conditions[0]?.eventEndTime.getTime() || Date.now() + 86400000
+      );
+
       // Prepare combo pool data to match contract signature
       const comboPoolData = {
         conditions: formData.conditions.map(condition => ({
-          marketId: condition.marketId,
+          marketId: condition.marketId || `combo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
           expectedOutcome: condition.expectedOutcome,
-          description: condition.description || `${condition.marketId} prediction`,
-          odds: 1.0 // Not used in contract, but required by interface
+          description: condition.description || `${condition.expectedOutcome} prediction`,
+          odds: condition.odds || 2.0 // Individual condition odds
         })),
         combinedOdds: formData.combinedOdds, // Use form input
         creatorStake: BigInt(Math.floor(formData.creatorStake * 1e18)),
-        earliestEventStart: BigInt(Math.floor(formData.eventStartTime.getTime() / 1000)),
-        latestEventEnd: BigInt(Math.floor(formData.eventEndTime.getTime() / 1000)),
-        category: formData.category || "football",
+        earliestEventStart: BigInt(Math.floor(earliestEventStart / 1000)),
+        latestEventEnd: BigInt(Math.floor(latestEventEnd / 1000)),
+        category: formData.category || formData.conditions[0]?.category || "football",
         maxBetPerUser: BigInt(Math.floor(formData.maxBetPerUser * 1e18)),
         useBitr: formData.useBitr
       };
@@ -301,6 +311,23 @@ export default function ComboPoolCreationForm({ onSuccess, onClose }: {
           </select>
         </div>
 
+        {/* Condition Odds */}
+        <div>
+          <label className="block text-sm font-medium text-text-secondary mb-2">
+            Condition Odds
+          </label>
+          <input
+            type="number"
+            value={condition.odds}
+            onChange={(e) => updateCondition(condition.id, 'odds', parseFloat(e.target.value) || 1.0)}
+            min="1.01"
+            max="100"
+            step="0.01"
+            placeholder="2.00"
+            className="w-full px-4 py-3 bg-bg-card border border-border-input rounded-xl text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50 transition-all"
+          />
+          <p className="text-xs text-text-muted mt-1">Individual odds for this condition (1.01x - 100x)</p>
+        </div>
 
         {/* Event Times */}
         <div>

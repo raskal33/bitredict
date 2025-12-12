@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 import { SparklesIcon, BoltIcon, ClockIcon } from "@heroicons/react/24/outline";
 import { useBoostedPools } from "@/hooks/useMarkets";
 import AnimatedTitle from "@/components/AnimatedTitle";
 
 export default function BoostedMarketsPage() {
+  const router = useRouter();
   const [filters, setFilters] = useState({
     category: '',
     sortBy: 'newest' as const,
@@ -204,7 +206,10 @@ export default function BoostedMarketsPage() {
               </div>
 
               {/* Action Button */}
-              <button className="w-full btn-secondary">
+              <button 
+                onClick={() => router.push(`/bet/${pool.poolId}`)}
+                className="w-full btn-secondary hover:bg-primary/20 transition-all"
+              >
                 View Pool
               </button>
             </motion.div>

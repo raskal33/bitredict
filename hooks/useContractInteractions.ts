@@ -612,39 +612,213 @@ export function usePoolCore() {
 // Boost System Contract Hooks
 export function useBoostSystem() {
   const { writeContractAsync } = useWriteContract();
+  const publicClient = usePublicClient();
+  const { address } = useAccount();
 
+  // Get boost cost from contract for a specific tier
+  const getBoostCost = useCallback(async (poolId: bigint, tier: number): Promise<bigint> => {
+    try {
+      const result = await executeContractCall(async (client) => {
+        return await client.readContract({
+          address: CONTRACT_ADDRESSES.BOOST_SYSTEM,
+          abi: CONTRACTS.BOOST_SYSTEM.abi,
+          functionName: 'getBoostCost',
+          args: [poolId, tier],
+        });
+      });
+      return result as bigint;
+    } catch (error) {
+      console.error('Error getting boost cost:', error);
+      // Fallback to boostFees array
+      try {
+        const fallbackResult = await executeContractCall(async (client) => {
+          return await client.readContract({
+            address: CONTRACT_ADDRESSES.BOOST_SYSTEM,
+            abi: CONTRACTS.BOOST_SYSTEM.abi,
+            functionName: 'boostFees',
+            args: [tier],
+          });
+        });
+        return fallbackResult as bigint;
+      } catch {
+        // Hardcoded fallback values (in wei): BRONZE=2 STT, SILVER=5 STT, GOLD=10 STT
+        const fallbackFees: Record<number, bigint> = {
+          0: 0n, // NONE
+          1: 2n * 10n**18n, // BRONZE = 2 STT
+          2: 5n * 10n**18n, // SILVER = 5 STT
+          3: 10n * 10n**18n, // GOLD = 10 STT
+        };
+        return fallbackFees[tier] || 0n;
+      }
+    }
+  }, []);
+
+  // Get all boost fees from contract
+  const getAllBoostFees = useCallback(async (): Promise<{ bronze: bigint; silver: bigint; gold: bigint }> => {
+    try {
+      const [bronze, silver, gold] = await Promise.all([
+        executeContractCall(async (client) => {
+          return await client.readContract({
+            address: CONTRACT_ADDRESSES.BOOST_SYSTEM,
+            abi: CONTRACTS.BOOST_SYSTEM.abi,
+            functionName: 'boostFees',
+            args: [1], // BRONZE
+          });
+        }),
+        executeContractCall(async (client) => {
+          return await client.readContract({
+            address: CONTRACT_ADDRESSES.BOOST_SYSTEM,
+            abi: CONTRACTS.BOOST_SYSTEM.abi,
+            functionName: 'boostFees',
+            args: [2], // SILVER
+          });
+        }),
+        executeContractCall(async (client) => {
+          return await client.readContract({
+            address: CONTRACT_ADDRESSES.BOOST_SYSTEM,
+            abi: CONTRACTS.BOOST_SYSTEM.abi,
+            functionName: 'boostFees',
+            args: [3], // GOLD
+          });
+        }),
+      ]);
+      return {
+        bronze: bronze as bigint,
+        silver: silver as bigint,
+        gold: gold as bigint,
+      };
+    } catch (error) {
+      console.error('Error getting all boost fees:', error);
+      // Fallback values
+      return {
+        bronze: 2n * 10n**18n,
+        silver: 5n * 10n**18n,
+        gold: 10n * 10n**18n,
+      };
+    }
+  }, []);
+
+  // Get boost info for a pool
+  const getBoostInfo = useCallback(async (poolId: bigint) => {
+    try {
+      const result = await executeContractCall(async (client) => {
+        return await client.readContract({
+          address: CONTRACT_ADDRESSES.BOOST_SYSTEM,
+          abi: CONTRACTS.BOOST_SYSTEM.abi,
+          functionName: 'getBoostInfo',
+          args: [poolId],
+        });
+      });
+      const [tier, expiry, startTime, booster, isActive, remainingTime] = result as [number, bigint, bigint, string, boolean, bigint];
+      return { tier, expiry, startTime, booster, isActive, remainingTime };
+    } catch (error) {
+      console.error('Error getting boost info:', error);
+      return null;
+    }
+  }, []);
+
+  // Boost a pool with fee payment
   const boostPool = useCallback(async (poolId: bigint, boostTier: number) => {
     try {
+      // Get the boost cost for this tier
+      const boostCost = await getBoostCost(poolId, boostTier);
+      console.log(`🚀 Boosting pool ${poolId} with tier ${boostTier}, cost: ${boostCost / BigInt(10**18)} STT`);
+
+      // Check user's STT balance
+      if (address && publicClient) {
+        const balance = await publicClient.getBalance({ address });
+        if (balance < boostCost) {
+          const errorMsg = `Insufficient STT balance. You need ${boostCost / BigInt(10**18)} STT but have ${balance / BigInt(10**18)} STT`;
+          console.error(`❌ ${errorMsg}`);
+          toast.error(errorMsg);
+          throw new Error(errorMsg);
+        }
+      }
+
+      toast.loading('Boosting pool...', { id: 'boost-pool' });
+
       const txHash = await writeContractAsync({
         address: CONTRACT_ADDRESSES.BOOST_SYSTEM,
         abi: CONTRACTS.BOOST_SYSTEM.abi,
         functionName: 'boostPool',
         args: [poolId, boostTier],
+        value: boostCost, // ✅ CRITICAL: Send the boost fee as msg.value
         ...getTransactionOptions(),
       });
       
+      console.log('✅ Boost transaction submitted:', txHash);
+
+      // Wait for confirmation
+      if (publicClient) {
+        const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
+        if (receipt.status !== 'success') {
+          toast.dismiss('boost-pool');
+          toast.error('Boost transaction failed on-chain');
+          throw new Error('Boost transaction failed');
+        }
+      }
+
+      toast.dismiss('boost-pool');
       toast.success('Pool boosted successfully!');
       return txHash;
     } catch (error) {
       console.error('Error boosting pool:', error);
-      toast.error('Failed to boost pool');
+      toast.dismiss('boost-pool');
+      
+      if (error instanceof Error) {
+        if (error.message.includes('Insufficient STT')) {
+          // Already showed error
+        } else if (error.message.includes('Pool not exists') || error.message.includes('pool doesn')) {
+          toast.error('Pool does not exist');
+        } else if (error.message.includes('Boost tier at max') || error.message.includes('tier at max')) {
+          toast.error('Pool is already at maximum boost tier');
+        } else if (error.message.includes('Already boosted') || error.message.includes('already boosted')) {
+          toast.error('Pool is already boosted to this tier or higher');
+        } else if (error.message.includes('user rejected') || error.message.includes('User rejected')) {
+          toast.error('Transaction cancelled');
+        } else {
+          toast.error('Failed to boost pool');
+        }
+      } else {
+        toast.error('Failed to boost pool');
+      }
       throw error;
     }
-  }, [writeContractAsync]);
+  }, [writeContractAsync, getBoostCost, address, publicClient]);
 
-  const canBoostPool = useCallback(async (poolId: bigint) => {
+  // Check if pool can be boosted to a specific tier
+  const canBoostPool = useCallback(async (poolId: bigint, tier: number = 1): Promise<{ canBoost: boolean; reason: string }> => {
     try {
       const result = await executeContractCall(async (client) => {
         return await client.readContract({
           address: CONTRACT_ADDRESSES.BOOST_SYSTEM,
           abi: CONTRACTS.BOOST_SYSTEM.abi,
           functionName: 'canBoostPool',
+          args: [poolId, tier], // ✅ CRITICAL: Pass both poolId AND tier
+        });
+      });
+      const [canBoost, reason] = result as [boolean, string];
+      return { canBoost, reason };
+    } catch (error) {
+      console.error('Error checking boost eligibility:', error);
+      return { canBoost: false, reason: 'Error checking eligibility' };
+    }
+  }, []);
+
+  // Check if pool is currently boosted
+  const isPoolBoosted = useCallback(async (poolId: bigint): Promise<boolean> => {
+    try {
+      const result = await executeContractCall(async (client) => {
+        return await client.readContract({
+          address: CONTRACT_ADDRESSES.BOOST_SYSTEM,
+          abi: CONTRACTS.BOOST_SYSTEM.abi,
+          functionName: 'isPoolBoosted',
           args: [poolId],
         });
       });
       return result as boolean;
     } catch (error) {
-      console.error('Error checking boost eligibility:', error);
+      console.error('Error checking if pool is boosted:', error);
       return false;
     }
   }, []);
@@ -652,6 +826,10 @@ export function useBoostSystem() {
   return {
     boostPool,
     canBoostPool,
+    getBoostCost,
+    getAllBoostFees,
+    getBoostInfo,
+    isPoolBoosted,
   };
 }
 

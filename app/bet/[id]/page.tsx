@@ -42,6 +42,7 @@ import { CONTRACT_ADDRESSES } from "@/contracts";
 import SkeletonLoader from "@/components/SkeletonLoader";
 import UserAddressLink from "@/components/UserAddressLink";
 import { usePoolProgress } from "@/hooks/useSomniaStreams";
+import BoostPoolModal from "@/components/BoostPoolModal";
 
 interface ApiComment {
   id: number;
@@ -125,6 +126,9 @@ export default function BetPage() {
   // Rate limiting for API calls
   const [lastFetchTime, setLastFetchTime] = useState<number>(0);
   const FETCH_COOLDOWN = 5000; // 5 seconds between fetches
+
+  // Boost modal state
+  const [showBoostModal, setShowBoostModal] = useState(false);
 
 
 
@@ -993,9 +997,10 @@ export default function BetPage() {
         {/* Header Section */}
         <div className="relative">
           <div className="glass-card space-y-4 sm:space-y-6 relative overflow-hidden">
-            {/* Boost indicator - Fixed positioning inside container */}
-            {pool.boosted && (
-              <div className="absolute top-2 right-2 sm:top-4 sm:right-4 z-10">
+            {/* Boost indicator/button - Fixed positioning inside container */}
+            <div className="absolute top-2 right-2 sm:top-4 sm:right-4 z-10 flex items-center gap-2">
+              {/* Show boost badge if pool is boosted */}
+              {pool.boosted && (
                 <div className={`
                   px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-bold flex items-center gap-1
                   ${pool.boostTier === 3 ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black' :
@@ -1010,9 +1015,25 @@ export default function BetPage() {
                   <span className="sm:hidden">
                     {pool.boostTier === 3 ? 'GOLD' : pool.boostTier === 2 ? 'SILVER' : 'BRONZE'}
                   </span>
-                      </div>
-                    </div>
-            )}
+                </div>
+              )}
+              
+              {/* Show boost button for pool creators before event starts */}
+              {address && 
+               pool.creator.address?.toLowerCase() === address.toLowerCase() && 
+               contractData?.eventStartTime && 
+               Date.now() / 1000 < contractData.eventStartTime && 
+               pool.boostTier !== 3 && (
+                <button
+                  onClick={() => setShowBoostModal(true)}
+                  className="px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-bold flex items-center gap-1 bg-gradient-to-r from-yellow-500/90 to-orange-500/90 text-black hover:from-yellow-400 hover:to-orange-400 transition-all transform hover:scale-105"
+                >
+                  <BoltSolid className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:inline">{pool.boosted ? 'UPGRADE' : 'BOOST'}</span>
+                  <span className="sm:hidden">⚡</span>
+                </button>
+              )}
+            </div>
 
             {/* Creator Info */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -1972,6 +1993,19 @@ export default function BetPage() {
         </div>
       </div>
       
+      {/* Boost Pool Modal */}
+      <BoostPoolModal
+        poolId={parseInt(poolId)}
+        currentTier={pool.boostTier === 3 ? 'GOLD' : pool.boostTier === 2 ? 'SILVER' : pool.boostTier === 1 ? 'BRONZE' : 'NONE'}
+        isOpen={showBoostModal}
+        onClose={() => setShowBoostModal(false)}
+        onSuccess={() => {
+          // Refresh pool data after boost
+          console.log(`✅ Pool ${poolId} boosted successfully`);
+          // Re-fetch pool data
+          setPool(prev => prev ? { ...prev, boosted: true, boostTier: (prev.boostTier || 0) + 1 } : prev);
+        }}
+      />
     </div>
   );
 }

@@ -265,25 +265,43 @@ export default function EnhancedComboPoolCreationForm({ onSuccess, onClose }: {
     setIsLoading(true);
 
     try {
+      // Calculate earliest event start and latest event end from conditions
+      const earliestEventStart = formData.conditions.reduce((min, c) => 
+        c.eventStartTime.getTime() < min ? c.eventStartTime.getTime() : min, 
+        formData.conditions[0]?.eventStartTime.getTime() || Date.now()
+      );
+      const latestEventEnd = formData.conditions.reduce((max, c) => 
+        c.eventEndTime.getTime() > max ? c.eventEndTime.getTime() : max,
+        formData.conditions[0]?.eventEndTime.getTime() || Date.now() + 86400000
+      );
+
       const comboPoolData = {
         conditions: formData.conditions.map(condition => ({
-          marketId: condition.matchId || condition.cryptoId || '',
-          expectedOutcome: `${condition.market} ${condition.selection}`,
-          description: `${condition.market} ${condition.selection}`,
-          odds: 1.0 // Not used in contract, but required by interface
+          marketId: condition.matchId || condition.cryptoId || `combo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          expectedOutcome: `${condition.market}_${condition.selection}`.slice(0, 31), // Ensure fits bytes32
+          description: condition.description || `${condition.homeTeam || condition.symbol || 'Event'}: ${condition.market} ${condition.selection}`,
+          odds: condition.odds || 2.0 // Use the condition's individual odds
         })),
-        combinedOdds: formData.combinedOdds, // Use form input
+        combinedOdds: formData.combinedOdds, // Use form input (calculated from individual odds)
         creatorStake: BigInt(Math.floor(formData.creatorStake * 1e18)),
-        earliestEventStart: BigInt(Math.floor(formData.eventStartTime.getTime() / 1000)),
-        latestEventEnd: BigInt(Math.floor(formData.eventEndTime.getTime() / 1000)),
-        category: formData.category || "football",
+        earliestEventStart: BigInt(Math.floor(earliestEventStart / 1000)),
+        latestEventEnd: BigInt(Math.floor(latestEventEnd / 1000)),
+        category: formData.category || formData.conditions[0]?.type || "football",
         maxBetPerUser: BigInt(Math.floor((formData.betType === 'fixed' ? formData.fixedBetAmount! : formData.maxBetPerUser!) * 1e18)),
         useBitr: formData.useBitr
       };
 
+      console.log('🎰 Creating combo pool with data:', {
+        ...comboPoolData,
+        creatorStake: comboPoolData.creatorStake.toString(),
+        earliestEventStart: comboPoolData.earliestEventStart.toString(),
+        latestEventEnd: comboPoolData.latestEventEnd.toString(),
+        maxBetPerUser: comboPoolData.maxBetPerUser.toString(),
+      });
+
       const txHash = await createComboPool(comboPoolData);
       
-      toast.success('Combo pool creation transaction submitted!');
+      toast.success('Combo pool created successfully!');
       
       if (onSuccess) {
         onSuccess(txHash);
@@ -295,7 +313,7 @@ export default function EnhancedComboPoolCreationForm({ onSuccess, onClose }: {
 
     } catch (error) {
       console.error('Error creating combo pool:', error);
-      toast.error('Failed to create combo pool');
+      // Error already shown by the hook
     } finally {
       setIsLoading(false);
     }
