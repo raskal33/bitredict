@@ -251,6 +251,12 @@ function CreateMarketPageContent() {
   const [step, setStep] = useState(1);
   // const [isCreating, setIsCreating] = useState(false);
   const [deploymentHash, setDeploymentHash] = useState<string>('');
+  
+  // ✅ FIX: Track transaction hash from createPool for transaction feedback
+  const [poolCreationHash, setPoolCreationHash] = useState<`0x${string}` | undefined>(undefined);
+  const { isLoading: isPoolConfirming, isSuccess: isPoolSuccess, isError: isPoolError } = useWaitForTransactionReceipt({ 
+    hash: poolCreationHash 
+  });
 
   // Search states for crypto (football now uses FixtureSelector)
   const [cryptoSearchQuery, setCryptoSearchQuery] = useState('');
@@ -531,7 +537,7 @@ function CreateMarketPageContent() {
     }
   }, [writeError, showError]);
 
-  // Monitor transaction states for feedback
+  // Monitor transaction states for feedback (from useWriteContract hook)
   useEffect(() => {
     if (isPending && hash) {
       console.log('🔄 Transaction pending - showing feedback');
@@ -545,6 +551,21 @@ function CreateMarketPageContent() {
       showConfirming('Transaction Confirming', 'Your market creation is being processed on the blockchain...', hash);
     }
   }, [isConfirming, hash, showConfirming]);
+
+  // ✅ FIX: Monitor transaction states for feedback from createPool (writeContractAsync)
+  useEffect(() => {
+    if (poolCreationHash) {
+      console.log('🔄 Pool creation transaction submitted - showing pending feedback');
+      showPending('Transaction Pending', 'Please confirm the transaction in your wallet...');
+    }
+  }, [poolCreationHash, showPending]);
+
+  useEffect(() => {
+    if (isPoolConfirming && poolCreationHash) {
+      console.log('⏳ Pool creation transaction confirming - showing feedback');
+      showConfirming('Transaction Confirming', 'Your market creation is being processed on the blockchain...', poolCreationHash);
+    }
+  }, [isPoolConfirming, poolCreationHash, showConfirming]);
 
   // Clear loading state when transaction is no longer pending (user cancelled or error occurred)
   useEffect(() => {
@@ -625,6 +646,92 @@ function CreateMarketPageContent() {
       }
     }
   }, [isSuccess, hash, address, addReputationAction, notifyPoolCreation, showSuccess, data, useBitr]);
+
+  // ✅ FIX: Handle successful pool creation from createPool (writeContractAsync)
+  useEffect(() => {
+    if (isPoolSuccess && poolCreationHash) {
+      console.log('✅ Pool creation transaction successful - showing feedback with hash:', poolCreationHash);
+      
+      // Calculate total cost for display
+      const creationFee = useBitr ? '50 BITR' : '1 STT';
+      const boostCost = data.boostTier && data.boostTier !== 'NONE' 
+        ? `${data.boostTier === 'BRONZE' ? '2' : data.boostTier === 'SILVER' ? '3' : '5'} STT`
+        : '0';
+      const totalCost = data.boostTier && data.boostTier !== 'NONE' 
+        ? `${boostCost} + ${creationFee}`
+        : creationFee;
+      
+      const categoryName = data.category === 'football' ? 'football prediction' : 
+                          data.category === 'cryptocurrency' ? 'cryptocurrency prediction' : 
+                          'prediction';
+      
+      showSuccess(
+        'Market Created Successfully!', 
+        `Your ${categoryName} market has been created and is now live on the blockchain!`, 
+        poolCreationHash,
+        data.boostTier,
+        totalCost
+      );
+      
+      // ✅ FIX: Scroll to top after successful transaction
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      
+      setDeploymentHash(poolCreationHash);
+      setIsLoading(false);
+      
+      // Add reputation points for market creation
+      if (address) {
+        addReputationAction(address, {
+          type: 'market_created',
+          points: 10,
+          description: `Created a ${categoryName} market`,
+          marketId: poolCreationHash
+        });
+      }
+
+      // Notify backend about the new pool creation for indexing
+      const notifyBackend = async () => {
+        try {
+          await notifyPoolCreation(poolCreationHash);
+        } catch (error) {
+          console.warn('Failed to notify backend about pool creation:', error);
+          // Don't fail the entire flow if backend notification fails
+        }
+      };
+      notifyBackend();
+      
+      // Reset approval state for future transactions
+      setApprovalConfirmed(false);
+      
+      // Reset form data for next market creation
+      try {
+        setData({
+          category: '',
+          odds: 200,
+          creatorStake: 5, // Default to minimum STT stake
+          description: ''
+        });
+        setStep(1);
+      } catch (error) {
+        console.error('Error resetting form data:', error);
+        // Fallback: just reset to step 1 without changing data
+        setStep(1);
+      }
+      
+      // Clear the transaction hash
+      setPoolCreationHash(undefined);
+    }
+  }, [isPoolSuccess, poolCreationHash, address, addReputationAction, notifyPoolCreation, showSuccess, data, useBitr]);
+
+  // ✅ FIX: Handle pool creation errors
+  useEffect(() => {
+    if (isPoolError && poolCreationHash) {
+      console.log('❌ Pool creation transaction failed');
+      showError('Transaction Failed', 'The pool creation transaction failed. Please try again.');
+      setIsLoading(false);
+      setPoolCreationHash(undefined);
+    }
+  }, [isPoolError, poolCreationHash, showError]);
 
   // Track approval transaction confirmation
   const { isSuccess: isApprovalSuccess } = useWaitForTransactionReceipt({ 
@@ -1131,12 +1238,22 @@ function CreateMarketPageContent() {
           meetsMinimum: useBitr ? poolData.creatorStake >= BigInt('1000000000000000000000') : poolData.creatorStake >= BigInt('5000000000000000000')
         });
         
-        // ✅ CRITICAL FIX: Don't show success immediately - let useEffect hooks track transaction state
-        // The useEffect hooks will properly track: approval -> pending -> confirming -> success
-        // Use direct contract call - this will trigger MetaMask immediately
-        await createPool(poolData);
+        // ✅ CRITICAL FIX: Track transaction hash and show feedback modal
+        // Show pending state immediately before calling createPool
+        showPending('Transaction Pending', 'Preparing transaction...');
         
-        // Transaction state will be tracked by useEffect hooks (lines 456-524)
+        // Use direct contract call - this will trigger MetaMask immediately
+        const txHash = await createPool(poolData);
+        
+        // ✅ FIX: Set the transaction hash to trigger feedback modal
+        if (txHash) {
+          setPoolCreationHash(txHash as `0x${string}`);
+          console.log('✅ Pool creation transaction submitted:', txHash);
+          // Update to show wallet confirmation message
+          showPending('Transaction Pending', 'Please confirm the transaction in your wallet...');
+        }
+        
+        // Transaction state will be tracked by useEffect hooks
         // They will show: pending -> confirming -> success in the correct order
 
       } else if (data.category === 'cryptocurrency' && data.selectedCrypto) {
@@ -1228,12 +1345,22 @@ function CreateMarketPageContent() {
         });
         console.log('Crypto pool data for direct contract call:', poolData);
         
-        // ✅ CRITICAL FIX: Don't show success immediately - let useEffect hooks track transaction state
-        // The useEffect hooks will properly track: approval -> pending -> confirming -> success
-        // Use direct contract call
-        await createPool(poolData);
+        // ✅ CRITICAL FIX: Track transaction hash and show feedback modal
+        // Show pending state immediately before calling createPool
+        showPending('Transaction Pending', 'Preparing transaction...');
         
-        // Transaction state will be tracked by useEffect hooks (lines 456-524)
+        // Use direct contract call
+        const txHash = await createPool(poolData);
+        
+        // ✅ FIX: Set the transaction hash to trigger feedback modal
+        if (txHash) {
+          setPoolCreationHash(txHash as `0x${string}`);
+          console.log('✅ Crypto pool creation transaction submitted:', txHash);
+          // Update to show wallet confirmation message
+          showPending('Transaction Pending', 'Please confirm the transaction in your wallet...');
+        }
+        
+        // Transaction state will be tracked by useEffect hooks
         // They will show: pending -> confirming -> success in the correct order
 
       } else {
@@ -1258,7 +1385,35 @@ function CreateMarketPageContent() {
 
     } catch (error) {
       console.error('Error in market creation:', error);
-      showError('Creation Error', 'Failed to create market. Please try again.');
+      
+      // Clear any pending transaction hash
+      setPoolCreationHash(undefined);
+      
+      // Parse error message for better user feedback
+      let errorMessage = 'Failed to create market. Please try again.';
+      let errorTitle = 'Creation Error';
+      
+      if (error instanceof Error) {
+        const errorStr = error.message.toLowerCase();
+        
+        if (errorStr.includes('user rejected') || errorStr.includes('user denied')) {
+          errorTitle = 'Transaction Cancelled';
+          errorMessage = 'You cancelled the transaction in your wallet.';
+        } else if (errorStr.includes('insufficient funds')) {
+          errorTitle = 'Insufficient Funds';
+          errorMessage = 'You don\'t have enough funds to complete this transaction.';
+        } else if (errorStr.includes('allowance')) {
+          errorTitle = 'Insufficient Allowance';
+          errorMessage = 'Please approve more BITR tokens and try again.';
+        } else if (errorStr.includes('revert') || errorStr.includes('execution reverted')) {
+          errorTitle = 'Transaction Failed';
+          errorMessage = 'The transaction failed on the blockchain. Please check your parameters and try again.';
+        } else {
+          errorMessage = error.message || errorMessage;
+        }
+      }
+      
+      showError(errorTitle, errorMessage);
       setIsLoading(false);
     }
   };
