@@ -538,34 +538,38 @@ function CreateMarketPageContent() {
   }, [writeError, showError]);
 
   // Monitor transaction states for feedback (from useWriteContract hook)
+  // ✅ FIX: Only show pending when transaction is actually pending and not yet confirming
   useEffect(() => {
-    if (isPending && hash) {
+    if (isPending && hash && !isConfirming && !isSuccess) {
       console.log('🔄 Transaction pending - showing feedback');
       showPending('Transaction Pending', 'Please confirm the transaction in your wallet...');
     }
-  }, [isPending, hash, showPending]);
+  }, [isPending, hash, isConfirming, isSuccess, showPending]);
 
+  // ✅ FIX: Only show confirming when transaction is actually being confirmed
   useEffect(() => {
-    if (isConfirming && hash) {
+    if (isConfirming && hash && !isSuccess) {
       console.log('⏳ Transaction confirming - showing feedback');
       showConfirming('Transaction Confirming', 'Your market creation is being processed on the blockchain...', hash);
     }
-  }, [isConfirming, hash, showConfirming]);
+  }, [isConfirming, hash, isSuccess, showConfirming]);
 
   // ✅ FIX: Monitor transaction states for feedback from createPool (writeContractAsync)
+  // Only show pending when we have a hash AND transaction is not yet confirming
   useEffect(() => {
-    if (poolCreationHash) {
+    if (poolCreationHash && !isPoolConfirming && !isPoolSuccess && !isPoolError) {
       console.log('🔄 Pool creation transaction submitted - showing pending feedback');
-      showPending('Transaction Pending', 'Please confirm the transaction in your wallet...');
+      showPending('Transaction Pending', 'Transaction submitted. Waiting for confirmation...');
     }
-  }, [poolCreationHash, showPending]);
+  }, [poolCreationHash, isPoolConfirming, isPoolSuccess, isPoolError, showPending]);
 
+  // ✅ FIX: Only show confirming when transaction is actually being confirmed
   useEffect(() => {
-    if (isPoolConfirming && poolCreationHash) {
+    if (isPoolConfirming && poolCreationHash && !isPoolSuccess && !isPoolError) {
       console.log('⏳ Pool creation transaction confirming - showing feedback');
       showConfirming('Transaction Confirming', 'Your market creation is being processed on the blockchain...', poolCreationHash);
     }
-  }, [isPoolConfirming, poolCreationHash, showConfirming]);
+  }, [isPoolConfirming, poolCreationHash, isPoolSuccess, isPoolError, showConfirming]);
 
   // Clear loading state when transaction is no longer pending (user cancelled or error occurred)
   useEffect(() => {
@@ -575,8 +579,9 @@ function CreateMarketPageContent() {
     }
   }, [isPending, isConfirming, isSuccess, writeError, isLoading]);
 
+  // ✅ FIX: Only show success when transaction is actually confirmed
   useEffect(() => {
-    if (isSuccess && hash) {
+    if (isSuccess && hash && !isPending && !isConfirming) {
       console.log('✅ Transaction successful - showing feedback with hash:', hash);
       
       // Calculate total cost for display
@@ -645,11 +650,13 @@ function CreateMarketPageContent() {
         setStep(1);
       }
     }
-  }, [isSuccess, hash, address, addReputationAction, notifyPoolCreation, showSuccess, data, useBitr]);
+  }, [isSuccess, hash, isPending, isConfirming, address, addReputationAction, notifyPoolCreation, showSuccess, data, useBitr]);
 
   // ✅ FIX: Handle successful pool creation from createPool (writeContractAsync)
+  // Only show success when transaction is actually confirmed (isPoolSuccess is true)
+  // Ensure we're not in a conflicting state (not confirming, not error)
   useEffect(() => {
-    if (isPoolSuccess && poolCreationHash) {
+    if (isPoolSuccess && poolCreationHash && !isPoolError && !isPoolConfirming) {
       console.log('✅ Pool creation transaction successful - showing feedback with hash:', poolCreationHash);
       
       // Calculate total cost for display
@@ -718,20 +725,20 @@ function CreateMarketPageContent() {
         setStep(1);
       }
       
-      // Clear the transaction hash
+      // Clear the transaction hash after showing success
       setPoolCreationHash(undefined);
     }
-  }, [isPoolSuccess, poolCreationHash, address, addReputationAction, notifyPoolCreation, showSuccess, data, useBitr]);
+  }, [isPoolSuccess, poolCreationHash, isPoolError, isPoolConfirming, address, addReputationAction, notifyPoolCreation, showSuccess, data, useBitr]);
 
-  // ✅ FIX: Handle pool creation errors
+  // ✅ FIX: Handle pool creation errors - only when transaction actually fails
   useEffect(() => {
-    if (isPoolError && poolCreationHash) {
+    if (isPoolError && poolCreationHash && !isPoolSuccess) {
       console.log('❌ Pool creation transaction failed');
       showError('Transaction Failed', 'The pool creation transaction failed. Please try again.');
       setIsLoading(false);
       setPoolCreationHash(undefined);
     }
-  }, [isPoolError, poolCreationHash, showError]);
+  }, [isPoolError, poolCreationHash, isPoolSuccess, showError]);
 
   // Track approval transaction confirmation
   const { isSuccess: isApprovalSuccess } = useWaitForTransactionReceipt({ 
@@ -1156,6 +1163,10 @@ function CreateMarketPageContent() {
     });
 
     setIsLoading(true);
+    
+    // ✅ FIX: Clear any previous transaction state before starting new transaction
+    setPoolCreationHash(undefined);
+    clearStatus();
 
     try {
       const predictedOutcome = generatePredictedOutcome();
@@ -1239,18 +1250,20 @@ function CreateMarketPageContent() {
         });
         
         // ✅ CRITICAL FIX: Track transaction hash and show feedback modal
-        // Show pending state immediately before calling createPool
-        showPending('Transaction Pending', 'Preparing transaction...');
-        
         // Use direct contract call - this will trigger MetaMask immediately
+        // Don't show pending here - wait until we have a hash (user confirmed in wallet)
         const txHash = await createPool(poolData);
         
-        // ✅ FIX: Set the transaction hash to trigger feedback modal
+        // ✅ FIX: Only set hash if transaction was successfully submitted
+        // The hash means user confirmed in wallet and transaction is submitted
         if (txHash) {
           setPoolCreationHash(txHash as `0x${string}`);
           console.log('✅ Pool creation transaction submitted:', txHash);
-          // Update to show wallet confirmation message
-          showPending('Transaction Pending', 'Please confirm the transaction in your wallet...');
+          // Pending state will be shown by useEffect when hash is set
+        } else {
+          // If no hash returned, transaction was likely rejected
+          setIsLoading(false);
+          showError('Transaction Rejected', 'Transaction was not submitted. Please try again.');
         }
         
         // Transaction state will be tracked by useEffect hooks
@@ -1346,18 +1359,20 @@ function CreateMarketPageContent() {
         console.log('Crypto pool data for direct contract call:', poolData);
         
         // ✅ CRITICAL FIX: Track transaction hash and show feedback modal
-        // Show pending state immediately before calling createPool
-        showPending('Transaction Pending', 'Preparing transaction...');
-        
         // Use direct contract call
+        // Don't show pending here - wait until we have a hash (user confirmed in wallet)
         const txHash = await createPool(poolData);
         
-        // ✅ FIX: Set the transaction hash to trigger feedback modal
+        // ✅ FIX: Only set hash if transaction was successfully submitted
+        // The hash means user confirmed in wallet and transaction is submitted
         if (txHash) {
           setPoolCreationHash(txHash as `0x${string}`);
           console.log('✅ Crypto pool creation transaction submitted:', txHash);
-          // Update to show wallet confirmation message
-          showPending('Transaction Pending', 'Please confirm the transaction in your wallet...');
+          // Pending state will be shown by useEffect when hash is set
+        } else {
+          // If no hash returned, transaction was likely rejected
+          setIsLoading(false);
+          showError('Transaction Rejected', 'Transaction was not submitted. Please try again.');
         }
         
         // Transaction state will be tracked by useEffect hooks
