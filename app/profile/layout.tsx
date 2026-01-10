@@ -7,12 +7,14 @@ export default function Layout({
   children: React.ReactNode;
 }>) {
   return (
-    <section className="container mx-auto px-4 py-6 space-y-6">
+    <section className="container mx-auto px-4 py-12 lg:py-20 space-y-12">
       <InfoComp />
 
-      <div className="space-y-6">
+      <div className="space-y-10">
         <Nav />
-        {children}
+        <main className="min-h-[400px]">
+          {children}
+        </main>
       </div>
     </section>
   );

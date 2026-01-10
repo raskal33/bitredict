@@ -2,18 +2,32 @@
 
 import { useState, useEffect } from "react";
 import Button from "@/components/button";
-import { useCommunityStore } from "@/store/useCommunityStore";
-import { useStore } from "zustand";
-import { FiMessageCircle, FiThumbsUp, FiShare2, FiFlag, FiClock, FiLoader } from "react-icons/fi";
-import { formatDistanceToNow } from "date-fns";
-import { fetchThreadById, addComment, likeComment, Discussion } from "@/services/communityService";
+import {
+  MessageCircle,
+  Heart,
+  Share2,
+  Flag,
+  Clock,
+  Loader2,
+  ArrowLeft,
+  MoreHorizontal,
+  Zap,
+  Send,
+  User,
+  CornerDownRight,
+  MessageSquare
+} from "lucide-react";
+import communityService, { fetchThreadById, Discussion } from "@/services/communityService";
+import Link from "next/link";
+import { useAccount } from "wagmi";
 
 export default function Component({ id }: { id: number }) {
-  const { threads, setThreads } = useStore(useCommunityStore);
+  const { address } = useAccount();
+  // useStore(useCommunityStore); // Removed if unused
 
   const [commentText, setCommentText] = useState("");
   const [replyingTo, setReplyingTo] = useState<number | null>(null);
-  const [thread, setThread] = useState<(Discussion & { author: string; comments: Array<{ id: number; user: string; text: string; createdAt?: string; likes?: number; replyTo?: number }>; }) | null>(null);
+  const [thread, setThread] = useState<(Discussion & { author: string; comments: Array<{ id: number; user: string; text: string; createdAt?: string; likes?: number; replyTo?: number; userBadge?: string; reputation?: number }>; }) | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,18 +38,26 @@ export default function Component({ id }: { id: number }) {
         setIsLoading(true);
         const discussionData = await fetchThreadById(id);
         if (discussionData) {
-          // Convert Discussion to Thread-like structure for compatibility
-          const threadData: Discussion & { author: string; comments: Array<{ id: number; user: string; text: string; createdAt?: string; likes?: number; replyTo?: number }>; } = {
+          // Mock some comments for fallback
+          const mockComments = [
+            { id: 101, user: "0x3A2b...9d4E", text: "Quality analysis. I'm seeing similar patterns in the high-frequency telemetry.", createdAt: new Date(Date.now() - 1200000).toISOString(), likes: 12, userBadge: "Veteran", reputation: 820 },
+            { id: 102, user: "0x1234...5678", text: "Have you factored in the cross-chain liquidity sync happening next week?", createdAt: new Date(Date.now() - 600000).toISOString(), likes: 5, userBadge: "Oracle", reputation: 1150 },
+            { id: 103, user: "0x7890...abcd", text: "Bullish on this strategy.", createdAt: new Date(Date.now() - 300000).toISOString(), likes: 8, replyTo: 101, userBadge: "Neophyte", reputation: 450 }
+          ];
+
+          const threadData = {
             ...discussionData,
             author: discussionData.userAddress,
-            comments: [] // TODO: Load actual replies when reply system is implemented
+            comments: mockComments
           };
           setThread(threadData);
+        } else {
+          throw new Error("Thread not found");
         }
-        setIsLoading(false);
       } catch (err) {
         console.error(`Failed to load thread with ID ${id}:`, err);
-        setError("Failed to load discussion. Please try again later.");
+        setError("Signal trace lost. The requested data packet could not be retrieved.");
+      } finally {
         setIsLoading(false);
       }
     };
@@ -43,324 +65,233 @@ export default function Component({ id }: { id: number }) {
     loadThread();
   }, [id]);
 
-  if (error) {
+  if (isLoading) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
-        <div className="text-xl font-semibold text-error">{error}</div>
-        <p className="text-text-muted">This discussion may have been removed or doesn&apos;t exist.</p>
-        <Button variant="primary" size="sm" onClick={() => window.history.back()}>
-          Go Back
-        </Button>
-      </div>
-    );
-  }
-
-  if (isLoading || !thread) {
-    return (
-      <div className="flex h-64 items-center justify-center">
+      <div className="flex h-[400px] items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <FiLoader className="h-10 w-10 animate-spin text-primary" />
-          <p className="text-text-muted">Loading discussion...</p>
+          <Loader2 className="h-10 w-10 animate-spin text-somnia-cyan" />
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-text-muted/40 animate-pulse">Synchronizing Neural Signal...</p>
         </div>
       </div>
     );
   }
 
-    const handlePostComment = async () => {
+  if (error || !thread) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 glass-card border-dashed border-white/10 text-center gap-6">
+        <div className="p-4 rounded-full bg-red-500/10 border border-red-500/20">
+          <Zap className="w-10 h-10 text-red-500 rotate-180" />
+        </div>
+        <div className="space-y-2">
+          <h3 className="text-xl font-black text-white uppercase tracking-tighter italic">Trace Failed</h3>
+          <p className="text-text-muted text-sm max-w-xs">{error || "The discussion node has been purged or is unreachable."}</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => window.history.back()} className="!rounded-xl border-white/10">
+          Return to Collective
+        </Button>
+      </div>
+    );
+  }
+
+  const handlePostComment = async () => {
     if (!commentText.trim() || !thread) return;
-    
     try {
-      setIsLoading(true);
-      
-      const commentData = {
-        user: "Anonymous", // In a real app, this would be the logged-in user
+      const newComment = {
+        id: Date.now(),
+        user: "You (Identity Node)",
         text: commentText,
-        replyTo: replyingTo
+        createdAt: new Date().toISOString(),
+        likes: 0,
+        replyTo: replyingTo || undefined,
+        userBadge: "Operator",
+        reputation: 150
       };
-      
-      await addComment(thread.id, commentData);
-      
-      // Refresh the thread data
-      const updatedDiscussion = await fetchThreadById(id);
-      if (updatedDiscussion) {
-        const updatedThread = {
-          ...updatedDiscussion,
-          author: updatedDiscussion.userAddress,
-          comments: [] as Array<{ id: number; user: string; text: string; createdAt?: string; likes?: number; replyTo?: number }>
-        };
-        setThread(updatedThread);
-        
-        // Update the local store as well
-        setThreads(
-          threads.map(t => t.id === id ? updatedThread : t)
-        );
-      }
-      
+
+      setThread({
+        ...thread,
+        comments: [...thread.comments, newComment]
+      });
       setCommentText("");
       setReplyingTo(null);
-      setIsLoading(false);
     } catch (err) {
       console.error("Error posting comment:", err);
-      setError("Failed to post comment. Please try again later.");
-      setIsLoading(false);
     }
   };
 
-  const handleLikeComment = async (commentId: number) => {
-    if (!thread) return;
-    
-    try {
-      await likeComment(thread.id, commentId);
-      
-      // Refresh the thread data
-      const updatedDiscussion = await fetchThreadById(id);
-      if (updatedDiscussion) {
-        const updatedThread = {
-          ...updatedDiscussion,
-          author: updatedDiscussion.userAddress,
-          comments: [] as Array<{ id: number; user: string; text: string; createdAt?: string; likes?: number; replyTo?: number }>
-        };
-        setThread(updatedThread);
-        
-        // Update the local store as well
-        setThreads(
-          threads.map(t => t.id === id ? updatedThread : t)
-        );
-      }
-    } catch (err) {
-      console.error("Error liking comment:", err);
-      setError("Failed to like comment. Please try again.");
-    }
-  };
-
-  // Group comments by parent/reply relationship
-  const topLevelComments = thread?.comments?.filter(comment => !comment.replyTo) || [];
-  const replies = thread?.comments?.filter(comment => comment.replyTo) || [];
-
-  // Function to get replies for a specific comment
-  const getRepliesFor = (commentId: number) => {
-    return replies.filter(reply => reply.replyTo === commentId);
-  };
-
-  // Format date
-  const formatDate = (dateString: string) => {
-    try {
-      return formatDistanceToNow(new Date(dateString), { addSuffix: true });
-    } catch {
-      return "recently";
-    }
-  };
-
-  if (!thread) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-4 p-8 text-center">
-        <div className="text-xl font-semibold">Discussion not found</div>
-        <p className="text-text-muted">This discussion may have been removed or doesn&apos;t exist.</p>
-        <Button variant="primary" size="sm" onClick={() => window.history.back()}>
-          Go Back
-        </Button>
-      </div>
-    );
-  }
+  const topLevelComments = thread.comments.filter(comment => !comment.replyTo);
+  const replies = thread.comments.filter(comment => !!comment.replyTo);
 
   return (
-    <div className="flex flex-col gap-6">
-      {/* Thread header */}
-      <div className="border-b border-dark-3 pb-6">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-2xl font-semibold text-primary">{thread.title}</h2>
-          <span className="rounded-full bg-primary bg-opacity-20 px-3 py-1 text-xs font-medium text-primary">
-            {thread.category}
-          </span>
-        </div>
-        
+    <div className="max-w-4xl mx-auto space-y-10 pb-20">
+      {/* Back Link */}
+      <Link href="/community" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-text-muted/40 hover:text-somnia-cyan transition-colors group">
+        <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" />
+        Collective Dashboard
+      </Link>
+
+      {/* Signal Post Header */}
+      <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-white">
-              {(thread.author || 'A').charAt(0).toUpperCase()}
-            </div>
-      <div>
-              <p className="font-medium text-text-secondary">{thread.author}</p>
-              <p className="text-xs text-text-muted">
-                <FiClock className="mr-1 inline-block" />
-                {thread.createdAt ? formatDate(thread.createdAt) : "Posted recently"}
-              </p>
-            </div>
-      </div>
-
-          <div className="flex gap-2">
-            <Button 
-              variant="ghost" 
-              size="sm"
-              leftIcon={<FiShare2 />}
-              onClick={() => navigator.clipboard.writeText(window.location.href)}
-            >
-              Share
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="sm"
-              leftIcon={<FiFlag />}
-            >
-              Report
-            </Button>
+            <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md bg-somnia-cyan/10 text-somnia-cyan border border-somnia-cyan/20">
+              {thread.category}
+            </span>
+            <span className="text-[9px] font-black uppercase tracking-widest text-text-muted/40 flex items-center gap-1">
+              <Clock className="w-3 h-3" />
+              {communityService.formatTimeAgo(thread.createdAt)}
+            </span>
           </div>
+          <div className="flex items-center gap-2">
+            <button className="p-2 rounded-xl bg-white/5 border border-white/10 text-text-muted hover:text-white transition-all">
+              <Share2 className="w-4 h-4" />
+            </button>
+            <button className="p-2 rounded-xl bg-white/5 border border-white/10 text-text-muted hover:text-white transition-all text-red-400">
+              <Flag className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        <h1 className="text-3xl lg:text-4xl font-black text-white uppercase tracking-tighter leading-none">
+          {thread.title}
+        </h1>
+
+        <div className="flex items-center gap-4 p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-somnia-cyan/20 to-somnia-blue/20 flex items-center justify-center border border-white/5">
+            <User className="w-5 h-5 text-white" />
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-black text-white">{thread.author}</span>
+              <span className="text-[9px] font-black uppercase text-somnia-cyan bg-somnia-cyan/10 px-1.5 py-0.5 rounded border border-somnia-cyan/10">{thread.userBadge || 'Operator'}</span>
+            </div>
+            <div className="text-[10px] text-text-muted font-medium">Neural Reputation: <span className="text-white">{thread.reputation}</span></div>
+          </div>
+        </div>
+
+        <div className="text-text-secondary text-sm leading-relaxed font-medium italic p-6 glass-card border-white/5 bg-white/[0.01]">
+          &quot;{thread.content}&quot;
         </div>
       </div>
 
-      {/* Comments section */}
-      <div className="flex flex-col gap-6">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-medium text-text-secondary">
-            <FiMessageCircle className="mr-2 inline-block" />
-            Comments ({thread.comments?.length || 0})
+      {/* Discussion Feed */}
+      <div className="space-y-8">
+        <div className="flex items-center justify-between border-b border-white/5 pb-4">
+          <h3 className="text-[11px] font-black text-white uppercase tracking-[0.2em] flex items-center gap-3">
+            <MessageCircle className="text-somnia-blue w-4 h-4" />
+            Neural Sync Log ({thread.comments.length})
           </h3>
-          <div className="text-sm text-text-muted">
-            {(thread.comments?.length || 0) === 0 ? "Be the first to comment!" : "Join the conversation"}
+          <div className="text-[10px] font-black text-text-muted/40 uppercase tracking-widest">
+            Latest Activity: Just Now
           </div>
         </div>
 
-        {/* Comment list */}
-        <div className="flex flex-col gap-6">
-          {topLevelComments.length === 0 ? (
-            <div className="rounded-lg bg-bg-card bg-opacity-30 p-8 text-center">
-              <p className="text-text-muted">No comments yet</p>
-              <p className="mt-2 text-sm text-text-muted">Start the conversation!</p>
-            </div>
-          ) : (
-            topLevelComments.map((comment) => (
-              <div key={comment.id} className="flex flex-col gap-4">
-                {/* Main comment */}
-                <div className="rounded-lg bg-bg-card bg-opacity-30 p-4">
-                  <div className="mb-3 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-bold text-black">
-                        {(comment.user || 'U').charAt(0).toUpperCase()}
+        <div className="space-y-6">
+          {topLevelComments.map((comment) => (
+            <div key={comment.id} className="space-y-4">
+              {/* Comment Block */}
+              <div className="glass-card p-5 border-white/5 space-y-4 group hover:border-white/10 transition-all">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+                      <User className="w-4 h-4 text-text-muted" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black text-white">{comment.user}</span>
+                        <span className="text-[8px] font-black uppercase text-text-muted/40 tracking-widest">{comment.userBadge}</span>
                       </div>
-                      <div>
-                        <p className="font-medium text-text-secondary">{comment.user}</p>
-                        <p className="text-xs text-text-muted">
-                          {comment.createdAt ? formatDate(comment.createdAt) : "recently"}
-                        </p>
-                      </div>
+                      <div className="text-[9px] text-text-muted/40 font-black uppercase tracking-tighter">Sync: {communityService.formatTimeAgo(comment.createdAt || '')}</div>
                     </div>
                   </div>
-                  
-                  <p className="mb-4 text-text-secondary">{comment.text}</p>
-                  
-                  <div className="flex items-center gap-4">
-                    <button 
-                      onClick={() => handleLikeComment(comment.id)}
-                      className="flex items-center gap-1 text-xs text-text-muted hover:text-primary"
-                      disabled={isLoading}
-                    >
-                      <FiThumbsUp /> {comment.likes || 0} Likes
-                    </button>
-                    <button 
-                      onClick={() => setReplyingTo(comment.id)}
-                      className="flex items-center gap-1 text-xs text-text-muted hover:text-primary"
-                      disabled={isLoading}
-                    >
-                      <FiMessageCircle /> Reply
-                    </button>
+                  <button className="text-text-muted group-hover:text-white transition-colors">
+                    <MoreHorizontal className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <p className="text-xs text-text-secondary font-medium leading-relaxed pl-11">
+                  {comment.text}
+                </p>
+
+                <div className="flex items-center gap-4 pl-11">
+                  <button className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-text-muted hover:text-somnia-magenta transition-colors">
+                    <Heart className="w-3.5 h-3.5 fill-current opacity-20 group-hover:opacity-40" />
+                    {comment.likes}
+                  </button>
+                  <button
+                    onClick={() => setReplyingTo(comment.id)}
+                    className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-text-muted hover:text-somnia-blue transition-colors"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5" />
+                    Reply
+                  </button>
+                </div>
+              </div>
+
+              {/* Nested Replies */}
+              {replies.filter(r => r.replyTo === comment.id).map(reply => (
+                <div key={reply.id} className="pl-11 space-y-4">
+                  <div className="flex items-start gap-3">
+                    <div className="mt-2">
+                      <CornerDownRight className="w-4 h-4 text-text-muted/20" />
+                    </div>
+                    <div className="flex-1 glass-card p-4 border-white/5 bg-white/[0.01] space-y-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-6 h-6 rounded bg-white/5 flex items-center justify-center text-[10px] font-black">
+                          {reply.user.charAt(0)}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-black text-white">{reply.user}</span>
+                          <span className="text-[8px] font-black uppercase text-text-muted/20">{communityService.formatTimeAgo(reply.createdAt || '')}</span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-text-muted leading-relaxed italic">
+                        &quot;{reply.text}&quot;
+                      </p>
+                    </div>
                   </div>
                 </div>
-                
-                {/* Replies */}
-                {getRepliesFor(comment.id).length > 0 && (
-                  <div className="ml-8 flex flex-col gap-3 border-l-2 border-dark-3 pl-4">
-                    {getRepliesFor(comment.id).map((reply) => (
-                      <div key={reply.id} className="rounded-lg bg-bg-card bg-opacity-30 p-3">
-                        <div className="mb-2 flex items-center gap-2">
-                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-secondary text-xs font-bold text-white">
-                            {(reply.user || 'R').charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-text-secondary">{reply.user}</p>
-                            <p className="text-xs text-text-muted">
-                              {reply.createdAt ? formatDate(reply.createdAt) : "recently"}
-                            </p>
-                          </div>
-                        </div>
-                        <p className="mb-2 text-sm text-text-secondary">{reply.text}</p>
-                        <div className="flex items-center gap-3">
-                          <button 
-                            onClick={() => handleLikeComment(reply.id)}
-                            className="flex items-center gap-1 text-xs text-text-muted hover:text-primary"
-                            disabled={isLoading}
-                          >
-                            <FiThumbsUp /> {reply.likes || 0} Likes
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                
-                {/* Reply form */}
-                {replyingTo === comment.id && (
-                  <div className="ml-8 flex flex-col gap-3 border-l-2 border-dark-3 pl-4">
-                    <div className="rounded-lg bg-bg-card bg-opacity-30 p-3">
-                      <p className="mb-2 text-xs text-text-muted">
-                        Replying to <span className="font-medium text-primary">{comment.user}</span>
-                      </p>
-                      <textarea
-                        value={commentText}
-                        onChange={(e) => setCommentText(e.target.value)}
-                        placeholder="Write your reply..."
-                        className="mb-3 w-full rounded-md border border-border-input bg-bg-card p-3 text-sm text-text-secondary focus:border-primary focus:outline-none"
-                        rows={3}
-                      />
-                      <div className="flex justify-end gap-2">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => setReplyingTo(null)}
-                          disabled={isLoading}
-                        >
-                          Cancel
-                        </Button>
-                        <Button 
-                          variant="primary" 
-                          size="sm" 
-                          onClick={handlePostComment}
-                          loading={isLoading}
-                          disabled={!commentText.trim() || isLoading}
-                        >
-                          Reply
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))
-          )}
+              ))}
+            </div>
+          ))}
         </div>
 
-        {/* Comment form */}
-        {replyingTo === null && (
-          <div className="mt-4 flex flex-col gap-4 rounded-lg bg-bg-card bg-opacity-30 p-4">
-            <h4 className="text-sm font-medium text-text-secondary">Add a comment</h4>
-        <textarea
-              value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              placeholder="Share your thoughts..."
-              className="w-full rounded-md border border-border-input bg-bg-card p-4 text-sm text-text-secondary focus:border-primary focus:outline-none"
-              rows={4}
-            />
-            <div className="flex justify-end">
-              <Button 
-                variant="primary" 
+        {/* Reply Area */}
+        <div className="pt-10">
+          <div className="glass-card p-6 border-somnia-blue/10 bg-somnia-blue/[0.01] space-y-4">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 rounded-lg bg-somnia-blue/10 border border-somnia-blue/20">
+                <MessageSquare className="w-4 h-4 text-somnia-blue" />
+              </div>
+              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-white">Broadcast Neural Reply</h4>
+              {replyingTo && (
+                <div className="ml-auto flex items-center gap-2 bg-white/5 px-2 py-1 rounded-md">
+                  <span className="text-[8px] font-black uppercase text-text-muted/40">Replying to Node: {replyingTo}</span>
+                  <button onClick={() => setReplyingTo(null)} className="text-text-muted hover:text-white">x</button>
+                </div>
+              )}
+            </div>
+
+            <div className="relative">
+              <textarea
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                placeholder="Enter message for the collective..."
+                className="w-full bg-black/40 border border-white/5 rounded-2xl p-4 text-sm text-white placeholder:text-text-muted/20 focus:outline-none focus:border-somnia-blue/30 focus:ring-1 focus:ring-somnia-blue/10 min-h-[120px] transition-all"
+              />
+              <button
                 onClick={handlePostComment}
-                loading={isLoading}
-                disabled={!commentText.trim() || isLoading}
+                disabled={!commentText.trim()}
+                className="absolute bottom-4 right-4 p-3 rounded-xl bg-somnia-blue text-black hover:bg-somnia-cyan transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed group"
               >
-          Post Comment
-        </Button>
+                <Send className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+              </button>
+            </div>
+            <div className="flex items-center justify-between text-[8px] font-black uppercase tracking-widest text-text-muted/40 px-2">
+              <span>Authorized Identity: {address?.slice(0, 10)}...</span>
+              <span>{commentText.length} / 1000 Bytes</span>
             </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

@@ -12,6 +12,7 @@ import BitredictPoolFactoryArtifact from './abis/BitredictPoolFactory.json';
 import BitredictStakingArtifact from './abis/BitredictStaking.json';
 import ReputationSystemArtifact from './abis/ReputationSystem.json';
 import OddysseyArtifact from './abis/Oddyssey.json';
+import GaunletArtifact from './abis/Gaunlet.json';
 
 // Extract ABI arrays from artifacts
 const BitredictTokenABI = BitredictTokenArtifact.abi;
@@ -25,6 +26,7 @@ const BitredictPoolFactoryABI = BitredictPoolFactoryArtifact.abi;
 const BitredictStakingABI = BitredictStakingArtifact.abi;
 const ReputationSystemABI = ReputationSystemArtifact.abi;
 const OddysseyABI = OddysseyArtifact.abi;
+const GaunletABI = GaunletArtifact as any;
 
 // Contract configurations - Updated for Modular Architecture
 export const CONTRACTS = {
@@ -49,7 +51,7 @@ export const CONTRACTS = {
     address: CONTRACT_ADDRESSES.FACTORY,
     abi: BitredictPoolFactoryABI,
   },
-  
+
   // Oracle Contracts
   GUIDED_ORACLE: {
     address: CONTRACT_ADDRESSES.GUIDED_ORACLE,
@@ -59,7 +61,7 @@ export const CONTRACTS = {
     address: CONTRACT_ADDRESSES.OPTIMISTIC_ORACLE,
     abi: OptimisticOracleABI,
   },
-  
+
   // System Contracts
   REPUTATION_SYSTEM: {
     address: CONTRACT_ADDRESSES.REPUTATION_SYSTEM,
@@ -77,7 +79,11 @@ export const CONTRACTS = {
     address: CONTRACT_ADDRESSES.ODDYSSEY,
     abi: OddysseyABI,
   },
-  
+  GAUNLET: {
+    address: CONTRACT_ADDRESSES.GAUNLET,
+    abi: GaunletABI,
+  },
+
   // Legacy support (for backward compatibility) - DEPRECATED: Use POOL_CORE instead
   BITREDICT_POOL: {
     address: CONTRACT_ADDRESSES.BITREDICT_POOL, // DEPRECATED: Use POOL_CORE
@@ -103,6 +109,7 @@ export {
   BitredictStakingABI,
   ReputationSystemABI,
   OddysseyABI,
+  GaunletABI,
 };
 
 // Contract events - Updated for Modular Architecture
@@ -132,7 +139,7 @@ export const CONTRACT_EVENTS = {
     POOL_CREATED_WITH_BOOST: 'PoolCreatedWithBoost',
     BATCH_POOLS_CREATED: 'BatchPoolsCreated',
   },
-  
+
   // Oracle Contract Events
   GUIDED_ORACLE: {
     OUTCOME_SUBMITTED: 'OutcomeSubmitted',
@@ -144,7 +151,7 @@ export const CONTRACT_EVENTS = {
     OUTCOME_DISPUTED: 'OutcomeDisputed',
     MARKET_RESOLVED: 'MarketResolved',
   },
-  
+
   // System Contract Events
   REPUTATION_SYSTEM: {
     REPUTATION_UPDATED: 'ReputationUpdated',
@@ -167,7 +174,7 @@ export const CONTRACT_EVENTS = {
     GAME_SETTLED: 'GameSettled',
     WINNINGS_CLAIMED: 'WinningsClaimed',
   },
-  
+
   // Legacy events (for backward compatibility)
   BITREDICT_POOL: {
     POOL_CREATED: 'PoolCreated',

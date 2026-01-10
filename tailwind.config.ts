@@ -82,34 +82,35 @@ export default {
         'gradient-flow': 'gradient-flow 3s ease infinite',
         'float': 'float 6s ease-in-out infinite',
         'pulse-glow': 'pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'pulse-slow': 'pulse 5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'shimmer': 'shimmer 2s linear infinite',
         'color-cycle': 'color-cycle 10s linear infinite',
         'logo-cycle': 'logo-cycle 6s ease-in-out infinite',
         'somnia-color-cycle': 'somnia-color-cycle 8s linear infinite',
       },
-              keyframes: {
-          'logo-cycle': {
-            '0%': { 
-              filter: 'hue-rotate(0deg) brightness(1) saturate(1.2)',
-              transform: 'scale(1)'
-            },
-            '33%': { 
-              filter: 'hue-rotate(120deg) brightness(1.1) saturate(1.4)',
-              transform: 'scale(1.05)'
-            },
-            '66%': { 
-              filter: 'hue-rotate(240deg) brightness(1.2) saturate(1.3)',
-              transform: 'scale(1.02)'
-            },
-            '100%': { 
-              filter: 'hue-rotate(360deg) brightness(1) saturate(1.2)',
-              transform: 'scale(1)'
-            },
+      keyframes: {
+        'logo-cycle': {
+          '0%': {
+            filter: 'hue-rotate(0deg) brightness(1) saturate(1.2)',
+            transform: 'scale(1)'
           },
-          'color-cycle': {
-            '0%': { filter: 'hue-rotate(0deg)' },
-            '100%': { filter: 'hue-rotate(360deg)' },
+          '33%': {
+            filter: 'hue-rotate(120deg) brightness(1.1) saturate(1.4)',
+            transform: 'scale(1.05)'
           },
+          '66%': {
+            filter: 'hue-rotate(240deg) brightness(1.2) saturate(1.3)',
+            transform: 'scale(1.02)'
+          },
+          '100%': {
+            filter: 'hue-rotate(360deg) brightness(1) saturate(1.2)',
+            transform: 'scale(1)'
+          },
+        },
+        'color-cycle': {
+          '0%': { filter: 'hue-rotate(0deg)' },
+          '100%': { filter: 'hue-rotate(360deg)' },
+        },
         'gradient-flow': {
           '0%, 100%': {
             'background-size': '200% 200%',
@@ -125,11 +126,11 @@ export default {
           '50%': { transform: 'translateY(-10px)' }
         },
         'pulse-glow': {
-          '0%, 100%': { 
-            boxShadow: '0 0 20px rgba(34, 199, 255, 0.3)' 
+          '0%, 100%': {
+            boxShadow: '0 0 20px rgba(34, 199, 255, 0.3)'
           },
-          '50%': { 
-            boxShadow: '0 0 30px rgba(34, 199, 255, 0.6)' 
+          '50%': {
+            boxShadow: '0 0 30px rgba(34, 199, 255, 0.6)'
           }
         },
         'shimmer': {

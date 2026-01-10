@@ -1,0 +1,1357 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_platformWallet",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "DataNotFound",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InsufficientFunds",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidInput",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidState",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidTiming",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      }
+    ],
+    "name": "OwnableInvalidOwner",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "OwnableUnauthorizedAccount",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PoolAlreadySettled",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PoolNotFilled",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ReentrancyGuardReentrantCall",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "TransferFailed",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "Unauthorized",
+    "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "newOracle",
+        "type": "address"
+      }
+    ],
+    "name": "OracleSet",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "previousOwner",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "OwnershipTransferred",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "poolId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "creator",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "creatorStake",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "entryFee",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "hardCap",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint8",
+        "name": "matchCount",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "maxEntries",
+        "type": "uint256"
+      }
+    ],
+    "name": "PoolCreated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "poolId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "totalEntryRevenue",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint32",
+        "name": "slipCount",
+        "type": "uint32"
+      }
+    ],
+    "name": "PoolEnded",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "poolId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "winner",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "winnerSlipId",
+        "type": "uint256"
+      }
+    ],
+    "name": "PoolResolved",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "poolId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "creator",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "creatorRefund",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "creatorFee",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "winner",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "jackpot",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "platformFee",
+        "type": "uint256"
+      }
+    ],
+    "name": "PoolSettled",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "slipId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "player",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "poolId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint8",
+        "name": "correctCount",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "finalOdds",
+        "type": "uint256"
+      }
+    ],
+    "name": "SlipEvaluated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "poolId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "player",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "slipId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "finalOdds",
+        "type": "uint256"
+      }
+    ],
+    "name": "SlipPlaced",
+    "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "MAX_CREATOR_FEE_PERCENTAGE",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "MAX_MATCH_COUNT",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "MIN_CREATOR_FEE_PERCENTAGE",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "MIN_MATCH_COUNT",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "ODDS_SCALING_FACTOR",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "PLATFORM_FEE_PERCENTAGE",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_poolId",
+        "type": "uint256"
+      }
+    ],
+    "name": "calculateCreatorFeePercentage",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_entryFee",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint8",
+        "name": "_matchCount",
+        "type": "uint8"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint64",
+            "name": "id",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "startTime",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint32",
+            "name": "oddsHome",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "oddsDraw",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "oddsAway",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "oddsOver",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "oddsUnder",
+            "type": "uint32"
+          },
+          {
+            "internalType": "string",
+            "name": "homeTeam",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "awayTeam",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "leagueName",
+            "type": "string"
+          },
+          {
+            "components": [
+              {
+                "internalType": "enum Gaunlet.MoneylineResult",
+                "name": "moneyline",
+                "type": "uint8"
+              },
+              {
+                "internalType": "enum Gaunlet.OverUnderResult",
+                "name": "overUnder",
+                "type": "uint8"
+              }
+            ],
+            "internalType": "struct Gaunlet.Result",
+            "name": "result",
+            "type": "tuple"
+          }
+        ],
+        "internalType": "struct Gaunlet.Match[]",
+        "name": "_matches",
+        "type": "tuple[]"
+      }
+    ],
+    "name": "createPool",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "creatorPools",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_creator",
+        "type": "address"
+      }
+    ],
+    "name": "getCreatorPools",
+    "outputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "",
+        "type": "uint256[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_poolId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getPool",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "creator",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "creatorStake",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "entryFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "hardCap",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "maxEntries",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint8",
+            "name": "matchCount",
+            "type": "uint8"
+          },
+          {
+            "internalType": "uint64",
+            "name": "firstMatchStartTime",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint256",
+            "name": "startTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "totalEntryRevenue",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint32",
+            "name": "slipCount",
+            "type": "uint32"
+          },
+          {
+            "internalType": "enum Gaunlet.PoolState",
+            "name": "state",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bool",
+            "name": "isSettled",
+            "type": "bool"
+          },
+          {
+            "internalType": "address",
+            "name": "winner",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "winnerSlipId",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct Gaunlet.Pool",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_poolId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getPoolMatches",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint64",
+            "name": "id",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "startTime",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint32",
+            "name": "oddsHome",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "oddsDraw",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "oddsAway",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "oddsOver",
+            "type": "uint32"
+          },
+          {
+            "internalType": "uint32",
+            "name": "oddsUnder",
+            "type": "uint32"
+          },
+          {
+            "internalType": "string",
+            "name": "homeTeam",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "awayTeam",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "leagueName",
+            "type": "string"
+          },
+          {
+            "components": [
+              {
+                "internalType": "enum Gaunlet.MoneylineResult",
+                "name": "moneyline",
+                "type": "uint8"
+              },
+              {
+                "internalType": "enum Gaunlet.OverUnderResult",
+                "name": "overUnder",
+                "type": "uint8"
+              }
+            ],
+            "internalType": "struct Gaunlet.Result",
+            "name": "result",
+            "type": "tuple"
+          }
+        ],
+        "internalType": "struct Gaunlet.Match[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_poolId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getPoolSettlementBreakdown",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "totalEntryRevenue",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "platformFee",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "creatorFee",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "creatorRefund",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "jackpot",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "creatorFeePercentage",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_poolId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getPoolSlips",
+    "outputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "",
+        "type": "uint256[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_slipId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getSlip",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "address",
+            "name": "player",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "poolId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "placedAt",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint8",
+            "name": "matchCount",
+            "type": "uint8"
+          },
+          {
+            "components": [
+              {
+                "internalType": "uint64",
+                "name": "matchId",
+                "type": "uint64"
+              },
+              {
+                "internalType": "uint8",
+                "name": "betType",
+                "type": "uint8"
+              },
+              {
+                "internalType": "string",
+                "name": "selection",
+                "type": "string"
+              },
+              {
+                "internalType": "uint32",
+                "name": "selectedOdd",
+                "type": "uint32"
+              }
+            ],
+            "internalType": "struct Gaunlet.UserPrediction[]",
+            "name": "predictions",
+            "type": "tuple[]"
+          },
+          {
+            "internalType": "uint256",
+            "name": "finalOdds",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint8",
+            "name": "correctCount",
+            "type": "uint8"
+          },
+          {
+            "internalType": "bool",
+            "name": "isEvaluated",
+            "type": "bool"
+          }
+        ],
+        "internalType": "struct Gaunlet.Slip",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_user",
+        "type": "address"
+      }
+    ],
+    "name": "getUserSlips",
+    "outputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "",
+        "type": "uint256[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "oracle",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "owner",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_poolId",
+        "type": "uint256"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint64",
+            "name": "matchId",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint8",
+            "name": "betType",
+            "type": "uint8"
+          },
+          {
+            "internalType": "string",
+            "name": "selection",
+            "type": "string"
+          },
+          {
+            "internalType": "uint32",
+            "name": "selectedOdd",
+            "type": "uint32"
+          }
+        ],
+        "internalType": "struct Gaunlet.UserPrediction[]",
+        "name": "_predictions",
+        "type": "tuple[]"
+      }
+    ],
+    "name": "placeSlip",
+    "outputs": [],
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "platformWallet",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "poolCount",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "poolMatches",
+    "outputs": [
+      {
+        "internalType": "uint64",
+        "name": "id",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint64",
+        "name": "startTime",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint32",
+        "name": "oddsHome",
+        "type": "uint32"
+      },
+      {
+        "internalType": "uint32",
+        "name": "oddsDraw",
+        "type": "uint32"
+      },
+      {
+        "internalType": "uint32",
+        "name": "oddsAway",
+        "type": "uint32"
+      },
+      {
+        "internalType": "uint32",
+        "name": "oddsOver",
+        "type": "uint32"
+      },
+      {
+        "internalType": "uint32",
+        "name": "oddsUnder",
+        "type": "uint32"
+      },
+      {
+        "internalType": "string",
+        "name": "homeTeam",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "awayTeam",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "leagueName",
+        "type": "string"
+      },
+      {
+        "components": [
+          {
+            "internalType": "enum Gaunlet.MoneylineResult",
+            "name": "moneyline",
+            "type": "uint8"
+          },
+          {
+            "internalType": "enum Gaunlet.OverUnderResult",
+            "name": "overUnder",
+            "type": "uint8"
+          }
+        ],
+        "internalType": "struct Gaunlet.Result",
+        "name": "result",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "poolSlips",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "pools",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "creator",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "creatorStake",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "entryFee",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "hardCap",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "maxEntries",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint8",
+        "name": "matchCount",
+        "type": "uint8"
+      },
+      {
+        "internalType": "uint64",
+        "name": "firstMatchStartTime",
+        "type": "uint64"
+      },
+      {
+        "internalType": "uint256",
+        "name": "startTime",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "totalEntryRevenue",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint32",
+        "name": "slipCount",
+        "type": "uint32"
+      },
+      {
+        "internalType": "enum Gaunlet.PoolState",
+        "name": "state",
+        "type": "uint8"
+      },
+      {
+        "internalType": "bool",
+        "name": "isSettled",
+        "type": "bool"
+      },
+      {
+        "internalType": "address",
+        "name": "winner",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "winnerSlipId",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "renounceOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_poolId",
+        "type": "uint256"
+      },
+      {
+        "components": [
+          {
+            "internalType": "enum Gaunlet.MoneylineResult",
+            "name": "moneyline",
+            "type": "uint8"
+          },
+          {
+            "internalType": "enum Gaunlet.OverUnderResult",
+            "name": "overUnder",
+            "type": "uint8"
+          }
+        ],
+        "internalType": "struct Gaunlet.Result[]",
+        "name": "_results",
+        "type": "tuple[]"
+      }
+    ],
+    "name": "resolvePool",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_newOracle",
+        "type": "address"
+      }
+    ],
+    "name": "setOracle",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_poolId",
+        "type": "uint256"
+      }
+    ],
+    "name": "settlePool",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "slipCount",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "slips",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "player",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "poolId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "placedAt",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint8",
+        "name": "matchCount",
+        "type": "uint8"
+      },
+      {
+        "internalType": "uint256",
+        "name": "finalOdds",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint8",
+        "name": "correctCount",
+        "type": "uint8"
+      },
+      {
+        "internalType": "bool",
+        "name": "isEvaluated",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "transferOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "userSlips",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]

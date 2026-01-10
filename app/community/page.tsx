@@ -3,48 +3,34 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAccount } from "wagmi";
-import AnimatedTitle from "@/components/AnimatedTitle";
 import {
-  UsersIcon,
-  ChatBubbleLeftRightIcon,
-  ClockIcon,
-  HeartIcon,
-  PlusIcon,
-  ArrowPathIcon,
-  UserIcon,
-  ShieldCheckIcon
-} from "@heroicons/react/24/outline";
-import {
-  UsersIcon as UsersSolid,
-  ChatBubbleLeftRightIcon as ChatSolid
-} from "@heroicons/react/24/solid";
-
-interface Discussion {
-  id: number;
-  title: string;
-  content: string;
-  user_address: string;
-  category: string;
-  total_likes: number;
-  reply_count: number;
-  created_at: string;
-  last_activity: string;
-  user_badge?: string;
-  badge_rarity?: string;
-  reputation: number;
-}
-
-interface CommunityStats {
-  activeDiscussions: number;
-  communityMembers: number;
-  totalComments: number;
-  totalLikes: number;
-  weeklyActivity: number;
-}
+  Users,
+  MessageSquare,
+  Zap,
+  ShieldCheck,
+  Trophy,
+  Activity,
+  Plus,
+  Search,
+  Filter,
+  ArrowRight,
+  Clock,
+  Heart,
+  BarChart3,
+  TrendingUp,
+  Globe,
+  Lock,
+  MessageCircle,
+  Eye,
+  ChevronRight,
+  Sparkles
+} from "lucide-react";
+import Button from "@/components/button";
+import communityService, { Discussion, CommunityStats } from "@/services/communityService";
+import Link from "next/link";
 
 export default function CommunityPage() {
-  const { address } = useAccount();
-  const [activeSection, setActiveSection] = useState<"discussions" | "guidelines" | "create">("discussions");
+  useAccount();
   const [discussions, setDiscussions] = useState<Discussion[]>([]);
   const [stats, setStats] = useState<CommunityStats>({
     activeDiscussions: 0,
@@ -53,590 +39,319 @@ export default function CommunityPage() {
     totalLikes: 0,
     weeklyActivity: 0
   });
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<'recent' | 'popular'>('recent');
-
-  // New discussion form
-  const [newDiscussion, setNewDiscussion] = useState({
-    title: '',
-    content: '',
-    category: 'general',
-    tags: [] as string[]
-  });
+  const [sortBy] = useState<'recent' | 'popular'>('recent');
+  const [searchQuery, setSearchQuery] = useState("");
 
   const categories = ['all', 'general', 'predictions', 'strategy', 'crypto', 'sports', 'feedback'];
 
-  const fetchDiscussions = useCallback(async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const communityService = (await import('@/services/communityService')).default;
-      const discussionsData = await communityService.getDiscussions(selectedCategory, sortBy, 20);
-    
-      const typedDiscussions: Discussion[] = discussionsData.map((discussion) => ({
-        id: discussion.id,
-        title: discussion.title,
-        content: discussion.content,
-        user_address: discussion.userAddress,
-        category: discussion.category,
-        total_likes: discussion.totalLikes,
-        reply_count: discussion.replyCount,
-        created_at: discussion.createdAt,
-        last_activity: discussion.lastActivity,
-        user_badge: discussion.userBadge,
-        badge_rarity: discussion.badgeRarity,
-        reputation: discussion.reputation
-      }));
-      setDiscussions(typedDiscussions);
+      const [discussionsData, statsData] = await Promise.all([
+        communityService.getDiscussions(selectedCategory, sortBy),
+        communityService.getCommunityStats()
+      ]);
+      setDiscussions(discussionsData);
+      setStats(statsData);
     } catch (error) {
-      console.error('Error fetching discussions:', error);
+      console.error('Error loading community data:', error);
     } finally {
       setLoading(false);
     }
   }, [selectedCategory, sortBy]);
 
-  const fetchCommunityStats = useCallback(async () => {
-    try {
-      const communityService = (await import('@/services/communityService')).default;
-      const statsData = await communityService.getCommunityStats();
-      setStats(statsData);
-    } catch (error) {
-      console.error('Error fetching community stats:', error);
-    }
-  }, []);
-
   useEffect(() => {
-    fetchDiscussions();
-    fetchCommunityStats();
-  }, [fetchDiscussions, fetchCommunityStats]);
+    loadData();
+  }, [loadData]);
 
-  const createDiscussion = async () => {
-    if (!address || !newDiscussion.title.trim() || !newDiscussion.content.trim()) return;
+  const statsData = [
+    { label: "Active Nodes", value: stats.communityMembers, icon: Users, color: "text-somnia-cyan" },
+    { label: "Neural Signals", value: stats.activeDiscussions, icon: MessageSquare, color: "text-somnia-blue" },
+    { label: "Total Syncs", value: stats.totalComments, icon: Activity, color: "text-somnia-violet" },
+    { label: "Network Trust", value: "98.4%", icon: ShieldCheck, color: "text-somnia-magenta" }
+  ];
 
-    try {
-      const communityService = (await import('@/services/communityService')).default;
-      await communityService.createDiscussion(
-        address,
-        newDiscussion.title.trim(),
-        newDiscussion.content.trim(),
-        newDiscussion.category,
-        newDiscussion.tags
-      );
-      
-      setNewDiscussion({ title: '', content: '', category: 'general', tags: [] });
-      setActiveSection('discussions');
-      fetchDiscussions();
-      fetchCommunityStats();
-    } catch (error) {
-      console.error('Error creating discussion:', error);
-    }
-  };
-
-  const handleLike = async (discussionId: number) => {
-    if (!address) return;
-
-    try {
-      const communityService = (await import('@/services/communityService')).default;
-      const success = await communityService.addReaction(address, 'discussion', discussionId, 'like');
-      
-      if (success) {
-        fetchDiscussions(); // Refresh to show updated likes
-      }
-    } catch (error) {
-      console.error('Error liking discussion:', error);
-    }
-  };
-
-  const formatTimeAgo = (dateString: string) => {
-    const now = new Date();
-    const date = new Date(dateString);
-    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
-    
-    if (diffInHours < 1) return 'Just now';
-    if (diffInHours < 24) return `${diffInHours}h ago`;
-    if (diffInHours < 168) return `${Math.floor(diffInHours / 24)}d ago`;
-    return `${Math.floor(diffInHours / 168)}w ago`;
-  };
-
-  const getBadgeColor = (rarity: string) => {
-    switch (rarity) {
-      case 'legendary': return 'text-orange-400';
-      case 'epic': return 'text-purple-400';
-      case 'rare': return 'text-blue-400';
-      case 'uncommon': return 'text-green-400';
-      default: return 'text-gray-400';
-    }
-  };
-
-const statsData = [
-  {
-    title: "Active Discussions",
-      value: stats.activeDiscussions.toString(),
-    subtitle: "Live conversations",
-    icon: ChatBubbleLeftRightIcon,
-    gradient: "from-primary to-blue-500",
-    iconColor: "text-primary",
-    glowColor: "glow-cyan"
-  },
-  {
-    title: "Community Members",
-      value: stats.communityMembers.toString(),
-    subtitle: "Growing strong",
-    icon: UsersIcon,
-    gradient: "from-secondary to-purple-500", 
-    iconColor: "text-secondary",
-    glowColor: "glow-magenta"
-  },
-  {
-    title: "Total Comments",
-      value: stats.totalComments.toString(),
-    subtitle: "Engaging content",
-      icon: ChatBubbleLeftRightIcon,
-    gradient: "from-green-400 to-blue-500",
-    iconColor: "text-green-400", 
-    glowColor: "glow-violet"
-  },
-];
-
-const guidelinesData = [
-  {
-    icon: ChatBubbleLeftRightIcon,
-    title: "Stay On Topic",
-    description: "Contribute meaningfully to discussions and stay relevant",
-    color: "text-blue-400"
-  },
-  {
-      icon: ChatBubbleLeftRightIcon,
-    title: "No Spam",
-    description: "Avoid spam, advertising, or excessive self-promotion",
-    color: "text-yellow-400"
-  },
-  {
-      icon: ChatBubbleLeftRightIcon,
-    title: "Respect Privacy",
-    description: "Maintain privacy and confidentiality at all times",
-    color: "text-green-400"
-  }
-];
+  const filteredDiscussions = discussions.filter(d =>
+    d.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    d.content.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="space-y-8"
-    >
-      {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="text-center relative"
-      >
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <motion.div 
-            className="absolute top-[20%] left-[15%] w-6 h-6 bg-primary/20 rounded-full blur-sm"
-            animate={{ y: [-10, 10, -10], x: [-5, 5, -5], scale: [1, 1.2, 1] }}
-            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-          />
-          <motion.div 
-            className="absolute top-[60%] right-[20%] w-4 h-4 bg-secondary/30 rounded-full blur-sm"
-            animate={{ y: [10, -10, 10], x: [5, -5, 5], scale: [1, 1.3, 1] }}
-            transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-          />
-          <motion.div 
-            className="absolute bottom-[30%] left-[70%] w-5 h-5 bg-accent/25 rounded-full blur-sm"
-            animate={{ y: [-8, 8, -8], x: [-3, 3, -3], scale: [1, 1.1, 1] }}
-            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-          />
-        </div>
-
-        <div className="relative z-10 mb-8">
-          <AnimatedTitle 
-            size="lg"
-            leftIcon={UsersSolid}
-            rightIcon={ChatSolid}
-          >
-            Community Hub
-          </AnimatedTitle>
-          
-          <motion.p 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            className="text-xl text-text-secondary max-w-2xl mx-auto text-center"
-          >
-            Join discussions, share insights, and connect with fellow members of the BitRedict community.
-          </motion.p>
-        </div>
-      </motion.div>
-
-      {/* Real-time Stats Cards */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="grid grid-cols-1 md:grid-cols-3 gap-6"
-      >
-        {statsData.map((stat, index) => {
-          const IconComponent = stat.icon;
-          return (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.1 * index }}
-              whileHover={{ scale: 1.02, y: -2 }}
-              className={`glass-card text-center bg-gradient-to-br ${stat.gradient}/10 border-2 border-transparent hover:border-white/10 hover:${stat.glowColor} transition-all duration-300`}
-            >
-              <IconComponent className={`h-12 w-12 mx-auto mb-4 ${stat.iconColor}`} />
-              <h3 className="text-2xl font-bold text-text-primary mb-1">{stat.value}</h3>
-              <p className="text-lg font-semibold text-text-secondary mb-1">{stat.title}</p>
-              <p className="text-sm text-text-muted">{stat.subtitle}</p>
-            </motion.div>
-          );
-        })}
-      </motion.div>
-
-      {/* Navigation Tabs */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-        className="flex justify-center gap-4 flex-wrap"
-      >
-        <button
-          onClick={() => setActiveSection("discussions")}
-          className={`px-6 py-3 rounded-button font-medium transition-all duration-200 ${
-            activeSection === "discussions"
-              ? "bg-gradient-primary text-black shadow-button"
-              : "glass-card text-text-secondary hover:text-text-primary"
-          }`}
-        >
-          <ChatBubbleLeftRightIcon className="w-5 h-5 inline mr-2" />
-          Discussions
-        </button>
-        {address && (
-          <button
-            onClick={() => setActiveSection("create")}
-            className={`px-6 py-3 rounded-button font-medium transition-all duration-200 ${
-              activeSection === "create"
-                ? "bg-gradient-primary text-black shadow-button"
-                : "glass-card text-text-secondary hover:text-text-primary"
-            }`}
-          >
-            <PlusIcon className="w-5 h-5 inline mr-2" />
-            Create Discussion
-          </button>
-        )}
-        <button
-          onClick={() => setActiveSection("guidelines")}
-          className={`px-6 py-3 rounded-button font-medium transition-all duration-200 ${
-            activeSection === "guidelines"
-              ? "bg-gradient-primary text-black shadow-button"
-              : "glass-card text-text-secondary hover:text-text-primary"
-          }`}
-        >
-          <ShieldCheckIcon className="w-5 h-5 inline mr-2" />
-          Guidelines
-        </button>
-      </motion.div>
-
-      {/* Content Sections */}
-      <AnimatePresence mode="wait">
-        {activeSection === "discussions" && (
+    <div className="space-y-12">
+      {/* Network Metrics Bar */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {statsData.map((stat, i) => (
           <motion.div
-            key="discussions"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            transition={{ duration: 0.3 }}
-            className="space-y-6"
+            key={i}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.1 }}
+            className="glass-card p-5 border-white/5 group hover:border-white/10 transition-all"
           >
-            {/* Filters */}
-            <div className="flex flex-wrap gap-4 items-center justify-between">
-              <div className="flex gap-2 flex-wrap">
-                <span className="text-sm text-text-muted">Category:</span>
-                {categories.map(category => (
-                  <button
-                    key={category}
-                    onClick={() => setSelectedCategory(category)}
-                    className={`px-3 py-1 rounded-full text-sm transition-all ${
-                      selectedCategory === category
-                        ? 'bg-primary text-black'
-                        : 'glass-card text-text-muted hover:text-text-primary'
-                    }`}
-                  >
-                    {category.charAt(0).toUpperCase() + category.slice(1)}
-                  </button>
-                ))}
+            <div className="flex items-center gap-3 mb-3">
+              <div className={`p-2 rounded-lg bg-white/5 group-hover:bg-white/10 transition-colors ${stat.color}`}>
+                <stat.icon className="w-4 h-4" />
               </div>
-              
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setSortBy('recent')}
-                  className={`px-3 py-1 rounded-button text-sm ${
-                    sortBy === 'recent' ? 'bg-primary text-black' : 'glass-card text-text-muted'
-                  }`}
-                >
-                  Recent
-                </button>
-                <button
-                  onClick={() => setSortBy('popular')}
-                  className={`px-3 py-1 rounded-button text-sm ${
-                    sortBy === 'popular' ? 'bg-primary text-black' : 'glass-card text-text-muted'
-                  }`}
-                >
-                  Popular
-                </button>
-                <button
-                  onClick={fetchDiscussions}
-                  className="p-2 glass-card hover:bg-primary/10 transition-colors"
-                >
-                  <ArrowPathIcon className="w-4 h-4" />
-                </button>
-              </div>
+              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-text-muted/40">{stat.label}</span>
             </div>
-
-            {/* Discussions List */}
-            <div className="space-y-4">
-              {loading ? (
-                <div className="space-y-4">
-                  {[...Array(3)].map((_, i) => (
-                    <div key={i} className="glass-card animate-pulse">
-                      <div className="h-24 bg-bg-card rounded"></div>
-                    </div>
-                  ))}
-                </div>
-              ) : discussions.length === 0 ? (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="glass-card text-center py-12"
-                >
-                  <ChatBubbleLeftRightIcon className="w-12 h-12 text-text-muted mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-text-primary mb-2">
-                    No Discussions Yet
-                  </h3>
-                  <p className="text-text-muted mb-4">
-                    Be the first to start a conversation in this category
-                  </p>
-                  {address && (
-                    <button
-                      onClick={() => setActiveSection('create')}
-                      className="px-6 py-2 bg-gradient-primary text-black rounded-button"
-                    >
-                      Start Discussion
-                    </button>
-                  )}
-                </motion.div>
-              ) : (
-                discussions.map((discussion) => (
-                  <motion.div
-                    key={discussion.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    whileHover={{ y: -2 }}
-                    className="glass-card hover:border-primary/30 transition-all duration-300 cursor-pointer"
-                    onClick={() => window.location.href = `/community/${discussion.id}`}
-                  >
-                    <div className="flex items-start gap-4">
-                      <div className="w-10 h-10 rounded-full bg-gradient-primary flex items-center justify-center flex-shrink-0">
-                        <UserIcon className="w-5 h-5 text-black" />
-                      </div>
-                      
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h3 className="text-lg font-semibold text-text-primary line-clamp-1">
-                            {discussion.title}
-                          </h3>
-                          <span className="px-2 py-1 text-xs bg-primary/20 text-primary rounded-full">
-                            {discussion.category}
-                          </span>
-                        </div>
-                        
-                        <p className="text-text-secondary text-sm mb-3 line-clamp-2">
-                          {discussion.content}
-                        </p>
-                        
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-4 text-sm text-text-muted">
-                            <div className="flex items-center gap-1">
-                              <span className="text-xs">
-                                {discussion.user_address.slice(0, 6)}...{discussion.user_address.slice(-4)}
-                              </span>
-                              {discussion.user_badge && (
-                                <span className={`text-xs px-2 py-1 rounded-full bg-bg-card ${getBadgeColor(discussion.badge_rarity || 'common')}`}>
-                                  {discussion.user_badge}
-                                </span>
-                              )}
-                              <span className="text-xs">Rep: {discussion.reputation}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <ClockIcon className="w-3 h-3" />
-                              {formatTimeAgo(discussion.created_at)}
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center gap-4">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleLike(discussion.id);
-                              }}
-                              className="flex items-center gap-1 text-text-muted hover:text-red-400 transition-colors"
-                            >
-                              <HeartIcon className="w-4 h-4" />
-                              <span className="text-sm">{discussion.total_likes}</span>
-                            </button>
-                            <div className="flex items-center gap-1 text-text-muted">
-                              <ChatBubbleLeftRightIcon className="w-4 h-4" />
-                              <span className="text-sm">{discussion.reply_count}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))
-              )}
+            <div className="text-2xl font-black text-white tracking-tighter">
+              {typeof stat.value === 'number' ? stat.value.toLocaleString() : stat.value}
             </div>
           </motion.div>
-        )}
+        ))}
+      </div>
 
-        {activeSection === "create" && address && (
-          <motion.div
-            key="create"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            transition={{ duration: 0.3 }}
-            className="glass-card"
-          >
-            <h3 className="text-2xl font-bold gradient-text mb-6">Start a New Discussion</h3>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-text-secondary mb-2">
-                  Discussion Title
-                </label>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+        {/* Main Content: Signals Feed */}
+        <div className="lg:col-span-8 space-y-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="space-y-1">
+              <h2 className="text-2xl font-black text-white uppercase tracking-tight flex items-center gap-3">
+                <TrendingUp className="text-somnia-cyan w-6 h-6" />
+                Collective <span className="text-somnia-cyan">Signals</span>
+              </h2>
+              <p className="text-xs text-text-muted font-medium">Real-time intelligence from the neural network.</p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="relative group">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted group-focus-within:text-somnia-cyan transition-colors" />
                 <input
                   type="text"
-                  value={newDiscussion.title}
-                  onChange={(e) => setNewDiscussion(prev => ({ ...prev, title: e.target.value }))}
-                  placeholder="What would you like to discuss?"
-                  className="w-full p-3 bg-bg-card border border-border rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:border-primary"
-                  maxLength={100}
+                  placeholder="Scan signals..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="bg-white/5 border border-white/10 rounded-xl py-2 pl-10 pr-4 text-xs text-white focus:outline-none focus:border-somnia-cyan/50 focus:ring-1 focus:ring-somnia-cyan/20 w-full md:w-64 transition-all"
                 />
-                <div className="text-xs text-text-muted mt-1">
-                  {newDiscussion.title.length}/100 characters
-                </div>
-            </div>
-
-              <div>
-                <label className="block text-sm font-medium text-text-secondary mb-2">
-                  Category
-                </label>
-                <select
-                  value={newDiscussion.category}
-                  onChange={(e) => setNewDiscussion(prev => ({ ...prev, category: e.target.value }))}
-                  className="w-full p-3 bg-bg-card border border-border rounded-lg text-text-primary focus:outline-none focus:border-primary"
-                >
-                  {categories.slice(1).map(category => (
-                    <option key={category} value={category}>
-                      {category.charAt(0).toUpperCase() + category.slice(1)}
-                    </option>
-                  ))}
-                </select>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-text-secondary mb-2">
-                  Content
-                </label>
-                <textarea
-                  value={newDiscussion.content}
-                  onChange={(e) => setNewDiscussion(prev => ({ ...prev, content: e.target.value }))}
-                  placeholder="Share your thoughts, ask questions, or start a conversation..."
-                  className="w-full p-3 bg-bg-card border border-border rounded-lg text-text-primary placeholder-text-muted resize-none focus:outline-none focus:border-primary"
-                  rows={6}
-                  maxLength={1000}
-                />
-                <div className="text-xs text-text-muted mt-1">
-                  {newDiscussion.content.length}/1000 characters
-                </div>
-              </div>
-
-              <div className="flex gap-4">
-                <button
-                  onClick={createDiscussion}
-                  disabled={!newDiscussion.title.trim() || !newDiscussion.content.trim()}
-                  className="px-6 py-3 bg-gradient-primary text-black rounded-button disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Create Discussion
-                </button>
-                <button
-                  onClick={() => setActiveSection('discussions')}
-                  className="px-6 py-3 glass-card text-text-secondary hover:text-text-primary rounded-button"
-                >
-                  Cancel
-                </button>
-              </div>
+              <Button variant="outline" size="sm" className="!rounded-xl border-white/10 px-4">
+                <Filter className="w-3.5 h-3.5 mr-2" />
+                Filter
+              </Button>
             </div>
-          </motion.div>
-        )}
+          </div>
 
-        {activeSection === "guidelines" && (
-          <motion.div
-            key="guidelines"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
-            transition={{ duration: 0.3 }}
-            className="glass-card"
-          >
-            <div className="text-center mb-6">
-              <h3 className="text-2xl font-bold gradient-text mb-4">Community Guidelines</h3>
-              <p className="text-text-secondary">
-                Help us maintain a positive and engaging environment for everyone.
-              </p>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {guidelinesData.map((guideline, index) => {
-                const IconComponent = guideline.icon;
-                return (
+          {/* Category Chips */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-none">
+            {categories.map(cat => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap border ${selectedCategory === cat
+                  ? 'bg-somnia-cyan text-black border-somnia-cyan shadow-[0_0_15px_rgba(34,199,255,0.3)]'
+                  : 'bg-white/5 text-text-muted border-white/5 hover:border-white/10 hover:text-white'
+                  }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          {/* Signal Cards */}
+          <div className="space-y-4">
+            <AnimatePresence mode="popLayout">
+              {loading ? (
+                [1, 2, 3].map(i => (
+                  <div key={i} className="glass-card p-6 border-white/5 h-32 animate-pulse" />
+                ))
+              ) : filteredDiscussions.length > 0 ? (
+                filteredDiscussions.map((discussion, i) => (
                   <motion.div
-                    key={index}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 * index }}
-                    className="flex items-start gap-4 p-4 bg-bg-card/50 rounded-lg border border-border"
+                    key={discussion.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.05 }}
+                    className="group relative"
                   >
-                    <IconComponent className={`h-8 w-8 ${guideline.color} flex-shrink-0 mt-1`} />
-                    <div>
-                      <h4 className="text-lg font-semibold text-text-primary mb-2">
-                        {guideline.title}
-                      </h4>
-                      <p className="text-text-secondary text-sm">
-                        {guideline.description}
-                      </p>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
+                    <Link href={`/community/${discussion.id}`}>
+                      <div className="glass-card p-6 border-white/5 hover:bg-white/[0.03] hover:border-white/20 transition-all relative overflow-hidden">
+                        {discussion.isPinned && (
+                          <div className="absolute top-0 right-0 p-1.5 bg-somnia-cyan/10 border-l border-b border-somnia-cyan/20 rounded-bl-xl">
+                            <Lock className="w-3 h-3 text-somnia-cyan" />
+                          </div>
+                        )}
 
-            <div className="mt-8 p-4 bg-primary/10 rounded-lg border border-primary/30">
-              <h4 className="text-lg font-semibold text-text-primary mb-2">
-                Earn Recognition
-              </h4>
-              <p className="text-text-secondary text-sm">
-                Active community members earn badges and BITR rewards! Contribute thoughtfully to discussions, 
-                help newcomers, and engage positively to unlock special achievements.
+                        <div className="flex items-start gap-5">
+                          <div className="flex flex-col items-center gap-2">
+                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-somnia-cyan/20 to-somnia-blue/20 flex items-center justify-center border border-white/5 group-hover:border-somnia-cyan/30 transition-all">
+                              <span className="text-lg font-black text-white">{discussion.title.charAt(0)}</span>
+                            </div>
+                            <div className="text-[9px] font-black text-text-muted/40 uppercase tracking-tighter">
+                              Rep: {discussion.reputation}
+                            </div>
+                          </div>
+
+                          <div className="flex-1 space-y-3">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-3">
+                                <span className="text-[9px] font-black uppercase tracking-widest text-somnia-cyan bg-somnia-cyan/10 px-2 py-0.5 rounded-md border border-somnia-cyan/20">
+                                  {discussion.category}
+                                </span>
+                                <span className="text-[9px] font-black uppercase tracking-widest text-text-muted/40 flex items-center gap-1">
+                                  <Clock className="w-2.5 h-2.5" />
+                                  {communityService.formatTimeAgo(discussion.createdAt)}
+                                </span>
+                              </div>
+                              <h3 className="text-lg font-black text-white hover:text-somnia-cyan transition-colors uppercase tracking-tight">
+                                {discussion.title}
+                              </h3>
+                            </div>
+
+                            <p className="text-xs text-text-muted leading-relaxed line-clamp-2 italic">
+                              &quot;{discussion.content}&quot;
+                            </p>
+
+                            <div className="flex items-center justify-between pt-2">
+                              <div className="flex items-center gap-6">
+                                <div className="flex items-center gap-2 text-text-muted group-hover:text-white transition-colors">
+                                  <Heart className="w-4 h-4 text-somnia-magenta/60" />
+                                  <span className="text-[10px] font-black">{discussion.totalLikes}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-text-muted group-hover:text-white transition-colors">
+                                  <MessageCircle className="w-4 h-4 text-somnia-blue/60" />
+                                  <span className="text-[10px] font-black">{discussion.replyCount}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-text-muted group-hover:text-white transition-colors">
+                                  <Eye className="w-4 h-4 text-somnia-cyan/60" />
+                                  <span className="text-[10px] font-black">{discussion.viewCount || 120}</span>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-1 text-[10px] font-black uppercase text-somnia-cyan opacity-0 group-hover:opacity-100 transition-all translate-x-4 group-hover:translate-x-0">
+                                Open Signal <ChevronRight className="w-3.5 h-3.5" />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  </motion.div>
+                ))
+              ) : (
+                <div className="text-center py-20 glass-card border-dashed border-white/5">
+                  <Globe className="w-12 h-12 text-text-muted/20 mx-auto mb-4" />
+                  <h3 className="text-lg font-black text-white uppercase tracking-tight">No signals detected</h3>
+                  <p className="text-xs text-text-muted">Broadcast a new signal to the collective to start a sync.</p>
+                </div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+
+        {/* Sidebar: Collective Intelligence & Gamification */}
+        <div className="lg:col-span-4 space-y-10">
+          {/* Broadcast Action */}
+          <div className="space-y-4">
+            <Button
+              onClick={() => { }}
+              className="w-full h-14 !rounded-2xl bg-gradient-to-r from-somnia-cyan to-somnia-blue text-black font-black uppercase tracking-widest shadow-[0_0_30px_rgba(34,199,255,0.2)] hover:shadow-[0_0_40px_rgba(34,199,255,0.4)] transition-all group"
+            >
+              <Plus className="w-5 h-5 mr-3 group-hover:rotate-90 transition-transform" />
+              Broadcast Signal
+            </Button>
+            <div className="p-4 rounded-2xl bg-white/[0.02] border border-dashed border-white/10 text-center">
+              <p className="text-[9px] font-black text-text-muted/40 uppercase tracking-[0.2em] leading-relaxed">
+                Broadcasts require Level 1 authorization. <br />
+                Verified nodes gain 2x repution.
               </p>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
+          </div>
+
+          {/* Sync Challenges - Gamification */}
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2">
+                <Zap className="text-somnia-blue w-4 h-4" />
+                Sync Challenges
+              </h3>
+              <span className="text-[10px] font-black text-somnia-blue uppercase tracking-widest animate-pulse">Active</span>
+            </div>
+
+            <div className="space-y-4">
+              {[
+                { title: "The BTC Surge", goal: "Predict $75k by Friday", reward: "500 Rep", progress: 65, color: "somnia-cyan" },
+                { title: "Sector Mastery", goal: "5 Successful Sports Signals", reward: "Elite Badge", progress: 20, color: "somnia-violet" },
+              ].map((challenge, i) => (
+                <div key={i} className="glass-card p-4 border-white/5 space-y-3 group hover:border-white/10">
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-1">
+                      <h4 className="text-xs font-black text-white uppercase">{challenge.title}</h4>
+                      <p className="text-[10px] text-text-muted leading-tight">{challenge.goal}</p>
+                    </div>
+                    <div className="text-[10px] font-black text-somnia-cyan">{challenge.reward}</div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-[8px] font-black uppercase tracking-widest">
+                      <span className="text-text-muted/40">Sync Progress</span>
+                      <span className="text-white">{challenge.progress}%</span>
+                    </div>
+                    <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${challenge.progress}%` }}
+                        className={`h-full bg-${challenge.color}`}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Neural Nodes - Leaderboard */}
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2">
+                <Trophy className="text-somnia-magenta w-4 h-4" />
+                Nexus Leaders
+              </h3>
+              <ArrowRight className="w-4 h-4 text-text-muted/40" />
+            </div>
+
+            <div className="space-y-3">
+              {[
+                { name: "Oracle_01", rep: 12500, badge: "Grandmaster", color: "text-somnia-magenta" },
+                { name: "SatoshiSignal", rep: 9800, badge: "Veteran", color: "text-somnia-cyan" },
+                { name: "EtherNode", rep: 8400, badge: "Guardian", color: "text-somnia-violet" },
+              ].map((user, i) => (
+                <div key={i} className="flex items-center gap-4 p-3 rounded-xl hover:bg-white/[0.03] transition-colors border border-transparent hover:border-white/5">
+                  <div className={`w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-xs font-black ${i === 0 ? 'text-somnia-magenta border border-somnia-magenta/30' : 'text-text-muted'}`}>
+                    {i + 1}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-white">{user.name}</span>
+                      <span className="text-[10px] font-black text-white">{user.rep.toLocaleString()}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Sparkles className={`w-2.5 h-2.5 ${user.color}`} />
+                      <span className="text-[9px] font-black uppercase tracking-widest text-text-muted/60">{user.badge}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Collective Wisdom Info */}
+          <div className="glass-card p-6 border-somnia-cyan/10 bg-somnia-cyan/[0.02] space-y-4">
+            <div className="p-3 rounded-2xl bg-somnia-cyan/10 border border-somnia-cyan/20 w-fit">
+              <BarChart3 className="text-somnia-cyan w-6 h-6" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-sm font-black text-white uppercase tracking-tight">Collective Intelligence</h3>
+              <p className="text-[11px] text-text-muted leading-relaxed">
+                Our neural collective aggregates signals from over 2,400 identity nodes. Collective sentiment has a 78% accuracy rate over the last 30 intervals.
+              </p>
+            </div>
+            <Button variant="outline" className="w-full !rounded-xl border-somnia-cyan/20 text-somnia-cyan text-[10px] font-black uppercase tracking-widest hover:bg-somnia-cyan hover:text-black">
+              Analysis Report
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

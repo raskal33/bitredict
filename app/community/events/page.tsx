@@ -3,53 +3,43 @@
 import { useState } from "react";
 import Button from "@/components/button";
 import Image from "next/image";
-import { FiSearch, FiCalendar, FiMapPin, FiClock, FiUsers, FiPlus, FiFilter } from "react-icons/fi";
+import { Search, Calendar, MapPin, Clock, Users, Plus, Zap } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 // Mock data for community events
 const EVENTS = [
   {
     id: 1,
-    title: "Crypto Market Analysis Webinar",
-    description: "Join us for an in-depth analysis of current crypto market trends and future predictions.",
-    date: "2023-12-15T18:00:00",
-    location: "Online - Zoom",
+    title: "Neural Collective: Weekly Sync",
+    description: "The primary synchronization hub for high-frequency trading delegates and protocol architects.",
+    date: "2024-12-15T18:00:00",
+    location: "Online - Somnia Nexus",
     type: "Webinar",
     attendees: 128,
     host: "CryptoExpert",
-    image: "https://images.unsplash.com/photo-1639322537228-f710d846310a?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTB8fGNyeXB0byUyMGNvbmZlcmVuY2V8ZW58MHx8MHx8fDA%3D"
+    image: "https://images.unsplash.com/photo-1639322537228-f710d846310a?w=500&auto=format&fit=crop&q=60"
   },
   {
     id: 2,
-    title: "Trading Strategy Workshop",
-    description: "Learn practical trading strategies from experienced traders in this interactive workshop.",
-    date: "2023-12-22T14:00:00",
-    location: "Online - Discord",
+    title: "Quant Strategy Workshop",
+    description: "An intensive training session on leveraging the latest algorithmic signals for predictive arbitrage.",
+    date: "2024-12-22T14:00:00",
+    location: "Online - Discord Hub",
     type: "Workshop",
     attendees: 75,
     host: "TradingPro",
-    image: "https://images.unsplash.com/photo-1591115765373-5207764f72e7?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8dHJhZGluZ3xlbnwwfHwwfHx8MA%3D%3D"
+    image: "https://images.unsplash.com/photo-1591115765373-5207764f72e7?w=500&auto=format&fit=crop&q=60"
   },
   {
     id: 3,
-    title: "Community Meetup: NYC",
-    description: "Meet fellow community members in person and network with like-minded individuals.",
-    date: "2024-01-10T17:30:00",
-    location: "The Hub, Manhattan, New York",
+    title: "Cyberpunk Meetup: NYC Node",
+    description: "Physical gathering for regional operators. Networking, strategy exchange, and local liquidity sync.",
+    date: "2025-01-10T17:30:00",
+    location: "Night City Lounge, Manhattan, NY",
     type: "Meetup",
     attendees: 42,
     host: "CommunityTeam",
-    image: "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8ZXZlbnR8ZW58MHx8MHx8fDA%3D"
-  },
-  {
-    id: 4,
-    title: "AI in Finance Conference",
-    description: "Explore the latest developments in AI and machine learning applications in finance.",
-    date: "2024-01-25T09:00:00",
-    location: "Tech Center, San Francisco",
-    type: "Conference",
-    attendees: 215,
-    host: "AIFinance",
-    image: "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8ZXZlbnR8ZW58MHx8MHx8fDA%3D"
+    image: "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=500&auto=format&fit=crop&q=60"
   }
 ];
 
@@ -59,167 +49,148 @@ export default function EventsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedType, setSelectedType] = useState("All");
 
-  // Filter events based on search and type
   const filteredEvents = EVENTS.filter(event => {
-    const matchesSearch = 
-      (event.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (event.description || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch =
+      event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      event.description.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesType = selectedType === "All" || event.type === selectedType;
-    
     return matchesSearch && matchesType;
   });
 
-  // Format date
   const formatEventDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'long',
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric'
-    });
+    return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
   };
 
-  // Format time
   const formatEventTime = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit'
-    });
+    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   };
 
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex flex-col gap-4">
-        <h1 className="text-3xl font-semibold text-primary">Community Events</h1>
-        <p className="text-text-secondary">
-          Join upcoming events, webinars, and meetups organized by the community.
-        </p>
-      </div>
+    <div className="space-y-12 pb-20">
+      {/* Search Header */}
+      <div className="flex flex-col md:flex-row gap-6 items-center justify-between">
+        <div className="relative group w-full md:w-96">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted transition-colors group-focus-within:text-somnia-cyan" />
+          <input
+            type="text"
+            placeholder="Filter protocol events..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-white/5 border border-white/10 rounded-2xl py-3 pl-12 pr-4 text-sm text-white focus:outline-none focus:border-somnia-cyan/50 focus:ring-1 focus:ring-somnia-cyan/20 transition-all"
+          />
+        </div>
 
-      {/* Search and filters */}
-      <div className="flex flex-col gap-4 rounded-lg bg-bg-card p-6 shadow-card">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="relative flex-grow">
-            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-            <input
-              type="text"
-              placeholder="Search events..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-button border border-border-input bg-bg-card py-2 pl-10 pr-4 text-sm focus:border-primary focus:outline-none"
-            />
+        <div className="flex items-center gap-4 w-full md:w-auto">
+          <div className="flex gap-2 bg-white/[0.03] p-1.5 rounded-2xl border border-white/5 overflow-x-auto scrollbar-none">
+            {EVENT_TYPES.map((type) => (
+              <button
+                key={type}
+                onClick={() => setSelectedType(type)}
+                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${selectedType === type
+                  ? "bg-somnia-cyan text-black"
+                  : "text-text-muted hover:text-white"
+                  }`}
+              >
+                {type}
+              </button>
+            ))}
           </div>
-          <Button 
-            variant="primary" 
-            size="sm" 
-            leftIcon={<FiPlus />}
-          >
-            Create Event
+          <Button variant="outline" className="!rounded-2xl border-white/10 hidden md:flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            Host Event
           </Button>
         </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <FiFilter className="text-primary" />
-          <span className="text-sm text-text-muted">Event type:</span>
-          {EVENT_TYPES.map((type) => (
-            <button
-              key={type}
-              onClick={() => setSelectedType(type)}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${
-                selectedType === type
-                  ? "bg-primary text-black"
-                  : "bg-bg-card text-text-muted hover:bg-bg-card"
-              }`}
-            >
-              {type}
-            </button>
-          ))}
-        </div>
       </div>
 
-      {/* Results count */}
-      <div className="flex items-center justify-between">
-        <span className="text-sm text-text-muted">
-          Showing {filteredEvents.length} of {EVENTS.length} events
-        </span>
+      {/* Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <AnimatePresence mode="popLayout">
+          {filteredEvents.map((event, i) => (
+            <motion.div
+              key={event.id}
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: i * 0.1 }}
+              className="group relative"
+            >
+              <div className="glass-card flex flex-col md:flex-row h-full border-white/5 group-hover:border-somnia-blue/30 transition-all overflow-hidden">
+                {/* Image Section */}
+                <div className="relative w-full md:w-48 h-48 md:h-auto overflow-hidden">
+                  <Image
+                    src={event.image}
+                    alt={event.title}
+                    fill
+                    className="object-cover group-hover:scale-110 transition-transform duration-700 opacity-60 group-hover:opacity-100"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-[#0A0A1A] via-transparent to-transparent" />
+                  <div className="absolute top-4 left-4">
+                    <span className="text-[9px] font-black uppercase tracking-widest bg-somnia-blue text-white px-2.5 py-1 rounded-md shadow-lg shadow-somnia-blue/20">
+                      {event.type}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Content Section */}
+                <div className="flex-1 p-6 flex flex-col gap-5">
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-black text-white uppercase tracking-tight group-hover:text-somnia-blue transition-colors">
+                      {event.title}
+                    </h3>
+                    <p className="text-xs text-text-muted leading-relaxed line-clamp-2">
+                      {event.description}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-y-4">
+                    <div className="flex items-center gap-3">
+                      <Calendar className="w-3.5 h-3.5 text-somnia-cyan" />
+                      <span className="text-[10px] font-black uppercase tracking-tighter text-white/80">{formatEventDate(event.date)}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Clock className="w-3.5 h-3.5 text-somnia-cyan" />
+                      <span className="text-[10px] font-black uppercase tracking-tighter text-white/80">{formatEventTime(event.date)}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <MapPin className="w-3.5 h-3.5 text-somnia-cyan" />
+                      <span className="text-[10px] font-black uppercase tracking-tighter text-white/80 line-clamp-1">{event.location}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Users className="w-3.5 h-3.5 text-somnia-cyan" />
+                      <span className="text-[10px] font-black uppercase tracking-tighter text-white/80">{event.attendees} Residents</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-auto pt-6 flex items-center justify-between border-t border-white/5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-[10px] font-black">
+                        {event.host.charAt(0)}
+                      </div>
+                      <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">{event.host}</span>
+                    </div>
+                    <Button variant="primary" size="sm" className="!rounded-xl px-6 h-10 group/btn">
+                      Sync Node
+                      <Zap className="w-3.5 h-3.5 ml-2 group-hover/btn:fill-current" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
 
-      {/* Events list */}
-      {filteredEvents.length === 0 ? (
-        <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-lg bg-bg-card p-8 text-center">
-          <FiCalendar className="h-12 w-12 text-text-muted" />
-          <h3 className="text-xl font-medium text-text-secondary">No events found</h3>
-          <p className="text-text-muted">Try adjusting your search query</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {filteredEvents.map((event) => (
-            <div 
-              key={event.id} 
-              className="flex flex-col overflow-hidden rounded-lg bg-bg-card shadow-card transition-all hover:shadow-glow-cyan"
-            >
-              <div className="relative h-48 overflow-hidden">
-                <Image 
-                  src={event.image} 
-                  alt={event.title} 
-                  width={500}
-                  height={200}
-                  className="h-full w-full object-cover transition-transform hover:scale-105" 
-                />
-                <div className="absolute top-0 right-0 m-2 rounded-full bg-primary bg-opacity-90 px-3 py-1 text-xs font-bold text-black">
-                  {event.type}
-                </div>
-              </div>
-              
-              <div className="flex flex-col gap-4 p-6">
-                <h3 className="text-xl font-semibold text-text-secondary">{event.title}</h3>
-                <p className="text-sm text-text-muted">{event.description}</p>
-                
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-2 text-sm">
-                    <FiCalendar className="text-primary" />
-                    <span className="text-text-secondary">{formatEventDate(event.date)}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <FiClock className="text-primary" />
-                    <span className="text-text-secondary">{formatEventTime(event.date)}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <FiMapPin className="text-primary" />
-                    <span className="text-text-secondary">{event.location}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <FiUsers className="text-primary" />
-                    <span className="text-text-secondary">{event.attendees} attending</span>
-                  </div>
-                </div>
-                
-                <div className="mt-2 flex items-center justify-between">
-                  <span className="text-xs text-text-muted">Hosted by <span className="font-medium text-primary">{event.host}</span></span>
-                </div>
-                
-                <div className="mt-2 flex gap-2">
-                  <Button 
-                    variant="primary" 
-                    size="sm" 
-                    fullWidth
-                  >
-                    Register
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                  >
-                    Details
-                  </Button>
-                </div>
-              </div>
-            </div>
-          ))}
+      {filteredEvents.length === 0 && (
+        <div className="text-center py-20 glass-card border-dashed border-white/5 space-y-4">
+          <Zap className="w-12 h-12 text-text-muted/20 mx-auto rotate-180" />
+          <div className="space-y-1">
+            <h3 className="text-lg font-black text-white uppercase tracking-tight">Zero Events Detected</h3>
+            <p className="text-xs text-text-muted">Broadcast signal lost. No upcoming protocols match your criteria.</p>
+          </div>
+          <Button variant="outline" onClick={() => setSelectedType("All")} size="sm" className="!rounded-xl border-white/10">Show All Protocols</Button>
         </div>
       )}
     </div>
   );
-} 
+}

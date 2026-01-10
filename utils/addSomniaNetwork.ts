@@ -1,5 +1,5 @@
 export const SOMNIA_NETWORK = {
-  chainId: '0xC478', // 50312 in hex
+  chainId: '0xC488', // 50312 in hex
   chainName: 'Somnia Testnet',
   nativeCurrency: {
     name: 'STT',

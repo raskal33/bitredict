@@ -17,21 +17,21 @@ export function useWalletConnection() {
   const { address, isConnected } = useAccount();
   const { disconnect } = useDisconnect();
   const chainId = useChainId();
-  
+
   const { open, close } = useAppKit();
   const { open: isModalOpen } = useAppKitState();
-  
+
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [connectionAttempts, setConnectionAttempts] = useState(0);
-  
+
   // Use refs to track timeouts and intervals for proper cleanup
   const connectionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const checkConnectionIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const cleanupTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Check if user is on Somnia network
-  const isOnSomnia = chainId === somniaNetwork.id;
+  const isOnSomnia = Boolean(chainId && somniaNetwork?.id && chainId === somniaNetwork.id);
 
   // Switch to Somnia network
   const switchToSomnia = useCallback(async () => {
@@ -52,10 +52,10 @@ export function useWalletConnection() {
             method: 'wallet_addEthereumChain',
             params: [{
               chainId: `0x${somniaNetwork.id.toString(16)}`,
-                              chainName: somniaNetwork.name,
-                nativeCurrency: somniaNetwork.nativeCurrency,
-                              rpcUrls: somniaNetwork.rpcUrls.default.http,
-                blockExplorerUrls: somniaNetwork.blockExplorers ? [somniaNetwork.blockExplorers.default.url] : [],
+              chainName: somniaNetwork.name,
+              nativeCurrency: somniaNetwork.nativeCurrency,
+              rpcUrls: somniaNetwork.rpcUrls.default.http,
+              blockExplorerUrls: somniaNetwork.blockExplorers ? [somniaNetwork.blockExplorers.default.url] : [],
             }],
           });
         } catch (addError) {
@@ -90,13 +90,13 @@ export function useWalletConnection() {
     try {
       // Clear any existing timers
       clearAllTimers();
-      
+
       setIsConnecting(true);
       setError(null);
       setConnectionAttempts(prev => prev + 1);
 
       console.log('🔗 Opening AppKit wallet modal...');
-      
+
       // Open AppKit modal
       open();
 
@@ -153,7 +153,7 @@ export function useWalletConnection() {
       clearAllTimers();
       setIsConnecting(false);
       setError(null);
-      
+
       // Show success toast
       toast.success('Wallet connected successfully! 🎉', {
         duration: 3000,
@@ -162,7 +162,7 @@ export function useWalletConnection() {
           color: '#fff',
         },
       });
-      
+
       // Auto-close AppKit modal after successful connection
       setTimeout(() => {
         close();
@@ -183,9 +183,9 @@ export function useWalletConnection() {
 
   // Auto-switch to Somnia network when connected to wrong network
   useEffect(() => {
-          if (isConnected && !isOnSomnia && chainId) {
-              console.log(`⚠️ Connected to wrong network (${chainId}), switching to Somnia...`);
-        toast('Switching to Somnia network...', {
+    if (isConnected && !isOnSomnia && chainId) {
+      console.log(`⚠️ Connected to wrong network (${chainId}), switching to Somnia...`);
+      toast('Switching to Somnia network...', {
         duration: 3000,
         icon: '🔄',
         style: {
@@ -193,7 +193,7 @@ export function useWalletConnection() {
           color: '#fff',
         },
       });
-      
+
       switchToSomnia().catch(error => {
         console.error('Failed to switch network:', error);
         setError('Please switch to Somnia network in your wallet');
@@ -219,7 +219,7 @@ export function useWalletConnection() {
         console.log(`🔄 Retrying connection (attempt ${connectionAttempts + 1})...`);
         connectWallet();
       }, retryDelay);
-      
+
       return () => clearTimeout(retryTimeout);
     }
   }, [error, connectionAttempts, connectWallet]);
@@ -239,12 +239,12 @@ export function useWalletConnection() {
     isOnSomnia,
     isConnecting,
     error,
-    
+
     // Actions
     connectWallet,
     disconnectWallet,
     switchToSomnia,
-    
+
     // Utils
     connectionAttempts,
   };
