@@ -9,7 +9,6 @@ import { useEffect, useState, useRef } from "react";
 import {
   Menu,
   X,
-  LayoutDashboard,
   Users,
   Coins,
   User,
@@ -17,20 +16,14 @@ import {
   Trophy,
   ChevronDown,
   Wallet,
-  TestTube2,
-  FileText,
   Zap,
-  TrendingUp,
   Lock,
   LayoutGrid,
   Settings,
-  Gift,
-  MoreHorizontal,
   Terminal,
   Activity,
   Medal,
-  Copy,
-  ChevronRight
+  Copy
 } from "lucide-react";
 import { useProfileStore } from '@/stores/useProfileStore';
 import { useWalletConnection } from '@/hooks/useWalletConnection';
@@ -51,20 +44,7 @@ export default function Header() {
   const [isRender, setIsRender] = useState<boolean>(false);
 
   // Refs for dropdown positioning
-  const marketsButtonRef = useRef<HTMLButtonElement>(null);
-  const bitredictorButtonRef = useRef<HTMLButtonElement>(null);
-  const moreButtonRef = useRef<HTMLButtonElement>(null);
   const walletButtonRef = useRef<HTMLButtonElement>(null);
-
-  // Get dropdown positions for fixed positioning
-  const getDropdownPosition = (buttonRef: React.RefObject<HTMLButtonElement | null>) => {
-    if (!buttonRef.current) return { top: 0, left: 0 };
-    const rect = buttonRef.current.getBoundingClientRect();
-    return {
-      top: rect.bottom + 8,
-      left: rect.left,
-    };
-  };
 
   // Custom wallet connection hook
   const {
@@ -365,8 +345,8 @@ export default function Header() {
                                       // If it refers to a specific wallet modal, it should be imported or passed.
                                       // For example, if using wagmi's useWeb3Modal, it would be openWeb3Modal().
                                       // Since the instruction only modifies classes, I'll leave this function call as is.
-                                      // @ts-ignore
-                                      open();
+                                      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+                                      (open as () => void)();
                                     }}
                                     className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white text-[10px] font-black uppercase tracking-widest transition-all"
                                   >
@@ -660,61 +640,5 @@ const bitredictorLinks = [
     href: "/community",
     segment: "community",
     icon: Users,
-  },
-];
-
-// Markets Links
-const marketsLinks = [
-  {
-    label: "All Streams",
-    href: "/markets",
-    segment: "markets",
-    icon: Activity,
-  },
-  {
-    label: "Boosted Flows",
-    href: "/markets/boosted",
-    segment: "boosted",
-    icon: Zap,
-  },
-  {
-    label: "Trending Signal",
-    href: "/markets/trending",
-    segment: "trending",
-    icon: TrendingUp,
-  },
-  {
-    label: "Private Channel",
-    href: "/markets/private",
-    segment: "private",
-    icon: Lock,
-  },
-  {
-    label: "Combo Protocol",
-    href: "/markets/combo",
-    segment: "combo",
-    icon: LayoutGrid,
-  },
-];
-
-// More Links - Secondary Features
-const moreLinks = [
-  {
-    label: "Telemetry",
-    href: "/stats",
-    segment: "stats",
-    icon: Activity,
-  },
-  {
-    label: "Yield Module",
-    href: "/staking",
-    segment: "staking",
-    icon: Coins,
-  },
-  {
-    label: "Archive",
-    href: "/docs",
-    segment: "docs",
-    icon: FileText,
   },
 ];

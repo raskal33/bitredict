@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { motion } from "framer-motion";
 import { SocialIcons } from "@/components/icons/SocialIcons";
-import { Terminal, Zap, Activity, ShieldCheck } from "lucide-react";
+import { Zap, ShieldCheck } from "lucide-react";
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
