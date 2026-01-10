@@ -152,19 +152,19 @@ export default function SideMenu() {
 
 const links = [
   {
-    label: "Neural Hub",
+    label: "Terminal Hub",
     href: "/dashboard",
     segment: null,
     icon: Terminal,
   },
   {
-    label: "Inventory",
+    label: "Personal Node",
     href: "/dashboard/financial-summary",
     segment: "financial-summary",
     icon: Wallet,
   },
   {
-    label: "Analytics",
+    label: "Neural Analytics",
     href: "/dashboard/performance-charts",
     segment: "performance-charts",
     icon: LineChart,
@@ -176,13 +176,13 @@ const links = [
     icon: Activity,
   },
   {
-    label: "Identity",
+    label: "Neural Identity",
     href: "/dashboard/profile",
     segment: "profile",
     icon: User,
   },
   {
-    label: "Config",
+    label: "System Config",
     href: "/dashboard/settings",
     segment: "settings",
     icon: Settings,

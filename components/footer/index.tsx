@@ -4,210 +4,126 @@ import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import { SocialIcons } from "@/components/icons/SocialIcons";
+import { Terminal, Zap, Activity, ShieldCheck } from "lucide-react";
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
 
-  const productLinks = [
-    { name: "Markets", href: "/" },
-    { name: "Create Prediction", href: "/create-prediction" },
-    { name: "Staking", href: "/staking" },
-    { name: "Stats", href: "/stats" },
-  ];
-
-  const communityLinks = [
-    { name: "Community Hub", href: "/community" },
-    { name: "Profile", href: "/profile" },
-    { name: "Dashboard", href: "/dashboard" },
-    { name: "Leaderboard", href: "/stats" },
-  ];
-
-  const resourceLinks = [
-    { name: "Documentation", href: "https://drive.google.com/file/d/1YeC8u3tkSA-VOI96Ut2WEfrQhps1OIjG/view" },
-    { name: "API", href: "https://bitredict.com/api" },
-    { name: "Help Center", href: "/contact" },
-    { name: "Blog", href: "/community" },
-  ];
-
-  const legalLinks = [
-    { name: "Terms of Service", href: "/terms-of-service" },
-    { name: "Privacy Policy", href: "https://bitredict.com/privacy-policy" },
-    { name: "Cookie Policy", href: "https://bitredict.com/cookie-policy" },
-    { name: "Disclaimer", href: "/disclaimer" },
+  const navGroups = [
+    {
+      title: "Neural Streams",
+      links: [
+        { name: "All Sectors", href: "/markets" },
+        { name: "Initiate Pool", href: "/create-prediction" },
+        { name: "Yield Module", href: "/staking" },
+        { name: "Oddyssey", href: "/oddyssey" },
+      ]
+    },
+    {
+      title: "System Nodes",
+      links: [
+        { name: "Terminal Hub", href: "/dashboard" },
+        { name: "Neural Identity", href: "/profile" },
+        { name: "Neural Rank", href: "/leaderboard" },
+        { name: "Signal Pulses", href: "/community" },
+      ]
+    },
+    {
+      title: "Protocols",
+      links: [
+        { name: "Documentation", href: "#" },
+        { name: "Audit Reports", href: "#" },
+        { name: "Somnia Scan", href: "#" },
+        { name: "Governance", href: "#" },
+      ]
+    }
   ];
 
   return (
-    <footer className="relative mt-auto z-10">
-      {/* Background with gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-somnia opacity-5" />
-      
-      <div className="relative z-10 glass-card" style={{ borderRadius: "0px" }}>
-        <div className="container-nav section-padding">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
-            {/* Brand Section */}
-            <div className="lg:col-span-4">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="space-y-6"
-              >
-                {/* Logo */}
-                <Link href="/" className="inline-block">
-                  <Image 
-                    src="/logo.png" 
-                    alt="BitRedict" 
-                    width={220} 
-                    height={55}
-                    className="h-auto"
-                  />
-                </Link>
+    <footer className="relative mt-24 border-t border-white/5 bg-[#0A0A1A]">
+      {/* Background Cybernetic elements */}
+      <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle, #22C7FF 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>
 
-                {/* Description */}
-                <p className="text-text-secondary max-w-sm leading-relaxed">
-                  The future of decentralized prediction markets. Trade on real-world outcomes 
-                  with transparent, blockchain-powered markets on the Somnia Network.
-                </p>
+      <div className="container-nav py-16">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 lg:gap-24 pb-16">
+          {/* Brand Engine */}
+          <div className="lg:col-span-12 xl:col-span-4 space-y-8">
+            <Link href="/" className="inline-block group">
+              <div className="relative">
+                <div className="absolute -inset-2 bg-somnia-cyan/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <Image
+                  src="/logo.png"
+                  alt="BitRedict"
+                  width={180}
+                  height={45}
+                  className="relative z-10 logo-color-shift h-auto opacity-80 group-hover:opacity-100 transition-opacity"
+                />
+              </div>
+            </Link>
 
-                {/* Social Links */}
-                <div>
-                  <p className="text-sm font-medium text-text-primary mb-3">Follow Us</p>
-                  <SocialIcons />
-                </div>
-              </motion.div>
+            <p className="text-text-muted text-xs font-medium max-w-sm leading-relaxed uppercase tracking-wider opacity-60 italic">
+              Synchronizing global prediction streams on the Somnia Network. Your decentralized gateway to future outcomes.
+            </p>
+
+            <div className="flex items-center gap-6">
+              <SocialIcons />
             </div>
 
-            {/* Links Sections */}
-            <div className="lg:col-span-8">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-                {/* Product */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
-                >
-                  <h3 className="font-semibold text-text-primary mb-4">Product</h3>
-                  <ul className="space-y-3">
-                    {productLinks.map((link) => (
-                      <li key={link.name}>
-                        <Link 
-                          href={link.href}
-                          className="text-text-secondary hover:text-primary transition-colors duration-200"
-                        >
-                          {link.name}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </motion.div>
-
-                {/* Community */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                >
-                  <h3 className="font-semibold text-text-primary mb-4">Community</h3>
-                  <ul className="space-y-3">
-                    {communityLinks.map((link) => (
-                      <li key={link.name}>
-                        <Link 
-                          href={link.href}
-                          className="text-text-secondary hover:text-primary transition-colors duration-200"
-                        >
-                          {link.name}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </motion.div>
-
-                {/* Resources */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4 }}
-                >
-                  <h3 className="font-semibold text-text-primary mb-4">Resources</h3>
-                  <ul className="space-y-3">
-                    {resourceLinks.map((link) => (
-                      <li key={link.name}>
-                        {link.href.startsWith('http') ? (
-                          <a 
-                            href={link.href}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-text-secondary hover:text-primary transition-colors duration-200"
-                          >
-                            {link.name}
-                          </a>
-                        ) : (
-                          <Link 
-                            href={link.href}
-                            className="text-text-secondary hover:text-primary transition-colors duration-200"
-                          >
-                            {link.name}
-                          </Link>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </motion.div>
-
-                {/* Legal */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5 }}
-                >
-                  <h3 className="font-semibold text-text-primary mb-4">Legal</h3>
-                  <ul className="space-y-3">
-                    {legalLinks.map((link) => (
-                      <li key={link.name}>
-                        {link.href.startsWith('http') ? (
-                          <a 
-                            href={link.href}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-text-secondary hover:text-primary transition-colors duration-200"
-                          >
-                            {link.name}
-                          </a>
-                        ) : (
-                          <Link 
-                            href={link.href}
-                            className="text-text-secondary hover:text-primary transition-colors duration-200"
-                          >
-                            {link.name}
-                          </Link>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </motion.div>
+            <div className="inline-flex items-center gap-4 p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+              <div className="p-2 bg-somnia-cyan/10 rounded-lg">
+                <ShieldCheck className="w-4 h-4 text-somnia-cyan" />
+              </div>
+              <div>
+                <p className="text-[9px] font-black text-white uppercase tracking-widest">Protocol Secured</p>
+                <p className="text-[8px] text-text-muted/40 uppercase tracking-widest">Neural Protection v1.4.2</p>
               </div>
             </div>
           </div>
 
-          {/* Bottom Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-            className="mt-12 pt-8 border-t border-border-card"
-          >
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-              <div className="flex items-center gap-4 text-sm text-text-muted">
-                <span>© {currentYear} BitRedict.</span>
-                <span>All rights reserved.</span>
-              </div>
-              
-              <div className="flex items-center gap-2 text-sm">
-                <span className="text-text-muted">Powered by</span>
-                <span className="gradient-text font-semibold">Somnia Network</span>
-              </div>
+          {/* Grid Navigation */}
+          <div className="lg:col-span-12 xl:col-span-8">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-12">
+              {navGroups.map((group) => (
+                <div key={group.title} className="space-y-6">
+                  <h3 className="text-[10px] font-black text-white uppercase tracking-[0.3em] flex items-center gap-2">
+                    <Zap className="w-3 h-3 text-somnia-cyan" />
+                    {group.title}
+                  </h3>
+                  <ul className="space-y-4">
+                    {group.links.map((link) => (
+                      <li key={link.name}>
+                        <Link
+                          href={link.href}
+                          className="text-[10px] text-text-muted/60 hover:text-somnia-cyan transition-all duration-300 uppercase tracking-widest font-black block group"
+                        >
+                          <span className="group-hover:translate-x-1 transition-transform inline-block">
+                            {link.name}
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
             </div>
-          </motion.div>
+          </div>
+        </div>
+
+        {/* Bottom Bar */}
+        <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="flex items-center gap-6 text-[9px] font-black text-text-muted/40 uppercase tracking-widest">
+            <span>© {currentYear} BitRedict Terminal</span>
+            <span className="w-1 h-1 rounded-full bg-white/20"></span>
+            <Link href="#" className="hover:text-white transition-colors">Neural Assets Policy</Link>
+            <span className="w-1 h-1 rounded-full bg-white/20"></span>
+            <Link href="#" className="hover:text-white transition-colors">System Disclosure</Link>
+          </div>
+
+          <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-white/[0.02] border border-white/5">
+            <span className="text-[9px] font-black text-text-muted/40 uppercase tracking-widest">Powered by</span>
+            <span className="text-[10px] font-black text-white uppercase tracking-[0.2em] bg-gradient-to-r from-somnia-cyan to-somnia-violet bg-clip-text text-transparent">Somnia Network</span>
+            <div className="w-1.5 h-1.5 rounded-full bg-somnia-cyan animate-pulse shadow-[0_0_8px_rgba(34,199,255,1)]"></div>
+          </div>
         </div>
       </div>
     </footer>

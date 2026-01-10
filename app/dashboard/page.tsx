@@ -30,10 +30,9 @@ import {
 export default function Page() {
   const [selectedCategory, setSelectedCategory] = useState("All");
 
-  // Real-time data from backend
-  const { data: trendingData, isLoading: trendingLoading } = useTrendingPools({ limit: 12 });
+  // Real-time data from backend - fetch fewer items for instant load
+  const { data: trendingData, isLoading: trendingLoading } = useTrendingPools({ limit: 6 });
 
-  const isLoading = trendingLoading;
   const poolsArray = useMemo(() => Array.isArray(trendingData) ? trendingData : [], [trendingData]);
 
   const categories = ["All", "Crypto", "Sports", "Politics", "Finance", "Gaming"];
@@ -47,9 +46,9 @@ export default function Page() {
 
   // trendingPools removed if unused
 
-  const stats = [
+  const stats = useMemo(() => [
     {
-      label: "Network Throughput",
+      label: "Pulse Throughput",
       value: "12.5M",
       unit: "STT",
       change: "+15.2%",
@@ -59,7 +58,7 @@ export default function Page() {
       bg: "bg-somnia-cyan/10"
     },
     {
-      label: "Active Nodes",
+      label: "Active Relays",
       value: "156",
       unit: "",
       change: "+8",
@@ -69,7 +68,7 @@ export default function Page() {
       bg: "bg-somnia-violet/10"
     },
     {
-      label: "Linked Identities",
+      label: "Linked Nodes",
       value: "2.8K",
       unit: "",
       change: "+156",
@@ -79,7 +78,7 @@ export default function Page() {
       bg: "bg-somnia-blue/10"
     },
     {
-      label: "Protocol Yield",
+      label: "Protocol Flow",
       value: "45.2K",
       unit: "STT",
       change: "+2.1%",
@@ -88,18 +87,17 @@ export default function Page() {
       color: "text-somnia-magenta",
       bg: "bg-somnia-magenta/10"
     }
-  ];
+  ], []);
 
-  if (isLoading) {
+  if (trendingLoading) {
     return (
       <div className="space-y-10 animate-pulse pb-20">
-        <div className="h-80 bg-white/5 rounded-3xl border border-white/10 w-full mb-8"></div>
+        <div className="h-64 bg-white/5 rounded-3xl border border-white/10 w-full mb-8"></div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[...Array(stats.length)].map((_, i) => (
-            <div key={i} className="h-40 bg-white/5 rounded-2xl border border-white/10"></div>
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-32 bg-white/5 rounded-2xl border border-white/10"></div>
           ))}
         </div>
-        <div className="h-[500px] bg-white/5 rounded-3xl border border-white/10"></div>
       </div>
     );
   }

@@ -21,7 +21,7 @@ export default function Layout({
         <div className="absolute inset-0 pointer-events-none opacity-[0.02] bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%]"></div>
       </div>
 
-      <div className="container relative z-10 py-6 md:py-16 lg:px-8 max-w-[1600px] mx-auto">
+      <div className="container-nav py-6 md:py-16">
         <section className="flex flex-col gap-10 xl:flex-row items-start">
           <SideMenu />
           <main className="flex-1 min-w-0 w-full">

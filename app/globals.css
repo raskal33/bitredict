@@ -8,42 +8,42 @@
   --bg-main: #0A0A1A;
   --bg-card: rgba(22, 24, 48, 0.6);
   --bg-overlay: rgba(0, 0, 0, 0.5);
-  
+
   /* Border Colors */
   --border-card: rgba(255, 255, 255, 0.1);
   --border-input: rgba(255, 255, 255, 0.1);
-  
+
   /* Text Colors */
   --text-primary: #FFFFFF;
   --text-secondary: #E4E4FA;
   --text-muted: #C2C2D6;
   --text-accent: #22C7FF;
-  
+
   /* Somnia Brand Colors */
   --somnia-cyan: #22C7FF;
   --somnia-blue: #007BFF;
   --somnia-violet: #8C00FF;
   --somnia-magenta: #FF0080;
   --somnia-indigo: #3C00A5;
-  
+
   /* Semantic Colors */
   --color-accent: #22C7FF;
   --color-accent-2: #FF0080;
   --color-success: #00D9A5;
   --color-warning: #FFB800;
   --color-error: #FF4757;
-  
+
   /* Alias for easier access */
   --primary: var(--color-accent);
   --secondary: var(--color-accent-2);
   --accent: var(--somnia-violet);
-  
+
   /* Gradients */
   --gradient-main: radial-gradient(circle at top left, #0C0C23, #000015);
   --gradient-somnia: linear-gradient(135deg, var(--somnia-cyan) 0%, var(--somnia-blue) 25%, var(--somnia-violet) 50%, var(--somnia-magenta) 75%, var(--somnia-indigo) 100%);
   --gradient-primary: linear-gradient(135deg, var(--somnia-cyan) 0%, var(--somnia-blue) 100%);
   --gradient-secondary: linear-gradient(135deg, var(--somnia-magenta) 0%, var(--somnia-violet) 100%);
-  
+
   /* Spacing */
   --section-padding: clamp(2rem, 5vw, 4rem);
   --container-padding: clamp(1rem, 3vw, 2rem);
@@ -71,8 +71,10 @@ body {
   background: var(--gradient-main);
   min-height: 100vh;
   color: var(--text-secondary);
-  font-size: 16px; /* Standard body font size */
-  line-height: 1.5; /* Standard line height */
+  font-size: 16px;
+  /* Standard body font size */
+  line-height: 1.5;
+  /* Standard line height */
 }
 
 /* Component Base Classes */
@@ -87,7 +89,7 @@ body {
 
   /* Ensure consistent container alignment */
   .container-nav {
-    @apply mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-8 xl:px-16 2xl:px-20;
+    @apply mx-auto w-full max-w-[1600px] px-4 sm:px-6 lg:px-8 xl:px-12 2xl:px-16;
   }
 
   .section-padding {
@@ -279,12 +281,10 @@ body {
   }
 
   .animate-shimmer {
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(255, 255, 255, 0.1),
-      transparent
-    );
+    background: linear-gradient(90deg,
+        transparent,
+        rgba(255, 255, 255, 0.1),
+        transparent);
     background-size: 200% 100%;
     animation: shimmer 2s infinite;
   }
@@ -302,12 +302,10 @@ body {
     left: -100%;
     width: 100%;
     height: 100%;
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(255, 255, 255, 0.2),
-      transparent
-    );
+    background: linear-gradient(90deg,
+        transparent,
+        rgba(255, 255, 255, 0.2),
+        transparent);
     animation: shimmer-slide 2s infinite;
   }
 
@@ -315,6 +313,7 @@ body {
     0% {
       left: -100%;
     }
+
     100% {
       left: 100%;
     }
@@ -334,24 +333,69 @@ body {
   }
 
   /* Somnia Color Utilities */
-  .text-somnia-cyan { color: var(--somnia-cyan); }
-  .text-somnia-blue { color: var(--somnia-blue); }
-  .text-somnia-violet { color: var(--somnia-violet); }
-  .text-somnia-magenta { color: var(--somnia-magenta); }
-  .text-somnia-indigo { color: var(--somnia-indigo); }
-  
-  .bg-somnia-cyan { background-color: var(--somnia-cyan); }
-  .bg-somnia-blue { background-color: var(--somnia-blue); }
-  .bg-somnia-violet { background-color: var(--somnia-violet); }
-  .bg-somnia-magenta { background-color: var(--somnia-magenta); }
-  .bg-somnia-indigo { background-color: var(--somnia-indigo); }
-  
-  .from-somnia-cyan { --tw-gradient-from: var(--somnia-cyan); }
-  .to-somnia-blue { --tw-gradient-to: var(--somnia-blue); }
-  .from-somnia-magenta { --tw-gradient-from: var(--somnia-magenta); }
-  .to-somnia-violet { --tw-gradient-to: var(--somnia-violet); }
-  .from-somnia-blue { --tw-gradient-from: var(--somnia-blue); }
-  .to-somnia-indigo { --tw-gradient-to: var(--somnia-indigo); }
+  .text-somnia-cyan {
+    color: var(--somnia-cyan);
+  }
+
+  .text-somnia-blue {
+    color: var(--somnia-blue);
+  }
+
+  .text-somnia-violet {
+    color: var(--somnia-violet);
+  }
+
+  .text-somnia-magenta {
+    color: var(--somnia-magenta);
+  }
+
+  .text-somnia-indigo {
+    color: var(--somnia-indigo);
+  }
+
+  .bg-somnia-cyan {
+    background-color: var(--somnia-cyan);
+  }
+
+  .bg-somnia-blue {
+    background-color: var(--somnia-blue);
+  }
+
+  .bg-somnia-violet {
+    background-color: var(--somnia-violet);
+  }
+
+  .bg-somnia-magenta {
+    background-color: var(--somnia-magenta);
+  }
+
+  .bg-somnia-indigo {
+    background-color: var(--somnia-indigo);
+  }
+
+  .from-somnia-cyan {
+    --tw-gradient-from: var(--somnia-cyan);
+  }
+
+  .to-somnia-blue {
+    --tw-gradient-to: var(--somnia-blue);
+  }
+
+  .from-somnia-magenta {
+    --tw-gradient-from: var(--somnia-magenta);
+  }
+
+  .to-somnia-violet {
+    --tw-gradient-to: var(--somnia-violet);
+  }
+
+  .from-somnia-blue {
+    --tw-gradient-from: var(--somnia-blue);
+  }
+
+  .to-somnia-indigo {
+    --tw-gradient-to: var(--somnia-indigo);
+  }
 
   /* Animated Gradient Borders */
   .gradient-border {
@@ -362,9 +406,12 @@ body {
   }
 
   @keyframes gradient-border-flow {
-    0%, 100% {
+
+    0%,
+    100% {
       background-position: 0% 50%;
     }
+
     50% {
       background-position: 100% 50%;
     }
@@ -390,9 +437,12 @@ body {
   }
 
   @keyframes float {
-    0%, 100% {
+
+    0%,
+    100% {
       transform: translateY(0px);
     }
+
     50% {
       transform: translateY(-10px);
     }
@@ -482,6 +532,7 @@ body {
     opacity: 0;
     transform: translateY(30px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -504,8 +555,15 @@ body {
 }
 
 @keyframes gradient-flow {
-  0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
+
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
 }
 
 /* Reown AppKit Custom Styling */
@@ -518,20 +576,20 @@ w3m-account-button {
   --w3m-color-mix: #22C7FF !important;
   --w3m-color-mix-strength: 20 !important;
   --w3m-border-radius-master: 12px !important;
-  
+
   /* Background colors to match Somnia design */
   --w3m-background-color: #0A0A1A !important;
   --w3m-foreground-color: rgba(22, 24, 48, 0.95) !important;
-  
+
   /* Text colors */
   --w3m-text-primary-color: #FFFFFF !important;
   --w3m-text-secondary-color: #C2C2D6 !important;
   --w3m-text-tertiary-color: #8A8AA8 !important;
-  
+
   /* Button colors */
   --w3m-button-primary-color: #22C7FF !important;
   --w3m-button-secondary-color: rgba(255, 255, 255, 0.05) !important;
-  
+
   /* Border colors */
   --w3m-border-color: rgba(255, 255, 255, 0.1) !important;
   --w3m-overlay-background-color: rgba(0, 0, 0, 0.8) !important;
@@ -589,7 +647,7 @@ header [style*="zIndex"] {
   position: relative;
 }
 
-header [style*="zIndex"] > div[class*="absolute"] {
+header [style*="zIndex"]>div[class*="absolute"] {
   position: absolute !important;
   z-index: 1001 !important;
 }
@@ -617,7 +675,7 @@ section {
 header .logo-color-shift.navbar-logo,
 header .navbar-logo,
 header .navbar-logo img,
-header a[href="/"]:has(.navbar-logo) > span,
+header a[href="/"]:has(.navbar-logo)>span,
 header a[href="/"]:has(.navbar-logo) span {
   width: 140px !important;
   height: 50px !important;
@@ -636,7 +694,7 @@ a[href="/"]:has(span[class*="logo"]) {
   height: auto !important;
 }
 
-a[href="/"]:has(.logo-color-shift) > span,
+a[href="/"]:has(.logo-color-shift)>span,
 a[href="/"]:has(.logo-color-shift) span {
   width: 160px !important;
   height: 160px !important;
@@ -661,7 +719,7 @@ a[href="/"]:has(.logo-color-shift) span {
 /* Footer logo - larger size */
 footer .logo-color-shift,
 footer .logo-color-shift img,
-footer a[href="/"]:has(.logo-color-shift) > span,
+footer a[href="/"]:has(.logo-color-shift)>span,
 footer a[href="/"]:has(.logo-color-shift) span {
   width: 220px !important;
   height: 55px !important;
@@ -675,18 +733,20 @@ footer a[href="/"]:has(.logo-color-shift) span {
   0% {
     filter: hue-rotate(0deg);
   }
+
   25% {
     filter: hue-rotate(90deg);
   }
+
   50% {
     filter: hue-rotate(180deg);
   }
+
   75% {
     filter: hue-rotate(270deg);
   }
+
   100% {
     filter: hue-rotate(360deg);
   }
 }
-
-
